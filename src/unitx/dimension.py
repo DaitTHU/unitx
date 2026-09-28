@@ -3,7 +3,7 @@ from __future__ import annotations
 from fractions import Fraction
 from typing import Iterable, Literal
 
-from .utils.number import common_fraction, ZERO, FloatConversionWarning
+from .utils.number import common_fraction, ZERO
 from .utils.special_char import superscript
 
 __all__ = ['Dimension', 'DIMENSIONLESS']
@@ -62,16 +62,14 @@ class Dimension:
         return obj
 
     def __setattr__(self, name: str, value) -> None:
-        raise AttributeError(
-            'Dimension is immutable and cannot set attribute.')
+        raise AttributeError('Dimension is immutable and cannot set attribute.')
 
     @classmethod
     def _from_iter(cls, iterable: Iterable[Fraction], /) -> Dimension:
         '''Constructor from an iterable of exponents. Internal use only.'''
         exponents = tuple(iterable)
-        if len(exponents) != _LEN:
-            raise ValueError(
-                f'Expected {_LEN} exponents, got {len(exponents)}.')
+        assert len(exponents) == _LEN, f'Expected {_LEN} exponents, got {len(exponents)}.'
+        assert all(isinstance(v, Fraction) for v in exponents), 'All exponents must be of type Fraction.'
         if not any(exponents):
             return DIMENSIONLESS
         obj = object.__new__(cls)
@@ -89,11 +87,7 @@ class Dimension:
         return self._from_iter(a - b for a, b in zip(self._exponents, other._exponents))
 
     def __pow__(self, power: int | Fraction | float) -> Dimension:
-        if isinstance(power, float):
-            import warnings
-            power_fraction = common_fraction(power)
-            warnings.warn(f'Float power {power} converted to {power_fraction}, use Fraction to specify an exact exponent.', FloatConversionWarning, stacklevel=2)
-            power = power_fraction
+        power = common_fraction(power, floatwarning_stacklevel=3)
         if not isinstance(power, (int, Fraction)):
             return NotImplemented
         return self._from_iter(a * power for a in self._exponents)
@@ -123,8 +117,7 @@ class Dimension:
     time, length, mass, current, temperature, amount, luminous = T, L, M, I, Θ, N, J
 
     def __repr__(self) -> str:
-        para = ', '.join(f'{s}={v}' for s, v in zip(
-            _SYMBOL_ASCII, self._exponents) if v)
+        para = ', '.join(f'{s}={v}' for s, v in zip(_SYMBOL_ASCII, self._exponents) if v)
         return '{}({})'.format(self.__class__.__name__, para)
 
     def __str__(self) -> str:
