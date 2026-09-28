@@ -8,6 +8,7 @@ SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾'
 SUBSCRIPT = '₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎'
 SUP_TRANS = str.maketrans(SUPERSCRIPT, DIGIT)
 SUB_TRANS = str.maketrans(SUBSCRIPT, DIGIT)
+DOT = '⋅'  # chr(0x22C5)
 
 
 def superscript(ratio: int | Fraction, /, *, omit1=True) -> str:

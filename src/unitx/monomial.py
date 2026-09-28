@@ -1,0 +1,147 @@
+from __future__ import annotations
+
+from fractions import Fraction
+from typing import Generic, Literal, TypeVar
+from collections.abc import Iterator, ItemsView, KeysView, ValuesView
+
+from .utils.number import common_fraction, ZERO
+from .utils.special_char import superscript, DOT
+
+K = TypeVar('K')
+
+
+class Monomial(Generic[K]):
+    '''
+    A sparse, zero-purged dictionary representing a generalized mathematical monomial.
+
+    This class serves as the core algebraic engine for physical unit calculations.
+    It maps base generators (keys) to their rational exponents (values). By exploiting 
+    the isomorphism between dictionary operations and free abelian groups, unit 
+    multiplication/division is seamlessly handled via dictionary addition/subtraction, 
+    and exponentiation is handled via scalar multiplication.
+
+    Any key whose value evaluates to zero is automatically purged, ensuring 
+    a strictly canonical representation (e.g., m² * m⁻² -> 1 -> empty dict).
+
+    Algebraic Mapping:
+    | Operator | Dictionary Semantic | Physical Unit Semantic |
+    |----------|---------------------|------------------------|
+    | `*`, `/` | Exponent Add/Sub    | Unit Multiply / Divide |
+    | `**`     | Exponent Scaling    | Unit Exponentiation    |
+
+    Parameters
+    ----------
+    elements: dict[K, int | Fraction] | None
+        Initial mapping of base elements to their exponents.
+        Default is an empty Monomial.
+
+    Examples
+    --------
+    >>> m = Monomial({'m': 1})
+    >>> s = Monomial({'s': 1})
+    >>> m / s  # velocity
+    Monomial({'m': 1, 's': -1})
+    >>> area = m**2
+    >>> area
+    Monomial({'m': 2})
+    >>> area / m**2
+    Monomial({})
+    '''
+    __slots__ = ('_elements',)
+
+    def __init__(self, elements: dict[K, int | Fraction] | None = None, /) -> None:
+        if elements is None:
+            self._elements = {}
+            return
+        if not isinstance(elements, dict):
+            raise TypeError(f'elements must be dict, got {type(elements)}.')
+        self._elements = {k: common_fraction(v)
+                          for k, v in elements.items() if v != 0}
+
+    @classmethod
+    def _from_dict(cls, elements: dict[K, Fraction], /) -> Monomial[K]:
+        '''Direct constructor from dict without copy.'''
+        assert all(isinstance(v, Fraction) for v in elements.values()), 'All values in elements must be of type Fraction.'
+        assert all(v != 0 for v in elements.values()), 'All values in elements must be non-zero.'
+        obj = object.__new__(cls)
+        obj._elements = elements
+        return obj
+
+    def __contains__(self, key: K) -> bool: return key in self._elements
+
+    def __getitem__(
+        self, key: K) -> Fraction: return self._elements.get(key, ZERO)
+
+    def __setitem__(self, key: K, value: int | Fraction | float) -> None:
+        if value == 0:
+            self._elements.pop(key, None)
+        else:
+            self._elements[key] = common_fraction(value, floatwarning_stacklevel=3)
+
+    def __delitem__(self, key: K) -> None: del self._elements[key]
+
+    def __iter__(self) -> Iterator[K]: return iter(self._elements)
+
+    def __repr__(self) -> str:
+        kv = ', '.join(f'{k!r}: {v}' for k, v in self._elements.items())
+        return f'{type(self).__name__}(' + '{' + kv + '})'
+
+    def __str__(self) -> str:
+        if not self._elements:
+            return '1'
+        def format_component(kv: tuple[K, Fraction]) -> str:
+            return f'{kv[0]}{superscript(kv[1])}'
+        n = DOT.join(map(format_component, self.numerator.components())) or '1'
+        d = DOT.join(map(format_component, self.denominator.components()))
+        return f'{n}/({d})' if DOT in d else f'{n}/{d}' if d else n
+
+    def __len__(self) -> int: return len(self._elements)
+
+    def copy(self) -> Monomial[K]: return self._from_dict(self._elements.copy())
+
+    def bases(self) -> KeysView[K]: return self._elements.keys()
+
+    def exponents(self) -> ValuesView[Fraction]: return self._elements.values()
+
+    def components(self) -> ItemsView[K, Fraction]: return self._elements.items()
+
+    @property
+    def numerator(self) -> Monomial[K]:
+        return self._from_dict({k: v for k, v in self.components() if v > 0})
+
+    @property
+    def denominator(self) -> Monomial[K]:
+        return self._from_dict({k: -v for k, v in self.components() if v < 0})
+
+    def pop(self, key: K, default=ZERO) -> Fraction:
+        return self._elements.pop(key, default)
+
+    def clear(self): self._elements.clear()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Monomial):
+            return NotImplemented
+        return self._elements == other._elements
+
+    def __mul__(self, other: Monomial[K]) -> Monomial[K]:
+        if not isinstance(other, Monomial):
+            return NotImplemented
+        d = {k: v for k in self.bases() | other.bases() if (v := self[k] + other[k]) != 0}
+        return self._from_dict(d)
+
+    def __truediv__(self, other: Monomial[K]) -> Monomial[K]:
+        if not isinstance(other, Monomial):
+            return NotImplemented
+        d = {k: v for k in self.bases() | other.bases() if (v := self[k] - other[k]) != 0}
+        return self._from_dict(d)
+
+    def __pow__(self, other: int | Fraction | float) -> Monomial[K]:
+        if other == 0:
+            return self._from_dict({})
+        other = common_fraction(other, floatwarning_stacklevel=3)
+        return self._from_dict({k: v * other for k, v in self.components()})
+
+    def __rtruediv__(self, other: Literal[1]) -> Monomial[K]:
+        if other == 1:
+            return self._from_dict({k: -v for k, v in self.components()})
+        return NotImplemented
