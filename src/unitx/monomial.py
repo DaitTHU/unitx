@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fractions import Fraction
-from typing import Generic, Literal, TypeVar
+from typing import Generic, Literal, Self, TypeVar
 from collections.abc import Iterator, ItemsView, KeysView, ValuesView
 
 from .utils.number import common_fraction, ZERO
@@ -59,7 +59,7 @@ class Monomial(Generic[K]):
                           for k, v in elements.items() if v != 0}
 
     @classmethod
-    def _from_dict(cls, elements: dict[K, Fraction], /) -> Monomial[K]:
+    def _from_dict(cls, elements: dict[K, Fraction], /) -> Self:
         '''Direct constructor from dict without copy.'''
         assert all(isinstance(v, Fraction) for v in elements.values()), 'All values in elements must be of type Fraction.'
         assert all(v != 0 for v in elements.values()), 'All values in elements must be non-zero.'
@@ -69,8 +69,7 @@ class Monomial(Generic[K]):
 
     def __contains__(self, key: K) -> bool: return key in self._elements
 
-    def __getitem__(
-        self, key: K) -> Fraction: return self._elements.get(key, ZERO)
+    def __getitem__(self, key: K) -> Fraction: return self._elements.get(key, ZERO)
 
     def __setitem__(self, key: K, value: int | Fraction | float) -> None:
         if value == 0:
@@ -97,7 +96,7 @@ class Monomial(Generic[K]):
 
     def __len__(self) -> int: return len(self._elements)
 
-    def copy(self) -> Monomial[K]: return self._from_dict(self._elements.copy())
+    def copy(self) -> Self: return self._from_dict(self._elements.copy())
 
     def bases(self) -> KeysView[K]: return self._elements.keys()
 
@@ -106,11 +105,11 @@ class Monomial(Generic[K]):
     def components(self) -> ItemsView[K, Fraction]: return self._elements.items()
 
     @property
-    def numerator(self) -> Monomial[K]:
+    def numerator(self) -> Self:
         return self._from_dict({k: v for k, v in self.components() if v > 0})
 
     @property
-    def denominator(self) -> Monomial[K]:
+    def denominator(self) -> Self:
         return self._from_dict({k: -v for k, v in self.components() if v < 0})
 
     def pop(self, key: K, default=ZERO) -> Fraction:
@@ -119,29 +118,68 @@ class Monomial(Generic[K]):
     def clear(self): self._elements.clear()
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Monomial):
+        if not isinstance(other, type(self)):
             return NotImplemented
         return self._elements == other._elements
 
-    def __mul__(self, other: Monomial[K]) -> Monomial[K]:
-        if not isinstance(other, Monomial):
+    def __mul__(self, other: Self) -> Self:
+        if not isinstance(other, type(self)):
             return NotImplemented
-        d = {k: v for k in self.bases() | other.bases() if (v := self[k] + other[k]) != 0}
-        return self._from_dict(d)
+        result = self.copy()
+        result *= other
+        return result
 
-    def __truediv__(self, other: Monomial[K]) -> Monomial[K]:
-        if not isinstance(other, Monomial):
+    def __truediv__(self, other: Self) -> Self:
+        if not isinstance(other, type(self)):
             return NotImplemented
-        d = {k: v for k in self.bases() | other.bases() if (v := self[k] - other[k]) != 0}
-        return self._from_dict(d)
+        result = self.copy()
+        result /= other
+        return result
 
-    def __pow__(self, other: int | Fraction | float) -> Monomial[K]:
+    def __pow__(self, other: int | Fraction | float) -> Self:
         if other == 0:
             return self._from_dict({})
         other = common_fraction(other, floatwarning_stacklevel=3)
         return self._from_dict({k: v * other for k, v in self.components()})
 
-    def __rtruediv__(self, other: Literal[1]) -> Monomial[K]:
+    def __rtruediv__(self, other: Literal[1]) -> Self:
         if other == 1:
             return self._from_dict({k: -v for k, v in self.components()})
         return NotImplemented
+
+    def __imul__(self, other: Self) -> Self:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        for k, v in other.components():
+            if k in self._elements:
+                if (new_v := self._elements[k] + v) == 0:
+                    del self._elements[k]
+                else:
+                    self._elements[k] = new_v
+            else:
+                self._elements[k] = v
+        return self
+
+    def __itruediv__(self, other: Self) -> Self:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        for k, v in other.components():
+            if k in self._elements:
+                if (new_v := self._elements[k] - v) == 0:
+                    del self._elements[k]
+                else:
+                    self._elements[k] = new_v
+            else:
+                self._elements[k] = -v
+        return self
+
+    def __ipow__(self, other: int | Fraction | float) -> Self:
+        if other == 0:
+            self._elements.clear()
+            return self
+        if other == 1:
+            return self
+        other = common_fraction(other, floatwarning_stacklevel=3)
+        for k, v in self.components():
+            self._elements[k] = v * other
+        return self
