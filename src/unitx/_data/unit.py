@@ -21,7 +21,7 @@ class UnitData:
     def name(self) -> str: return self.names[0]
 
 
-__UNIT_LIB: dict[str | tuple[str, ...], UnitData] = {
+UNIT: dict[str, UnitData] = {
     '': UnitData(1, '', dimension=Dimension(), prefixable=False),
     's': UnitData(1, 'second', dimension=Dimension(T=1)),
     'm': UnitData(1, 'meter', 'metre', dimension=Dimension(L=1)),
@@ -31,11 +31,6 @@ __UNIT_LIB: dict[str | tuple[str, ...], UnitData] = {
     'mol': UnitData(1, 'mole', dimension=Dimension(N=1)),
     'cd': UnitData(1, 'candela', dimension=Dimension(J=1)),
 }
-
-UNIT: dict[str, UnitData] = {
-    unit[0] if isinstance(unit, tuple) else unit: data
-    for unit, data in __UNIT_LIB.items()
-}
 '''unit {symbol: data}'''
 
 UNIT_NAME: dict[str, str] = {
@@ -43,7 +38,5 @@ UNIT_NAME: dict[str, str] = {
 }
 '''unit {name: symbol}'''
 
-UNIT_ALIAS: dict[str, str] = {
-    alias: unit[0] for unit in __UNIT_LIB if isinstance(unit, tuple) for alias in unit[1:]
-}
+UNIT_ALIAS: dict[str, str] = {}
 '''unit {alias: symbol}'''
