@@ -27,7 +27,7 @@ def _split_prefix_unit(symbol: str) -> tuple[str, str]:
                 unit = UNIT_ALIAS[unit]
             if prefix in PREFIX and unit in UNIT and UNIT[unit].prefixable:
                 return prefix, unit
-    raise ValueError(f'{symbol!r} is not a valid unit symbol.')
+    raise UnitSymbolError(f'{symbol!r} is not a valid unit symbol.')
 
 
 class SingleUnit:
@@ -118,3 +118,6 @@ class SingleUnit:
             return NotImplemented
         return self._prefix == other._prefix and self._unit == other._unit
 
+
+class UnitSymbolError(ValueError):
+    pass

@@ -1,6 +1,6 @@
 import pytest
 
-from unitx.singleunit import SingleUnit
+from unitx.singleunit import SingleUnit, UnitSymbolError
 
 
 def test_singleunit_property() -> None:
@@ -38,13 +38,13 @@ def test_singleunit_creation() -> None:
 
 
 def test_singleunit_invalid_creation() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(UnitSymbolError):
         SingleUnit(' ')
 
-    with pytest.raises(ValueError):
+    with pytest.raises(UnitSymbolError):
         SingleUnit('km/s')  # compound unit
 
-    with pytest.raises(ValueError):
+    with pytest.raises(UnitSymbolError):
         SingleUnit('k')  # single prefix without unit
 
     with pytest.raises(TypeError):
