@@ -41,7 +41,16 @@ class Unit:
     @property
     def symbol(self) -> str: return self._symbol
 
-    def __repr__(self) -> str: return f'{type(self).__name__}({self.symbol!r})'
+    def __repr__(self) -> str: 
+        def format_component(ue: tuple[SingleUnit, Fraction]) -> str:
+            unit, exponent = ue
+            if exponent == 1:
+                return unit.symbol
+            if exponent.denominator == 1:
+                return f'{unit.symbol}**{exponent.numerator}'
+            return f'{unit.symbol}**({exponent})'
+        s = ' * '.join(map(format_component, self._elements.components()))
+        return f'{type(self).__name__}({s!r})'
 
     def __str__(self) -> str: return self.symbol
 
