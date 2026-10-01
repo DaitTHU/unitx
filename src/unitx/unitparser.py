@@ -46,24 +46,64 @@ EOF = Token('EOF', 'End of File')
 
 
 class UnitParser:
+    '''
+    A recursive descent parser for physical unit expressions.
+
+    This parser evaluates string representations of physical units and 
+    converts them into `Monomial[SingleUnit]` objects. It supports explicit 
+    and implicit multiplication, division, various forms of exponentiation, 
+    grouping via parentheses, and leading division (e.g., `/m`).
+
+    Grammar
+    ---
+    ```
+    expr           := "/"? term ( ( "*" | "/" | <implicit_mul> ) term )*
+    term           := factor exponent?
+    factor         := UNIT | "1" | "(" expr ")"
+    exponent       := <NUM_NO_SPACE> | ( "**" | "^" ) exponent_value
+    exponent_value := NUM | ( "+(" | "-(" | "(" ) NUM ( "/" NUM )? ")"
+    ```
+
+    Lexical & Contextual Rules
+    ---
+    - `UNIT`           : Matches any valid unit string (supports non-ASCII chars).
+    - `NUM`            : Matches integers and decimals. (Note: When used as a 
+                         base factor, only '1' is permitted).
+    - `<implicit_mul>` : A lookahead rule triggered when a space or no-space 
+                         is followed by a `UNIT` or `"("`. (e.g., `m s` -> `m * s`).
+    - `<NUM_NO_SPACE>` : A `NUM` token that immediately follows a `factor` without 
+                         any intervening whitespace. (e.g., `m2` -> `m^2`).
+
+    Supported Syntax Features & Examples:
+    ---
+    - Basic Units         : `m`, `s`, `kg`, `μm`
+    - Multiplication      : `N * m` (explicit) or `N m` (implicit)
+    - Division            : `m / s`
+    - Leading Division    : `/s` or `/m^2` (Equivalent to `1 / s` and `1 / m^2`)
+    - Exponentiation      : `m^2`, `m**2`, `m2` (implicit, no space)
+    - Fractional Exponents: `m^(1/2)`, `s^-(2/3)`
+    - Grouping            : `(m/s)^2`, `J / (kg K)`
+
+    Raises
+    ---
+    UnitSyntaxError: If the expression contains unclosed parentheses, invalid 
+                     characters, redundant suffixes, or invalid numeric factors.
+    UnitSymbolError: If the unit symbol is invalid.
+    '''
     def __init__(self, symbol: str):
-        self.tokens = [Token.from_match(m) for m in _TOKEN_RE.finditer(symbol)]
-        self.pos = 0
+        self.tokens = map(Token.from_match, _TOKEN_RE.finditer(symbol))
+        self.token = next(self.tokens, EOF)
 
     @property
     def current_token(self) -> Token:
-        while self.pos < len(self.tokens) and self.tokens[self.pos].kind == 'SPACE':
-            self.pos += 1
-        return self.tokens[self.pos] if self.pos < len(self.tokens) else EOF
+        while self.token is not EOF and self.token.kind == 'SPACE':
+            self.token = next(self.tokens, EOF)
+        return self.token
 
     def match(self, kind: str, skip_space=True) -> Token | None:
-        p = self.pos
-        if skip_space:
-            while p < len(self.tokens) and self.tokens[p].kind == 'SPACE':
-                p += 1
-        token = self.tokens[p] if p < len(self.tokens) else EOF
-        if token.kind == kind:
-            self.pos = p + 1  # to the next token
+        token = self.current_token if skip_space else self.token
+        if token.kind == kind:  # match
+            self.token = next(self.tokens, EOF)  # move to the next token
             return token
         return None  # fail to match
 
@@ -71,20 +111,21 @@ class UnitParser:
         if self.current_token is EOF:
             return Monomial()
         result = self.parse_expr()
-        if (token := self.current_token) is not EOF:
-            raise UnitSyntaxError(f'Unparsed redundant suffix {token.value!r}.')
+        if self.current_token is not EOF:
+            raise UnitSyntaxError(f'Unparsed redundant suffix {self.token.value!r}.')
         return result
 
     def parse_expr(self) -> Monomial[SingleUnit]:
         '''Handle consecutive multiplication or division'''
-        result = self.parse_term()
+        # Implicit per-grammar
+        result = 1 / self.parse_term() if self.match('DIV') else self.parse_term()
         while True:
             if self.match('MUL'):
                 result *= self.parse_term()
             elif self.match('DIV'):
                 result /= self.parse_term()
             # Implicit multiplication (space or adjacent), e.g., m s or m(s)
-            elif self.current_token.kind in {'UNIT', 'LPAREN'}:
+            elif self.current_token.kind in ('UNIT', 'LPAREN'):
                 result *= self.parse_term()
             else:
                 break
@@ -93,12 +134,12 @@ class UnitParser:
     def parse_term(self) -> Monomial[SingleUnit]:
         '''Handle a single factor and its exponentiation'''
         factor_comp = self.parse_factor()
-        # Explicit exponentiation check (like m^2 or m**2)
-        if self.match('POW'):
-            factor_comp **= self.parse_exponent_value()
         # Implicit exponentiation check (like m2 or m-2)
-        elif token := self.match('NUM', skip_space=False):
+        if token := self.match('NUM', skip_space=False):
             factor_comp **= Fraction(token.value)
+        # Explicit exponentiation check (like m^2 or m**2)
+        elif self.match('POW'):
+            factor_comp **= self.parse_exponent_value()
         return factor_comp
 
     def parse_factor(self) -> Monomial[SingleUnit]:
@@ -114,7 +155,7 @@ class UnitParser:
             if not self.match('RPAREN'):
                 raise UnitSyntaxError('Unclosed parenthesis.')
             return res
-        raise UnitSyntaxError(f"Expected unit or '(', got {self.current_token.value!r}.")
+        raise UnitSyntaxError(f"Expected unit or '(', got {self.token.value!r}.")
 
     def parse_exponent_value(self) -> Fraction:
         '''Parse an exponent value, which can be a number or a fraction in parentheses'''
@@ -126,7 +167,7 @@ class UnitParser:
         if token := self.match('SIGNEDLPAREN'):
             sign = -1 if token.value.startswith('-') else 1
         elif not self.match('LPAREN'):
-            raise UnitSyntaxError(f'Invalid exponent value {self.current_token.value!r}.')
+            raise UnitSyntaxError(f'Invalid exponent value {self.token.value!r}.')
         if not (numerator := self.match('NUM')):
             raise UnitSyntaxError('Fraction exponent missing numerator.')
         if self.match('DIV'):
@@ -137,9 +178,8 @@ class UnitParser:
             return sign * Fraction(numerator.value) / Fraction(denominator.value)
         elif self.match('RPAREN'):
             return sign * Fraction(numerator.value)
-        raise UnitSyntaxError(f"Expected '/' or ')' in fraction exponent, got {self.current_token.value!r}.")
+        raise UnitSyntaxError(f"Expected '/' or ')' in fraction exponent, got {self.token.value!r}.")
 
 
 class UnitSyntaxError(ValueError):
     pass
-

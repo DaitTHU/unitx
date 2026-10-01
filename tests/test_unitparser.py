@@ -3,7 +3,7 @@ import pytest
 from unitx.unitparser import UnitParser, UnitSyntaxError
 
 
-def test_simple_units():
+def test_simple_units() -> None:
     u0 = UnitParser('').parse()
     u1 = UnitParser('   ').parse()
     u2 = UnitParser('m').parse()
@@ -14,7 +14,7 @@ def test_simple_units():
     assert str(u3) == 'µm'
 
 
-def test_integer_exponents():
+def test_integer_exponents() -> None:
     u1 = UnitParser('m2').parse()
     u2 = UnitParser('m ^ +20').parse()
     u3 = UnitParser('m**-1').parse()
@@ -23,18 +23,20 @@ def test_integer_exponents():
     assert str(u3) == '1/m'
 
 
-def test_fractional_exponents():
+def test_fractional_exponents() -> None:
     u1 = UnitParser('m^(1/2)').parse()
     u2 = UnitParser('m ** (-3/7)').parse()
     u3 = UnitParser('m **(3/-7)').parse()
     u4 = UnitParser('m **-(3/7)').parse()
+    u5 = UnitParser('m ** -(-3/-7)').parse()
     assert str(u1) == 'm¹ᐟ²'
     assert str(u2) == '1/m³ᐟ⁷'
     assert str(u3) == '1/m³ᐟ⁷'
     assert str(u4) == '1/m³ᐟ⁷'
+    assert str(u5) == '1/m³ᐟ⁷'
 
 
-def test_multiplication_and_division():
+def test_multiplication_and_division() -> None:
     u1 = UnitParser('m s').parse()
     u2 = UnitParser('m/s').parse()
     u3 = UnitParser('m(s)').parse()
@@ -45,7 +47,7 @@ def test_multiplication_and_division():
     assert str(u4) == 'kg⋅m/s²'
 
 
-def test_parentheses():
+def test_parentheses() -> None:
     u1 = UnitParser('(m s)^2').parse()
     u2 = UnitParser('(m/s)^2').parse()
     u3 = UnitParser('kg / (m s^2)').parse()
@@ -58,7 +60,7 @@ def test_parentheses():
     assert str(u5) == '1/(m²⋅s²⋅kg)'
 
 
-def test_space_around_structures():
+def test_space_around_structures() -> None:
     u1 = UnitParser('  m  ').parse()
     u2 = UnitParser('  kg * m / s^2  ').parse()
     u3 = UnitParser('( m s )').parse()
@@ -67,10 +69,17 @@ def test_space_around_structures():
     assert str(u3) == 'm⋅s'
 
 
-@pytest.mark.parametrize('unit_str', ['*m', '/m', 'm*', 'm/', 'm *', 'm /'])
+@pytest.mark.parametrize('unit_str', ['*m', 'm*', 'm/', 'm *', 'm /'])
 def test_missing_operands(unit_str: str) -> None:
     with pytest.raises(UnitSyntaxError):
         UnitParser(unit_str).parse()
+
+
+def test_missing_numerator() -> None:
+    u1 = UnitParser('/m').parse()  # it works!
+    u2 = UnitParser('/ m(s)').parse()
+    assert str(u1) == '1/m'
+    assert str(u2) == 's/m'
 
 
 @pytest.mark.parametrize('unit_str', ['2', 'm 2', 'm + 2', 'm - 2'])
