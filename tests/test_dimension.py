@@ -62,7 +62,7 @@ def test_hash() -> None:
 
 def test_float_power_warns() -> None:
     with pytest.warns(UserWarning):
-        Dimension(L=1) ** 0.5  # type: ignore
+        Dimension(L=1) ** (1/3)  # type: ignore
 
 
 def test_operation_returns_dimensionless_singleton() -> None:

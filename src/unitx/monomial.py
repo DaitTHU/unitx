@@ -48,6 +48,7 @@ class Monomial(Generic[K]):
     Monomial({})
     '''
     __slots__ = ('_elements',)
+    _elements: dict[K, Fraction]  # Mapping of base elements to their exponents
 
     def __init__(self, elements: dict[K, int | Fraction] | None = None, /) -> None:
         if elements is None:
@@ -67,6 +68,9 @@ class Monomial(Generic[K]):
         obj._elements = elements
         return obj
 
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError('Cannot delete attribute of Monomial.')
+
     def __contains__(self, key: K) -> bool: return key in self._elements
 
     def __getitem__(self, key: K) -> Fraction: return self._elements.get(key, ZERO)
@@ -75,7 +79,7 @@ class Monomial(Generic[K]):
         if value == 0:
             self._elements.pop(key, None)
         else:
-            self._elements[key] = common_fraction(value, floatwarning_stacklevel=3)
+            self._elements[key] = common_fraction(value, stacklevel=2)
 
     def __delitem__(self, key: K) -> None: del self._elements[key]
 
@@ -139,7 +143,7 @@ class Monomial(Generic[K]):
     def __pow__(self, other: int | Fraction | float) -> Self:
         if other == 0:
             return self._from_dict({})
-        other = common_fraction(other, floatwarning_stacklevel=3)
+        other = common_fraction(other, stacklevel=2)
         return self._from_dict({k: v * other for k, v in self.components()})
 
     def __rtruediv__(self, other: Literal[1]) -> Self:
@@ -179,7 +183,7 @@ class Monomial(Generic[K]):
             return self
         if other == 1:
             return self
-        other = common_fraction(other, floatwarning_stacklevel=3)
+        other = common_fraction(other, stacklevel=2)
         for k, v in self.components():
             self._elements[k] = v * other
         return self

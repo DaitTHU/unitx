@@ -52,6 +52,7 @@ class Dimension:
     '''
 
     __slots__ = ('_exponents',)
+    _exponents: tuple[Fraction, ...]  # Exponents for T, L, M, I, Θ, N, J
 
     def __new__(cls, T=0, L=0, M=0, I=0, Theta=0, N=0, J=0) -> Dimension:
         exponents = tuple(map(common_fraction, (T, L, M, I, Theta, N, J)))
@@ -63,6 +64,9 @@ class Dimension:
 
     def __setattr__(self, name: str, value) -> None:
         raise AttributeError('Dimension is immutable and cannot set attribute.')
+
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError('Dimension is immutable and cannot delete attribute.')
 
     @classmethod
     def _from_iter(cls, iterable: Iterable[Fraction], /) -> Dimension:
@@ -87,7 +91,7 @@ class Dimension:
         return self._from_iter(a - b for a, b in zip(self._exponents, other._exponents))
 
     def __pow__(self, power: int | Fraction | float) -> Dimension:
-        power = common_fraction(power, floatwarning_stacklevel=3)
+        power = common_fraction(power, stacklevel=2)
         if not isinstance(power, (int, Fraction)):
             return NotImplemented
         return self._from_iter(a * power for a in self._exponents)

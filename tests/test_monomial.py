@@ -54,8 +54,8 @@ def test_monomial_invalid_operations() -> None:
 def test_float_conversion_warning() -> None:
     u = Monomial({'x': 1})
     with pytest.warns(UserWarning):
-        u **= 0.5  # type: ignore
+        u **= 1/3
 
     with pytest.warns(UserWarning):
-        u['x'] = 0.2  # type: ignore
+        u['x'] = 0.2
 
