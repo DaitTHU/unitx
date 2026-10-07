@@ -1,6 +1,7 @@
 import pytest
 
 from unitx.monomial import Monomial
+from unitx.exceptions import InexactFloatWarning
 
 
 def test_monomial_creation() -> None:
@@ -53,9 +54,9 @@ def test_monomial_invalid_operations() -> None:
 
 def test_float_conversion_warning() -> None:
     u = Monomial({'x': 1})
-    with pytest.warns(UserWarning):
+    with pytest.warns(InexactFloatWarning):
         u **= 1/3
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(InexactFloatWarning):
         u['x'] = 0.2
 

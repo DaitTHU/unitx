@@ -12,9 +12,9 @@ def test_singleunit_property() -> None:
     assert u.prefix_name == 'kilo'
     assert u.unit_name == 'meter'
     assert u.name == 'kilometer'
-    assert u.prefix_factor == 1e3
-    assert u.unit_factor == 1.0
-    assert u.factor == 1e3
+    assert float(u.prefix_factor) == 1e3
+    assert float(u.unit_factor) == 1.0
+    assert float(u.factor) == 1e3
     assert u.dimension.length == 1
 
 
@@ -31,7 +31,7 @@ def test_singleunit_creation() -> None:
 
     assert u1.prefix == ''
     assert u2.prefix_name == 'milli'
-    assert u3.prefix_factor == 1e1
+    assert float(u3.prefix_factor) == 1e1
     assert u4 == u5 == u6
     assert v1.unit == 'K'
     assert v2.prefix == v3.prefix == 'k'
@@ -69,4 +69,4 @@ def test_singleunit_hash() -> None:
     assert {u1, u2} == {u1}
     assert u1 != u3
     with pytest.raises(AttributeError):
-        u1._prefix = 'M'
+        u1.prefix = 'M'  # type: ignore

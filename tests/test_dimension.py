@@ -1,6 +1,7 @@
 import pytest
 from fractions import Fraction
 from unitx import Dimension, DIMENSIONLESS
+from unitx.exceptions import InexactFloatWarning
 
 
 def test_dimension_creation() -> None:
@@ -61,7 +62,7 @@ def test_hash() -> None:
 
 
 def test_float_power_warns() -> None:
-    with pytest.warns(UserWarning):
+    with pytest.warns(InexactFloatWarning):
         Dimension(L=1) ** (1/3)  # type: ignore
 
 

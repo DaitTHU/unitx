@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from fractions import Fraction
 
+from .exceptions import UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit
 
@@ -38,7 +39,8 @@ class Token:
             return NotImplemented
         return self.kind == other.kind and self.value == other.value
 
-    def __repr__(self) -> str: return f'Token({self.kind!r}, {self.value!r})'
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}({self.kind!r}, {self.value!r})'
 
 
 EOF = Token('EOF', 'End of File')
@@ -90,6 +92,7 @@ class UnitParser:
                      characters, redundant suffixes, or invalid numeric factors.
     UnitSymbolError: If the unit symbol is invalid.
     '''
+
     def __init__(self, symbol: str):
         self.tokens = map(Token.from_match, _TOKEN_RE.finditer(symbol))
         self.token = next(self.tokens, EOF)
@@ -149,7 +152,7 @@ class UnitParser:
         elif token := self.match('NUM'):
             if token.value == '1':
                 return Monomial()
-            raise UnitSyntaxError(f"Invalid number {token.value!r}, only 1 is allowed as a numeric factor.")
+            raise UnitSyntaxError(f'Invalid number {token.value!r}, only 1 is allowed as a numeric factor.')
         elif self.match('LPAREN'):
             res = self.parse_expr()
             if not self.match('RPAREN'):
@@ -179,7 +182,3 @@ class UnitParser:
         elif self.match('RPAREN'):
             return sign * Fraction(numerator.value)
         raise UnitSyntaxError(f"Expected '/' or ')' in fraction exponent, got {self.token.value!r}.")
-
-
-class UnitSyntaxError(ValueError):
-    pass

@@ -3,6 +3,7 @@ from __future__ import annotations
 from ._data.prefix import PREFIX, PREFIX_ALIAS
 from ._data.unit import UNIT, UNIT_ALIAS
 from .dimension import Dimension
+from .exceptions import UnitSymbolError
 
 _PREFIX_MAXLEN = max(map(len, PREFIX))
 _UNIT_MAXLEN = max(map(len, UNIT))
@@ -42,9 +43,9 @@ class SingleUnit:
     - `prefix_name`: prefix name, e.g. 'kilo'
     - `unit_name`: unit name, e.g. 'meter'
     - `name`: full name, e.g. 'kilometer'
-    - `prefix_factor`: prefix factor, e.g. 1e3
-    - `unit_factor`: unit factor, e.g. 1.0
-    - `factor`: total factor, e.g. 1e3
+    - `prefix_factor`: prefix factor, e.g. 1000
+    - `unit_factor`: unit factor, e.g. 1
+    - `factor`: total factor, e.g. 1000
     - `dimension`: dimension of the unit, e.g. Dimension(L=1)
 
     Construct
@@ -59,13 +60,8 @@ class SingleUnit:
     def __init__(self, symbol: str, /) -> None:
         if not isinstance(symbol, str):
             raise TypeError(f'symbol must be str, got {type(symbol)}.')
-        prefix, unit = _split_prefix_unit(symbol)
-        object.__setattr__(self, '_prefix', prefix)
-        object.__setattr__(self, '_unit', unit)
-
-    def __setattr__(self, name: str, value) -> None:
-        raise AttributeError('SingleUnit is immutable and cannot set attribute.')
-
+        self._prefix, self._unit = _split_prefix_unit(symbol)
+        
     @classmethod
     def _from_prefix_unit(cls, prefix: str, unit: str, /) -> SingleUnit:
         '''Construct from prefix and unit.'''
@@ -76,8 +72,8 @@ class SingleUnit:
         if not UNIT[unit].prefixable and prefix != '':
             raise ValueError(f'{unit!r} cannot be prefixed.')
         obj = object.__new__(cls)
-        object.__setattr__(obj, '_prefix', prefix)
-        object.__setattr__(obj, '_unit', unit)
+        obj._prefix = prefix
+        obj._unit = unit
         return obj
 
     @property
@@ -117,7 +113,3 @@ class SingleUnit:
         if not isinstance(other, SingleUnit):
             return NotImplemented
         return self._prefix == other._prefix and self._unit == other._unit
-
-
-class UnitSymbolError(ValueError):
-    pass

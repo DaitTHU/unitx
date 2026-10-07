@@ -15,7 +15,7 @@ class Unit:
 
     def __init__(self, symbol: str = '', /) -> None:
         if not isinstance(symbol, str):
-            raise TypeError(f'symbol must be str, got {type(symbol)}.')
+            raise TypeError(f'Unit symbol must be str, got {type(symbol)}.')
         self.__derive_properties(UnitParser(symbol).parse())
 
     @classmethod
@@ -79,7 +79,7 @@ class Unit:
 
     def __pow__(self, exponent: int | Fraction | float) -> Unit:
         if isinstance(exponent, float):
-            exponent = common_fraction(exponent, floatwarning_stacklevel=3)
+            exponent = common_fraction(exponent, stacklevel=2)
         if not isinstance(exponent, (int, Fraction)):
             return NotImplemented
         return self._from_monomial(self._elements ** exponent)
