@@ -2,10 +2,30 @@ from __future__ import annotations
 
 from fractions import Fraction
 from typing import Generic, Literal, Self, TypeVar
-from collections.abc import Iterator, ItemsView, KeysView, ValuesView
+from collections.abc import Iterator, ItemsView, KeysView, ValuesView, Callable
 
 from .utils.number import common_fraction, ZERO
-from .utils.special_char import superscript, DOT
+from .utils.special_char import superscript
+
+
+def _sort_components(components: ItemsView[K, Fraction], /, *, reverse=False) -> list[tuple[K, Fraction]]:
+    try:
+        return sorted(components, key=lambda x: x[0], reverse=reverse)  # type: ignore
+    except TypeError:
+        return sorted(components, key=lambda x: (type(x[0]).__module__, type(x[0]).__qualname__, repr(x[0])), reverse=reverse)
+
+
+def _make_exponent_formatter(op: Literal['^', '**']) -> Callable[[Fraction], str]:
+    def format_exponent(e: Fraction) -> str:
+        return '' if e == 1 else f'{op}{e}' if e.denominator == 1 else f'{op}({e})'
+    return format_exponent
+
+
+_EXP_STYLE: dict[str, Callable[[Fraction], str]] = {
+    'sup': superscript,
+    '^': _make_exponent_formatter('^'),
+    '**': _make_exponent_formatter('**')
+}
 
 K = TypeVar('K')
 
@@ -46,6 +66,8 @@ class Monomial(Generic[K]):
     Monomial({'m': 2})
     >>> area / m**2
     Monomial({})
+    >>> area['missing']
+    Fraction(0, 1)
     '''
     __slots__ = ('_elements',)
     _elements: dict[K, Fraction]  # Mapping of base elements to their exponents
@@ -89,14 +111,51 @@ class Monomial(Generic[K]):
         kv = ', '.join(f'{k!r}: {v}' for k, v in self._elements.items())
         return f'{type(self).__name__}(' + '{' + kv + '})'
 
-    def __str__(self) -> str:
-        if not self._elements:
-            return '1'
-        def format_component(kv: tuple[K, Fraction]) -> str:
-            return f'{kv[0]}{superscript(kv[1])}'
-        n = DOT.join(map(format_component, self.numerator.components())) or '1'
-        d = DOT.join(map(format_component, self.denominator.components()))
-        return f'{n}/({d})' if DOT in d else f'{n}/{d}' if d else n
+    def __str__(self) -> str: return self.format()
+
+    def format(self, *, mul: Literal['⋅', '*', ' * ', ' '] = '⋅',
+               exp: Literal['sup', '^', '**'] = 'sup', frac: bool = True, 
+               order: Literal['insertion', 'ascending', 'descending'] = 'insertion') -> str:
+        '''
+        Format specification for Monomial:
+        - `mul` specifies the symbol used to separate factors.
+        - `exp` specifies the style of exponent representation:
+            - `'sup'`: superscript (default)
+            - `'^'`: caret notation (e.g., x^2)
+            - `'**'`: Python-style exponentiation (e.g., x**2)
+        - `frac=True` indicates that the monomial is formatted as a fraction,
+            with the factors having negative exponents placed in the denominator.
+            If omitted, the monomial is formatted as a product of factors with
+            both positive and negative exponents.
+        - `order` specifies the order of factors: ascending and descending sort
+            by the keys when they are mutually comparable; otherwise, they fall
+            back to their string representations.
+            - `'insertion'`: insertion order (default)
+            - `'ascending'`: ascending order
+            - `'descending'`: descending order
+            
+        '''
+        if mul not in ('⋅', '*', ' * ', ' '):
+            raise ValueError(f'Invalid format specification: mul={mul!r}.')
+        if exp not in _EXP_STYLE:
+            raise ValueError(f'Invalid format specification: exp={exp!r}.')
+        exp_style = _EXP_STYLE[exp]
+        if order == 'ascending':
+            components = _sort_components(self.components())
+        elif order == 'descending':
+            components = _sort_components(self.components(), reverse=True)
+        elif order == 'insertion':
+            components = self.components()
+        else:
+            raise ValueError(f'Invalid format specification: order={order!r}.')
+        if frac:
+            numerator = mul.join(f'{b}{exp_style(e)}' for b, e in components if e > 0) or '1'
+            denominator = mul.join(f'{b}{exp_style(-e)}' for b, e in components if e < 0)
+            if sum(1 for _, e in components if e < 0) > 1:
+                denominator = f'({denominator})'
+            div = ' / ' if mul == ' * ' else '/'
+            return f'{numerator}{div}{denominator}' if denominator else numerator
+        return mul.join(f'{b}{exp_style(e)}' for b, e in components) or '1'
 
     def __len__(self) -> int: return len(self._elements)
 
@@ -127,14 +186,14 @@ class Monomial(Generic[K]):
         return self._elements == other._elements
 
     def __mul__(self, other: Self) -> Self:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Monomial):
             return NotImplemented
         result = self.copy()
         result *= other
         return result
 
     def __truediv__(self, other: Self) -> Self:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Monomial):
             return NotImplemented
         result = self.copy()
         result /= other
@@ -152,7 +211,7 @@ class Monomial(Generic[K]):
         return NotImplemented
 
     def __imul__(self, other: Self) -> Self:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Monomial):
             return NotImplemented
         for k, v in other.components():
             if k in self._elements:
@@ -165,8 +224,11 @@ class Monomial(Generic[K]):
         return self
 
     def __itruediv__(self, other: Self) -> Self:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Monomial):
             return NotImplemented
+        if other is self:
+            self._elements.clear()
+            return self
         for k, v in other.components():
             if k in self._elements:
                 if (new_v := self._elements[k] - v) == 0:

@@ -41,15 +41,8 @@ class Unit:
     @property
     def symbol(self) -> str: return self._symbol
 
-    def __repr__(self) -> str: 
-        def format_component(ue: tuple[SingleUnit, Fraction]) -> str:
-            unit, exponent = ue
-            if exponent == 1:
-                return unit.symbol
-            if exponent.denominator == 1:
-                return f'{unit.symbol}**{exponent.numerator}'
-            return f'{unit.symbol}**({exponent})'
-        s = ' * '.join(map(format_component, self._elements.components()))
+    def __repr__(self) -> str:
+        s = self._elements.format(mul=' * ', exp='**', frac=False)
         return f'{type(self).__name__}({s!r})'
 
     def __str__(self) -> str: return self.symbol
@@ -57,7 +50,7 @@ class Unit:
     def __hash__(self) -> int: return hash(tuple(self._elements.components()))
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Unit):
             return NotImplemented
         return self._elements == other._elements
 
@@ -68,12 +61,12 @@ class Unit:
     def __bool__(self) -> bool: return len(self._elements) > 0
 
     def __mul__(self, other: Unit) -> Unit:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Unit):
             return NotImplemented
         return self._from_monomial(self._elements * other._elements)
 
     def __truediv__(self, other: Unit) -> Unit:
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Unit):
             return NotImplemented
         return self._from_monomial(self._elements / other._elements)
 

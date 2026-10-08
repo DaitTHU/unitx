@@ -1,4 +1,3 @@
-import re
 from fractions import Fraction
 
 __all__ = ['superscript']
@@ -6,8 +5,10 @@ __all__ = ['superscript']
 DIGIT = '0123456789+-=()'
 SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾'
 SUBSCRIPT = '₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎'
-SUP_TRANS = str.maketrans(SUPERSCRIPT, DIGIT)
-SUB_TRANS = str.maketrans(SUBSCRIPT, DIGIT)
+DIGIT_TO_SUP = str.maketrans(DIGIT, SUPERSCRIPT)
+DIGIT_TO_SUB = str.maketrans(DIGIT, SUBSCRIPT)
+SUP_TO_DIGIT = str.maketrans(SUPERSCRIPT, DIGIT)
+SUB_TO_DIGIT = str.maketrans(SUBSCRIPT, DIGIT)
 DOT = '⋅'  # chr(0x22C5)
 
 
@@ -33,8 +34,8 @@ def superscript(ratio: int | Fraction, /, *, omit1=True) -> str:
 
 
 def _sup(number: int, /) -> str:
-    return ''.join(SUPERSCRIPT[int(digit)] for digit in str(number))
+    return str.translate(str(number), DIGIT_TO_SUP)
 
 
 def _sub(number: int, /) -> str:
-    return ''.join(SUBSCRIPT[int(digit)] for digit in str(number))
+    return str.translate(str(number), DIGIT_TO_SUB)
