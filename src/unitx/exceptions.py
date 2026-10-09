@@ -10,7 +10,7 @@ class UnitSymbolError(UnitxError, ValueError):
     '''Exception raised when a unit symbol is invalid.'''
 
 
-class DimensionalityError(UnitxError, ValueError):
+class DimensionError(UnitxError, ValueError):
     '''Exception raised when quantities with incompatible dimensions are combined.'''
 
 

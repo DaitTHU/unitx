@@ -110,9 +110,9 @@ class Factor:
     >>> float(Factor(2.54))
     2.54
     '''
-    __slots__ = ('_monomial', '_value_cache')
+    __slots__ = ('_monomial', '_value')
     _monomial: Monomial[int | SymbolicNumber]
-    _value_cache: float
+    _value: float
     
     def __init__(self, value: int | float | Fraction | Decimal | SymbolicNumber, /) -> None:
         try:
@@ -122,14 +122,17 @@ class Factor:
             raise TypeError('Factor must be a number.')
         if isinstance(value, int):
             self._monomial = Monomial(factorint(value))
+            self._value = float(value)
             return
         elif isinstance(value, SymbolicNumber):
             self._monomial = Monomial({value: 1})
+            self._value = float(value)
             return
         elif isinstance(value, (float, Decimal)):
             value = common_fraction(value, stacklevel=2)
         if isinstance(value, Fraction):
             self._monomial = Monomial(factorfrac(value))  # type: ignore
+            self._value = float(value)
             return
         raise TypeError(f'Expected int, float, Fraction, Decimal or SymbolicNumber, got {type(value)!r}.')
 
@@ -194,7 +197,7 @@ class Factor:
     @property
     def value(self) -> float:
         if hasattr(self, '_value_cache'):
-            return self._value_cache
+            return self._value
         rational, irrational = self.decompose()
         if not irrational._monomial:
             return float(rational)
@@ -202,16 +205,16 @@ class Factor:
         float_factors.append(float(rational))
         float_factors.sort()
         # balance multiplication to minimize floating-point error
-        self._value_cache = 1.0
+        self._value = 1.0
         lo, hi = 0, len(float_factors) - 1
         while lo <= hi:
-            if self._value_cache > 1.0:
-                self._value_cache *= float_factors[hi]
+            if self._value > 1.0:
+                self._value *= float_factors[hi]
                 hi -= 1
             else:
-                self._value_cache *= float_factors[lo]
+                self._value *= float_factors[lo]
                 lo += 1
-        return self._value_cache
+        return self._value
 
     def __float__(self) -> float: return self.value
 
@@ -282,6 +285,10 @@ class Factor:
             return Factor(1)
         other = common_fraction(other, stacklevel=2)
         return Factor._from_monomial(self._monomial ** other)
+
+    def __call__(self, magnitude):
+        '''Mapping `factor(x) = factor * x`'''
+        return self.value * magnitude
 
 
 ONE = Factor(1)

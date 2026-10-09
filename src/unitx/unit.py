@@ -63,13 +63,15 @@ class Unit:
     def __bool__(self) -> bool: return len(self._monomial) > 0
 
     def __mul__(self, other: Unit) -> Unit:
+        from .quantity import Quantity
         if not isinstance(other, Unit):
-            return NotImplemented
+            return Quantity(other, self)
         return self._from_monomial(self._monomial * other._monomial)
 
     def __truediv__(self, other: Unit) -> Unit:
+        from .quantity import Quantity
         if not isinstance(other, Unit):
-            return NotImplemented
+            return Quantity(other, self)
         return self._from_monomial(self._monomial / other._monomial)
 
     def __pow__(self, exponent: int | Fraction | float) -> Unit:
@@ -78,3 +80,7 @@ class Unit:
         if not isinstance(exponent, (int, Fraction)):
             return NotImplemented
         return self._from_monomial(self._monomial ** exponent)
+
+    def __rtruediv__(self, other):
+        from .quantity import Quantity
+        return Quantity(other, self._from_monomial(self._monomial ** -1))
