@@ -34,7 +34,6 @@ def test_unit_invalid_symbol():
 def test_unit_operations():
     u1 = Unit('m')
     u2 = Unit('s')
-    u3 = Unit('kg')
 
     u_mul = u1 * u2
     u_div = u1 / u2

@@ -54,7 +54,7 @@ class Dimension:
     __slots__ = ('_exponents',)
     _exponents: tuple[Fraction, ...]  # Exponents for T, L, M, I, Θ, N, J
 
-    def __new__(cls, T=0, L=0, M=0, I=0, Theta=0, N=0, J=0) -> Dimension:
+    def __new__(cls, T=0, L=0, M=0, I=0, Theta=0, N=0, J=0) -> Dimension:  # noqa: E741
         exponents = tuple(map(common_fraction, (T, L, M, I, Theta, N, J)))
         if not any(exponents):
             return DIMENSIONLESS
@@ -116,7 +116,7 @@ class Dimension:
             return lambda self: self._exponents[index]
         return (property(__getter(i)) for i in range(_LEN))
 
-    T, L, M, I, Θ, N, J = __unpack_exponents()
+    T, L, M, I, Θ, N, J = __unpack_exponents()  # noqa: E741
     Theta = Θ  # Alias for Θ
     time, length, mass, current, temperature, amount, luminous = T, L, M, I, Θ, N, J
 

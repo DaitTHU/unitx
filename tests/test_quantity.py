@@ -25,7 +25,7 @@ def test_conversion_between_scaled_units() -> None:
 
 def test_conversion_rejects_different_dimensions() -> None:
     with pytest.raises(DimensionError):
-        q = Quantity(1, 'm').to('s')
+        Quantity(1, 'm').to('s')
 
 
 def test_equality_is_unit_independent() -> None:
@@ -56,9 +56,9 @@ def test_addition_and_subtraction_convert_rhs_to_lhs_unit() -> None:
 
 def test_addition_and_subtraction_reject_different_dimensions() -> None:
     with pytest.raises(DimensionError):
-        q = Quantity(1, 'm') + Quantity(1, 's')
+        Quantity(1, 'm') + Quantity(1, 's')  # type: ignore
     with pytest.raises(DimensionError):
-        q = Quantity(1, 'm') - Quantity(1, 's')
+        Quantity(1, 'm') - Quantity(1, 's')  # type: ignore
 
 
 def test_dimensionless_quantity_supports_number_arithmetic() -> None:
