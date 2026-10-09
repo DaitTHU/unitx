@@ -4,6 +4,7 @@ from ._data.prefix import PREFIX, PREFIX_ALIAS
 from ._data.unit import UNIT, UNIT_ALIAS
 from .dimension import Dimension
 from .exceptions import UnitSymbolError
+from .factor import Factor
 
 _PREFIX_MAXLEN = max(map(len, PREFIX))
 _UNIT_MAXLEN = max(map(len, UNIT))
@@ -89,11 +90,11 @@ class SingleUnit:
     @property
     def name(self) -> str: return self.prefix_name + self.unit_name
     @property
-    def prefix_factor(self) -> float: return PREFIX[self._prefix].factor
+    def prefix_factor(self) -> Factor: return PREFIX[self._prefix].factor
     @property
-    def unit_factor(self) -> float: return UNIT[self._unit].factor
+    def unit_factor(self) -> Factor: return UNIT[self._unit].factor
     @property
-    def factor(self) -> float: return self.prefix_factor * self.unit_factor
+    def factor(self) -> Factor: return self.prefix_factor * self.unit_factor
     @property
     def dimension(self) -> Dimension: return UNIT[self._unit].dimension
 

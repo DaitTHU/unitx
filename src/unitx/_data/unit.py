@@ -1,9 +1,11 @@
 from ..dimension import Dimension
+from ..factor import Factor, ONE, TEN
+
 
 class UnitData:
     '''
     Attributes:
-        factor (float): 1e-3 for gram
+        factor (Factor): 1/1000 for gram
         names (tuple[str, ...]): liter or litre
         dimension (Dimension): L³ for liter
         prefixable (bool): whether the unit can be prefixed
@@ -11,7 +13,7 @@ class UnitData:
 
     __slots__ = ('factor', 'names', 'dimension', 'prefixable')
 
-    def __init__(self, factor: float, *names: str, dimension: Dimension, prefixable=True) -> None:
+    def __init__(self, factor: Factor, *names: str, dimension: Dimension, prefixable=True) -> None:
         self.factor = factor
         self.names = names
         self.dimension = dimension
@@ -22,14 +24,14 @@ class UnitData:
 
 
 UNIT: dict[str, UnitData] = {
-    '': UnitData(1, '', dimension=Dimension(), prefixable=False),
-    's': UnitData(1, 'second', dimension=Dimension(T=1)),
-    'm': UnitData(1, 'meter', 'metre', dimension=Dimension(L=1)),
-    'g': UnitData(1e-3, 'gram', dimension=Dimension(M=1)),
-    'A': UnitData(1, 'ampere', dimension=Dimension(I=1)),
-    'K': UnitData(1, 'kelvin', dimension=Dimension(Theta=1)),
-    'mol': UnitData(1, 'mole', dimension=Dimension(N=1)),
-    'cd': UnitData(1, 'candela', dimension=Dimension(J=1)),
+    '': UnitData(ONE, '', dimension=Dimension(), prefixable=False),
+    's': UnitData(ONE, 'second', dimension=Dimension(T=1)),
+    'm': UnitData(ONE, 'meter', 'metre', dimension=Dimension(L=1)),
+    'g': UnitData(TEN ** -3, 'gram', dimension=Dimension(M=1)),
+    'A': UnitData(ONE, 'ampere', dimension=Dimension(I=1)),
+    'K': UnitData(ONE, 'kelvin', dimension=Dimension(Theta=1)),
+    'mol': UnitData(ONE, 'mole', dimension=Dimension(N=1)),
+    'cd': UnitData(ONE, 'candela', dimension=Dimension(J=1)),
 }
 '''unit {symbol: data}'''
 

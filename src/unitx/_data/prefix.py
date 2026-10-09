@@ -1,13 +1,16 @@
+from ..factor import Factor, ONE, TEN
+
+
 class PrefixData:
     '''
     Attributes:
-        factor (float): 1000 for kilo-
+        factor (Factor): 1000 for kilo-
         names (tuple[str, ...]): kilo
     '''
 
     __slots__ = ('factor', 'names')
 
-    def __init__(self, facotr: float, *names: str) -> None:
+    def __init__(self, facotr: Factor, *names: str) -> None:
         self.factor = facotr
         self.names = names
 
@@ -17,32 +20,32 @@ class PrefixData:
 
 __PREFIX_LIB: dict[str | tuple[str, ...], PrefixData] = {
     # whole unit
-    'Q': PrefixData(1e30, 'quetta'),
-    'R': PrefixData(1e27, 'ronna'),
-    'Y': PrefixData(1e24, 'yotta'),
-    'Z': PrefixData(1e21, 'zetta'),
-    'E': PrefixData(1e18, 'exa'),
-    'P': PrefixData(1e15, 'peta'),
-    'T': PrefixData(1e12, 'tera'),
-    'G': PrefixData(1e9, 'giga'),
-    'M': PrefixData(1e6, 'mega'),
-    ('k', 'K'): PrefixData(1e3, 'kilo'),
-    'h': PrefixData(1e2, 'hecto'),
-    'da': PrefixData(1e1, 'deca'),
-    '': PrefixData(1, ''),
+    'Q': PrefixData(TEN ** 30, 'quetta'),
+    'R': PrefixData(TEN ** 27, 'ronna'),
+    'Y': PrefixData(TEN ** 24, 'yotta'),
+    'Z': PrefixData(TEN ** 21, 'zetta'),
+    'E': PrefixData(TEN ** 18, 'exa'),
+    'P': PrefixData(TEN ** 15, 'peta'),
+    'T': PrefixData(TEN ** 12, 'tera'),
+    'G': PrefixData(TEN ** 9, 'giga'),
+    'M': PrefixData(TEN ** 6, 'mega'),
+    ('k', 'K'): PrefixData(TEN ** 3, 'kilo'),
+    'h': PrefixData(TEN ** 2, 'hecto'),
+    'da': PrefixData(TEN ** 1, 'deca'),
+    '': PrefixData(ONE, ''),
     # sub-unit
-    'd': PrefixData(1e-1, 'deci'),
-    'c': PrefixData(1e-2, 'centi'),
-    'm': PrefixData(1e-3, 'milli'),
-    ('µ', 'μ', 'u'): PrefixData(1e-6, 'micro'),  # chr(0xB5), chr(0x03BC)
-    'n': PrefixData(1e-9, 'nano'),
-    'p': PrefixData(1e-12, 'pico'),
-    'f': PrefixData(1e-15, 'femto'),
-    'a': PrefixData(1e-18, 'atto'),
-    'z': PrefixData(1e-21, 'zepto'),
-    'y': PrefixData(1e-24, 'yocto'),
-    'r': PrefixData(1e-27, 'ronto'),
-    'q': PrefixData(1e-30, 'quecto'),
+    'd': PrefixData(TEN ** -1, 'deci'),
+    'c': PrefixData(TEN ** -2, 'centi'),
+    'm': PrefixData(TEN ** -3, 'milli'),
+    ('µ', 'μ', 'u'): PrefixData(TEN ** -6, 'micro'),  # chr(0xB5), chr(0x03BC)
+    'n': PrefixData(TEN ** -9, 'nano'),
+    'p': PrefixData(TEN ** -12, 'pico'),
+    'f': PrefixData(TEN ** -15, 'femto'),
+    'a': PrefixData(TEN ** -18, 'atto'),
+    'z': PrefixData(TEN ** -21, 'zepto'),
+    'y': PrefixData(TEN ** -24, 'yocto'),
+    'r': PrefixData(TEN ** -27, 'ronto'),
+    'q': PrefixData(TEN ** -30, 'quecto'),
 }
 
 PREFIX: dict[str, PrefixData] = {
