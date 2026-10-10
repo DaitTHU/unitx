@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import math
 import operator
+from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
-from typing import Callable, Literal, Self
+from typing import Literal, Self
 
 from .monomial import Monomial
-from .utils.number import common_fraction, factorint, factorfrac, isprime
+from .utils.number import common_fraction, factorfrac, factorint, isprime
 
 
 class SymbolicNumber:
@@ -80,7 +81,7 @@ class SymbolicNumber:
     __truediv__ = _arithmetic_op(operator.truediv)
     __rtruediv__ = _arithmetic_op(lambda self, other: other / self)
 
-    def __pow__(self, other: int | float | Fraction) -> Factor:
+    def __pow__(self, other: Fraction | float) -> Factor:
         if not isinstance(other, (int, float, Fraction)):
             return NotImplemented
         return Factor._from_monomial(Monomial({self: common_fraction(other, stacklevel=2)}))
@@ -114,7 +115,7 @@ class Factor:
     _monomial: Monomial[int | SymbolicNumber]
     _value: float
     
-    def __init__(self, value: int | float | Fraction | Decimal | SymbolicNumber, /) -> None:
+    def __init__(self, value: float | Fraction | Decimal | SymbolicNumber, /) -> None:
         try:
             if value <= 0:
                 raise ValueError('Factor must be positive.')
@@ -248,7 +249,7 @@ class Factor:
 
     def __repr__(self) -> str:
         kv = ', '.join(f'{base!r}: {exponent!r}' for base, exponent in self._monomial.components())
-        return '%s.from_dict({%s})' % (type(self).__name__, kv)
+        return f'{type(self).__name__}.from_dict({{{kv}}})'
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Factor):
@@ -257,7 +258,7 @@ class Factor:
             return self.value == float(other)
         return NotImplemented
 
-    def __mul__(self, other: int | float | Fraction | SymbolicNumber | Factor) -> Factor:
+    def __mul__(self, other: Fraction | float | SymbolicNumber | Factor) -> Factor:
         if isinstance(other, (int, float, Fraction, SymbolicNumber)):
             other = Factor(other)
         if not isinstance(other, Factor):
@@ -266,7 +267,7 @@ class Factor:
 
     __rmul__ = __mul__
 
-    def __truediv__(self, other: int | float | Fraction | SymbolicNumber | Factor) -> Factor:
+    def __truediv__(self, other: Fraction | float | SymbolicNumber | Factor) -> Factor:
         if other == 0:
             raise ZeroDivisionError('Division by zero.')
         if isinstance(other, (int, float, Fraction, SymbolicNumber)):
@@ -275,12 +276,12 @@ class Factor:
             return NotImplemented
         return Factor._from_monomial(self._monomial / other._monomial)
 
-    def __rtruediv__(self, other: int | float | Fraction | SymbolicNumber) -> Factor:
+    def __rtruediv__(self, other: Fraction | float | SymbolicNumber) -> Factor:
         if isinstance(other, (int, float, Fraction, SymbolicNumber)):
             return Factor(other) / self
         return NotImplemented
 
-    def __pow__(self, other: int | float | Fraction) -> Factor:
+    def __pow__(self, other: Fraction | float) -> Factor:
         if other == 0:
             return Factor(1)
         other = common_fraction(other, stacklevel=2)

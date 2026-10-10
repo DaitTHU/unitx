@@ -7,7 +7,6 @@ from .exceptions import UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit
 
-
 _TOKEN_RE = re.compile('|'.join(f'(?P<{kind}>{pattern})' for kind, pattern in {
     'POW': r'\*\*|\^',
     'MUL': r'\*',

@@ -1,4 +1,4 @@
-from ..factor import Factor, ONE, TEN
+from ..factor import ONE, TEN, Factor
 
 
 class PrefixData:

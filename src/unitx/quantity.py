@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import operator
+from fractions import Fraction
 from typing import Generic, TypeVar
 
-from .dimension import Dimension, DIMENSIONLESS
+from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
 from .unit import Unit
 from .utils.valuetype import ValueType
@@ -123,6 +124,6 @@ class Quantity(Generic[T]):
     def __rtruediv__(self, other):
         return Quantity(other / self.value, self.unit ** -1)
 
-    def __pow__(self, exponent: int | float) -> Quantity:
+    def __pow__(self, exponent: Fraction | float) -> Quantity:
         return Quantity(self.value ** exponent, self.unit ** exponent)
     

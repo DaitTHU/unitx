@@ -1,6 +1,8 @@
-import pytest
 from fractions import Fraction
-from unitx import Dimension, DIMENSIONLESS
+
+import pytest
+
+from unitx import DIMENSIONLESS, Dimension
 from unitx.exceptions import InexactFloatWarning
 
 

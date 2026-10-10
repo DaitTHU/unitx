@@ -1,7 +1,7 @@
 import pytest
 
-from unitx import Unit, Dimension
-from unitx.exceptions import UnitSyntaxError, UnitSymbolError
+from unitx import Dimension, Unit
+from unitx.exceptions import UnitSymbolError, UnitSyntaxError
 
 
 def test_unit_creation():

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from fractions import Fraction
-from typing import Iterable, Literal
+from typing import Literal, final
 
-from .utils.number import common_fraction, ZERO
+from .utils.number import ZERO, common_fraction
 from .utils.special_char import superscript
 
-__all__ = ['Dimension', 'DIMENSIONLESS']
+__all__ = ['DIMENSIONLESS', 'Dimension']
 
 _SYMBOL = ('T', 'L', 'M', 'I', 'Θ', 'N', 'J')
 _SYMBOL_ASCII = ('T', 'L', 'M', 'I', 'Theta', 'N', 'J')
@@ -14,6 +15,7 @@ _LEN = len(_SYMBOL)
 _ALLZERO = (ZERO,) * _LEN
 
 
+@final
 class Dimension:
     '''
     Implementation of physical dimensions.
@@ -54,7 +56,7 @@ class Dimension:
     __slots__ = ('_exponents',)
     _exponents: tuple[Fraction, ...]  # Exponents for T, L, M, I, Θ, N, J
 
-    def __new__(cls, T=0, L=0, M=0, I=0, Theta=0, N=0, J=0) -> Dimension:  # noqa: E741
+    def __new__(cls, T=0, L=0, M=0, I=0, Theta=0, N=0, J=0) -> Dimension:
         exponents = tuple(map(common_fraction, (T, L, M, I, Theta, N, J)))
         if not any(exponents):
             return DIMENSIONLESS
@@ -90,7 +92,7 @@ class Dimension:
             return NotImplemented
         return self._from_iter(a - b for a, b in zip(self._exponents, other._exponents))
 
-    def __pow__(self, power: int | Fraction | float) -> Dimension:
+    def __pow__(self, power: Fraction | float) -> Dimension:
         power = common_fraction(power, stacklevel=2)
         if not isinstance(power, (int, Fraction)):
             return NotImplemented
@@ -116,16 +118,16 @@ class Dimension:
             return lambda self: self._exponents[index]
         return (property(__getter(i)) for i in range(_LEN))
 
-    T, L, M, I, Θ, N, J = __unpack_exponents()  # noqa: E741
+    T, L, M, I, Θ, N, J = __unpack_exponents()
     Theta = Θ  # Alias for Θ
     time, length, mass, current, temperature, amount, luminous = T, L, M, I, Θ, N, J
 
     def __repr__(self) -> str:
-        para = ', '.join(f'{s}={v}' for s, v in zip(_SYMBOL_ASCII, self._exponents) if v)
-        return '{}({})'.format(self.__class__.__name__, para)
+        para = ', '.join(f'{s}={e}' for s, e in zip(_SYMBOL_ASCII, self._exponents) if e)
+        return f'{type(self).__name__}({para})'
 
     def __str__(self) -> str:
-        return ''.join(s + superscript(v) for s, v in zip(_SYMBOL, self._exponents) if v) or '1'
+        return ''.join(s + superscript(e) for s, e in zip(_SYMBOL, self._exponents) if e) or '1'
 
 
 DIMENSIONLESS = object.__new__(Dimension)

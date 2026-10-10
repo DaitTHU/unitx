@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
 from fractions import Fraction
 from typing import Generic, Literal, Self, TypeVar
-from collections.abc import Iterator, ItemsView, KeysView, ValuesView, Callable
 
-from .utils.number import common_fraction, ZERO
+from .utils.number import ZERO, common_fraction
 from .utils.special_char import superscript
 
 
@@ -97,7 +97,7 @@ class Monomial(Generic[K]):
 
     def __getitem__(self, key: K) -> Fraction: return self._elements.get(key, ZERO)
 
-    def __setitem__(self, key: K, value: int | Fraction | float) -> None:
+    def __setitem__(self, key: K, value: Fraction | float) -> None:
         if value == 0:
             self._elements.pop(key, None)
         else:
@@ -199,7 +199,7 @@ class Monomial(Generic[K]):
         result /= other
         return result
 
-    def __pow__(self, other: int | Fraction | float) -> Self:
+    def __pow__(self, other: Fraction | float) -> Self:
         if other == 0:
             return self._from_dict({})
         other = common_fraction(other, stacklevel=2)
@@ -239,7 +239,7 @@ class Monomial(Generic[K]):
                 self._elements[k] = -v
         return self
 
-    def __ipow__(self, other: int | Fraction | float) -> Self:
+    def __ipow__(self, other: Fraction | float) -> Self:
         if other == 0:
             self._elements.clear()
             return self

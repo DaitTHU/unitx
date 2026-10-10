@@ -2,8 +2,8 @@ from fractions import Fraction
 
 import pytest
 
-from unitx.monomial import Monomial
 from unitx.exceptions import InexactFloatWarning
+from unitx.monomial import Monomial
 
 
 def test_creation_and_basic_mapping_behaviour() -> None:
@@ -106,7 +106,7 @@ def test_invalid_creation_and_operations() -> None:
 def test_float_conversion_warning() -> None:
     with pytest.warns(InexactFloatWarning):
         m = Monomial({'x': 1/7})  # type: ignore[arg-type]
-        assert repr(m) == "Monomial({'x': 1/7})"
+    assert repr(m) == "Monomial({'x': 1/7})"
     with pytest.warns(InexactFloatWarning):
         m **= 1 / 3
     with pytest.warns(InexactFloatWarning):

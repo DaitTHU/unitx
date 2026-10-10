@@ -2,12 +2,12 @@ import math
 from decimal import Decimal
 from fractions import Fraction
 
-from ..exceptions import InexactFloatWarning, IncompleteFactorWarning
+from ..exceptions import IncompleteFactorWarning, InexactFloatWarning
 
 ZERO = Fraction(0)
 
 
-def common_fraction(value: int | float | Decimal | Fraction, *,
+def common_fraction(value: Fraction | Decimal | float, *,
                     float_max_denominator=1000000,
                     stacklevel=1) -> Fraction:
     '''

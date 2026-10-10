@@ -1,8 +1,9 @@
-import pytest
 from fractions import Fraction
 
+import pytest
+
 from unitx.exceptions import IncompleteFactorWarning, InexactFloatWarning
-from unitx.factor import Factor, PI, SymbolicNumber
+from unitx.factor import PI, Factor, SymbolicNumber
 
 
 def test_construct_from_integer():

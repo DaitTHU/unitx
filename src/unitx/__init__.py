@@ -1,7 +1,7 @@
 """Utilities for working with physical units and quantities."""
 
-__all__ = ['Dimension', 'DIMENSIONLESS', 'Unit', 'Quantity']
+__all__ = ['DIMENSIONLESS', 'Dimension', 'Quantity', 'Unit']
 
-from .dimension import Dimension, DIMENSIONLESS
-from .unit import Unit
+from .dimension import DIMENSIONLESS, Dimension
 from .quantity import Quantity
+from .unit import Unit

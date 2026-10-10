@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from .dimension import Dimension, DIMENSIONLESS
-from .factor import Factor, ONE
+from .dimension import DIMENSIONLESS, Dimension
+from .factor import ONE, Factor
 from .monomial import Monomial
 from .singleunit import SingleUnit
 from .unitparser import UnitParser
@@ -74,7 +74,7 @@ class Unit:
             return Quantity(other, self)
         return self._from_monomial(self._monomial / other._monomial)
 
-    def __pow__(self, exponent: int | Fraction | float) -> Unit:
+    def __pow__(self, exponent: Fraction | float) -> Unit:
         if isinstance(exponent, float):
             exponent = common_fraction(exponent, stacklevel=2)
         if not isinstance(exponent, (int, Fraction)):
