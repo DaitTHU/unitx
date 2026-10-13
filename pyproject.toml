@@ -1,0 +1,47 @@
+[build-system]
+requires = ['hatchling >= 1.27']
+build-backend = 'hatchling.build'
+
+[project]
+name = 'unitx'
+version = '0.0.1'
+description = 'A modern, intuitive Python library for units, quantities, and dimensional analysis.'
+readme = 'README.md'
+requires-python = '>=3.11'
+license = 'MIT'
+license-files = ['LICENSE']
+authors = [{ name = 'Dait' }]
+dependencies = []
+classifiers = [
+  'Programming Language :: Python :: 3',
+  'Programming Language :: Python :: 3.11',
+  'Programming Language :: Python :: 3.12',
+  'Programming Language :: Python :: 3.13',
+  'Programming Language :: Python :: 3.14',
+  'Topic :: Scientific/Engineering :: Physics',
+]
+
+[project.optional-dependencies]
+test = ['pytest>=8', 'ruff>=0.8']
+
+[project.urls]
+Homepage = 'https://github.com/DaitTHU/unitx'
+Issues = 'https://github.com/DaitTHU/unitx/issues'
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/unitx']
+
+[tool.pytest.ini_options]
+testpaths = ['tests', 'src/unitx']
+pythonpath = ['src']
+addopts = '--doctest-modules'
+
+[tool.ruff]
+target-version = 'py311'
+line-length = 100
+
+[tool.ruff.format]
+quote-style = 'single'
+
+[tool.ruff.lint]
+select = ['E', 'F', 'I']
