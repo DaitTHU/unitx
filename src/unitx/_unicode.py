@@ -1,8 +1,12 @@
 """Unicode utilities for unitx."""
 
 from fractions import Fraction
+from typing import Literal, TypeAlias
 
-__all__ = ['superscript']
+__all__ = ['DOT', 'DotType', 'superscript']
+
+DOT = '⋅'  # chr(0x22C5)
+DotType: TypeAlias = Literal['⋅']
 
 DIGITS = '0123456789+-=()'
 SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾'
