@@ -59,7 +59,7 @@ class Monomial(Generic[BaseT]):
     >>> m.exponent_of('missing')
     Fraction(0, 1)
     >>> str(m / s)
-    'm⋅s⁻¹'
+    'm/s'
     >>> bool(Monomial())
     True
     """
@@ -110,11 +110,23 @@ class Monomial(Generic[BaseT]):
             for base, exp in self.components()
         )
         if not components:
-            return 'Monomial()'
-        return f'Monomial({{{components}}})'
+            return f'{type(self).__name__}()'
+        return f'{type(self).__name__}({{{components}}})'
 
     def __str__(self) -> str:
-        return DOT.join(f'{base}{superscript(exp)}' for base, exp in self.components()) or '1'
+        numerator = DOT.join(
+            f'{base}{superscript(exp)}' for base, exp in self.components() if exp > 0
+        )
+        denominator = DOT.join(
+            f'{base}{superscript(-exp)}' for base, exp in self.components() if exp < 0
+        )
+        if not numerator:
+            numerator = '1'
+        if not denominator:
+            return numerator
+        if sum(exp < 0 for exp in self.exponents()) > 1:
+            denominator = f'({denominator})'
+        return f'{numerator}/{denominator}'
 
     def __copy__(self) -> Monomial[BaseT]:
         return self

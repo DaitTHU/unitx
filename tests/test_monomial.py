@@ -36,10 +36,36 @@ def test_monomial_creation() -> None:
 
 def test_monomial_numerator_and_denominator() -> None:
     monomial = Monomial({'x': -1, 'y': 1, 'z': Fraction(-3, 2)})
-    assert str(monomial) == 'x⁻¹⋅y⋅z⁻³ᐟ²'
+    assert str(monomial) == 'y/(x⋅z³ᐟ²)'
     assert monomial.numerator == Monomial({'y': 1})
     assert monomial.denominator == Monomial({'x': 1, 'z': Fraction(3, 2)})
     assert monomial.numerator / monomial.denominator == monomial
+
+
+@pytest.mark.parametrize(
+    ('components', 'expected'),
+    [
+        ({'x': 0}, '1'),
+        ({'x': 1, 'y': 0}, 'x'),
+        ({'x': -1}, '1/x'),
+        ({'x': -1, 'y': -2}, '1/(x⋅y²)'),
+        ({'x': Fraction(-1, 2)}, '1/x¹ᐟ²'),
+        (
+            {'x': Fraction(1, 2), 'y': 2, 'z': Fraction(-3, 2), 'w': -1},
+            'x¹ᐟ²⋅y²/(z³ᐟ²⋅w)',
+        ),
+        ({Decimal('NaN'): -2}, '1/NaN²'),  # Monomial do not check base values
+    ],
+)
+def test_monomial_str_format(components, expected: str) -> None:
+    assert str(Monomial(components)) == expected
+
+
+def test_monomial_str_view() -> None:
+    monomial = Monomial({2: 1, 'b': -1, 'x': 2, 3: -2})
+    before = list(monomial.components()), hash(monomial), repr(monomial)
+    assert str(monomial) == '2⋅x²/(b⋅3²)'
+    assert (list(monomial.components()), hash(monomial), repr(monomial)) == before
 
 
 def test_monomial_input_independent() -> None:
