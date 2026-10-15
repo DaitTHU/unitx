@@ -2,18 +2,20 @@ import pytest
 
 from unitx._numerics import as_fraction
 from unitx.exceptions import InexactFloatWarning
+from unitx.factor import Factor
 
 _DOCTEST_FILTER: dict[str, tuple[pytest.MarkDecorator, ...]] = {
-    f'{as_fraction.__module__}.{as_fraction.__qualname__}': (
-        pytest.mark.filterwarnings(
-            f'ignore::{InexactFloatWarning.__module__}.{InexactFloatWarning.__qualname__}'
-        ),
-    ),
+    f'{obj.__module__}.{obj.__qualname__}': tuple(
+        pytest.mark.filterwarnings(f'ignore::{warning.__module__}.{warning.__qualname__}')
+        for warning in warnings
+    )
+    for obj, warnings in ((as_fraction, (InexactFloatWarning,)), (Factor, (InexactFloatWarning,)))
 }
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Apply configured warning filters to selected doctests."""
     for item in items:
-        for mark in _DOCTEST_FILTER.get(item.name, ()):
-            item.add_marker(mark)
+        if isinstance(item, pytest.DoctestItem):
+            for mark in _DOCTEST_FILTER.get(item.name, ()):
+                item.add_marker(mark)
