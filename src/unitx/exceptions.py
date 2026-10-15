@@ -2,7 +2,7 @@
 
 import os
 
-__all__ = ['InexactFloatWarning', 'UnitxError', 'UnitxWarning']
+__all__ = ['IncompleteFactorWarning', 'InexactFloatWarning', 'UnitxError', 'UnitxWarning']
 
 
 class UnitxError(Exception):
@@ -19,3 +19,7 @@ class UnitxWarning(UserWarning):
 
 class InexactFloatWarning(UnitxWarning):
     """Warning for inexact float to Fraction conversion."""
+
+
+class IncompleteFactorWarning(UnitxWarning):
+    """Warning for incomplete factorization of integers."""

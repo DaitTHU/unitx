@@ -1,15 +1,22 @@
-"""Numerical utilities for unitx."""
+"""Utility functions for numerical operations.
+
+- `as_fraction`: Converts a number to a rational number (Fraction), handling
+  inexact floating-point representations.
+- `isprime`: Tests the primality of a number.
+- `factorint`: Factors a positive integer into its prime factors,
+"""
 
 from __future__ import annotations
 
+import math
 import warnings
 from decimal import Decimal
 from fractions import Fraction
-from typing import TypeAlias
+from typing import Self, TypeAlias
 
-from .exceptions import _WARNING_SKIP_PREFIXES, InexactFloatWarning
+from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning, InexactFloatWarning
 
-__all__ = ['Fractionable', 'as_fraction']
+__all__ = ['Fractionable', 'as_fraction', 'factorint', 'isprime']
 
 Fractionable: TypeAlias = int | float | Decimal | Fraction
 
@@ -62,3 +69,172 @@ def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000)
             )
         return limited_fraction
     return fraction
+
+
+# Number theory functions: prime factorization and primality testing.
+# These are implemented here to avoid a dependency on `sympy`.
+# However, the implementation is limited and may not be as efficient or
+# complete as `sympy`. Therefore, a warning is issued when the limit is exceeded.
+
+_SMALL_PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)
+_MILLER_RABIN_BASES = (2, 325, 9375, 28178, 450775, 9780504, 1795265022)
+_PRIME_TEST_LIMIT = 2**64
+
+
+def isprime(n: int) -> bool:
+    """Test primality; results are definitive only for n < 2**64."""
+    if n < 2:
+        return False
+    for p in _SMALL_PRIMES:
+        if n % p == 0:
+            return n == p
+    d, s = n - 1, 0
+    while d & 1 == 0:
+        s += 1
+        d >>= 1
+    for a in _MILLER_RABIN_BASES:
+        a %= n
+        if a == 0:
+            continue
+        x = pow(a, d, n)
+        if x == 1 or x == n - 1:
+            continue
+        for _ in range(s - 1):
+            x = x * x % n
+            if x == n - 1:
+                break
+        else:
+            return False
+    if n >= _PRIME_TEST_LIMIT:
+        warnings.warn(
+            f'Primality test for {n} is not guaranteed to be definitive. '
+            'Install `sympy` for complete primality testing.',
+            IncompleteFactorWarning,
+            skip_file_prefixes=_WARNING_SKIP_PREFIXES,
+        )
+    return True
+
+
+def factorint(n: int, /, *, limit: int = 1000000) -> dict[int, int]:
+    """Factor a positive integer, with bounded trial division.
+
+    Primes below 2**64 and perfect powers are handled independently of
+    the trial limit. Any unresolved remainder is retained with a warning.
+    >>> factorint(1)
+    {}
+    >>> factorint(60)
+    {2: 2, 3: 1, 5: 1}
+    >>> factorint(2**(2**5) + 1)
+    {641: 1, 6700417: 1}
+    """
+    if n < 1:
+        error_message = 'factorint requires a positive integer.'
+        raise ValueError(error_message)
+    factors = _factorint(n, limit)
+    for base in factors:
+        if isinstance(base, UnfactoredInteger):
+            warnings.warn(
+                f'Integer {base} exceeded fallback factoring limit {limit}. '
+                'The remainder is stored as a single unresolved base. '
+                'Install `sympy` for complete prime factorization.',
+                IncompleteFactorWarning,
+                skip_file_prefixes=_WARNING_SKIP_PREFIXES,
+            )
+    return factors
+
+
+class UnfactoredInteger(int):
+    """A subclass of int that represents an integer that has not been factored.
+
+    This class is used to indicate that the integer is a remainder that could
+    not be factored within the specified limit in the `factorint` function.
+    It is a subclass of int, so it behaves like a regular integer in most
+    contexts, but it can be distinguished from regular integers when needed.
+    """
+
+    limit: int
+
+    def __new__(cls, value: int, /, limit: int) -> Self:
+        obj = super().__new__(cls, value)
+        obj.limit = limit
+        return obj
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}({int(self)}, limit={self.limit})'
+
+    def __str__(self) -> str:
+        return str(int(self))
+
+    def __reduce__(self) -> tuple[type[Self], tuple[int, int]]:
+        return type(self), (int(self), self.limit)
+
+
+def _factorint(n: int, limit: int) -> dict[int, int]:
+    """Internal algorithm for factorint."""
+    factors: dict[int, int] = {}
+    if n == 1:
+        return factors
+    for p in (2, 3):
+        exponent = 0
+        while n % p == 0:
+            exponent += 1
+            n //= p
+        if exponent:
+            factors[p] = exponent
+    divisor, step = 5, 2
+    while n > 1:
+        # These Miller-Rabin bases are deterministic only below 2**64.
+        if n < _PRIME_TEST_LIMIT and isprime(n):
+            factors[n] = 1
+            return factors
+        # Prime degrees suffice: a composite-degree power is also a power of
+        # a prime degree. Recursion extracts any remaining power of the root.
+        root = math.isqrt(n)
+        for degree in range(2, n.bit_length()):
+            if not isprime(degree):
+                continue
+            power_root = root if degree == 2 else _integer_root(n, degree)
+            if power_root**degree == n:
+                for base, exponent in _factorint(power_root, limit).items():
+                    factors[base] = factors.get(base, 0) + degree * exponent
+                return factors
+        while divisor <= root:
+            if divisor > limit:
+                factors[UnfactoredInteger(n, limit)] = 1
+                return factors
+            if n % divisor == 0:
+                exponent = 0
+                while n % divisor == 0:
+                    exponent += 1
+                    n //= divisor
+                factors[divisor] = exponent
+                # Recheck the reduced remainder before continuing trial division.
+                break
+            divisor += step
+            step = 6 - step  # alternate between 2 and 4 to check 6k ± 1
+        else:
+            factors[n] = 1
+            return factors
+    return factors
+
+
+def _integer_root(value: int, degree: int) -> int:
+    """Return the floor of the `degree`-th root of a positive integer.
+
+    Internal helper. Only intended for calls within this module where
+    `degree >= 3` is guaranteed by the caller; no validation is performed
+    on `value` or `degree`.
+    """
+    if value == 1:
+        return value
+    if degree >= value.bit_length():
+        return 1
+    lo = 1 << ((value.bit_length() - 1) // degree)
+    hi = 1 << ((value.bit_length() + degree - 1) // degree)
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if mid**degree <= value:
+            lo = mid
+        else:
+            hi = mid
+    return lo
