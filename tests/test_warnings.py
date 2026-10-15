@@ -12,17 +12,31 @@ import pytest
 import unitx._numerics as numerics_module
 import unitx.factor as factor_module
 from unitx.dimension import Dimension
-from unitx.exceptions import IncompleteFactorWarning, InexactFloatWarning
+from unitx.exceptions import (
+    IncompleteFactorWarning,
+    InexactFloatWarning,
+    UnitSymbolError,
+    UnitSymbolWarning,
+)
 from unitx.factor import PI, Factor
 from unitx.monomial import Monomial
+from unitx.singleunit import SingleUnit
 
 _INEXACT = (InexactFloatWarning,)
 _INCOMPLETE = (IncompleteFactorWarning,)
+_SYMBOL = (UnitSymbolWarning,)
 
 
 @pytest.mark.parametrize(
     ('operation', 'expected', 'error'),
     [
+        # Ambiguous aliases warn at the user's call site, including repeated parses.
+        ("SingleUnit('Km')", _SYMBOL, None),
+        ("SingleUnit('Kg')", _SYMBOL, None),
+        ("SingleUnit('KK')", _SYMBOL, None),
+        ("(SingleUnit('Km'), SingleUnit('Km'))", _SYMBOL * 2, None),
+        ("SingleUnit('Kunknown')", (), UnitSymbolError),
+        ("SingleUnit('K⋅m')", (), UnitSymbolError),
         # Float conversion at each public entry point and reflected/in-place operator.
         ('as_fraction(2.54)', _INEXACT, None),
         ('as_fraction(1e-10)', _INEXACT, None),
@@ -128,6 +142,7 @@ def test_unitx_warning_user_location(
         'PI': PI,
         'Monomial': Monomial,
         'Dimension': Dimension,
+        'SingleUnit': SingleUnit,
         'Fraction': Fraction,
         'Decimal': Decimal,
         'factor': Factor(2),
