@@ -7,6 +7,7 @@ __all__ = [
     'InexactFloatWarning',
     'UnitSymbolError',
     'UnitSymbolWarning',
+    'UnitSyntaxError',
     'UnitxError',
     'UnitxWarning',
 ]
@@ -18,6 +19,10 @@ class UnitxError(Exception):
 
 class UnitSymbolError(UnitxError):
     """Exception raised for invalid unit symbols or names."""
+
+
+class UnitSyntaxError(UnitxError):
+    """Exception raised for invalid unit syntax."""
 
 
 # Python 3.12 warnings.warn() new API

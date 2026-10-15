@@ -17,10 +17,12 @@ from unitx.exceptions import (
     InexactFloatWarning,
     UnitSymbolError,
     UnitSymbolWarning,
+    UnitSyntaxError,
 )
 from unitx.factor import PI, Factor
 from unitx.monomial import Monomial
 from unitx.singleunit import SingleUnit
+from unitx.unitparser import UnitParser
 
 _INEXACT = (InexactFloatWarning,)
 _INCOMPLETE = (IncompleteFactorWarning,)
@@ -37,6 +39,16 @@ _SYMBOL = (UnitSymbolWarning,)
         ("(SingleUnit('Km'), SingleUnit('Km'))", _SYMBOL * 2, None),
         ("SingleUnit('Kunknown')", (), UnitSymbolError),
         ("SingleUnit('K⋅m')", (), UnitSymbolError),
+        ("UnitParser('Km').parse()", _SYMBOL, None),
+        ("UnitParser('(Kg / s)2').parse()", _SYMBOL, None),
+        ("UnitParser('Km Kg Km').parse()", _SYMBOL * 3, None),
+        ("(UnitParser('Km').parse(), UnitParser('Km').parse())", _SYMBOL * 2, None),
+        ("(parser := UnitParser('Km'), parser.parse(), parser.parse())", _SYMBOL, None),
+        ("UnitParser('K m').parse()", (), None),
+        ("UnitParser('(Km / s)^(1/3)').parse()", _SYMBOL, None),
+        ("UnitParser('Km 2').parse()", _SYMBOL, UnitSyntaxError),
+        ("UnitParser('m 1/s').parse()", (), None),
+        ("UnitParser('m^0.1').parse()", (), None),
         # Float conversion at each public entry point and reflected/in-place operator.
         ('as_fraction(2.54)', _INEXACT, None),
         ('as_fraction(1e-10)', _INEXACT, None),
@@ -143,6 +155,7 @@ def test_unitx_warning_user_location(
         'Monomial': Monomial,
         'Dimension': Dimension,
         'SingleUnit': SingleUnit,
+        'UnitParser': UnitParser,
         'Fraction': Fraction,
         'Decimal': Decimal,
         'factor': Factor(2),

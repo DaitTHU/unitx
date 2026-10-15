@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import warnings
 
-from ._unicode import DOT
 from ._unit_data import (
     PREFIX_NAME_TO_SYMBOL,
     PREFIX_SYMBOL_ALIASES,
@@ -53,7 +52,7 @@ def _resolve_single(text: str) -> tuple[str, str]:
                     if prefix_symbol_alias in UNITS:
                         symbol = prefix_symbol + unit_symbol
                         name = f'{PREFIXES[prefix_symbol].name}{UNITS[unit_symbol].name}'
-                        ambiguous_symbol = prefix_symbol_alias + DOT + unit_symbol
+                        ambiguous_symbol = f'{prefix_symbol_alias} {unit_symbol}'
                         ambiguous = f'{UNITS[prefix_symbol_alias].name} {UNITS[unit_symbol].name}'
                         warning_message = (
                             f'{text!r} is interpreted as {symbol!r} ({name}). '
