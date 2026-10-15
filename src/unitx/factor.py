@@ -202,6 +202,8 @@ class Factor:
 
     Factor equality compares stored bases and exponents. Numeric operands are
     compared as exact rational values, including the stored value of floats.
+    Hashes match equal rational numbers and individual SymbolicConstants;
+    other expressions are hashed by their stored bases and exponents.
     Decimal inputs are converted exactly to Fraction; evaluation returns int,
     Fraction, or float. Evaluation of symbolic and other irrational expressions
     is approximate, using the symbolic bases' float values. The stored algebraic
@@ -422,6 +424,16 @@ class Factor:
             for base, exp in self._monomial.components()
         )
         return f'{type(self).__name__}.from_dict({{{kv}}})'
+
+    def __hash__(self) -> int:
+        if self.is_rational():
+            return hash(self.value)
+        components = self._monomial.components()
+        if len(components) == 1:
+            base, exponent = next(iter(components))
+            if isinstance(base, SymbolicConstant) and exponent == 1:
+                return hash(base)
+        return hash(self._monomial)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Factor):

@@ -418,6 +418,80 @@ def test_factor_equality_without_evaluation(
     assert number != factor
 
 
+@pytest.mark.parametrize(
+    ('factor', 'number'),
+    [
+        (ONE, 1),
+        (ONE, True),
+        (TWO, 2.0),
+        (TWO / 8, Fraction(1, 4)),
+        (Factor(Fraction(1, 3)), Fraction(1, 3)),
+        (Factor(Decimal('0.1')), Decimal('0.1')),
+        ((TWO ** Fraction(1, 2)) ** 2, 2),
+        (PI / PI, 1),
+        pytest.param(TWO**10000, 2**10000, id='large-integer'),
+        pytest.param(TEN**-400, Fraction(1, 10**400), id='tiny-rational'),
+    ],
+)
+def test_factor_hash_numeric(factor: Factor, number: Fractionable) -> None:
+    assert factor == number
+    assert hash(factor) == hash(number)
+    assert {factor: 'value'}[number] == 'value'  # pyright: ignore[reportArgumentType]
+    assert {number: 'value'}[factor] == 'value'  # pyright: ignore[reportArgumentType]
+    assert len({factor, number}) == 1
+
+
+@pytest.mark.parametrize(
+    'factor', [Factor(PI), PI**1, (PI ** Fraction(1, 3)) ** 3, (TWO * PI) / TWO]
+)
+def test_factor_hash_symbolic(factor: Factor) -> None:
+    constant = SymbolicConstant('π', math.pi)
+    assert factor == constant
+    assert hash(factor) == hash(constant)
+    assert {factor: 'pi'}[constant] == 'pi'  # pyright: ignore[reportArgumentType]
+    assert {constant: 'pi'}[factor] == 'pi'  # pyright: ignore[reportArgumentType]
+    assert len({factor, constant}) == 1
+
+
+@pytest.mark.parametrize(
+    'components',
+    [
+        {2: Fraction(1, 2), 3: Fraction(-1, 3)},
+        {PI: Fraction(-2, 3), 2: 2, 3: Fraction(1, 2)},
+        {PI: 1, 3: 2},
+    ],
+)
+def test_factor_hash_structural(components: dict[int | SymbolicConstant, int | Fraction]) -> None:
+    first = Factor.from_dict(components)
+    second = Factor.from_dict({5: 0, **dict(reversed(components.items()))})
+    assert first == second
+    assert hash(first) == hash(second)
+    assert {first: 'value'}[second] == 'value'
+    assert len({first, second}) == 1
+
+
+@pytest.mark.parametrize('factor', [Factor(PI), PI**1000, PI**-1000, TWO ** Fraction(-2201, 2)])
+def test_factor_hash_without_evaluation(factor: Factor, monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_evaluation(self: Factor) -> NoReturn:
+        pytest.fail('Hashing must not evaluate a floating-point approximation.')
+
+    monkeypatch.setattr(Factor, 'value', property(unexpected_evaluation))
+    assert hash(factor) == hash(factor * ONE)
+    assert {factor: 'value'}[factor * ONE] == 'value'
+
+
+@pytest.mark.parametrize('factor', [TWO * 3, TWO / 3, TWO ** Fraction(1, 2) * PI])
+def test_factor_hash_preserves_state(factor: Factor) -> None:
+    original_hash = hash(factor)
+    original_repr = repr(factor)
+    lookup = {factor: 'unchanged'}
+    value = factor.value
+    assert hash(factor) == original_hash
+    assert repr(factor) == original_repr
+    assert factor.value is value
+    assert lookup[factor * ONE] == 'unchanged'
+
+
 # Classification and decomposition
 
 
@@ -906,6 +980,27 @@ def test_factor_fallback_structural_comparison(
         assert combined / combined == ONE
     assert float(combined / split) == pytest.approx(1)
     assert combined.is_rational() == (exponent == 1)
+
+
+@pytest.mark.usefixtures('fallback_backend')
+@pytest.mark.parametrize('exponent', [1, Fraction(1, 2)])
+def test_factor_hash_unresolved(exponent: int | Fraction) -> None:
+    value = 1000003 * 1000033
+    with pytest.warns(IncompleteFactorWarning):
+        factor = Factor(value) ** exponent
+    with pytest.warns(IncompleteFactorWarning, match='has not been fully factored'):
+        rebuilt = Factor.from_dict({UnfactoredInteger(value, 10): exponent})
+    original_repr = repr(factor)
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', IncompleteFactorWarning)
+        assert factor == rebuilt
+        assert hash(factor) == hash(rebuilt)
+        assert {factor: 'value'}[rebuilt] == 'value'
+        if exponent == 1:
+            assert factor == value
+            assert hash(factor) == hash(value)
+            assert {factor: 'value'}[value] == 'value'  # pyright: ignore[reportArgumentType]
+    assert repr(factor) == original_repr
 
 
 @pytest.mark.usefixtures('fallback_backend')
