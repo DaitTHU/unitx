@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.7] - 2026-10-15
+
+- Add `Unit` with string construction for compound unit expressions, including registered symbols, names, prefixes, and aliases.
+- Support unit multiplication and division, rational powers, and cancellation while preserving exact rational exponents.
+- Expose unit symbols, coherent SI scaling factors, physical dimensions, and dimensionless checks; dimensionless expressions can retain nontrivial scaling factors.
+- Define equality and hashing by formal unit factors regardless of insertion order, preserving distinct prefixed unit identities.
+- Provide readable Unicode display and reconstructible `repr` strings for compound units and rational powers.
+- Add executable usage examples and regression tests for alias normalization, equality and hashing, exact and approximate factors, dimensions, power cancellation, conversion round trips, state preservation, and invalid inputs.
+
 ## [0.0.6] - 2026-10-15
 
 - Add `UnitParser` to parse unit expressions into `Monomial[SingleUnit]`, resolving symbols, names, prefixes, and aliases through `SingleUnit`.

@@ -9,6 +9,61 @@ from .unitparser import UnitParser
 
 
 class Unit:
+    """A physical unit represented by a formal product of single units.
+
+    Accept a string in `UnitParser` syntax, such as `'kg m/s2'`,
+    `'m/(s A)'`, or `'m^(1/2)'`. Registered symbols, singular English names,
+    prefixes, and aliases are resolved by `SingleUnit` and are case-sensitive.
+    The default empty string, whitespace-only strings, and `'1'` represent
+    the multiplicative identity. See `UnitParser` for the full grammar.
+
+    Multiplication and division combine Unit operands, and powers accept int,
+    Fraction, Decimal, or float exponents. Operations return new units and
+    cancel matching formal factors. Decimal strings, Fraction, and Decimal
+    exponents remain exact; float exponents may be approximated with an
+    `InexactFloatWarning`.
+
+    Equality and hashing compare canonical unit identities and rational
+    exponents, regardless of factor insertion order. Aliases compare equal,
+    while prefixed units such as m and cm remain distinct. Equal dimensions
+    and scaling factors alone do not imply equal formal unit expressions.
+
+    `factor` is the exact multiplicative scale from this unit to its
+    corresponding coherent SI unit. Its `value` is an int or Fraction when
+    exactly rational, otherwise a float approximation. For units of the same
+    dimension, `(source.factor / target.factor)(magnitude)` converts a
+    magnitude from source to target. Mass is referenced to kg.
+
+    `is_dimensionless()` checks only the physical dimension. A dimensionless
+    expression can retain a scale other than one, as in `'km/m'`.
+    `symbol` and str() provide readable Unicode display; repr() provides a
+    reconstructible expression using the canonical unit symbols.
+
+    >>> unit = Unit('kilogram metre / second2')
+    >>> unit.symbol, unit.factor.value, unit.dimension
+    ('kg⋅m/s²', 1, Dimension(T=-2, L=1, M=1))
+    >>> Unit('m') / Unit('s')
+    Unit('m * s**-1')
+    >>> Unit('m*s') == Unit('s*m')
+    True
+    >>> Unit('m') == Unit('cm')
+    False
+    >>> from fractions import Fraction
+    >>> root = Unit('mm') ** Fraction(1, 3)
+    >>> root.factor.value
+    Fraction(1, 10)
+    >>> root**3 == Unit('mm')
+    True
+    >>> scaled = Unit('km/m')
+    >>> scaled.is_dimensionless(), scaled.factor.value
+    (True, 1000)
+    >>> source, target = Unit('g/cm3'), Unit('kg/m3')
+    >>> (source.factor / target.factor)(2)
+    2000
+    >>> eval(repr(unit)) == unit
+    True
+    """
+
     __slots__ = ('_monomial', '_dimension', '_factor', '_symbol')
     _monomial: Monomial[SingleUnit]
     _symbol: str
@@ -72,15 +127,19 @@ class Unit:
 
     @property
     def symbol(self) -> str:
+        """Return the readable unit expression with Unicode multiplication and powers."""
         return self._symbol
 
     @property
     def factor(self) -> Factor:
+        """Return the exact multiplicative scale to the corresponding coherent SI unit."""
         return self._factor
 
     @property
     def dimension(self) -> Dimension:
+        """Return the physical dimensions of the formal unit product."""
         return self._dimension
 
     def is_dimensionless(self) -> bool:
+        """Return whether all physical dimension exponents are zero, regardless of scale."""
         return self.dimension is DIMENSIONLESS
