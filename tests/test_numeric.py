@@ -4,7 +4,6 @@ from fractions import Fraction
 
 import pytest
 
-import unitx._numerics as numerics_module
 from unitx._numerics import as_fraction
 from unitx.exceptions import InexactFloatWarning
 
@@ -92,18 +91,3 @@ def test_as_fraction_float_division() -> None:
     with pytest.warns(InexactFloatWarning, match='approximate'):
         result = as_fraction(1 / 3)
     assert result == Fraction(1, 3) != Fraction(1 / 3)
-
-
-def test_as_fraction_warning_stacklevel() -> None:
-    # stacklevel=0 should point inside as_fraction() itself, not the caller.
-    with pytest.warns(InexactFloatWarning) as warnings:
-        as_fraction(1 / 3, stacklevel=0)
-    assert warnings[0].filename == numerics_module.__file__
-
-    def as_fraction_outside_stacklevel(value: float) -> None:
-        """stacklevel=2 should point to the caller of this function."""
-        as_fraction(value, stacklevel=2)
-
-    with pytest.warns(InexactFloatWarning) as warnings:
-        as_fraction_outside_stacklevel(1 / 3)
-    assert warnings[0].filename == __file__

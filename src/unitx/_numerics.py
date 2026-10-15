@@ -7,20 +7,14 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TypeAlias
 
-from .exceptions import InexactFloatWarning
+from .exceptions import _WARNING_SKIP_PREFIXES, InexactFloatWarning
 
 __all__ = ['Fractionable', 'as_fraction']
 
 Fractionable: TypeAlias = int | float | Decimal | Fraction
 
 
-def as_fraction(
-    value: Fractionable,
-    /,
-    *,
-    float_max_denominator: int = 1000000,
-    stacklevel: int = 1,
-) -> Fraction:
+def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000) -> Fraction:
     """Convert a number to a Fraction.
 
     - For `int` and `Decimal`, the conversion is always exact.
@@ -48,9 +42,9 @@ def as_fraction(
     >>> as_fraction(1e30)  # no warning, but not expected result
     Fraction(1000000000000000019884624838656, 1)
     """
-    if isinstance(value, Fraction):
+    if type(value) is Fraction:
         return value
-    if not isinstance(value, (int, float, Decimal)) or type(value) is bool:
+    if not isinstance(value, Fractionable) or type(value) is bool:
         error_message = f'Cannot convert {type(value).__name__} to Fraction.'
         raise TypeError(error_message)
     fraction = Fraction(value)
@@ -64,7 +58,7 @@ def as_fraction(
                 'The conversion is inexact and may not be as expected either. '
                 'For exact values, use Fraction or Decimal instead.',
                 InexactFloatWarning,
-                stacklevel=stacklevel + 1,
+                skip_file_prefixes=_WARNING_SKIP_PREFIXES,
             )
         return limited_fraction
     return fraction

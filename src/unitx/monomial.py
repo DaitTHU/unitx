@@ -76,8 +76,8 @@ class Monomial(Generic[BaseT]):
             raise TypeError(error_message)
         normalized: dict[BaseT, Fraction] = {}
         for base, exp in components.items():
-            if exponent := as_fraction(exp, stacklevel=2):
-                normalized[base] = exponent if type(exponent) is Fraction else Fraction(exponent)
+            if exponent := as_fraction(exp):
+                normalized[base] = exponent
         obj = super().__new__(cls)
         object.__setattr__(obj, '_components', MappingProxyType(normalized))
         return obj
@@ -193,7 +193,7 @@ class Monomial(Generic[BaseT]):
     def __pow__(self, other: Fractionable) -> Monomial[BaseT]:
         if not isinstance(other, Fractionable):
             return NotImplemented
-        other_as_fraction = as_fraction(other, stacklevel=2)
+        other_as_fraction = as_fraction(other)
         if other_as_fraction == 0:
             return self._from_dict({})
         return self._from_dict({base: exp * other_as_fraction for base, exp in self.components()})

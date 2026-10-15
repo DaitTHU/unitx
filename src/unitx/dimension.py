@@ -58,7 +58,7 @@ class Dimension:
         N: Fractionable = 0,
         J: Fractionable = 0,
     ) -> Dimension:
-        exponents = tuple(as_fraction(exp, stacklevel=3) for exp in (T, L, M, I, Theta, N, J))
+        exponents = tuple(as_fraction(exp) for exp in (T, L, M, I, Theta, N, J))
         if not any(exponents):
             return DIMENSIONLESS
         obj = object.__new__(cls)
@@ -125,8 +125,8 @@ class Dimension:
         return self._from_iter(a - b for a, b in zip(self._exponents, other._exponents))
 
     def __pow__(self, power: Fractionable) -> Dimension:
-        power = as_fraction(power, stacklevel=2)
-        return self._from_iter(exp * power for exp in self._exponents)
+        power_as_fraction = as_fraction(power)
+        return self._from_iter(exp * power_as_fraction for exp in self._exponents)
 
     def __rtruediv__(self, other: Literal[1]) -> Dimension:
         if type(other) is int and other == 1:
