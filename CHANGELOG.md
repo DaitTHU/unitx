@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0] - 2026-10-16
+
+Replace the implementation previously published on PyPI as 0.3.0. The 0.0.x
+entries below retain this repository's development milestones.
+
+### Changed
+
+- Require Python 3.12 or later; Python 3.11 is no longer supported.
+- Use module imports for `Quantity`, `Unit`, `Dimension`, and `DIMENSIONLESS`; the former top-level exports and `unitx.utils` namespace are no longer provided.
+- Remove `Unit` length and special truth-value behavior. Check formal identity with `unit == Unit('')`, or physical dimensions with `unit.is_dimensionless()`.
+- Compare and hash scalar quantities using exact rational coefficients and remaining irrational unit factors. Finite floats retain their stored binary rational values for equality, without a tolerance.
+- Convert finite Decimal magnitudes exactly to Fraction for scaling and arithmetic, independent of the Decimal precision context; numerical results can change type.
+- Normalize quantity exponents once for both the magnitude and unit, with approximate native evaluation for nonintegral magnitude powers.
+
+### Fixed
+
+- Interpret plain numbers as unscaled values when adding to or subtracting from scaled dimensionless quantities.
+- Preserve the original magnitude and type when multiplying or dividing a quantity by a Unit.
+- Cancel common irrational factors before evaluating quantity ordering, retaining exact ordering when the ratio is rational.
+
+### Added
+
+- Support Fraction and Decimal scalar multiplication and division alongside int and float.
+- Distribute inline type information with `py.typed` and check numerical and custom scalar contracts with Pyright.
+- Add a release workflow that validates version tags, checks distributions and the installed wheel, and publishes GitHub releases through PyPI Trusted Publishing.
+- Document construction, conversion, unit syntax, numerical rules, supported units, and migration from 0.3.0. NumPy integration remains planned and is not supported in this release.
+
 ## [0.0.7] - 2026-10-15
 
 - Add `Unit` with string construction for compound unit expressions, including registered symbols, names, prefixes, and aliases.
