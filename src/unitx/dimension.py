@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from fractions import Fraction
 from typing import Literal
 
-from ._numerics import Fractionable, as_fraction
+from ._numerics import Fractionable, as_fraction, as_int_if_integral
 from ._unicode import superscript
 
 __all__ = ['DIMENSIONLESS', 'Dimension']
@@ -85,7 +85,7 @@ class Dimension:
 
     def __repr__(self) -> str:
         arguments = ', '.join(
-            f'{sym}={exp}' if exp.denominator == 1 else f'{sym}={exp!r}'
+            f'{sym}={as_int_if_integral(exp)!r}'
             for sym, exp in zip(_ASCII_SYMBOLS, self._exponents)
             if exp
         )

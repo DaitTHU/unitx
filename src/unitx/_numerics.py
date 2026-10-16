@@ -12,13 +12,57 @@ import math
 import warnings
 from decimal import Decimal
 from fractions import Fraction
-from typing import Self, TypeAlias
+from typing import Any, Never, Protocol, Self, TypeAlias
 
 from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning, InexactFloatWarning
 
-__all__ = ['Fractionable', 'as_fraction', 'factorint', 'isprime']
+__all__ = [
+    'Fractionable',
+    'Magnitude',
+    'Real',
+    'Number',
+    'as_fraction',
+    'as_int_if_integral',
+    'factorint',
+    'isprime',
+]
 
-Fractionable: TypeAlias = int | float | Decimal | Fraction
+# Number typing
+
+
+class Magnitude(Protocol):
+    """Scalar magnitudes whose operations return other scalar magnitudes.
+
+    Operand types depend on the concrete magnitude's numerical domain. Results
+    need not preserve its concrete type. Equality must return a bool. Ordering
+    is deliberately not required: valid arithmetic, including fractional powers,
+    can produce complex values. NumPy scalars, arrays, and operation dispatch
+    are not supported yet; NumPy integration is planned.
+
+    Forward multiplication and division have an unspecified operand domain at
+    this protocol boundary. `Never` lets concrete numeric methods satisfy the
+    protocol without claiming that they accept every operand. In particular,
+    raw magnitudes must defer Unit operands to Unit's reflected operators,
+    which construct quantities and preserve the magnitude's type.
+    """
+
+    def __pos__(self, /) -> Magnitude: ...
+    def __neg__(self, /) -> Magnitude: ...
+    def __add__(self, other: Any, /) -> Magnitude: ...
+    def __sub__(self, other: Any, /) -> Magnitude: ...
+    def __mul__(self, other: Never, /) -> Magnitude: ...
+    def __truediv__(self, other: Never, /) -> Magnitude: ...
+    def __pow__(self, other: Any, /) -> Magnitude: ...
+    def __radd__(self, other: Any, /) -> Magnitude: ...
+    def __rsub__(self, other: Any, /) -> Magnitude: ...
+    def __rmul__(self, other: Any, /) -> Magnitude: ...
+    def __rtruediv__(self, other: Any, /) -> Magnitude: ...
+    def __eq__(self, other: Any, /) -> bool: ...
+
+
+Real: TypeAlias = int | Fraction | float
+Number: TypeAlias = Real | complex
+Fractionable: TypeAlias = Real | Decimal
 
 
 def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000) -> Fraction:
@@ -69,6 +113,11 @@ def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000)
             )
         return limited_fraction
     return fraction
+
+
+def as_int_if_integral(value: Fraction, /) -> int | Fraction:
+    """Return an int if integral; otherwise return the original Fraction."""
+    return value.numerator if value.denominator == 1 else value
 
 
 # Number theory functions: prime factorization and primality testing.

@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
 
-from ._numerics import Fractionable, UnfactoredInteger, as_fraction
+from ._numerics import Fractionable, UnfactoredInteger, as_fraction, as_int_if_integral
 from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning
 from .monomial import Monomial
 
@@ -353,7 +353,7 @@ class Factor:
             return self._value_cache
         rational, irrational = self.decompose()
         if not irrational._monomial.bases():
-            self._value_cache = rational.numerator if rational.denominator == 1 else rational
+            self._value_cache = as_int_if_integral(rational)
             return self._value_cache
         # Keep intermediate powers outside the float range until final conversion.
         try:
@@ -420,8 +420,7 @@ class Factor:
 
     def __repr__(self) -> str:
         kv = ', '.join(
-            f'{base!r}: {exp.numerator}' if exp.denominator == 1 else f'{base!r}: {exp!r}'
-            for base, exp in self._monomial.components()
+            f'{base!r}: {as_int_if_integral(exp)!r}' for base, exp in self._monomial.components()
         )
         return f'{type(self).__name__}.from_dict({{{kv}}})'
 
@@ -505,9 +504,7 @@ class Factor:
             result = Fraction(value) * Fraction(magnitude)
             if isinstance(value, float):
                 return float(result)
-            if result.denominator == 1:
-                return result.numerator
-            return result
+            return as_int_if_integral(result)
         return self.value * magnitude
 
 
