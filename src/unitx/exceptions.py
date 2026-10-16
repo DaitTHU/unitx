@@ -1,8 +1,10 @@
 """Custom exceptions and warnings for the unitx library."""
 
 import os
+from typing import Final
 
 __all__ = [
+    'DimensionError',
     'IncompleteFactorWarning',
     'InexactFloatWarning',
     'UnitSymbolError',
@@ -25,8 +27,12 @@ class UnitSyntaxError(UnitxError):
     """Exception raised for invalid unit syntax."""
 
 
+class DimensionError(UnitxError):
+    """Exception raised for dimension mismatches in quantity operations."""
+
+
 # Python 3.12 warnings.warn() new API
-_WARNING_SKIP_PREFIXES = (os.path.dirname(__file__) + os.sep,)
+_WARNING_SKIP_PREFIXES: Final = (os.path.dirname(__file__) + os.sep,)
 
 
 class UnitxWarning(UserWarning):

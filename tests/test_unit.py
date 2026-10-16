@@ -7,6 +7,7 @@ import pytest
 
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import InexactFloatWarning, UnitSymbolError, UnitSyntaxError
+from unitx.quantity import Quantity
 from unitx.unit import Unit
 
 
@@ -22,6 +23,21 @@ def test_unit_creation() -> None:
     assert u.factor.value == 1
     assert type(u.factor.value) is int
     assert repr(u) == "Unit('m * s**-1')"
+
+
+@pytest.mark.parametrize('value', [0, -2, 2.0, Fraction(3, 2), Decimal('1.2345'), 2j])
+def test_unit_quantity_construction(value) -> None:
+    unit = Unit('cm')
+    with localcontext() as context:
+        context.prec = 2
+        product = value * unit
+        quotient = value / unit
+    assert isinstance(product, Quantity)
+    assert isinstance(quotient, Quantity)
+    assert product.value is value
+    assert quotient.value is value
+    assert product.unit is unit
+    assert quotient.unit == Unit('cm^-1')
 
 
 @pytest.mark.parametrize(

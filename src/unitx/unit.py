@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from ._numerics import Fractionable
+from typing import TYPE_CHECKING
+
+from ._numerics import Fractionable, Magnitude
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import ONE, Factor
 from .monomial import Monomial
 from .singleunit import SingleUnit
 from .unitparser import UnitParser
+
+if TYPE_CHECKING:
+    from .quantity import Quantity
 
 
 class Unit:
@@ -22,6 +27,12 @@ class Unit:
     cancel matching formal factors. Decimal strings, Fraction, and Decimal
     exponents remain exact; float exponents may be approximated with an
     `InexactFloatWarning`.
+
+    A supported scalar magnitude multiplied by a Unit constructs a Quantity
+    with that unit. Dividing a magnitude by a Unit constructs a Quantity with
+    the reciprocal unit. Both preserve the original magnitude and its type
+    without scaling. NumPy scalars, arrays, and NumPy operations are not
+    supported yet; NumPy integration is planned.
 
     Equality and hashing compare canonical unit identities and rational
     exponents, regardless of factor insertion order. Aliases compare equal,
@@ -62,6 +73,8 @@ class Unit:
     2000
     >>> eval(repr(unit)) == unit
     True
+    >>> 2 * Unit('cm')
+    Quantity(2, Unit('cm'))
     """
 
     __slots__ = ('_monomial', '_dimension', '_factor', '_symbol')
@@ -110,15 +123,25 @@ class Unit:
             return NotImplemented
         return self._monomial == other._monomial
 
-    def __mul__(self, other: object) -> Unit:
+    def __mul__(self, other: Unit) -> Unit:
         if not isinstance(other, Unit):
             return NotImplemented
         return self._from_monomial(self._monomial * other._monomial)
 
-    def __truediv__(self, other: object) -> Unit:
+    def __truediv__(self, other: Unit) -> Unit:
         if not isinstance(other, Unit):
             return NotImplemented
         return self._from_monomial(self._monomial / other._monomial)
+
+    def __rmul__[T: Magnitude](self, other: T) -> Quantity[T]:
+        from .quantity import Quantity
+
+        return Quantity(other, self)
+
+    def __rtruediv__[T: Magnitude](self, other: T) -> Quantity[T]:
+        from .quantity import Quantity
+
+        return Quantity(other, self**-1)
 
     def __pow__(self, exponent: Fractionable) -> Unit:
         if not isinstance(exponent, Fractionable):
