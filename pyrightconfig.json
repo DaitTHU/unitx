@@ -1,0 +1,16 @@
+{
+  "include": [
+    "src/unitx/quantity.py",
+    "src/unitx/_numerics.py",
+    "src/unitx/factor.py",
+    "src/unitx/unit.py",
+    "tests/typing"
+  ],
+  "strict": [
+    "src/unitx/quantity.py",
+    "tests/typing"
+  ],
+  "extraPaths": ["src"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic"
+}

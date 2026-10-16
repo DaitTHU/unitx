@@ -1,0 +1,150 @@
+"""Static API contracts, checked by Pyright rather than executed by pytest."""
+
+from decimal import Decimal
+from fractions import Fraction
+from typing import Any, assert_type
+
+from unitx._numerics import Magnitude, Number, Real
+from unitx.factor import Factor
+from unitx.quantity import Quantity
+from unitx.unit import Unit
+
+
+class _Magnitude(int):
+    pass
+
+
+def test_quantity_construction() -> None:
+    assert_type(Quantity(1, 'm'), Quantity[int])
+    assert_type(Quantity(1.0, 'm'), Quantity[float])
+    assert_type(Quantity(Fraction(1), 'm'), Quantity[Fraction])
+    assert_type(Quantity(Decimal(1), 'm'), Quantity[Decimal])
+    assert_type(Quantity(1j, 'm'), Quantity[complex])
+    assert_type(Quantity(1, 'm').value, int)
+
+
+def test_unit_value_operations[T: Magnitude](
+    value: T, unit: Unit
+) -> tuple[Quantity[T], Quantity[T]]:
+    product = value * unit
+    quotient = value / unit
+    assert_type(product, Quantity[T])
+    assert_type(quotient, Quantity[T])
+    return product, quotient
+
+
+def test_unit_numeric_construction() -> None:
+    unit = Unit('m')
+    assert_type(2 * unit, Quantity[int])
+    assert_type(2 / unit, Quantity[int])
+    assert_type(2.0 * unit, Quantity[float])
+    assert_type(2.0 / unit, Quantity[float])
+    assert_type(Decimal(2) * unit, Quantity[Decimal])
+    assert_type(Decimal(2) / unit, Quantity[Decimal])
+    assert_type(Fraction(2) * unit, Quantity[Fraction])
+    assert_type(Fraction(2) / unit, Quantity[Fraction])
+    assert_type(2j * unit, Quantity[complex])
+    assert_type(2j / unit, Quantity[complex])
+    assert_type(_Magnitude(2) * unit, Quantity[_Magnitude])
+    assert_type(_Magnitude(2) / unit, Quantity[_Magnitude])
+    assert_type(test_unit_value_operations(2, unit), tuple[Quantity[int], Quantity[int]])
+    assert_type(
+        test_unit_value_operations(Decimal(2), unit),
+        tuple[Quantity[Decimal], Quantity[Decimal]],
+    )
+    assert_type(
+        test_unit_value_operations(_Magnitude(2), unit),
+        tuple[Quantity[_Magnitude], Quantity[_Magnitude]],
+    )
+
+
+def test_quantity_conversion() -> None:
+    assert_type(Quantity(1, 'm').to('cm'), Quantity[Real])
+    assert_type(Quantity(Fraction(1), 'm').to('cm'), Quantity[Fraction | float])
+    assert_type(Quantity(Decimal(1), 'm').to('cm'), Quantity[Real])
+    assert_type(Quantity(1.0, 'm').to('cm'), Quantity[Real])
+    # A float annotation accepts int values too; scaling can then yield Fraction.
+    assert_type(Quantity[float](1, 'cm').to('m'), Quantity[Real])
+
+
+def test_quantity_unit_operations[T: Magnitude](value: T) -> Quantity[T]:
+    quantity = Quantity(value, 'm')
+    unit = Unit('s')
+    assert_type(quantity, Quantity[T])
+    assert_type(quantity.value, T)
+    assert_type(quantity * unit, Quantity[T])
+    assert_type(unit * quantity, Quantity[T])
+    assert_type(quantity / unit, Quantity[T])
+    return quantity
+
+
+def test_quantity_numeric_operations() -> None:
+    integer = Quantity(1, 'm')
+    rational = Quantity(Fraction(1), 'm')
+    decimal = Quantity(Decimal(1), 'm')
+    floating = Quantity(1.0, 'm')
+    assert_type(integer + integer, Quantity[Real])
+    assert_type(integer + rational, Quantity[Real])
+    assert_type(decimal + floating, Quantity[Real])
+    assert_type(floating - decimal, Quantity[Real])
+    assert_type(integer * integer, Quantity[int])
+    assert_type(integer * 2, Quantity[int])
+    assert_type(2 * integer, Quantity[int])
+    assert_type(rational * decimal, Quantity[Real])
+    assert_type(integer / integer, Quantity[float])
+    assert_type(integer / 2, Quantity[float])
+    assert_type(2 / integer, Quantity[float])
+    assert_type(Unit('s') / integer, Quantity[float])
+    assert_type(decimal / floating, Quantity[Real])
+    assert_type(decimal * Decimal(2), Quantity[Real])
+    assert_type(Fraction(2) * decimal, Quantity[Real])
+    assert_type(Decimal(2) / rational, Quantity[Real])
+
+
+def test_quantity_unary() -> None:
+    assert_type(+Quantity(1, 'm'), Quantity[int])
+    assert_type(-Quantity(1.0, 'm'), Quantity[float])
+    assert_type(-Quantity(Fraction(1), 'm'), Quantity[Fraction])
+    assert_type(+Quantity(Decimal(1), 'm'), Quantity[Fraction])
+    assert_type(-Quantity(1j, 'm'), Quantity[complex])
+
+
+def test_quantity_dimensionless() -> None:
+    quantity = Quantity(1, 'km/m')
+    assert_type(quantity + 1, Quantity[Real])
+    assert_type(1 + quantity, Quantity[Real])
+    assert_type(quantity - Decimal(1), Quantity[Real])
+    assert_type(Decimal(1) - quantity, Quantity[Real])
+    assert_type(quantity == 1000, bool)
+    assert_type(quantity < 1001, bool)
+
+
+def test_quantity_powers() -> None:
+    assert_type(Quantity(2, 'm') ** 2, Quantity[Number])
+    assert_type(Quantity(-2, 'm') ** Fraction(1, 2), Quantity[Number])
+    assert_type(Quantity(Decimal(2), 'm') ** Decimal('0.5'), Quantity[Number])
+
+
+def test_quantity_custom(value: Magnitude) -> None:
+    quantity = Quantity(value, 'm')
+    assert_type(quantity, Quantity[Magnitude])
+    assert_type(quantity.to('cm'), Quantity[Magnitude])
+    assert_type(quantity + quantity, Quantity[Magnitude])
+    assert_type(quantity * 2, Quantity[Magnitude])
+    assert_type(quantity / 2, Quantity[Magnitude])
+    assert_type(-quantity, Quantity[Magnitude])
+    assert_type(quantity**2, Quantity[Magnitude])
+    assert_type(value == value, bool)
+    assert_type(value != value, bool)
+    assert_type(quantity == quantity, bool)
+    assert_type(quantity != quantity, bool)
+
+
+def test_factor_scaling(factor: Factor, value: Magnitude) -> None:
+    assert_type(factor(1), Real)
+    assert_type(factor(1.0), Real)
+    assert_type(factor(Decimal(1)), Real)
+    assert_type(factor(Fraction(1)), Fraction | float)
+    assert_type(factor(value), Magnitude)
+    # Factor also permits native multiplication of nonnumeric magnitudes.
+    assert_type(factor([1, 2]), Any)

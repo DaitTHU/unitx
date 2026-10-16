@@ -7,13 +7,17 @@ import warnings
 from collections.abc import Callable, Mapping
 from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
+from typing import Any, overload
 
-from ._numerics import Fractionable, UnfactoredInteger, as_fraction, as_int_if_integral
+from ._numerics import Fractionable, Magnitude, UnfactoredInteger, as_fraction, as_int_if_integral
 from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning
 from .monomial import Monomial
 
 try:
-    from sympy import factorint, isprime  # pyright: ignore[reportMissingModuleSource]
+    from sympy import (  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
+        factorint,
+        isprime,
+    )
 except ModuleNotFoundError as exc:
     if exc.name != 'sympy':
         raise
@@ -484,7 +488,19 @@ class Factor:
     def __pow__(self, other: Fractionable) -> Factor:
         return Factor._from_monomial(self._monomial ** as_fraction(other))
 
-    def __call__(self, magnitude):
+    @overload
+    def __call__(self, magnitude: Fraction) -> Fraction | float: ...
+
+    @overload
+    def __call__(self, magnitude: int | float | Decimal) -> int | Fraction | float: ...
+
+    @overload
+    def __call__(self, magnitude: Magnitude) -> Magnitude: ...
+
+    @overload
+    def __call__(self, magnitude: Any) -> Any: ...
+
+    def __call__(self, magnitude: Any) -> Any:
         """Scale a magnitude using the evaluated int, Fraction, or float value.
 
         Finite Decimal magnitudes are converted exactly to Fraction, without
