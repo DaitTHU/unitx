@@ -1,6 +1,7 @@
 # unitx
 
-Physical units, scalar quantities, and dimensional analysis for Python, with
+Write Python formulas with ready-to-use units and physical constants. unitx
+handles scalar quantities, unit conversion, and dimensional analysis, with
 exact rational unit scales and exponents.
 
 unitx is in early development. Public APIs may change during the 0.x series.
@@ -24,49 +25,87 @@ python -m pip install -e .
 This README describes the current source tree, including unreleased changes.
 For a published release, consult the README at its matching Git tag.
 
-## Upgrading from 0.3.0
-
-Version 0.4.0 replaces the implementation previously published on PyPI as 0.3.0.
-It includes incompatible changes:
-
-- Python 3.12 or later is required; Python 3.11 is no longer supported.
-- Import classes from their modules. The former top-level exports and
-  `unitx.utils` namespace are no longer provided:
-
-  ```python
-  from unitx.dimension import DIMENSIONLESS, Dimension
-  from unitx.quantity import Quantity
-  from unitx.unit import Unit
-  ```
-
-- `Unit` no longer defines `len()` or special truth-value behavior. Use
-  `unit == Unit('')` to check the formal identity, or `unit.is_dimensionless()`
-  to check physical dimensions; these are different questions.
-- Conversion and arithmetic can produce different magnitude types, especially
-  for Decimal inputs. Review the [numerical behavior](#numerical-behavior)
-  before relying on a result's concrete type or approximate equality.
-
 ## Quick start
 
-Import the classes from their modules:
+Start with the two namespaces in `unitx.si`: lowercase `si` provides units,
+and uppercase `SI` provides physical constants. Their members are ready to use
+in ordinary Python formulas:
+
+```pycon
+>>> from unitx.si import SI, si
+>>> distance = 3 * si.m
+>>> elapsed = 2 * si.s
+>>> speed = distance / elapsed
+>>> print(speed)
+1.5 m/s
+>>> print(speed.to(si.cm / si.s))
+150.0 cm/s
+>>> print(SI.c)
+299792458 m/s
+
+```
+
+Multiplying a scalar by a unit constructs a quantity. Divide quantities to
+compute rates, multiply them to combine physical quantities, and call `.to()`
+with the unit you want. A quantity's `.value` and `.unit` expose its magnitude
+and unit separately.
+
+## Units and constants with SI
+
+Use the same import for both namespaces:
+
+```python
+from unitx.si import SI, si
+```
+
+| Namespace | Members | Examples |
+| --- | --- | --- |
+| `si` | Units (`Unit`) | `si.m`, `si.ns`, `si.kg`, `si.N`, `si.J`, `si.MeV` |
+| `SI` | Physical constants (`Quantity`) | `SI.c`, `SI.h`, `SI.hbar`, `SI.e`, `SI.kB`, `SI.me` |
+
+Common prefixed units and units such as hours, litres, electronvolts, and
+astronomical units are included. Units and constants can be combined directly:
+
+```pycon
+>>> rest_energy = (SI.me * SI.c**2).to(si.MeV)
+>>> round(float(rest_energy.value), 6)
+0.510999
+>>> (2 * si.h).to(si.s).value
+7200
+>>> (1 * si.us).to(si.ns).value
+1000
+
+```
+
+Both namespaces are read-only and do not need to be instantiated. `si` exposes
+a selection of convenient attributes; other registered prefix combinations
+remain available through `Unit`, for example `Unit('Tm')`. Importing unitx
+initializes the predefined unit catalogue. Defining a custom unit registers its
+text spellings without adding an attribute to `si`.
+
+SI defining constants retain their exact decimal values. Measured constants
+are stored nominal values; measurement uncertainties are not propagated.
+Derived constants involving numerical approximations, such as `math.pi`, are
+evaluated numerically.
+
+## Constructing units and quantities
+
+For unit expressions and explicit construction, import the classes:
 
 ```pycon
 >>> from unitx.quantity import Quantity
 >>> from unitx.unit import Unit
->>> distance = 3 * Unit('m')
->>> elapsed = Quantity(2, 's')
->>> speed = distance / elapsed
->>> print(speed)
-1.5 m/s
->>> print(speed.to('cm/s'))
-150.0 cm/s
+>>> Quantity(50, 'cm') == 50 * si.cm
+True
+>>> Unit('astronomical unit') == si.au
+True
 
 ```
 
 `Quantity(value, unit)` accepts a unit expression or an existing `Unit` object.
-Multiplying a scalar by a unit constructs a quantity; dividing a scalar by a
-unit constructs a quantity with the reciprocal unit. Construction preserves the
-original magnitude and its type.
+`value * unit` constructs a quantity, and `value / unit` constructs a quantity
+with the reciprocal unit. Construction preserves the original magnitude and
+its type.
 
 These are directional construction operators: `value * unit` and `value / unit`
 construct a `Quantity`, while `unit * value` and `unit / value` adjust the
@@ -148,7 +187,6 @@ False
   both `s` and `A` in the denominator; `m/s A` means `(m/s)*A`.
 - Unit symbols and names are case-sensitive. `u`, `µ`, and `μ` are accepted
   micro prefixes. Use lowercase `k` for kilo; `K` denotes kelvin.
-
 - A registered multiword name is recognized before implicit multiplication
   when it occupies the entire input. Whitespace between its words is treated
   as a single space. Inside products, parentheses, reciprocals, and powers,
@@ -207,23 +245,23 @@ operators are not allowed in any token. The primary symbol and `name` are
 required and must be nonempty; empty aliases are ignored.
 
 ```pycon
->>> span = (2 * Unit('m')).define('span', 'survey span', 'survey distance')
+>>> span = (2 * si.m).define('span', 'survey span', 'survey distance')
 >>> Unit('survey span') == span
 True
 >>> Unit('kilosurvey distance') == Unit('kspan')
 True
->>> Unit('survey span') / Unit('s') == Unit('span / s')
+>>> Unit('survey span') / si.s == Unit('span / s')
 True
 
 ```
 
 Multiword names are recognized only as complete inputs. For example,
-`Unit('survey span / s')` does not recognize `survey span`
+`Unit('astronomical unit / arcsec')` does not recognize `astronomical unit`
 as a factor; use one of the two compound forms above instead.
 
 SI prefixes are enabled by default; set `prefixable=False` to disable them.
 Prefix names attach directly to the first word of a multiword name, as in
-`kilosurvey span`; a separate `kilo survey span` is not accepted.
+`kiloastronomical unit`; a separate `kilo astronomical unit` is not accepted.
 Registration raises `UnitRegistryError` if a new spelling, including a generated
 prefixed form, already resolves to a unit or conflicts with another spelling
 in the same definition. A multiword spelling must not replace an existing
@@ -327,6 +365,7 @@ python -m pip install sympy
 
 | Class | Import module | Purpose |
 | --- | --- | --- |
+| `si` / `SI` | `unitx.si` | Ready-to-use units and physical constants |
 | `Quantity` | `unitx.quantity` | Scalar values paired with units, conversion, and arithmetic |
 | `Unit` | `unitx.unit` | Compound units, scaling factors, and physical dimensions |
 | `ScaledUnit` | `unitx.unit` | Formal unit products with an additional exact scale |
@@ -340,6 +379,22 @@ The package includes inline type annotations and a `py.typed` marker. Constructi
 and operations with `Unit` preserve the magnitude type in type hints; conversion
 and numerical arithmetic use result unions where the concrete type depends on
 runtime values or units. Modules whose names start with `_` are internal.
+
+## Upgrading from 0.3.0
+
+Version 0.4.0 replaced the implementation previously published on PyPI as 0.3.0.
+It introduced incompatible changes:
+
+- Python 3.12 or later is required; Python 3.11 is no longer supported.
+- The former `unitx.utils` namespace was removed. Classes can be imported from
+  their modules, as shown above; the current source tree also exports `Unit`,
+  `Quantity`, and `Dimension` at the package root.
+- `Unit` no longer defines `len()` or special truth-value behavior. Use
+  `unit == Unit('')` to check the formal identity, or `unit.is_dimensionless()`
+  to check physical dimensions.
+- Conversion and arithmetic can produce different magnitude types, especially
+  for Decimal inputs. Review the [numerical behavior](#numerical-behavior)
+  before relying on a result's concrete type or approximate equality.
 
 ## Development
 
