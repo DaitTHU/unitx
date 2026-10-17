@@ -212,10 +212,9 @@ class Unit:
         self,
         symbol: str,
         /,
-        *,
         name: str,
+        *name_aliases: str,
         symbol_aliases: str | tuple[str, ...] = (),
-        name_aliases: str | tuple[str, ...] = (),
         prefixable: bool = True,
     ) -> Unit:
         """Register a new unit in this process and return it without changing self.
@@ -226,6 +225,12 @@ class Unit:
         digits, or grammar operators. The primary symbol and name are required
         and must be nonempty. Empty aliases are ignored.
 
+        The symbol is positional-only. The primary name accepts positional or
+        keyword input. Additional names are optional positional arguments;
+        pass the primary name positionally when supplying them.
+        Symbol aliases accept a string or tuple of strings and,
+        like prefixable, must be passed by keyword.
+
         With prefixable=True, SI prefixes also apply to symbols and names.
         All new texts, including prefixed forms, must be unambiguous and must
         not already resolve to registered units. Invalid definitions raise
@@ -233,12 +238,8 @@ class Unit:
         """
         if not isinstance(symbol_aliases, (str, tuple)):
             raise TypeError('Symbol aliases must be str or tuple of str.')
-        if not isinstance(name_aliases, (str, tuple)):
-            raise TypeError('Name aliases must be str or tuple of str.')
         if isinstance(symbol_aliases, str):
             symbol_aliases = (symbol_aliases,)
-        if isinstance(name_aliases, str):
-            name_aliases = (name_aliases,)
         data = UnitData(
             self.factor, name, *name_aliases, dimension=self.dimension, prefixable=prefixable
         )

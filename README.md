@@ -165,7 +165,12 @@ preserving its exact scale and formal units. Restoring custom units requires
 their definitions to be registered in the receiving process.
 
 Definitions affect the current process and leave the source object unchanged.
-`symbol_aliases` and `name_aliases` each accept a string or tuple of strings.
+The symbol is positional-only. The primary `name` accepts positional or keyword
+input. Additional name aliases are optional positional arguments after `name`,
+such as `Unit('m').define('span', 'spanunit', 'spanlength', 'spanmeasure')`.
+Pass the primary name positionally when supplying name aliases; omitting the
+aliases gives an empty tuple. `symbol_aliases` accepts a string or tuple of
+strings; it and `prefixable` must be passed by keyword.
 The symbol, names, and aliases must each be a single printable unit token,
 without whitespace, decimal digits, or parser operators. The primary symbol
 and `name` are required and must be nonempty; empty aliases are ignored.

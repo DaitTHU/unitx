@@ -85,8 +85,12 @@ def test_scaled_unit_construction() -> None:
 
 def test_unit_define() -> None:
     assert_type(Unit('m').define('rvlen', name='reviewlength'), Unit)
+    assert_type(Unit('m').define('rvlen', 'reviewlength'), Unit)
+    assert_type(Unit('m').define('rvlen', 'reviewlength', 'reviewdistance', 'reviewspan'), Unit)
     assert_type((PI * Unit('m')).define('rvpi', name='reviewpilength'), Unit)
+    assert_type((PI * Unit('m')).define('rvpi', 'reviewpilength', 'reviewpispan'), Unit)
     assert_type((60 * Unit('s')).define('rvmin', name='reviewminute'), Unit)
+    assert_type((60 * Unit('s')).define('rvmin', 'reviewminute', 'reviewduration'), Unit)
     assert_type(Quantity(Decimal('0.3048'), 'm').define('rvft', name='reviewfoot'), Unit)
 
 

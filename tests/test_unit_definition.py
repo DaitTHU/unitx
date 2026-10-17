@@ -31,12 +31,12 @@ from unitx.unit import ScaledUnit, Unit
 @pytest.fixture(autouse=True)
 def unit_registry() -> Iterator[tuple[dict[str, UnitData], dict[str, str], dict[str, str]]]:
     """Keep definitions local to each test without replacing shared dictionaries."""
-    tables = (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES)
-    snapshots = UNITS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIASES.copy()
-    yield snapshots
+    tables = UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES
+    snapshots = tuple(table.copy() for table in tables)
+    yield snapshots  # pyright: ignore[reportReturnType]
     for table, snapshot in zip(tables, snapshots):
         table.clear()
-        table.update(snapshot)
+        table.update(snapshot)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
 
 def test_unit_define_identity() -> None:
@@ -51,38 +51,59 @@ def test_unit_define_identity() -> None:
     assert (source.symbol, source.factor, source.dimension, hash(source)) == before
 
 
-def test_unit_define_aliases() -> None:
-    unit = Unit('m').define(
+@pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
+@pytest.mark.parametrize('keyword', [False, True])
+def test_unit_define_name(source, keyword: bool) -> None:
+    if keyword:
+        unit = source.define('rvlen', name='reviewlength')
+    else:
+        unit = source.define('rvlen', 'reviewlength')
+    assert type(unit) is Unit
+    assert unit == Unit('rvlen') == Unit('reviewlength')
+    assert SingleUnit('rvlen').name == 'reviewlength'
+
+
+@pytest.mark.parametrize(
+    ('source', 'scale'),
+    [(Unit('m'), 1), (Factor(2) * Unit('m'), 2), (Quantity(2, 'm'), 2)],
+)
+def test_unit_define_aliases(source, scale: int) -> None:
+    unit = source.define(
         'rvlen',
-        name='reviewlength',
+        'reviewlength',
+        'reviewdistance',
+        'reviewspan',
         symbol_aliases=('rvlength', 'rvspan'),
-        name_aliases=('reviewdistance', 'reviewspan'),
     )
     for text in ('rvlen', 'rvlength', 'rvspan', 'reviewlength', 'reviewdistance', 'reviewspan'):
         assert Unit(text) == unit
         assert SingleUnit(text).symbol == 'rvlen'
     for text in ('krvlength', 'kiloreviewdistance'):
         assert Unit(text) == Unit('krvlen')
-        assert Unit(text).factor == Factor(1000)
+        assert Unit(text).factor == Factor(1000 * scale)
+    assert Quantity(1, unit).to('m').value == scale
 
 
 def test_unit_define_empty_aliases() -> None:
-    unit = Unit('m').define('rvlen', name='reviewlength', symbol_aliases='', name_aliases='')
+    unit = Unit('m').define('rvlen', 'reviewlength', '', symbol_aliases='')
     assert Unit('rvlen') == Unit('reviewlength') == unit
     assert Unit().factor == Factor(1)
     assert SingleUnit('').symbol == ''
     assert SingleUnit('').name == ''
     assert SingleUnit('rvlen').name == 'reviewlength'
     assert SingleUnit('krvlen').name == 'kiloreviewlength'
-    named = Unit('s').define(
-        'rvtime', name='reviewtime', symbol_aliases='rvduration', name_aliases='reviewduration'
-    )
+    named = Unit('s').define('rvtime', 'reviewtime', 'reviewduration', symbol_aliases='rvduration')
     assert Unit('rvduration') == Unit('reviewduration') == named
 
 
-@pytest.mark.parametrize('name_aliases', ['reviewdistance', ('', 'reviewdistance', 'reviewspan')])
-def test_unit_define_primary_name(name_aliases: str | tuple[str, ...]) -> None:
-    Unit('m').define('rvlen', name='reviewlength', name_aliases=name_aliases)
+@pytest.mark.parametrize(
+    'name_aliases', [(), ('reviewdistance',), ('', 'reviewdistance', 'reviewspan')]
+)
+def test_unit_define_primary_name(name_aliases: tuple[str, ...]) -> None:
+    Unit('m').define('rvlen', 'reviewlength', *name_aliases)
+    for alias in name_aliases:
+        if alias:
+            assert Unit(alias) == Unit('rvlen')
     for symbol, name in (('rvlen', 'reviewlength'), ('krvlen', 'kiloreviewlength')):
         unit = SingleUnit(symbol)
         assert unit.name == name
@@ -194,7 +215,7 @@ def test_quantity_define_warning_error(unit_registry) -> None:
         warnings.simplefilter('error', InexactFloatWarning)
         with pytest.raises(InexactFloatWarning, match='conversion is inexact'):
             Quantity(0.1, 'm').define(
-                'rvlen', name='reviewlength', symbol_aliases='rvspan', name_aliases='reviewspan'
+                'rvlen', 'reviewlength', 'reviewspan', symbol_aliases='rvspan'
             )
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 
@@ -224,9 +245,9 @@ def test_unit_define_registry_stability() -> None:
     ):
         source.define(
             symbol,
-            name=name,
+            name,
+            name + 'alias',
             symbol_aliases=symbol + 'alias',
-            name_aliases=name + 'alias',
             prefixable=prefixable,
         )
         after = resolutions()
@@ -260,14 +281,14 @@ def test_unit_define_invalid_name(name: str) -> None:
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 def test_unit_define_invalid_empty_name(source, unit_registry) -> None:
     with pytest.raises(ValueError, match='Unit name must be a single printable unit token'):
-        source.define('rvlen', name='', symbol_aliases='rvspan', name_aliases=('reviewlength', ''))
+        source.define('rvlen', '', 'reviewlength', '', symbol_aliases='rvspan')
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
-def test_unit_define_invalid_missing_name(source, unit_registry) -> None:
-    with pytest.raises(TypeError, match="required keyword-only argument: 'name'"):
-        source.define('rvlen', name_aliases='reviewlength')  # pyright: ignore[reportCallIssue]
+def test_unit_define_invalid_missing_name(source: Unit | Quantity[int], unit_registry) -> None:
+    with pytest.raises(TypeError, match="required positional argument: 'name'"):
+        source.define('rvlen')  # pyright: ignore[reportCallIssue]
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 
 
@@ -294,17 +315,19 @@ def test_unit_define_invalid_name_type(name) -> None:
     assert 'rvlen' not in UNITS
 
 
-@pytest.mark.parametrize('name_aliases', [(None,), (0, 'reviewlength')])
-def test_unit_define_invalid_name_alias_type(name_aliases, unit_registry) -> None:
+@pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
+@pytest.mark.parametrize('name_aliases', [(None,), (0, 'reviewlength'), (('reviewdistance',),)])
+def test_unit_define_invalid_name_alias_type(source, name_aliases, unit_registry) -> None:
     with pytest.raises(TypeError, match='Unit name alias must be str'):
-        Unit('m').define('rvlen', name='reviewlength', name_aliases=name_aliases)
+        source.define('rvlen', 'reviewlength', *name_aliases)
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 
 
+@pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 @pytest.mark.parametrize('alias', ['m/s', 'review2', 'rv alias'])
-def test_unit_define_invalid_name_alias(alias: str, unit_registry) -> None:
+def test_unit_define_invalid_name_alias(source, alias: str, unit_registry) -> None:
     with pytest.raises(ValueError, match='Unit name alias must be a single printable unit token'):
-        Unit('m').define('rvlen', name='reviewlength', name_aliases=('reviewspan', alias))
+        source.define('rvlen', 'reviewlength', 'reviewspan', alias)
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 
 
@@ -316,11 +339,6 @@ def test_unit_define_invalid_alias_type() -> None:
 def test_unit_define_invalid_symbol_aliases() -> None:
     with pytest.raises(TypeError, match='Symbol aliases must be str or tuple of str'):
         Unit('m').define('rvlen', name='reviewlength', symbol_aliases=None)  # pyright: ignore[reportArgumentType]
-
-
-def test_unit_define_invalid_name_aliases() -> None:
-    with pytest.raises(TypeError, match='Name aliases must be str or tuple of str'):
-        Unit('m').define('rvlen', name='reviewlength', name_aliases=None)  # pyright: ignore[reportArgumentType]
 
 
 def test_unit_define_invalid_prefixable() -> None:
@@ -340,12 +358,14 @@ def test_unit_define_invalid_conflict(symbol: str) -> None:
 
 
 @pytest.mark.parametrize(
-    'kwargs', [{'name': 'km'}, {'symbol_aliases': 'meter'}, {'name_aliases': 'ms'}]
+    ('name', 'name_aliases', 'symbol_aliases'),
+    [('km', (), ()), ('reviewlength', (), 'meter'), ('reviewlength', ('ms',), ())],
 )
-def test_unit_define_invalid_namespace(kwargs) -> None:
-    arguments = {'name': 'reviewlength', **kwargs}
+def test_unit_define_invalid_namespace(
+    name: str, name_aliases: tuple[str, ...], symbol_aliases: str | tuple[str, ...]
+) -> None:
     with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
-        Unit('m').define('rvlen', **arguments)
+        Unit('m').define('rvlen', name, *name_aliases, symbol_aliases=symbol_aliases)
     assert 'rvlen' not in UNITS
 
 
@@ -386,9 +406,7 @@ def test_unit_define_invalid_ambiguity() -> None:
 
 
 def test_unit_define_duplicate_aliases() -> None:
-    unit = Unit('m').define(
-        'rvlen', name='rvlen', symbol_aliases=('rvlen', 'rvlen'), name_aliases=('rvlen', '')
-    )
+    unit = Unit('m').define('rvlen', 'rvlen', 'rvlen', '', symbol_aliases=('rvlen', 'rvlen'))
     assert Unit('rvlen') == unit
     assert Unit('kilorvlen') == Unit('krvlen')
 

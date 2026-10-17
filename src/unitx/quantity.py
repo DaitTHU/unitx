@@ -354,15 +354,15 @@ class Quantity(Generic[T]):
         self: Quantity[Fractionable],
         symbol: str,
         /,
-        *,
         name: str,
+        *name_aliases: str,
         symbol_aliases: str | tuple[str, ...] = (),
-        name_aliases: str | tuple[str, ...] = (),
         prefixable: bool = True,
     ) -> Unit:
         """Register a unit equal to this quantity, using Unit.define's name rules.
 
-        A nonempty primary name is required.
+        A nonempty primary name is required; additional names are optional
+        positional arguments.
         The magnitude must be a positive finite int, Fraction, Decimal, or
         float. Decimal and Fraction scales stay exact. Float scales follow
         Factor's denominator limit and can warn or round to zero and fail;
@@ -372,8 +372,8 @@ class Quantity(Generic[T]):
         scale = Factor(self.value)
         return (scale * self.unit).define(
             symbol,
-            name=name,
+            name,
+            *name_aliases,
             symbol_aliases=symbol_aliases,
-            name_aliases=name_aliases,
             prefixable=prefixable,
         )
