@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0] - 2026-10-17
+
+### Added
+
+- Add `unitx.si` with read-only `si` unit and `SI` physical-constant namespaces, plus particle data in `unitx.si.constants.Particle`. Provide common SI and non-SI units, exact SI defining constants, and derived physical quantities ready for use in formulas.
+- Support multiplying or dividing a `Unit` or `ScaledUnit` by a positive finite int, Fraction, Decimal, float, Factor, or SymbolicConstant on the right. These operations return a `ScaledUnit` and preserve its exact additional scale. Ordinary scalar magnitudes on the left still construct quantities.
+- Accept multiword primary names and name aliases when registering units. Parse complete multiword names before implicit products, support directly attached prefix names, and reject definitions that would replace existing unit products.
+- Test predefined-unit conversions, electronvolt scaling, constant values, namespace access, fresh-process initialization, and public type inference. Introduce the ready-to-use SI namespaces first in the README.
+
+### Changed
+
+- Change the definition signature to `.define(symbol, /, name, *name_aliases, symbol_aliases=(), prefixable=True)` across Unit, ScaledUnit, and Quantity. The primary name accepts positional or keyword input; pass extra name aliases positionally instead of using the removed `name_aliases=` keyword.
+- Initialize the standard unit catalogue when importing unitx. Previously unregistered standard spellings, such as `N` and `min`, now resolve immediately; reuse predefined units rather than registering those spellings again.
+- Export Unit, Quantity, Dimension, DIMENSIONLESS, ONE, PI, TEN, and the `si` module at the package root. Use `from unitx.si import SI, si` for the constant and unit namespaces.
+
+### Limitations
+
+- Multiword names are recognized only as complete inputs. Use unit symbols or combine Unit objects inside products, reciprocals, parentheses, and powers. Registration still excludes decimal digits and parser operators, including hyphens, from names.
+- Physical constants store nominal measured values without uncertainty propagation. Derived constants involving numerical approximations are evaluated numerically.
+
 ## [0.5.0] - 2026-10-17
 
 ### Added
