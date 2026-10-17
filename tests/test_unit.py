@@ -1,4 +1,7 @@
+import operator
+import pickle
 import warnings
+from copy import copy, deepcopy
 from decimal import Decimal, localcontext
 from fractions import Fraction
 from itertools import permutations
@@ -7,8 +10,9 @@ import pytest
 
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import InexactFloatWarning, UnitSymbolError, UnitSyntaxError
+from unitx.factor import ONE, PI, Factor, SymbolicConstant
 from unitx.quantity import Quantity
-from unitx.unit import Unit
+from unitx.unit import ScaledUnit, Unit
 
 
 def test_unit_creation() -> None:
@@ -26,8 +30,14 @@ def test_unit_creation() -> None:
 
 
 @pytest.mark.parametrize('value', [0, -2, 2.0, Fraction(3, 2), Decimal('1.2345'), 2j])
-def test_unit_quantity_construction(value) -> None:
-    unit = Unit('cm')
+@pytest.mark.parametrize(
+    ('unit', 'reciprocal'),
+    [
+        (Unit('cm'), Unit('cm^-1')),
+        (ScaledUnit('cm', scale=Factor(2)), ScaledUnit('cm^-1', scale=Factor(Fraction(1, 2)))),
+    ],
+)
+def test_unit_quantity_construction(value, unit: Unit, reciprocal: Unit) -> None:
     with localcontext() as context:
         context.prec = 2
         product = value * unit
@@ -37,7 +47,7 @@ def test_unit_quantity_construction(value) -> None:
     assert product.value is value
     assert quotient.value is value
     assert product.unit is unit
-    assert quotient.unit == Unit('cm^-1')
+    assert quotient.unit == reciprocal
 
 
 @pytest.mark.parametrize(
@@ -314,6 +324,15 @@ def test_unit_invalid_operands(value: object) -> None:
         unit / value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
 
 
+@pytest.mark.parametrize('unit', [Unit('m'), ScaledUnit('m', scale=Factor(2))])
+@pytest.mark.parametrize('value', [2.0, Fraction(3, 2), Decimal('1.5'), 2j, Factor(2), PI])
+def test_unit_invalid_right_operand(unit: Unit, value) -> None:
+    with pytest.raises(TypeError, match='unsupported operand'):
+        unit * value  # pyright: ignore[reportUnusedExpression]
+    with pytest.raises(TypeError, match='unsupported operand'):
+        unit / value  # pyright: ignore[reportUnusedExpression]
+
+
 @pytest.mark.parametrize('value', [None, '1/2'])
 def test_unit_invalid_power(value: object) -> None:
     with pytest.raises(TypeError, match='unsupported operand'):
@@ -323,3 +342,196 @@ def test_unit_invalid_power(value: object) -> None:
 def test_unit_invalid_boolean_power() -> None:
     with pytest.raises(TypeError, match='Cannot convert bool to Fraction'):
         Unit('m') ** True  # pyright: ignore[reportUnusedExpression]
+
+
+def test_scaled_unit_construction() -> None:
+    base = Unit('cm')
+    unit = ScaledUnit(base, Factor(100))
+    assert unit.scale == Factor(100)
+    assert unit.factor == ONE
+    assert unit.dimension == base.dimension
+    assert unit.symbol == base.symbol
+    assert ScaledUnit(unit, Factor(Fraction(1, 100))) == base
+    assert ScaledUnit(base, ONE) == base
+    assert (PI * base).scale == PI
+
+
+def test_scaled_unit_equality() -> None:
+    minute = Factor(60) * Unit('s')
+    rebuilt = Factor(30) * (Factor(2) * Unit('s'))
+    assert minute == rebuilt
+    assert hash(minute) == hash(rebuilt)
+    assert {minute: 'minute'}[rebuilt] == 'minute'
+    assert minute != Unit('s')
+    assert Unit('s') != minute
+    assert minute != Factor(30) * Unit('s')
+    assert len({Unit('s'), minute, rebuilt}) == 2
+    assert Factor(100) * Unit('cm') != Unit('m')
+    plain = Unit('s')
+    unscaled = ScaledUnit(plain, ONE)
+    assert plain == unscaled == plain
+    assert hash(unscaled) == hash(plain)
+    assert {plain: 'found'}[unscaled] == 'found'
+    assert {unscaled: 'found'}[plain] == 'found'
+    assert len({plain, unscaled}) == 1
+
+
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+@pytest.mark.parametrize('left_scale', [None, ONE, Factor(2)])
+@pytest.mark.parametrize('right_scale', [None, ONE, Factor(3)])
+def test_scaled_unit_promotion(
+    operation, left_scale: Factor | None, right_scale: Factor | None
+) -> None:
+    left = Unit('cm') if left_scale is None else ScaledUnit(Unit('cm'), left_scale)
+    right = Unit('s') if right_scale is None else ScaledUnit(Unit('s'), right_scale)
+    result = operation(left, right)
+    expected_type = Unit if left_scale is None and right_scale is None else ScaledUnit
+    assert type(result) is expected_type
+    assert result.factor == operation(left.factor, right.factor)
+    assert result.dimension == operation(left.dimension, right.dimension)
+    assert result.symbol == operation(Unit('cm'), Unit('s')).symbol
+
+
+def test_scaled_unit_operations() -> None:
+    minute = Factor(60) * Unit('s')
+    metre = Unit('m')
+    for product in (minute * metre, metre * minute):
+        assert product.factor == Factor(60)
+        assert product.dimension == Dimension(T=1, L=1)
+    assert (minute / metre).factor == Factor(60)
+    assert (metre / minute).factor == Factor(Fraction(1, 60))
+    assert (minute * (Factor(2) * metre)).factor == Factor(120)
+    assert (minute / (Factor(2) * metre)).factor == Factor(30)
+    assert (minute / Unit('s')).factor == Factor(60)
+    assert (Unit('s') / minute).factor == Factor(Fraction(1, 60))
+    assert (Factor(2) / minute).factor == Factor(Fraction(1, 30))
+    assert (PI / minute).factor == PI / 60
+
+
+def test_scaled_unit_cancellation() -> None:
+    unit = Factor(60) * Unit('s')
+    before = (repr(unit), unit.factor, unit.scale, hash(unit))
+    assert unit * Unit() == Unit() * unit == unit
+    assert unit / Unit() == unit
+    for canceled in (unit / unit, unit * unit**-1, unit**0):
+        assert type(canceled) is ScaledUnit
+        assert canceled.scale == ONE
+        assert canceled.factor == ONE
+        assert canceled == Unit()
+        assert Unit() == canceled
+        assert hash(canceled) == hash(Unit())
+    assert (unit**2).factor == Factor(3600)
+    assert (unit**-1).factor == Factor(Fraction(1, 60))
+    assert (unit**2) / unit == unit
+    assert (repr(unit), unit.factor, unit.scale, hash(unit)) == before
+
+
+def test_scaled_unit_float_power() -> None:
+    unit = Factor(2) * Unit('cm')
+    with pytest.warns(InexactFloatWarning, match='0.1') as recorded:
+        root = unit**0.1
+    assert len(recorded) == 1
+    assert type(root) is ScaledUnit
+    assert root**10 == unit
+
+
+def test_scaled_unit_exact_power() -> None:
+    unit = (PI * 2) * Unit('cm')
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        root = unit ** Decimal('0.1')
+        assert root**10 == unit
+        assert (root**10).factor == unit.factor
+    symbolic_root = (PI * Unit('m')) ** Fraction(1, 2)
+    assert (symbolic_root * symbolic_root).factor == PI
+
+
+@pytest.mark.parametrize(
+    ('base', 'scale', 'expected'),
+    [
+        ('s', Factor(60), '60 s'),
+        ('', Factor(2), '2'),
+        ('1/s', Factor(2), '2/s'),
+        ('1/(m*s)', Factor(2), '2/(m⋅s)'),
+        ('cm', ONE, 'cm'),
+    ],
+)
+def test_scaled_unit_str(base: str, scale: Factor, expected: str) -> None:
+    assert str(ScaledUnit(Unit(base), scale)) == expected
+
+
+@pytest.mark.parametrize('text', ['', 's', 'm*s', 'm2', 'm^(1/2)', '1/(m*s)', 'µm/ms'])
+@pytest.mark.parametrize('scale', [ONE, Factor(60), Factor(2) ** Fraction(1, 2), PI])
+def test_scaled_unit_repr_roundtrip(text: str, scale: Factor | SymbolicConstant) -> None:
+    unit = ScaledUnit(Unit(text), scale)
+    rebuilt = eval(repr(unit))
+    assert rebuilt == unit
+    assert rebuilt.factor == unit.factor
+    assert rebuilt.scale == unit.scale
+    assert rebuilt.symbol == unit.symbol
+    assert {unit: 'found'}[rebuilt] == 'found'
+
+
+@pytest.mark.parametrize('rebuild', [copy, deepcopy])
+@pytest.mark.parametrize(
+    'unit',
+    [
+        ScaledUnit('cm', scale=ONE),
+        ScaledUnit('cm^(1/2)/s', scale=PI / 180),
+        ScaledUnit('', scale=Factor(2) ** Fraction(1, 2)),
+    ],
+)
+def test_scaled_unit_copy(unit: ScaledUnit, rebuild) -> None:
+    before = (repr(unit), unit.factor, hash(unit))
+    rebuilt = rebuild(unit)
+    assert type(rebuilt) is ScaledUnit
+    assert rebuilt == unit
+    assert rebuilt.scale == unit.scale
+    assert rebuilt.factor == unit.factor
+    assert rebuilt.symbol == unit.symbol
+    assert {unit: 'found'}[rebuilt] == 'found'
+    assert (repr(unit), unit.factor, hash(unit)) == before
+
+
+@pytest.mark.parametrize('protocol', range(2, pickle.HIGHEST_PROTOCOL + 1))
+def test_scaled_unit_pickle(protocol: int) -> None:
+    unit = ScaledUnit('cm^(1/2)/s', scale=PI / 180)
+    rebuilt = pickle.loads(pickle.dumps(unit, protocol=protocol))
+    assert type(rebuilt) is ScaledUnit
+    assert rebuilt == unit
+    assert rebuilt.scale == unit.scale
+    assert rebuilt.factor == unit.factor
+    assert rebuilt.symbol == unit.symbol
+    assert {unit: 'found'}[rebuilt] == 'found'
+
+
+@pytest.mark.parametrize('base', [None, 1])
+def test_scaled_unit_invalid_base(base: object) -> None:
+    with pytest.raises(TypeError, match='Base unit must be Unit or str'):
+        ScaledUnit(base, ONE)  # pyright: ignore[reportArgumentType]
+
+
+@pytest.mark.parametrize('scale', [None, 1, Decimal('1'), '2'])
+def test_scaled_unit_invalid_scale(scale: object) -> None:
+    with pytest.raises(TypeError, match='Scale must be SymbolicConstant or Factor'):
+        ScaledUnit(Unit('m'), scale)  # pyright: ignore[reportArgumentType]
+
+
+@pytest.mark.parametrize('value', [None, 2])
+def test_scaled_unit_invalid_operands(value: object) -> None:
+    unit = Factor(2) * Unit('m')
+    with pytest.raises(TypeError, match='unsupported operand'):
+        unit * value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
+    with pytest.raises(TypeError, match='unsupported operand'):
+        unit / value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
+
+
+@pytest.mark.parametrize('value', [None, '1/2'])
+def test_scaled_unit_invalid_power(value: object) -> None:
+    with pytest.raises(TypeError, match='unsupported operand'):
+        (Factor(2) * Unit('m')) ** value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
+
+
+def test_scaled_unit_invalid_boolean_power() -> None:
+    with pytest.raises(TypeError, match='Cannot convert bool to Fraction'):
+        (Factor(2) * Unit('m')) ** True  # pyright: ignore[reportUnusedExpression]

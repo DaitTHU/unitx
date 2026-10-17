@@ -10,7 +10,7 @@ from ._numerics import Fractionable, Magnitude, Number, Real, as_fraction, as_in
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
 from .factor import ONE, Factor
-from .unit import Unit
+from .unit import ScaledUnit, Unit
 
 # Magnitudes are exposed read-only; operations construct new quantities.
 T = TypeVar('T', bound=Magnitude, covariant=True)
@@ -50,7 +50,9 @@ class Quantity(Generic[T]):
     Powers normalize the exponent once using as_fraction(), just as Unit does,
     and use that exponent for both the magnitude and the unit. Nonintegral
     magnitude powers use native numerical evaluation and can be approximate.
-    str() is readable display; repr() uses a reconstructible Unit expression.
+    str() is readable display and groups units with an explicit scale in
+    parentheses without evaluating that scale. repr() uses a reconstructible
+    Unit expression.
 
     >>> Quantity(1, 'm') + Quantity(50, 'cm')
     Quantity(Fraction(3, 2), Unit('m'))
@@ -104,6 +106,8 @@ class Quantity(Generic[T]):
         return f'{type(self).__name__}({self.value!r}, {self.unit!r})'
 
     def __str__(self) -> str:
+        if isinstance(self.unit, ScaledUnit) and self.unit.scale != ONE:
+            return f'{self.value} ({self.unit})'
         if self.unit.symbol.startswith('1'):
             return f'{self.value}{self.unit.symbol[1:]}'
         return f'{self.value} {self.unit}'

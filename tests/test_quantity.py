@@ -1,5 +1,7 @@
 import math
 import operator
+import pickle
+from copy import copy, deepcopy
 from decimal import Decimal, localcontext
 from fractions import Fraction
 
@@ -7,8 +9,9 @@ import pytest
 
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import DimensionError, InexactFloatWarning, UnitSymbolError
+from unitx.factor import ONE, PI, Factor
 from unitx.quantity import Quantity
-from unitx.unit import Unit
+from unitx.unit import ScaledUnit, Unit
 
 
 def test_quantity_creation() -> None:
@@ -30,6 +33,50 @@ def test_quantity_creation() -> None:
 )
 def test_quantity_str(unit: str, expected: str) -> None:
     assert str(Quantity(2, unit)) == expected
+
+
+@pytest.mark.parametrize(
+    ('unit', 'expected'),
+    [
+        (Factor(2) * Unit(), '3 (2)'),
+        (Factor(2) / Unit('s'), '3 (2/s)'),
+        (Factor(60) * Unit('s'), '3 (60 s)'),
+        (ScaledUnit(Unit(), ONE), '3'),
+        (ScaledUnit(Unit('1/s'), ONE), '3/s'),
+    ],
+)
+def test_quantity_scaled_str(unit: ScaledUnit, expected: str) -> None:
+    quantity = Quantity(3, unit)
+    before = (quantity.value, quantity.unit, quantity.unit.factor)
+    assert str(quantity) == expected
+    assert (quantity.value, quantity.unit, quantity.unit.factor) == before
+
+
+def test_quantity_scaled_operations() -> None:
+    minute = Factor(60) * Unit('s')
+    quantity = Quantity(1, minute)
+    for product in (quantity * Unit(), Unit() * quantity):
+        assert product.to('s').value == 60
+    assert (quantity / Unit()).to('s').value == 60
+    assert (quantity**2).to('s2').value == 3600
+    assert (quantity / (2 * Unit('m'))).to('s/m').value == 30
+    assert (Quantity(Fraction(2), 'm') / quantity).to('m/s').value == Fraction(1, 30)
+    assert (1 / minute).to('1/s').value == Fraction(1, 60)
+    assert Quantity(2, 's').to(minute).to('s') == Quantity(2, 's')
+    assert eval(repr(quantity)) == quantity
+
+
+def test_quantity_scaled_copy() -> None:
+    unit = ScaledUnit('cm', scale=PI / 180)
+    quantity = Quantity(Decimal('1.25'), unit)
+    for rebuilt in (copy(quantity), deepcopy(quantity), pickle.loads(pickle.dumps(quantity))):
+        assert rebuilt == quantity
+        assert type(rebuilt.value) is Decimal
+        assert rebuilt.value == quantity.value
+        assert type(rebuilt.unit) is ScaledUnit
+        assert rebuilt.unit.scale == unit.scale
+        assert rebuilt.unit.factor == unit.factor
+        assert {quantity: 'found'}[rebuilt] == 'found'
 
 
 @pytest.mark.parametrize('unit', ['', 'm*s', 'm2', 'm^(1/2)', '1/(m*s)', 'µm/ms'])

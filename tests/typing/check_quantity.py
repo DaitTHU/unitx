@@ -5,9 +5,9 @@ from fractions import Fraction
 from typing import Any, assert_type
 
 from unitx._numerics import Magnitude, Number, Real
-from unitx.factor import Factor
+from unitx.factor import PI, Factor
 from unitx.quantity import Quantity
-from unitx.unit import Unit
+from unitx.unit import ScaledUnit, Unit
 
 
 class _Magnitude(int):
@@ -56,6 +56,31 @@ def test_unit_numeric_construction() -> None:
         test_unit_value_operations(_Magnitude(2), unit),
         tuple[Quantity[_Magnitude], Quantity[_Magnitude]],
     )
+
+
+def test_scaled_unit_construction() -> None:
+    unit = Unit('m')
+    scaled = Factor(2) * unit
+    assert_type(scaled, ScaledUnit)
+    assert_type(PI * unit, ScaledUnit)
+    assert_type(Factor(2) / unit, ScaledUnit)
+    assert_type(PI / scaled, ScaledUnit)
+    assert_type(3 * scaled, Quantity[int])
+    assert_type(Fraction(3) / scaled, Quantity[Fraction])
+    assert_type(scaled * unit, ScaledUnit)
+    # Base signatures keep mixed operations conservative; runtime dispatch promotes.
+    assert_type(unit * scaled, ScaledUnit)
+    assert_type(scaled / unit, ScaledUnit)
+    assert_type(unit / scaled, ScaledUnit)
+    assert_type(scaled * scaled, ScaledUnit)
+    assert_type(scaled / scaled, ScaledUnit)
+    assert_type(scaled**2, ScaledUnit)
+    assert_type(scaled**0, ScaledUnit)
+    assert_type(unit * unit, Unit)
+    assert_type(unit / unit, Unit)
+    assert_type(unit**2, Unit)
+    assert_type(scaled.scale, Factor)
+    assert_type(ScaledUnit('cm', scale=Factor(2)), ScaledUnit)
 
 
 def test_quantity_conversion() -> None:
