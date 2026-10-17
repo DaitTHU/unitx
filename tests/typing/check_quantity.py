@@ -84,14 +84,26 @@ def test_scaled_unit_construction() -> None:
 
 
 def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
-    for value in (2, 0.5, Fraction(3, 2), Decimal('1.5'), Factor(2), PI):
+    for value in (Factor(2), PI):
         assert_type(unit * value, ScaledUnit)
         assert_type(unit / value, ScaledUnit)
         assert_type(scaled * value, ScaledUnit)
         assert_type(scaled / value, ScaledUnit)
-    assert_type(unit * 2 / 3, ScaledUnit)
+    assert_type(unit * 2, Quantity[int])
+    assert_type(unit * 0.1, Quantity[float])
+    assert_type(unit * Fraction(1, 3), Quantity[Fraction])
+    assert_type(unit * Decimal('0.1'), Quantity[Decimal])
+    assert_type(scaled * 2, Quantity[int])
+    assert_type(scaled * Decimal('0.1'), Quantity[Decimal])
+    assert_type(unit / 60, Quantity[Fraction])
+    assert_type(unit / Fraction(3, 2), Quantity[Fraction])
+    assert_type(unit / Decimal('0.1'), Quantity[Fraction])
+    assert_type(unit / 0.1, Quantity[float])
+    assert_type(scaled / 60, Quantity[Fraction])
+    assert_type(scaled / 0.1, Quantity[float])
+    assert_type(unit * 2 / 3, Quantity[float])
     assert_type(3 * (unit * 2), Quantity[int])
-    assert_type(Decimal(3) * (unit / 2), Quantity[Decimal])
+    assert_type(Decimal(3) * (unit / 2), Quantity[Real])
     assert_type(Factor(2) * unit, ScaledUnit)
     assert_type(PI * scaled, ScaledUnit)
     assert_type(unit * Quantity(2, 's'), Quantity[int])

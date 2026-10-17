@@ -93,6 +93,7 @@ evaluated numerically.
 For unit expressions and explicit construction, import the classes:
 
 ```pycon
+>>> from unitx.factor import Factor
 >>> from unitx.quantity import Quantity
 >>> from unitx.unit import Unit
 >>> Quantity(50, 'cm') == 50 * si.cm
@@ -107,33 +108,36 @@ True
 with the reciprocal unit. Construction preserves the original magnitude and
 its type.
 
-These are directional construction operators: `value * unit` and `value / unit`
-construct a `Quantity`, while `unit * value` and `unit / value` adjust the
-unit's scale and return a `ScaledUnit`. Right-hand numeric scales must be
-positive finite `int`, `Fraction`, `Decimal`, or `float` values; booleans are
-not accepted. Fraction and Decimal scales remain exact. Floats follow Factor's
-denominator limit and may warn or round to zero and fail. A `Factor` or
-`SymbolicConstant` on either side of a unit produces a `ScaledUnit`.
+Multiplication is symmetric: `unit * value` and `value * unit` both construct
+`Quantity` objects and preserve the magnitude's type. Dividing a unit by an
+`int`, `Fraction`, or finite `Decimal` constructs a quantity with an exact
+`Fraction` reciprocal, so `degree / 60` loses no precision. Float divisors use
+native floating-point division without Factor's denominator limit. Booleans
+are not accepted as right-hand numeric operands. A `Factor` or
+`SymbolicConstant` on either side of a unit instead produces a `ScaledUnit`.
 
 ```pycon
 >>> metre = Unit('m')
->>> quantity = 2 * metre
->>> quantity.value, quantity.unit == metre
-(2, True)
->>> double_metre = metre * 2
+>>> metre * 2 == 2 * metre
+True
+>>> (metre * 2).value
+2
+>>> double_metre = metre * Factor(2)
 >>> print(double_metre)
 2 m
 >>> (3 * double_metre).to('m').value
 6
->>> (3 * (metre / 2)).to('m').value
-Fraction(3, 2)
+>>> arcmin = si.deg / 60
+>>> arcmin.value
+Fraction(1, 60)
+>>> arcmin.to(si.arcmin).value
+Fraction(1, 1)
 
 ```
 
-Grouping can therefore change the stored magnitude and unit: `(3 * metre) * 2`
-stores magnitude 6 in metres, while `3 * (metre * 2)` stores magnitude 3 in
-double metres. They compare as equal quantities. Combining a Unit with a
-Quantity continues to return a Quantity.
+Multiplying a `ScaledUnit` by an ordinary number also constructs a quantity,
+keeping the exact scale in its unit and preserving the supplied magnitude.
+Combining a Unit with a Quantity continues to return a Quantity.
 
 ## Conversion and arithmetic
 
@@ -216,8 +220,8 @@ True
 
 ```
 
-Multiplying or dividing a unit by a positive numeric scale, `Factor`, or
-`SymbolicConstant` creates a `ScaledUnit`, which preserves an exact additional
+Multiplying or dividing a unit by a `Factor` or `SymbolicConstant` creates a
+`ScaledUnit`, which preserves an exact additional
 scale through unit arithmetic. Its `scale`
 is relative to its formal unit product; its `factor` is the total scale to the
 coherent SI unit. An ordinary `Unit` has an implicit additional scale of one;
