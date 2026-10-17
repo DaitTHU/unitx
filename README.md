@@ -68,10 +68,33 @@ Multiplying a scalar by a unit constructs a quantity; dividing a scalar by a
 unit constructs a quantity with the reciprocal unit. Construction preserves the
 original magnitude and its type.
 
-These are directional construction operators: `value * unit` constructs a
-`Quantity`, and `factor * unit` constructs a `ScaledUnit` when the factor is a
-`Factor` or `SymbolicConstant`. The reverse forms `unit * value` and
-`unit * factor` are unsupported and raise `TypeError`.
+These are directional construction operators: `value * unit` and `value / unit`
+construct a `Quantity`, while `unit * value` and `unit / value` adjust the
+unit's scale and return a `ScaledUnit`. Right-hand numeric scales must be
+positive finite `int`, `Fraction`, `Decimal`, or `float` values; booleans are
+not accepted. Fraction and Decimal scales remain exact. Floats follow Factor's
+denominator limit and may warn or round to zero and fail. A `Factor` or
+`SymbolicConstant` on either side of a unit produces a `ScaledUnit`.
+
+```pycon
+>>> metre = Unit('m')
+>>> quantity = 2 * metre
+>>> quantity.value, quantity.unit == metre
+(2, True)
+>>> double_metre = metre * 2
+>>> print(double_metre)
+2 m
+>>> (3 * double_metre).to('m').value
+6
+>>> (3 * (metre / 2)).to('m').value
+Fraction(3, 2)
+
+```
+
+Grouping can therefore change the stored magnitude and unit: `(3 * metre) * 2`
+stores magnitude 6 in metres, while `3 * (metre * 2)` stores magnitude 3 in
+double metres. They compare as equal quantities. Combining a Unit with a
+Quantity continues to return a Quantity.
 
 ## Conversion and arithmetic
 
@@ -150,8 +173,9 @@ True
 
 ```
 
-Multiplying a `Factor` or `SymbolicConstant` by a unit creates a `ScaledUnit`,
-which preserves an exact additional scale through unit arithmetic. Its `scale`
+Multiplying or dividing a unit by a positive numeric scale, `Factor`, or
+`SymbolicConstant` creates a `ScaledUnit`, which preserves an exact additional
+scale through unit arithmetic. Its `scale`
 is relative to its formal unit product; its `factor` is the total scale to the
 coherent SI unit. An ordinary `Unit` has an implicit additional scale of one;
 only `ScaledUnit` stores that scale. Unit multiplication, division, and powers

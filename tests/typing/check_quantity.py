@@ -83,6 +83,23 @@ def test_scaled_unit_construction() -> None:
     assert_type(ScaledUnit('cm', scale=Factor(2)), ScaledUnit)
 
 
+def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
+    for value in (2, 0.5, Fraction(3, 2), Decimal('1.5'), Factor(2), PI):
+        assert_type(unit * value, ScaledUnit)
+        assert_type(unit / value, ScaledUnit)
+        assert_type(scaled * value, ScaledUnit)
+        assert_type(scaled / value, ScaledUnit)
+    assert_type(unit * 2 / 3, ScaledUnit)
+    assert_type(3 * (unit * 2), Quantity[int])
+    assert_type(Decimal(3) * (unit / 2), Quantity[Decimal])
+    assert_type(Factor(2) * unit, ScaledUnit)
+    assert_type(PI * scaled, ScaledUnit)
+    assert_type(unit * Quantity(2, 's'), Quantity[int])
+    assert_type(scaled * Quantity(2, 's'), Quantity[int])
+    assert_type(unit / Quantity(2, 's'), Quantity[float])
+    assert_type(scaled / Quantity(2, 's'), Quantity[float])
+
+
 def test_unit_define() -> None:
     assert_type(Unit('m').define('rvlen', name='reviewlength'), Unit)
     assert_type(Unit('m').define('rvlen', 'reviewlength'), Unit)

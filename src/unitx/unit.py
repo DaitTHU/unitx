@@ -33,10 +33,14 @@ class Unit:
     with that unit. Dividing a magnitude by a Unit constructs a Quantity with
     the reciprocal unit. Both preserve the original magnitude and its type
     without scaling. A Factor or SymbolicConstant instead constructs a
-    ScaledUnit and preserves its exact scale. These construction operators
-    require the magnitude or factor on the left; multiplying or dividing a
-    Unit by a raw magnitude or factor is unsupported. NumPy scalars, arrays,
-    and NumPy operations are not supported yet; NumPy integration is planned.
+    ScaledUnit and preserves its exact scale. Multiplying or dividing a Unit
+    by a positive finite int, Fraction, Decimal, or float instead adjusts its
+    scale and returns a ScaledUnit. Factor and SymbolicConstant operands on
+    the right also adjust the scale. Thus 2 * unit constructs a Quantity,
+    while unit * 2 constructs a ScaledUnit. Float scales follow Factor's
+    approximation and warning rules; prefer Fraction or Decimal for exact
+    scales. NumPy scalars, arrays, and NumPy operations are not supported yet;
+    NumPy integration is planned.
 
     Equality and hashing compare canonical unit identities and rational
     exponents, regardless of factor insertion order. Aliases compare equal,
@@ -81,6 +85,10 @@ class Unit:
     True
     >>> 2 * Unit('cm')
     Quantity(2, Unit('cm'))
+    >>> print(Unit('cm') * 2)
+    2 cm
+    >>> print(Unit('m') / 2)
+    1/2 m
     """
 
     __slots__ = ('_monomial', '_dimension', '_factor', '_symbol')
@@ -122,15 +130,24 @@ class Unit:
         return self._monomial == other._monomial
 
     @overload
+    def __mul__(self, other: Fractionable | SymbolicConstant | Factor) -> ScaledUnit: ...
+
+    @overload
     def __mul__(self, other: ScaledUnit) -> ScaledUnit: ...
 
     @overload
     def __mul__(self, other: Unit) -> Unit: ...
 
-    def __mul__(self, other: Unit) -> Unit:
+    def __mul__(self, other: object) -> Unit:
+        if isinstance(other, Fractionable | SymbolicConstant | Factor):
+            scale = other if isinstance(other, Factor) else Factor(other)
+            return ScaledUnit(self, scale)
         if not isinstance(other, Unit):
             return NotImplemented
         return Unit._from_monomial(self._monomial * other._monomial)
+
+    @overload
+    def __truediv__(self, other: Fractionable | SymbolicConstant | Factor) -> ScaledUnit: ...
 
     @overload
     def __truediv__(self, other: ScaledUnit) -> ScaledUnit: ...
@@ -138,7 +155,10 @@ class Unit:
     @overload
     def __truediv__(self, other: Unit) -> Unit: ...
 
-    def __truediv__(self, other: Unit) -> Unit:
+    def __truediv__(self, other: object) -> Unit:
+        if isinstance(other, Fractionable | SymbolicConstant | Factor):
+            scale = 1 / other if isinstance(other, Factor) else 1 / Factor(other)
+            return ScaledUnit(self, scale)
         if not isinstance(other, Unit):
             return NotImplemented
         return Unit._from_monomial(self._monomial / other._monomial)
@@ -323,13 +343,19 @@ class ScaledUnit(Unit):
         other_scale = other.scale if isinstance(other, ScaledUnit) else ONE
         return self._monomial == other._monomial and self.scale == other_scale
 
-    def __mul__(self, other: Unit) -> ScaledUnit:
+    def __mul__(self, other: Unit | Fractionable | SymbolicConstant | Factor) -> ScaledUnit:
+        if isinstance(other, Fractionable | SymbolicConstant | Factor):
+            scale = other if isinstance(other, Factor) else Factor(other)
+            return ScaledUnit(self, scale)
         if not isinstance(other, Unit):
             return NotImplemented
         scale = self.scale * other.scale if isinstance(other, ScaledUnit) else self.scale
         return ScaledUnit._from_monomial(self._monomial * other._monomial, scale)
 
-    def __truediv__(self, other: Unit) -> ScaledUnit:
+    def __truediv__(self, other: Unit | Fractionable | SymbolicConstant | Factor) -> ScaledUnit:
+        if isinstance(other, Fractionable | SymbolicConstant | Factor):
+            scale = 1 / other if isinstance(other, Factor) else 1 / Factor(other)
+            return ScaledUnit(self, scale)
         if not isinstance(other, Unit):
             return NotImplemented
         scale = self.scale / other.scale if isinstance(other, ScaledUnit) else self.scale

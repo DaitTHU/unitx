@@ -50,6 +50,99 @@ def test_unit_quantity_construction(value, unit: Unit, reciprocal: Unit) -> None
     assert quotient.unit == reciprocal
 
 
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+@pytest.mark.parametrize('unit', [Unit('cm'), ScaledUnit('cm', scale=PI), Unit('km/m')])
+@pytest.mark.parametrize(
+    'value',
+    [1, 2, Fraction(7, 3), Decimal('1.2345'), 0.5, Factor(2), PI, Factor(2) ** Fraction(1, 2)],
+)
+def test_unit_numeric_scaling(unit: Unit, value, operation) -> None:
+    before = (repr(unit), unit.factor, hash(unit))
+    factor = value if isinstance(value, Factor) else Factor(value)
+    original_scale = unit.scale if isinstance(unit, ScaledUnit) else ONE
+    with localcontext() as context:
+        context.prec = 2
+        result = operation(unit, value)
+    assert type(result) is ScaledUnit
+    assert result.scale == operation(original_scale, factor)
+    assert result.factor == operation(unit.factor, factor)
+    assert result.dimension == unit.dimension
+    assert result.expression() == unit.expression()
+    assert (repr(unit), unit.factor, hash(unit)) == before
+
+
+def test_unit_scaling_cancellation() -> None:
+    unit = Unit('cm')
+    scale = 2**54
+    scaled = unit * scale
+    assert scaled.scale.value == scale
+    assert (scaled / Unit('s')).factor == Factor(Fraction(scale, 100))
+    assert ((scaled ** Fraction(1, 2)) ** 2) == scaled
+    assert (PI * unit / PI) == unit
+    for result in (scaled / scale, unit / scale * scale, unit * 1, unit / 1):
+        assert type(result) is ScaledUnit
+        assert result.scale == ONE
+        assert result.factor == unit.factor
+        assert result == unit
+        assert hash(result) == hash(unit)
+        assert {unit: 'found'}[result] == 'found'
+        assert len({unit, result}) == 1
+
+
+def test_unit_quantity_grouping() -> None:
+    metre = Unit('m')
+    left = (3 * metre) * 2
+    right = 3 * (metre * 2)
+    assert type(left) is type(right) is Quantity
+    assert left.value == 6
+    assert left.unit is metre
+    assert right.value == 3
+    assert right.unit == ScaledUnit(metre, Factor(2))
+    assert left == right
+    assert hash(left) == hash(right)
+    half = 3 * (metre / 2)
+    assert half.value == 3
+    assert half.to(metre).value == Fraction(3, 2)
+    assert type(half.to(metre).value) is Fraction
+
+
+@pytest.mark.parametrize('unit', [Unit('cm'), Unit('cm') * 2])
+def test_unit_quantity_dispatch(unit: Unit) -> None:
+    quantity = Quantity(Fraction(3, 2), 's')
+    for product in (unit * quantity, quantity * unit):
+        assert type(product) is Quantity
+        assert product.value is quantity.value
+        assert product.unit == unit * quantity.unit
+    quotient = unit / quantity
+    assert type(quotient) is Quantity
+    assert quotient.value == Fraction(2, 3)
+    assert quotient.unit == unit / quantity.unit
+
+
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+@pytest.mark.parametrize('unit', [Unit('cm'), Unit('cm') * 2])
+def test_unit_scaling_warning(unit: Unit, operation) -> None:
+    with pytest.warns(InexactFloatWarning, match='0.1') as recorded:
+        result = operation(unit, 0.1)
+    assert len(recorded) == 1
+    assert recorded[0].filename == __file__
+    assert recorded[0].lineno == test_unit_scaling_warning.__code__.co_firstlineno + 4
+    assert result == operation(unit, Fraction(1, 10))
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        with pytest.raises(InexactFloatWarning, match='0.1'):
+            operation(unit, 0.1)
+
+
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+def test_unit_scaling_underflow(operation) -> None:
+    unit = Unit('m')
+    with pytest.warns(InexactFloatWarning, match='1e-10') as recorded:
+        with pytest.raises(ValueError, match='Factor must be positive'):
+            operation(unit, 1e-10)
+    assert len(recorded) == 1
+
+
 @pytest.mark.parametrize(
     ('text', 'canonical'),
     [
@@ -315,7 +408,7 @@ def test_unit_invalid_syntax() -> None:
         Unit('m/')
 
 
-@pytest.mark.parametrize('value', [None, 2])
+@pytest.mark.parametrize('value', [None, 2j, object()])
 def test_unit_invalid_operands(value: object) -> None:
     unit = Unit('m')
     with pytest.raises(TypeError, match='unsupported operand'):
@@ -325,12 +418,37 @@ def test_unit_invalid_operands(value: object) -> None:
 
 
 @pytest.mark.parametrize('unit', [Unit('m'), ScaledUnit('m', scale=Factor(2))])
-@pytest.mark.parametrize('value', [2.0, Fraction(3, 2), Decimal('1.5'), 2j, Factor(2), PI])
-def test_unit_invalid_right_operand(unit: Unit, value) -> None:
-    with pytest.raises(TypeError, match='unsupported operand'):
-        unit * value  # pyright: ignore[reportUnusedExpression]
-    with pytest.raises(TypeError, match='unsupported operand'):
-        unit / value  # pyright: ignore[reportUnusedExpression]
+@pytest.mark.parametrize('value', [0, -2, 0.0, -0.5, Fraction(-1, 2), Decimal('-1.5')])
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+def test_unit_invalid_scale(unit: Unit, value, operation) -> None:
+    before = (repr(unit), unit.factor, hash(unit))
+    with pytest.raises(ValueError, match='Factor must be positive'):
+        operation(unit, value)
+    assert (repr(unit), unit.factor, hash(unit)) == before
+
+
+@pytest.mark.parametrize('unit', [Unit('m'), Unit('m') * 2])
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+@pytest.mark.parametrize('value', [True, False])
+def test_unit_invalid_boolean_scale(unit: Unit, value: bool, operation) -> None:
+    with pytest.raises(TypeError, match='Factor must be a number'):
+        operation(unit, value)
+
+
+@pytest.mark.parametrize('unit', [Unit('m'), Unit('m') * 2])
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+@pytest.mark.parametrize('value', [float('nan'), Decimal('NaN')])
+def test_unit_invalid_nan_scale(unit: Unit, value, operation) -> None:
+    with pytest.raises(ValueError, match='cannot convert NaN'):
+        operation(unit, value)
+
+
+@pytest.mark.parametrize('unit', [Unit('m'), Unit('m') * 2])
+@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
+@pytest.mark.parametrize('value', [float('inf'), -float('inf'), Decimal('Infinity')])
+def test_unit_invalid_infinite_scale(unit: Unit, value, operation) -> None:
+    with pytest.raises(OverflowError, match='cannot convert Infinity'):
+        operation(unit, value)
 
 
 @pytest.mark.parametrize('value', [None, '1/2'])
@@ -479,6 +597,7 @@ def test_scaled_unit_repr_roundtrip(text: str, scale: Factor | SymbolicConstant)
         ScaledUnit('cm', scale=ONE),
         ScaledUnit('cm^(1/2)/s', scale=PI / 180),
         ScaledUnit('', scale=Factor(2) ** Fraction(1, 2)),
+        Unit('cm') * 3 / 2,
     ],
 )
 def test_scaled_unit_copy(unit: ScaledUnit, rebuild) -> None:
@@ -494,8 +613,8 @@ def test_scaled_unit_copy(unit: ScaledUnit, rebuild) -> None:
 
 
 @pytest.mark.parametrize('protocol', range(2, pickle.HIGHEST_PROTOCOL + 1))
-def test_scaled_unit_pickle(protocol: int) -> None:
-    unit = ScaledUnit('cm^(1/2)/s', scale=PI / 180)
+@pytest.mark.parametrize('unit', [ScaledUnit('cm^(1/2)/s', scale=PI / 180), Unit('cm') * 3 / 2])
+def test_scaled_unit_pickle(protocol: int, unit: ScaledUnit) -> None:
     rebuilt = pickle.loads(pickle.dumps(unit, protocol=protocol))
     assert type(rebuilt) is ScaledUnit
     assert rebuilt == unit
@@ -517,7 +636,7 @@ def test_scaled_unit_invalid_scale(scale: object) -> None:
         ScaledUnit(Unit('m'), scale)  # pyright: ignore[reportArgumentType]
 
 
-@pytest.mark.parametrize('value', [None, 2])
+@pytest.mark.parametrize('value', [None, 2j, object()])
 def test_scaled_unit_invalid_operands(value: object) -> None:
     unit = Factor(2) * Unit('m')
     with pytest.raises(TypeError, match='unsupported operand'):
