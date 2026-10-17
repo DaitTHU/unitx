@@ -23,9 +23,11 @@ from unitx.exceptions import (
     UnitSymbolWarning,
 )
 from unitx.factor import PI, Factor
+from unitx.monomial import Monomial
 from unitx.quantity import Quantity
 from unitx.singleunit import SingleUnit
 from unitx.unit import ScaledUnit, Unit
+from unitx.unitparser import UnitParser
 
 
 @pytest.fixture(autouse=True)
@@ -160,6 +162,145 @@ def test_unit_define_prefixable() -> None:
             Unit(text)
 
 
+@pytest.mark.parametrize(
+    ('source', 'scale'),
+    [(Unit('m'), 1), (Factor(2) * Unit('m'), 2), (Quantity(2, 'm'), 2)],
+)
+def test_unit_define_multiword(source, scale: int) -> None:
+    unit = source.define(
+        'rvau', 'review astronomical unit', 'review orbital distance', symbol_aliases='rvastro'
+    )
+    for text in ('review astronomical unit', 'review orbital distance', 'rvau', 'rvastro'):
+        assert Unit(text) == unit
+        single = SingleUnit(text)
+        assert single.name == 'review astronomical unit'
+        assert single.symbol == 'rvau'
+        assert eval(repr(single)) == single
+        assert pickle.loads(pickle.dumps(single)) == single
+    assert Quantity(1, unit).to('m').value == scale
+    assert Unit('review astronomical unit') / Unit('s') == Unit('rvau / s')
+    assert eval(repr(unit)) == pickle.loads(pickle.dumps(unit)) == unit
+
+
+@pytest.mark.parametrize(
+    ('symbol', 'name'), [('', ''), ('k', 'kilo'), ('da', 'deca'), ('µ', 'micro')]
+)
+def test_unit_define_multiword_prefixes(symbol: str, name: str) -> None:
+    unit = Unit('m').define('rvau', 'review astronomical unit', 'review orbital distance')
+    for text in (name + 'review astronomical unit', name + 'review orbital distance'):
+        assert Unit(text) == Unit(symbol + 'rvau')
+        single = SingleUnit(text)
+        assert single.name == name + 'review astronomical unit'
+        assert single.without_prefix() == SingleUnit('rvau')
+        assert single.factor == Unit(symbol + 'rvau').factor
+    assert (
+        Quantity(1, name + 'review astronomical unit').to(unit).value
+        == Unit(symbol + 'rvau').factor.value
+    )
+
+
+def test_unit_define_multiword_prefixable() -> None:
+    unit = Unit('m').define(
+        'rvau', 'review astronomical unit', 'review orbital distance', prefixable=False
+    )
+    assert Unit('review astronomical unit') == unit
+    for text in ('krvau', 'kiloreview astronomical unit', 'kiloreview orbital distance'):
+        for constructor in (Unit, SingleUnit):
+            with pytest.raises(UnitSymbolError, match='is not a valid unit symbol'):
+                constructor(text)
+
+
+@pytest.mark.parametrize('space', [' ', '  ', '\t', '\n', '\xa0', '\u2003'])
+@pytest.mark.parametrize('name', ['review astronomical unit', 'metre per reviewsecond'])
+def test_unit_parser_multiword_whitespace(space: str, name: str) -> None:
+    Unit('m').define('rvau', name)
+    parser = UnitParser(space + space.join(name.split(' ')) + space)
+    result = parser.parse()
+    assert result == Monomial({SingleUnit('rvau'): 1})
+    assert parser.parse() is result
+    parser.next_token()
+    assert parser.token.kind == 'EOF'
+
+
+def test_unit_parser_multiword_retry() -> None:
+    parser = UnitParser('review astronomical unit')
+    with pytest.raises(UnitSymbolError, match='is not a valid unit symbol'):
+        parser.parse()
+    unit = Unit('m').define('rvau', 'review astronomical unit')
+    result = parser.parse()
+    assert result == Monomial({SingleUnit('rvau'): 1})
+    assert Unit('review astronomical unit') == unit
+    assert parser.parse() is result
+
+
+def test_unit_define_multiword_precedence() -> None:
+    unit = Unit('m').define('rvau', 'review astronomical unit')
+    for word in ('review', 'astronomical', 'unit'):
+        Unit('s').define(word, word + 'name', prefixable=False)
+    assert Unit('review astronomical unit') == unit
+    assert Unit('review * astronomical * unit').dimension == Dimension(T=3)
+    assert Unit('kiloreview astronomical unit') == Unit('krvau')
+
+
+@pytest.mark.parametrize(
+    'text',
+    [
+        'review astronomical unit / arcsec',
+        'm / review astronomical unit',
+        'review astronomical unit s',
+        'review astronomical unit * s',
+        '(review astronomical unit)',
+        'review astronomical unit2',
+        'review astronomical unit^2',
+        '/review astronomical unit',
+    ],
+)
+def test_unit_parser_invalid_multiword_factor(text: str) -> None:
+    Unit('m').define('rvau', 'review astronomical unit')
+    with pytest.raises(UnitSymbolError, match="'review' is not a valid unit symbol"):
+        Unit(text)
+
+
+@pytest.mark.parametrize('name', ['m s', 'metre second', 'kilometre second', 'Km s'])
+@pytest.mark.parametrize('use_alias', [False, True])
+def test_unit_define_invalid_product(name: str, use_alias: bool, unit_registry) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        with pytest.raises(UnitRegistryError, match='already parses as a unit product'):
+            if use_alias:
+                Unit('m').define('rvau', 'review astronomical unit', name)
+            else:
+                Unit('m').define('rvau', name)
+    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+
+
+@pytest.mark.parametrize('use_alias', [False, True])
+def test_unit_define_invalid_prefixed_product(use_alias: bool) -> None:
+    Unit('s').define('rvtime', 'kiloreview', prefixable=False)
+    before = UNITS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIASES.copy()
+    with pytest.raises(UnitRegistryError, match="'kiloreview second' already parses"):
+        if use_alias:
+            Unit('m').define('rvau', 'review astronomical unit', 'review second')
+        else:
+            Unit('m').define('rvau', 'review second')
+    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == before
+
+
+def test_unit_define_invalid_multiword_conflict() -> None:
+    unit = Unit('s').define('rvtime', 'kiloreview astronomical unit', prefixable=False)
+    before = UNITS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIASES.copy()
+    with pytest.raises(UnitRegistryError, match="'kiloreview astronomical unit' already resolves"):
+        Unit('m').define('rvau', 'review astronomical unit')
+    assert Unit('kiloreview astronomical unit') == unit
+    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == before
+
+
+def test_unit_define_invalid_multiword_prefix(unit_registry) -> None:
+    with pytest.raises(UnitRegistryError, match='conflicting prefix meanings'):
+        Unit('m').define('rvau', 'review astronomical unit', 'kiloreview astronomical unit')
+    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+
+
 def test_scaled_unit_define_exact() -> None:
     source = (PI / 180) * Unit('m')
     unit = source.define('rvangle', name='reviewangle', prefixable=False)
@@ -242,6 +383,7 @@ def test_unit_define_registry_stability() -> None:
         (Unit('m'), 'rvlen', 'reviewlength', True),
         (Factor(60) * Unit('s'), 'rvmin', 'reviewminute', False),
         (Quantity(Decimal('0.3048'), 'm'), 'rvft', 'reviewfoot', True),
+        (Unit('m'), 'rvau', 'review astronomical unit', True),
     ):
         source.define(
             symbol,
@@ -271,16 +413,28 @@ def test_unit_define_invalid_symbol(symbol: str) -> None:
         assert symbol not in UNITS
 
 
-@pytest.mark.parametrize('name', ['metre per second', 'review2', 'm/s', '\n'])
+@pytest.mark.parametrize(
+    'name',
+    [
+        'review2',
+        'm/s',
+        '\n',
+        ' review',
+        'review ',
+        'review  distance',
+        'review\tdistance',
+        'rv\xa0unit',
+    ],
+)
 def test_unit_define_invalid_name(name: str) -> None:
-    with pytest.raises(ValueError, match='Unit name must be a single printable unit token'):
+    with pytest.raises(ValueError, match='Unit name must consist of printable unit tokens'):
         Unit('m').define('rvlen', name=name)
     assert 'rvlen' not in UNITS
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 def test_unit_define_invalid_empty_name(source, unit_registry) -> None:
-    with pytest.raises(ValueError, match='Unit name must be a single printable unit token'):
+    with pytest.raises(ValueError, match='Unit name must consist of printable unit tokens'):
         source.define('rvlen', '', 'reviewlength', '', symbol_aliases='rvspan')
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 
@@ -324,9 +478,9 @@ def test_unit_define_invalid_name_alias_type(source, name_aliases, unit_registry
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
-@pytest.mark.parametrize('alias', ['m/s', 'review2', 'rv alias'])
+@pytest.mark.parametrize('alias', ['m/s', 'review2', 'rv  alias'])
 def test_unit_define_invalid_name_alias(source, alias: str, unit_registry) -> None:
-    with pytest.raises(ValueError, match='Unit name alias must be a single printable unit token'):
+    with pytest.raises(ValueError, match='Unit name alias must consist of printable unit tokens'):
         source.define('rvlen', 'reviewlength', 'reviewspan', alias)
     assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
 

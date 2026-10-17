@@ -10,22 +10,20 @@ from .exceptions import UnitSymbolError, UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit
 
-_TOKEN_RE = re.compile(
-    '|'.join(
-        f'(?P<{kind}>{pattern})'
-        for kind, pattern in {
-            'POW': r'\*\*|\^',
-            'MUL': r'\*',
-            'DIV': r'/',
-            'NUM': r'[-+]?\d+(?:\.\d+)?',  # supports integers and decimals
-            'LPAREN': r'\(',
-            'RPAREN': r'\)',
-            'SIGN': r'[-+]',  # leading sign, e.g., m^-(2/3)
-            'SPACE': r'\s+',
-            'UNIT': r'[^\s\d' + re.escape('*^()/+-') + ']+',  # supports non-ascii
-        }.items()
-    )
-)
+_PATTERNS = {
+    'POW': r'\*\*|\^',
+    'MUL': r'\*',
+    'DIV': r'/',
+    'NUM': r'[-+]?\d+(?:\.\d+)?',  # supports integers and decimals
+    'LPAREN': r'\(',
+    'RPAREN': r'\)',
+    'SIGN': r'[-+]',  # leading sign, e.g., m^-(2/3)
+    'SPACE': r'\s+',
+    'UNIT': r'[^\s\d' + re.escape('*^()/+-') + ']+',  # supports non-ascii
+    'UNMATCHED': r'.',  # any single character not matched by other patterns
+}
+
+_TOKEN_RE = re.compile('|'.join(f'(?P<{kind}>{pattern})' for kind, pattern in _PATTERNS.items()))
 
 
 class Token:
@@ -89,7 +87,7 @@ class UnitParser:
 
     The grammar for a nonempty expression is::
 
-        expression     := (product | "/" factor) EOF
+        expression     := (registered_name | product | "/" factor) EOF
         product        := factor (("*" | "/" | implicit_mul) factor)*
         factor         := base exponent?
         base           := UNIT | "1" | "(" product ")"
@@ -102,6 +100,14 @@ class UnitParser:
     English name, optionally prefixed. Inputs are case-sensitive, with aliases
     handled by ``SingleUnit``. Adjacent letters form one token: ``ms`` denotes a
     millisecond, while ``m s`` denotes metre times second.
+
+    A registered multiword name, optionally prefixed, is recognized before
+    parsing a product when it occupies the entire input. Whitespace between
+    its words is treated as a single space. Inside products, parentheses,
+    reciprocals, and powers, use its symbol or combine Unit objects instead;
+    multiword names are not recognized as individual factors. For example,
+    a registered ``astronomical unit`` can be used alone, while a compound
+    expression must use its symbol, such as ``au / arcsec``.
 
     ``NUM`` is an optionally signed integer or decimal. Decimals require digits
     on both sides of the decimal point. Only the literal ``1`` is permitted as a
@@ -200,6 +206,17 @@ class UnitParser:
         if self._result is not None:
             return self._result
         self._tokens = map(Token.from_match, _TOKEN_RE.finditer(self._expression))
+        name = ' '.join(self._expression.split())
+        if ' ' in name:
+            try:
+                unit = SingleUnit(name)
+            except UnitSymbolError:
+                pass
+            else:
+                self._tokens = iter(())
+                self.next_token()
+                self._result = Monomial({unit: 1})
+                return self._result
         self.next_token()
         if self.current_nonempty_token is EOF:
             self._result = Monomial()

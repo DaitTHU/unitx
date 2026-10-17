@@ -133,9 +133,19 @@ def _register_unit(symbol: str, data: UnitData, /, *symbol_aliases: str) -> None
                 raise TypeError(error_message)
             if text == '' and kind.endswith('alias'):
                 continue
-            match = _TOKEN_RE.fullmatch(text)
-            if not text.isprintable() or match is None or match.lastgroup != 'UNIT':
-                error_message = f'Unit {kind} must be a single printable unit token, got {text!r}.'
+            is_name = kind.startswith('name')
+            words = text.split(' ') if is_name else [text]
+            valid_tokens = all(
+                (match := _TOKEN_RE.fullmatch(word)) is not None and match.lastgroup == 'UNIT'
+                for word in words
+            )
+            if not text.isprintable() or not valid_tokens:
+                rule = (
+                    'consist of printable unit tokens separated by single spaces'
+                    if is_name
+                    else 'be a single printable unit token'
+                )
+                error_message = f'Unit {kind} must {rule}, got {text!r}.'
                 raise ValueError(error_message)
 
     symbols = dict.fromkeys(text for text in (symbol, *symbol_aliases) if text)
@@ -163,8 +173,18 @@ def _register_unit(symbol: str, data: UnitData, /, *symbol_aliases: str) -> None
         try:
             _resolve_single(text, warn=False)
         except UnitSymbolError:
-            continue
-        raise UnitRegistryError(f'Unit text {text!r} already resolves to a registered unit.')
+            pass
+        else:
+            raise UnitRegistryError(f'Unit text {text!r} already resolves to a registered unit.')
+        if ' ' in text:
+            # Every word is a UNIT token; resolving them all gives an existing
+            # implicit product whose meaning a new complete name must preserve.
+            try:
+                for word in text.split(' '):
+                    _resolve_single(word, warn=False)
+            except UnitSymbolError:
+                continue
+            raise UnitRegistryError(f'Unit text {text!r} already parses as a unit product.')
 
     UNITS[symbol] = data
     UNIT_NAME_TO_SYMBOL.update(dict.fromkeys(names, symbol))

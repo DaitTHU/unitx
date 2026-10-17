@@ -149,6 +149,11 @@ False
 - Unit symbols and names are case-sensitive. `u`, `µ`, and `μ` are accepted
   micro prefixes. Use lowercase `k` for kilo; `K` denotes kelvin.
 
+- A registered multiword name is recognized before implicit multiplication
+  when it occupies the entire input. Whitespace between its words is treated
+  as a single space. Inside products, parentheses, reciprocals, and powers,
+  use its symbol or combine `Unit` objects instead.
+
 The current unit table contains `s`, `m`, `g`, `A`, `K`, `mol`, and `cd`, plus
 the dimensionless identity. Mass scales are referenced to kilograms: `g` has
 factor `1/1000`, and `kg` has factor `1`. Named derived units such as `N` are
@@ -195,14 +200,35 @@ such as `Unit('m').define('span', 'spanunit', 'spanlength', 'spanmeasure')`.
 Pass the primary name positionally when supplying name aliases; omitting the
 aliases gives an empty tuple. `symbol_aliases` accepts a string or tuple of
 strings; it and `prefixable` must be passed by keyword.
-The symbol, names, and aliases must each be a single printable unit token,
-without whitespace, decimal digits, or parser operators. The primary symbol
-and `name` are required and must be nonempty; empty aliases are ignored.
+Symbols and symbol aliases must each be a single printable unit token.
+Names and name aliases may contain multiple such tokens separated by single
+ASCII spaces, without leading or trailing spaces. Decimal digits and parser
+operators are not allowed in any token. The primary symbol and `name` are
+required and must be nonempty; empty aliases are ignored.
+
+```pycon
+>>> span = (2 * Unit('m')).define('span', 'survey span', 'survey distance')
+>>> Unit('survey span') == span
+True
+>>> Unit('kilosurvey distance') == Unit('kspan')
+True
+>>> Unit('survey span') / Unit('s') == Unit('span / s')
+True
+
+```
+
+Multiword names are recognized only as complete inputs. For example,
+`Unit('survey span / s')` does not recognize `survey span`
+as a factor; use one of the two compound forms above instead.
 
 SI prefixes are enabled by default; set `prefixable=False` to disable them.
+Prefix names attach directly to the first word of a multiword name, as in
+`kilosurvey span`; a separate `kilo survey span` is not accepted.
 Registration raises `UnitRegistryError` if a new spelling, including a generated
 prefixed form, already resolves to a unit or conflicts with another spelling
-in the same definition. Validation finishes before the registry changes.
+in the same definition. A multiword spelling must not replace an existing
+implicit product such as `metre second`. Validation finishes before the
+registry changes.
 
 Quantity definitions require positive finite `int`, `Fraction`, `Decimal`, or
 `float` magnitudes. Prefer `Fraction` or `Decimal` for exact scales. Floats use

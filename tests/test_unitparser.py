@@ -407,7 +407,10 @@ def test_unit_parser_invalid_bytes(expression: bytes | bytearray) -> None:
         UnitParser(expression).parse()  # pyright: ignore[reportArgumentType]
 
 
-@pytest.mark.parametrize('text', ['unknown', 'k', 'mkg', 'Metre', 'metres', 'm/unknown'])
+@pytest.mark.parametrize(
+    'text',
+    ['unknown', 'k', 'mkg', 'Metre', 'metres', 'm/unknown', 'm ? s', 'm \x00 s', 'm \u200b s'],
+)
 def test_unit_parser_invalid_symbol(text: str) -> None:
     with pytest.raises(UnitSymbolError, match='is not a valid unit symbol'):
         UnitParser(text).parse()

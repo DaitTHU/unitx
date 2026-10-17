@@ -80,6 +80,10 @@ class SingleUnit:
     `'µ'`; kilo uses lowercase `'k'`, while `'K'` denotes kelvin.
     The empty string represents a dimensionless unit.
 
+    Registered names may contain words separated by single ASCII spaces,
+    as in ``astronomical unit``. Prefix names attach directly to the first
+    word, as in ``kiloastronomical unit``. Names are matched exactly.
+
     The built-in unit table contains s, m, g, A, K, mol, and cd; Unit.define()
     can register more units in the current process. Compound expressions and
     powers are not accepted. Equality and hashing compare

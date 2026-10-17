@@ -20,6 +20,9 @@ class Unit:
     Accept a string in `UnitParser` syntax, such as `'kg m/s2'`,
     `'m/(s A)'`, or `'m^(1/2)'`. Registered symbols, singular English names,
     prefixes, and aliases are resolved by `SingleUnit` and are case-sensitive.
+    Registered multiword names are accepted when they occupy the entire
+    input; use their symbols inside compound expressions or combine Unit
+    objects instead.
     The default empty string, whitespace-only strings, and `'1'` represent
     the multiplicative identity. See `UnitParser` for the full grammar.
 
@@ -240,9 +243,11 @@ class Unit:
         """Register a new unit in this process and return it without changing self.
 
         The new unit has this unit's exact SI factor and physical dimension,
-        but a distinct formal identity. Symbols, names, and aliases must each
-        be one printable UnitParser unit token, without whitespace, decimal
-        digits, or grammar operators. The primary symbol and name are required
+        but a distinct formal identity. Symbols and symbol aliases must each
+        be one printable UnitParser unit token. Names and name aliases may
+        contain multiple such tokens separated by single ASCII spaces, without
+        leading or trailing spaces. Decimal digits and grammar operators are
+        not allowed in any token. The primary symbol and name are required
         and must be nonempty. Empty aliases are ignored.
 
         The symbol is positional-only. The primary name accepts positional or
@@ -251,10 +256,13 @@ class Unit:
         Symbol aliases accept a string or tuple of strings and,
         like prefixable, must be passed by keyword.
 
-        With prefixable=True, SI prefixes also apply to symbols and names.
+        With prefixable=True, SI prefixes also apply to symbols and names;
+        prefix names attach directly to the first word of a multiword name.
         All new texts, including prefixed forms, must be unambiguous and must
-        not already resolve to registered units. Invalid definitions raise
-        TypeError, ValueError, or UnitRegistryError before changing the registry.
+        not already resolve to registered units or implicit unit products.
+        Multiword names are recognized only as complete inputs by UnitParser.
+        Invalid definitions raise TypeError, ValueError, or UnitRegistryError
+        before changing the registry.
         """
         if not isinstance(symbol_aliases, (str, tuple)):
             raise TypeError('Symbol aliases must be str or tuple of str.')
