@@ -349,3 +349,31 @@ class Quantity(Generic[T]):
         power = as_fraction(exponent)
         value_power = as_int_if_integral(power)
         return Quantity(self._arithmetic_value**value_power, self.unit**power)
+
+    def define(
+        self: Quantity[Fractionable],
+        symbol: str,
+        /,
+        *,
+        name: str,
+        symbol_aliases: str | tuple[str, ...] = (),
+        name_aliases: str | tuple[str, ...] = (),
+        prefixable: bool = True,
+    ) -> Unit:
+        """Register a unit equal to this quantity, using Unit.define's name rules.
+
+        A nonempty primary name is required.
+        The magnitude must be a positive finite int, Fraction, Decimal, or
+        float. Decimal and Fraction scales stay exact. Float scales follow
+        Factor's denominator limit and can warn or round to zero and fail;
+        use Decimal or Fraction for exact definitions. Registration affects
+        this process and leaves this quantity unchanged.
+        """
+        scale = Factor(self.value)
+        return (scale * self.unit).define(
+            symbol,
+            name=name,
+            symbol_aliases=symbol_aliases,
+            name_aliases=name_aliases,
+            prefixable=prefixable,
+        )

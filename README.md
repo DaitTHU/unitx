@@ -68,6 +68,11 @@ Multiplying a scalar by a unit constructs a quantity; dividing a scalar by a
 unit constructs a quantity with the reciprocal unit. Construction preserves the
 original magnitude and its type.
 
+These are directional construction operators: `value * unit` constructs a
+`Quantity`, and `factor * unit` constructs a `ScaledUnit` when the factor is a
+`Factor` or `SymbolicConstant`. The reverse forms `unit * value` and
+`unit * factor` are unsupported and raise `TypeError`.
+
 ## Conversion and arithmetic
 
 Use `.to()` to convert between units with the same physical dimensions.
@@ -124,7 +129,56 @@ False
 The current unit table contains `s`, `m`, `g`, `A`, `K`, `mol`, and `cd`, plus
 the dimensionless identity. Mass scales are referenced to kilograms: `g` has
 factor `1/1000`, and `kg` has factor `1`. Named derived units such as `N` are
-not registered yet; use expressions such as `kg*m/s2`.
+not pre-registered; use expressions such as `kg*m/s2` or define them explicitly.
+
+## Defining units
+
+Call `.define()` on a `Unit`, `ScaledUnit`, or positive real `Quantity` to
+register a new unit and return it:
+
+```pycon
+>>> newton = Unit('kg*m/s2').define('N', name='newton')
+>>> minute = (60 * Unit('s')).define('min', name='minute', prefixable=False)
+>>> Quantity(2, minute).to('s').value
+120
+>>> from unitx.factor import PI
+>>> degree = ((PI / 180) * Unit()).define('deg', name='degree', prefixable=False)
+>>> degree.factor == PI / 180
+True
+>>> Quantity(1, 'kN').to(newton).value
+1000
+
+```
+
+Multiplying a `Factor` or `SymbolicConstant` by a unit creates a `ScaledUnit`,
+which preserves an exact additional scale through unit arithmetic. Its `scale`
+is relative to its formal unit product; its `factor` is the total scale to the
+coherent SI unit. An ordinary `Unit` has an implicit additional scale of one;
+only `ScaledUnit` stores that scale. Unit multiplication, division, and powers
+involving a `ScaledUnit` keep that type even when the scale cancels to one.
+A scale of one compares equal to the corresponding `Unit` and has the same
+hash. Calling `.define()` returns an ordinary `Unit` with its own formal
+identity, sharing the definition's dimension and exact SI factor.
+
+`ScaledUnit` supports shallow copying, deep copying, and pickling while
+preserving its exact scale and formal units. Restoring custom units requires
+their definitions to be registered in the receiving process.
+
+Definitions affect the current process and leave the source object unchanged.
+`symbol_aliases` and `name_aliases` each accept a string or tuple of strings.
+The symbol, names, and aliases must each be a single printable unit token,
+without whitespace, decimal digits, or parser operators. The primary symbol
+and `name` are required and must be nonempty; empty aliases are ignored.
+
+SI prefixes are enabled by default; set `prefixable=False` to disable them.
+Registration raises `UnitRegistryError` if a new spelling, including a generated
+prefixed form, already resolves to a unit or conflicts with another spelling
+in the same definition. Validation finishes before the registry changes.
+
+Quantity definitions require positive finite `int`, `Fraction`, `Decimal`, or
+`float` magnitudes. Prefer `Fraction` or `Decimal` for exact scales. Floats use
+Factor's denominator limit and can warn or round to zero and fail, for example
+with `1e-10`. Defining a unit does not evaluate symbolic scales numerically.
 
 ## Units, dimensions, and equality
 
@@ -220,6 +274,7 @@ python -m pip install sympy
 | --- | --- | --- |
 | `Quantity` | `unitx.quantity` | Scalar values paired with units, conversion, and arithmetic |
 | `Unit` | `unitx.unit` | Compound units, scaling factors, and physical dimensions |
+| `ScaledUnit` | `unitx.unit` | Formal unit products with an additional exact scale |
 | `Dimension` | `unitx.dimension` | Seven physical dimensions with rational exponents |
 | `SingleUnit` | `unitx.singleunit` | One registered unit with an optional prefix |
 | `Factor` | `unitx.factor` | Positive scaling expressions and magnitude scaling |

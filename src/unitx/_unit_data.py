@@ -1,13 +1,14 @@
 from .dimension import DIMENSIONLESS, Dimension
+from .exceptions import UnitRegistryError, UnitSymbolError
 from .factor import ONE, TEN, Factor
 
 
 class PrefixData:
     __slots__ = ('factor', 'names')
 
-    def __init__(self, factor: Factor, name: str, *name_alias: str) -> None:
+    def __init__(self, factor: Factor, name: str, *name_aliases: str) -> None:
         self.factor = factor
-        self.names = (name, *name_alias)
+        self.names = (name, *name_aliases)
 
     @property
     def name(self) -> str:
@@ -71,12 +72,12 @@ class UnitData:
         self,
         factor: Factor,
         name: str,
-        *name_alias: str,
+        *name_aliases: str,
         dimension: Dimension,
         prefixable: bool = True,
     ) -> None:
         self.factor = factor
-        self.names = (name, *name_alias)
+        self.names = (name, *name_aliases)
         self.dimension = dimension
         self.prefixable = prefixable
 
@@ -110,3 +111,63 @@ UNIT_SYMBOL_ALIASES: dict[str, str] = {
     alias: unit[0] for unit in _UNIT_ENTRIES if isinstance(unit, tuple) for alias in unit[1:]
 }
 """unit {symbol alias: symbol}"""
+
+
+def _register_unit(symbol: str, data: UnitData, /, *symbol_aliases: str) -> None:
+    """Validate every new spelling before updating the process-wide registry."""
+    # These modules resolve through this table, so import them only at call time.
+    from .singleunit import _resolve_single
+    from .unitparser import _TOKEN_RE
+
+    if not isinstance(data.prefixable, bool):
+        raise TypeError('Prefixable must be bool.')
+    for kind, texts in (
+        ('symbol', (symbol,)),
+        ('name', (data.name,)),
+        ('symbol alias', symbol_aliases),
+        ('name alias', data.names[1:]),
+    ):
+        for text in texts:
+            if not isinstance(text, str):
+                error_message = f'Unit {kind} must be str, got {type(text).__name__}.'
+                raise TypeError(error_message)
+            if text == '' and kind.endswith('alias'):
+                continue
+            match = _TOKEN_RE.fullmatch(text)
+            if not text.isprintable() or match is None or match.lastgroup != 'UNIT':
+                error_message = f'Unit {kind} must be a single printable unit token, got {text!r}.'
+                raise ValueError(error_message)
+
+    symbols = dict.fromkeys(text for text in (symbol, *symbol_aliases) if text)
+    names = dict.fromkeys(name for name in data.names if name)
+    spellings = [(text, '') for text in (*symbols, *names)]
+    if data.prefixable:
+        prefix_symbols = (*PREFIXES, *PREFIX_SYMBOL_ALIASES)
+        spellings.extend(
+            (prefix + text, PREFIX_SYMBOL_ALIASES.get(prefix, prefix))
+            for prefix in prefix_symbols
+            if prefix
+            for text in symbols
+        )
+        spellings.extend(
+            (prefix_name + name, prefix)
+            for prefix_name, prefix in PREFIX_NAME_TO_SYMBOL.items()
+            for name in names
+        )
+
+    # A spelling must identify the same prefix through symbols and names alike.
+    resolved_prefixes: dict[str, str] = {}
+    for text, prefix in spellings:
+        if resolved_prefixes.setdefault(text, prefix) != prefix:
+            raise UnitRegistryError(f'Unit text {text!r} has conflicting prefix meanings.')
+        try:
+            _resolve_single(text, warn=False)
+        except UnitSymbolError:
+            continue
+        raise UnitRegistryError(f'Unit text {text!r} already resolves to a registered unit.')
+
+    UNITS[symbol] = data
+    UNIT_NAME_TO_SYMBOL.update(dict.fromkeys(names, symbol))
+    UNIT_SYMBOL_ALIASES.update(
+        dict.fromkeys((alias for alias in symbols if alias != symbol), symbol)
+    )

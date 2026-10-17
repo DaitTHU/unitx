@@ -17,19 +17,12 @@ from .factor import Factor
 __all__ = ['SingleUnit']
 
 _PREFIX_MAXLEN = max(map(len, PREFIXES))
-_UNIT_MAXLEN = max(map(len, UNITS))
-_SYMBOL_MAXLEN = _PREFIX_MAXLEN + _UNIT_MAXLEN
-
 _PREFIX_NAME_MINLEN = min(map(len, PREFIX_NAME_TO_SYMBOL))
 _PREFIX_NAME_MAXLEN = max(map(len, PREFIX_NAME_TO_SYMBOL))
-_UNIT_NAME_MINLEN = min(map(len, UNIT_NAME_TO_SYMBOL))
-_UNIT_NAME_MAXLEN = max(map(len, UNIT_NAME_TO_SYMBOL))
-_PREFIXED_NAME_MINLEN = _PREFIX_NAME_MINLEN + _UNIT_NAME_MINLEN
-_PREFIXED_NAME_MAXLEN = _PREFIX_NAME_MAXLEN + _UNIT_NAME_MAXLEN
 
 
-def _resolve_single(text: str) -> tuple[str, str]:
-    """Resolve a unit symbol or name to its canonical (prefix, unit) pair."""
+def _resolve_single(text: str, *, warn: bool = True) -> tuple[str, str]:
+    """Resolve a symbol or name; registration checks can suppress alias warnings."""
     # unit symbol without prefix
     if text in UNITS:
         return '', text
@@ -37,7 +30,7 @@ def _resolve_single(text: str) -> tuple[str, str]:
     if text in UNIT_SYMBOL_ALIASES:
         return '', UNIT_SYMBOL_ALIASES[text]
     # unit (alias) symbol with prefix symbol
-    if 1 < len(text) <= _SYMBOL_MAXLEN:
+    if len(text) > 1:
         for prefix_length in range(1, _PREFIX_MAXLEN + 1):
             prefix_symbol, unit_symbol = text[:prefix_length], text[prefix_length:]
             if prefix_symbol in PREFIX_SYMBOL_ALIASES:
@@ -49,7 +42,7 @@ def _resolve_single(text: str) -> tuple[str, str]:
                 unit_symbol = UNIT_SYMBOL_ALIASES[unit_symbol]
             if prefix_symbol in PREFIXES and unit_symbol in UNITS:
                 if UNITS[unit_symbol].prefixable:
-                    if prefix_symbol_alias in UNITS:
+                    if warn and prefix_symbol_alias in UNITS:
                         symbol = prefix_symbol + unit_symbol
                         name = f'{PREFIXES[prefix_symbol].name}{UNITS[unit_symbol].name}'
                         ambiguous_symbol = f'{prefix_symbol_alias} {unit_symbol}'
@@ -68,7 +61,7 @@ def _resolve_single(text: str) -> tuple[str, str]:
     if text in UNIT_NAME_TO_SYMBOL:
         return '', UNIT_NAME_TO_SYMBOL[text]
     # unit name with prefix name
-    if _PREFIXED_NAME_MINLEN <= len(text) <= _PREFIXED_NAME_MAXLEN:
+    if len(text) > _PREFIX_NAME_MINLEN:
         for prefix_length in range(_PREFIX_NAME_MINLEN, _PREFIX_NAME_MAXLEN + 1):
             prefix_name, unit_name = text[:prefix_length], text[prefix_length:]
             if prefix_name in PREFIX_NAME_TO_SYMBOL and unit_name in UNIT_NAME_TO_SYMBOL:
@@ -87,14 +80,16 @@ class SingleUnit:
     `'µ'`; kilo uses lowercase `'k'`, while `'K'` denotes kelvin.
     The empty string represents a dimensionless unit.
 
-    The current unit table contains s, m, g, A, K, mol, and cd. Compound
-    expressions and powers are not accepted. Equality and hashing compare
+    The built-in unit table contains s, m, g, A, K, mol, and cd; Unit.define()
+    can register more units in the current process. Compound expressions and
+    powers are not accepted. Equality and hashing compare
     canonical unit identity, so aliases compare equal but m and mm do not.
 
     `factor` scales a magnitude to the corresponding coherent SI unit.
     Mass is referenced to kg: g has factor 1/1000 and kg has factor 1.
     `without_prefix()` returns a unit without its prefix; it does not convert
-    a magnitude.
+    a magnitude. `name` returns the primary name with its prefix, or an empty
+    string for the multiplicative identity.
 
     >>> unit = SingleUnit('kilogram')
     >>> unit.symbol, unit.name, unit.factor.value
@@ -134,7 +129,7 @@ class SingleUnit:
         return obj
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}('{self.symbol}')"
+        return f'{type(self).__name__}({self.symbol!r})'
 
     def __str__(self) -> str:
         return self.symbol

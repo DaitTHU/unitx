@@ -83,6 +83,13 @@ def test_scaled_unit_construction() -> None:
     assert_type(ScaledUnit('cm', scale=Factor(2)), ScaledUnit)
 
 
+def test_unit_define() -> None:
+    assert_type(Unit('m').define('rvlen', name='reviewlength'), Unit)
+    assert_type((PI * Unit('m')).define('rvpi', name='reviewpilength'), Unit)
+    assert_type((60 * Unit('s')).define('rvmin', name='reviewminute'), Unit)
+    assert_type(Quantity(Decimal('0.3048'), 'm').define('rvft', name='reviewfoot'), Unit)
+
+
 def test_quantity_conversion() -> None:
     assert_type(Quantity(1, 'm').to('cm'), Quantity[Real])
     assert_type(Quantity(Fraction(1), 'm').to('cm'), Quantity[Fraction | float])

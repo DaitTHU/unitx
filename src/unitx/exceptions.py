@@ -7,6 +7,7 @@ __all__ = [
     'DimensionError',
     'IncompleteFactorWarning',
     'InexactFloatWarning',
+    'UnitRegistryError',
     'UnitSymbolError',
     'UnitSymbolWarning',
     'UnitSyntaxError',
@@ -29,6 +30,10 @@ class UnitSyntaxError(UnitxError):
 
 class DimensionError(UnitxError):
     """Exception raised for dimension mismatches in quantity operations."""
+
+
+class UnitRegistryError(UnitxError):
+    """Exception raised for errors in the unit registry."""
 
 
 # Python 3.12 warnings.warn() new API

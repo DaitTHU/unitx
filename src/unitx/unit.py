@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Self, overload
 
 from ._numerics import Fractionable, Magnitude, as_fraction
+from ._unit_data import UnitData, _register_unit
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import ONE, Factor, SymbolicConstant
 from .monomial import Monomial
@@ -206,6 +207,43 @@ class Unit:
             else f'{unit}**({exponent})'
             for unit, exponent in self._monomial.components()
         )
+
+    def define(
+        self,
+        symbol: str,
+        /,
+        *,
+        name: str,
+        symbol_aliases: str | tuple[str, ...] = (),
+        name_aliases: str | tuple[str, ...] = (),
+        prefixable: bool = True,
+    ) -> Unit:
+        """Register a new unit in this process and return it without changing self.
+
+        The new unit has this unit's exact SI factor and physical dimension,
+        but a distinct formal identity. Symbols, names, and aliases must each
+        be one printable UnitParser unit token, without whitespace, decimal
+        digits, or grammar operators. The primary symbol and name are required
+        and must be nonempty. Empty aliases are ignored.
+
+        With prefixable=True, SI prefixes also apply to symbols and names.
+        All new texts, including prefixed forms, must be unambiguous and must
+        not already resolve to registered units. Invalid definitions raise
+        TypeError, ValueError, or UnitRegistryError before changing the registry.
+        """
+        if not isinstance(symbol_aliases, (str, tuple)):
+            raise TypeError('Symbol aliases must be str or tuple of str.')
+        if not isinstance(name_aliases, (str, tuple)):
+            raise TypeError('Name aliases must be str or tuple of str.')
+        if isinstance(symbol_aliases, str):
+            symbol_aliases = (symbol_aliases,)
+        if isinstance(name_aliases, str):
+            name_aliases = (name_aliases,)
+        data = UnitData(
+            self.factor, name, *name_aliases, dimension=self.dimension, prefixable=prefixable
+        )
+        _register_unit(symbol, data, *symbol_aliases)
+        return Unit(symbol)
 
 
 class ScaledUnit(Unit):
