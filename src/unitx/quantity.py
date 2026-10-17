@@ -377,3 +377,8 @@ class Quantity(Generic[T]):
             symbol_aliases=symbol_aliases,
             prefixable=prefixable,
         )
+
+
+def quantity(value: float, /, unit: str | Unit) -> Quantity[Decimal]:
+    """Construct a quantity from a float's shortest decimal representation."""
+    return Quantity(Decimal(repr(value)), unit)

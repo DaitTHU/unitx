@@ -154,10 +154,10 @@ False
   as a single space. Inside products, parentheses, reciprocals, and powers,
   use its symbol or combine `Unit` objects instead.
 
-The current unit table contains `s`, `m`, `g`, `A`, `K`, `mol`, and `cd`, plus
-the dimensionless identity. Mass scales are referenced to kilograms: `g` has
-factor `1/1000`, and `kg` has factor `1`. Named derived units such as `N` are
-not pre-registered; use expressions such as `kg*m/s2` or define them explicitly.
+The unit table contains `s`, `m`, `g`, `A`, `K`, `mol`, and `cd`, plus the
+dimensionless identity. Importing unitx also initializes the common units in
+`unitx.si`, including named derived units such as `N`. Mass scales are referenced
+to kilograms: `g` has factor `1/1000`, and `kg` has factor `1`.
 
 ## Defining units
 
@@ -165,12 +165,12 @@ Call `.define()` on a `Unit`, `ScaledUnit`, or positive real `Quantity` to
 register a new unit and return it:
 
 ```pycon
->>> newton = Unit('kg*m/s2').define('N', name='newton')
->>> minute = (60 * Unit('s')).define('min', name='minute', prefixable=False)
+>>> newton = Unit('kg*m/s2').define('demoN', 'demo newton')
+>>> minute = (60 * Unit('s')).define('demoMin', 'demo minute', prefixable=False)
 >>> Quantity(2, minute).to('s').value
 120
 >>> from unitx.factor import PI
->>> degree = ((PI / 180) * Unit()).define('deg', name='degree', prefixable=False)
+>>> degree = ((PI / 180) * Unit()).define('demoDeg', name='demo degree', prefixable=False)
 >>> degree.factor == PI / 180
 True
 >>> Quantity(1, 'kN').to(newton).value
