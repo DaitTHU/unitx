@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1] - 2026-10-17
+
+### Changed
+
+- Make multiplication of ordinary numeric magnitudes with Unit and ScaledUnit symmetric: both operand orders construct a Quantity and preserve the magnitude type. Zero and negative magnitudes are supported; float magnitudes retain their stored values without Factor rationalization.
+- Return Quantity when dividing Unit or ScaledUnit by an ordinary number. Integer, Fraction, and finite Decimal divisors produce exact Fraction reciprocals, so `si.deg / 60` preserves the exact arcminute definition; float divisors use native division.
+- Keep Factor and SymbolicConstant multiplication and division as exact ScaledUnit operations. To retain the former explicit scaling behavior, use `unit * Factor(value)` or `unit / Factor(value)`.
+
 ## [0.6.0] - 2026-10-17
 
 ### Added
