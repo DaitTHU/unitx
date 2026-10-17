@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0] - 2026-10-17
+
+### Added
+
+- Add `ScaledUnit` in `unitx.unit` for formal unit products with an additional exact positive scale. Multiplying or dividing a `Factor` or `SymbolicConstant` by a unit constructs a `ScaledUnit`.
+- Preserve explicit scales through unit multiplication, division, rational powers, quantity conversion, readable display, reconstructible representations, copying, and pickling. A scale of one compares and hashes equal to the corresponding ordinary `Unit`.
+- Add `Unit.expression()` to return the formal unit product in parser syntax, without any additional `ScaledUnit` scale.
+- Add `.define()` on `Unit`, `ScaledUnit`, and `Quantity` objects to register units in the current process. Definitions return an ordinary `Unit` with its own formal identity and the source's physical dimension, incorporating quantity magnitudes into the registered SI factor without changing the source object.
+- Require a nonempty primary symbol and name, with optional symbol aliases, name aliases, and configurable SI prefix support. All spellings must be single printable unit tokens; empty aliases are ignored.
+- Add `UnitRegistryError` for conflicts with existing unit spellings or ambiguous prefix meanings. Validate symbols, names, aliases, and generated prefixed forms before changing the registry.
+- Accept positive finite int, Fraction, Decimal, and float magnitudes for quantity definitions. Fraction and Decimal scales stay exact; float scales follow Factor's denominator limit and can warn or round to zero and fail. Restoring custom units in another process requires their definitions to be registered there.
+
+### Changed
+
+- Resolve dynamically registered unit symbols, names, aliases, and prefixed forms without relying on import-time unit-length limits.
+- Display quantities with an explicit scale other than one using parentheses around the scaled unit, without numerically evaluating symbolic scales.
+- Escape symbols in `SingleUnit.__repr__` so registered symbols containing quotes or backslashes can be reconstructed.
+
 ## [0.4.0] - 2026-10-16
 
 Replace the implementation previously published on PyPI as 0.3.0. The 0.0.x
