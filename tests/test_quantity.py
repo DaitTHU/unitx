@@ -931,7 +931,8 @@ def test_quantity_decimal_comparison(
             expected = 100 if unit == 'm' else 1
             assert op(left, right) is op(1, expected)
             assert op(right, left) is op(expected, 1)
-        assert context.flags[FloatOperation] is (unit == 'm')
+        # Decimal flags can be bools or integer 0/1 depending on Python version.
+        assert bool(context.flags[FloatOperation]) is (unit == 'm')
 
 
 @pytest.mark.parametrize(
