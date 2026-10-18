@@ -39,17 +39,18 @@ class Magnitude(Protocol):
     can produce complex values. NumPy scalars, arrays, and operation dispatch
     are not supported yet; NumPy integration is planned.
 
-    Forward multiplication and division have an unspecified operand domain at
+    Forward binary arithmetic has an unspecified operand domain at
     this protocol boundary. `Never` lets concrete numeric methods satisfy the
     protocol without claiming that they accept every operand. In particular,
-    raw magnitudes must defer Unit operands to Unit's reflected operators,
-    which construct quantities and preserve the magnitude's type.
+    raw magnitudes must defer Unit operands to Unit's reflected multiplication
+    and division, which construct quantities and preserve the magnitude's type.
+    They must also defer Quantity operands so that Quantity can handle units.
     """
 
     def __pos__(self, /) -> Magnitude: ...
     def __neg__(self, /) -> Magnitude: ...
-    def __add__(self, other: Any, /) -> Magnitude: ...
-    def __sub__(self, other: Any, /) -> Magnitude: ...
+    def __add__(self, other: Never, /) -> Magnitude: ...
+    def __sub__(self, other: Never, /) -> Magnitude: ...
     def __mul__(self, other: Never, /) -> Magnitude: ...
     def __truediv__(self, other: Never, /) -> Magnitude: ...
     def __pow__(self, other: Any, /) -> Magnitude: ...
@@ -118,6 +119,16 @@ def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000)
 def as_int_if_integral(value: Fraction, /) -> int | Fraction:
     """Return an int if integral; otherwise return the original Fraction."""
     return value.numerator if value.denominator == 1 else value
+
+
+def as_exponent(value: Fractionable, /) -> Fraction:
+    """Normalize formal exponents; floats use their shortest decimal text."""
+    if not isinstance(value, Fractionable) or isinstance(value, bool):
+        raise TypeError(f'Cannot convert {type(value).__name__} to Fraction.')
+    # Nonfinite floats still use Fraction's standard ValueError/OverflowError.
+    return Fraction(
+        str(float(value)) if isinstance(value, float) and math.isfinite(value) else value
+    )
 
 
 # Number theory functions: prime factorization and primality testing.

@@ -4,7 +4,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Self, overload
 
-from ._numerics import Fractionable, Magnitude, as_fraction
+from ._numerics import Fractionable, Magnitude, as_exponent
 from ._unit_data import UnitData, _register_unit
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import ONE, Factor, SymbolicConstant
@@ -31,8 +31,9 @@ class Unit:
     Multiplication and division combine Unit operands, and powers accept int,
     Fraction, Decimal, or float exponents. Operations return new units and
     cancel matching formal factors. Decimal strings, Fraction, and Decimal
-    exponents remain exact; float exponents may be approximated with an
-    `InexactFloatWarning`.
+    exponents remain exact; float exponents use their shortest decimal text,
+    consistently with Monomial, Dimension, and Factor. Use Fraction for an
+    exact rational such as one third.
 
     Multiplying a Unit by an int, Fraction, Decimal, or float constructs a
     Quantity, just as multiplying the magnitude by the Unit does. Construction
@@ -221,7 +222,7 @@ class Unit:
     def __pow__(self, exponent: Fractionable) -> Unit:
         if not isinstance(exponent, Fractionable):
             return NotImplemented
-        return Unit._from_monomial(self._monomial**exponent)
+        return Unit._from_monomial(self._monomial ** as_exponent(exponent))
 
     @property
     def symbol(self) -> str:
@@ -440,7 +441,7 @@ class ScaledUnit(Unit):
     def __pow__(self, exponent: Fractionable) -> ScaledUnit:
         if not isinstance(exponent, Fractionable):
             return NotImplemented
-        power = as_fraction(exponent)
+        power = as_exponent(exponent)
         return ScaledUnit._from_monomial(self._monomial**power, self.scale**power)
 
     @property

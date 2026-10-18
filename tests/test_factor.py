@@ -174,10 +174,12 @@ def test_factor_creation() -> None:
 
 
 @pytest.mark.parametrize('base', [TWO, PI])
-def test_factor_inexact_powers(base: Factor | SymbolicConstant) -> None:
-    with pytest.warns(InexactFloatWarning):
-        root = base ** (1 / 3)
-    assert root**3 == base
+def test_factor_float_powers(base: Factor | SymbolicConstant) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        assert (base**0.1) ** 10 == base
+        assert (base**1e-10) ** 10**10 == base
+    assert (base ** Fraction(1, 3)) ** 3 == base
 
 
 @pytest.mark.parametrize('value', [True, False, None, 1j, '3.14'])
@@ -214,7 +216,8 @@ def test_factor_from_dict() -> None:
     assert factor == Factor(3) ** Fraction(1, 2) / 2
     assert str(factor) == '3¹ᐟ²/2'
     assert Factor.from_dict({2: 0}) == ONE
-    with pytest.warns(InexactFloatWarning):
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
         converted = Factor.from_dict({2: 2.54})
     assert converted == TWO ** Fraction(127, 50)
     reciprocal = Factor(Fraction(1, 2))

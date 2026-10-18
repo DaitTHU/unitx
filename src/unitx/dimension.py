@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from fractions import Fraction
 from typing import Literal
 
-from ._numerics import Fractionable, as_fraction, as_int_if_integral
+from ._numerics import Fractionable, as_exponent, as_int_if_integral
 from ._unicode import superscript
 
 __all__ = ['DIMENSIONLESS', 'Dimension']
@@ -26,7 +26,8 @@ class Dimension:
     - `J`: luminous
 
     Zero exponents represent the `DIMENSIONLESS` singleton. Use Fraction or
-    Decimal for exact exponents; floats may be approximated with a warning.
+    Decimal for exact exponents; floats use their shortest decimal text,
+    without a denominator limit, consistently with Monomial, Factor, and Unit.
 
     >>> dim_velocity = Dimension(L=1, T=-1)
     >>> dim_force = Dimension(M=1, L=1, T=-2)
@@ -58,7 +59,7 @@ class Dimension:
         N: Fractionable = 0,
         J: Fractionable = 0,
     ) -> Dimension:
-        exponents = tuple(as_fraction(exp) for exp in (T, L, M, I, Theta, N, J))
+        exponents = tuple(as_exponent(exp) for exp in (T, L, M, I, Theta, N, J))
         if not any(exponents):
             return DIMENSIONLESS
         obj = object.__new__(cls)
@@ -125,7 +126,7 @@ class Dimension:
         return self._from_iter(a - b for a, b in zip(self._exponents, other._exponents))
 
     def __pow__(self, power: Fractionable) -> Dimension:
-        power_as_fraction = as_fraction(power)
+        power_as_fraction = as_exponent(power)
         return self._from_iter(exp * power_as_fraction for exp in self._exponents)
 
     def __rtruediv__(self, other: Literal[1]) -> Dimension:

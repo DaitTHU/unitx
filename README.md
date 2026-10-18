@@ -85,8 +85,9 @@ text spellings without adding an attribute to `si`.
 
 SI defining constants retain their exact decimal values. Measured constants
 are stored nominal values; measurement uncertainties are not propagated.
-Derived constants involving numerical approximations, such as `math.pi`, are
-evaluated numerically.
+Derived Decimal constants are evaluated in the Decimal context active at
+import. Formulas involving pi use `Decimal(str(math.pi))` as an approximation;
+additional Decimal precision does not add precision to pi.
 
 ## Constructing units and quantities
 
@@ -170,16 +171,23 @@ grouped denominator factors and multiplication dots between adjacent numbers.
 
 ## Conversion and arithmetic
 
-Use `.to()` to convert between units with the same physical dimensions.
+Use `.to()` to obtain a new quantity in a unit with the same physical dimensions,
+or `.value_in(unit)` to obtain only its numerical value. The target unit is
+required and accepts a string or `Unit`, including `ScaledUnit`.
+`.value_in(unit)` returns the same value and concrete type as `.to(unit).value`,
+without constructing a temporary quantity. Both follow the conversion rules
+below. A conversion with scale one preserves the original magnitude; Decimal
+magnitudes stay Decimal and other conversions can change the numerical type.
+`.value` reads the original stored magnitude.
 Addition and subtraction convert the right operand to the left operand's unit:
 
 ```pycon
 >>> length = Quantity(1, 'm')
 >>> print(length + Quantity(50, 'cm'))
 3/2 m
->>> length.to('cm').value
+>>> length.value_in('cm')
 100
->>> Quantity(1, 'cm').to('m').value
+>>> Quantity(1, 'cm').value_in('m')
 Fraction(1, 100)
 
 ```
@@ -346,29 +354,90 @@ Fraction(1001, 1)
 
 Exact unit algebra and numerical magnitude evaluation have different rules:
 
-- Rational unit scales and exponents remain exact. Prefer `Fraction` or
-  `Decimal` for exact exponents; float exponents may be approximated with an
-  `InexactFloatWarning`.
-- Conversion and arithmetic can change the magnitude's type. Finite `Decimal`
-  operands are converted exactly to `Fraction`, without Decimal context
-  rounding.
-- Other magnitudes use native numerical arithmetic. In particular, integer
-  division produces a float, and nonintegral magnitude powers can round or
-  produce complex values.
+- Formal exponents use one rule in Monomial, Dimension, Factor, Unit, and
+  Quantity: int/Fraction/Decimal values stay exact; floats use their shortest
+  decimal text without a denominator limit. Thus `0.1` means `1/10` and
+  `1e-10` remains nonzero. Use `Fraction(1, 3)` for exactly one third:
+  the float `1 / 3` means the decimal `0.3333333333333333` in formal exponents.
+  Factor's numeric scale inputs retain their separate denominator-limit rules.
+- Quantity handles units; the magnitudes determine numerical arithmetic.
+  Operators use the magnitudes in operand order and preserve native promotion,
+  rounding, signals, and exceptions. Decimal arithmetic returns Decimal and
+  follows its active context. Mixing Decimal with float or Fraction raises
+  `TypeError`, as it does for the bare numbers; choose a common numerical type
+  explicitly when needed.
+- Conversion with a rational scale keeps int/Fraction values exact. Decimal
+  conversion combines the value and scale exactly internally, then rounds once
+  to Decimal in the active context. Irrational unit scales are approximated as
+  floats, using their shortest decimal representations for Decimal conversion.
+  A scale of one preserves the magnitude without arithmetic or rounding.
+  Direct `Factor(value)` retains its separate exact Fraction evaluation rules.
+- Addition and subtraction align the right operand with the left quantity's
+  unit before numerical arithmetic. Integers being aligned with a Decimal
+  magnitude are scaled in the Decimal domain, so `Decimal('1') * si.m + 50 *
+  si.cm` returns a Decimal magnitude of `1.5`. Explicit Fraction/float operands
+  keep their own numerical domains. Finite-precision conversion and arithmetic
+  can round; changing the result unit can therefore change rounding errors.
+- Unary `+` and `-` apply the magnitude's native operators and preserve the unit.
+  Decimal results remain Decimal and follow its context precision, rounding,
+  signals, and exceptions; unary `+` can therefore change the numerical value.
+- Integer division produces a float; Fraction arithmetic remains rational.
+  Use Fraction magnitudes explicitly for exact rational results. Powers pass
+  the original exponent to the magnitude: `2 ** 2.0` returns float and
+  `2 ** Decimal('0.5')` returns Decimal. Decimal magnitudes require int or
+  Decimal exponents, as in Python. The unit follows the common formal exponent
+  rule above; numerical evaluation still uses the original exponent object.
+  Exponents must be finite real scalars other than bool. Numerical powers can
+  round or produce complex values, following the magnitude's rules.
+- Truth values follow the magnitude, so zero quantities are false regardless
+  of unit. Comparisons with equal unit factors use native magnitude operators,
+  including independent `!=`, Decimal signals/exceptions and complex ordering
+  errors. For different unit factors, builtin real values and complex
+  components are aligned exactly to avoid rounding-dependent equality or
+  hashes. Ordinary numeric subclasses use the same alignment as their base
+  types. Decimal/float signals apply to native comparisons with equal factors;
+  cross-factor alignment compares exact rational coefficients and does not
+  perform an additional comparison merely to reproduce signals. Decimal/Fraction
+  comparisons are supported natively.
 - Equality is exact, without a tolerance. Finite floats are compared as their
   stored binary rational values. Floating-point conversions and irrational
-  powers may round; compare their values approximately in a common unit when
-  appropriate.
+  powers may round; use `isclose()` for approximate real scalar comparisons.
+  It uses the symmetric condition
+  `abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)` in coherent SI
+  units, with defaults `rel_tol=1e-9` and `abs_tol=0`. Swapping quantities
+  preserves the result. Nonzero absolute tolerances for dimensional quantities
+  must carry matching units; plain operands and plain absolute tolerances
+  represent unscaled dimensionless values. Tolerances must be finite and
+  nonnegative. Different dimensions raise `DimensionError`. NaNs are never
+  close, and infinities are close only to infinities of the same sign.
+  Finite rational coefficients stay exact; residual irrational unit factors
+  are approximated. With both tolerances zero, `isclose()` uses exact equality.
 
 ```pycon
->>> from decimal import Decimal
+>>> from decimal import Decimal, localcontext
 >>> from fractions import Fraction
+>>> with localcontext() as context:
+...     context.prec = 2
+...     q = Quantity(Decimal('1.2345'), 'm')
+...     print((+q).value, (-q).value, (q * 2).value)
+1.2 -1.2 2.5
 >>> Quantity(Decimal('0.1'), 'm').to('cm').value
-10
+Decimal('10')
 >>> (Quantity(Fraction(1), 'm') / Quantity(3, 's')).value
 Fraction(1, 3)
+>>> (Quantity(2, 'm') ** 2.0).value
+4.0
+>>> bool(Quantity(0, 'm'))
+False
 >>> Quantity(0.1, '') == Quantity(Fraction(1, 10), '')
 False
+>>> Quantity(0.1 + 0.2, 'm').isclose(Quantity(0.3, 'm'))
+True
+>>> a, b = Quantity(1, 'm'), Quantity(100.05, 'cm')
+>>> a.isclose(b, rel_tol=0, abs_tol=Quantity(1, 'mm'))
+True
+>>> b.isclose(a, rel_tol=0, abs_tol=Quantity(1, 'mm'))
+True
 
 ```
 
@@ -388,9 +457,10 @@ python -m pip install sympy
 - Custom magnitudes must support scalar arithmetic, return a Python `bool`
   from equality, and defer raw operations with `Unit` operands to its reflected
   operators.
-- Scalar multiplication and division of quantities currently accept `int`,
-  `float`, `Fraction`, and `Decimal`. Complex magnitudes are supported, including
-  results of fractional powers; ordering follows the magnitude's native rules.
+- Scalar operations use the magnitude's supported operand types, including
+  complex numbers and custom scalar magnitudes. Custom magnitudes must also
+  defer operations with Quantity operands so that Quantity can handle units.
+  Ordering follows the magnitude's native rules.
 - Unit conversion is multiplicative. Offset temperature scales such as Celsius
   and Fahrenheit are not supported.
 

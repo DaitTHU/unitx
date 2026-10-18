@@ -1,4 +1,5 @@
 import math
+from decimal import Decimal
 from typing import Final
 
 from .._constclass import ConstClass
@@ -6,6 +7,9 @@ from ..quantity import Quantity, quantity
 from .units import si
 
 __all__ = ['SI', 'Particle']
+
+# Match the constants' Decimal magnitudes when using the approximate value of pi.
+_PI = Decimal(str(math.pi))
 
 
 class SI(ConstClass):
@@ -39,7 +43,7 @@ class SI(ConstClass):
     Kcd: Final = Quantity(683, 'lm/W')
     """luminous efficacy of 540 THz radiation, definition of candela"""
 
-    hbar: Final = h / (2 * math.pi)
+    hbar: Final = h / (2 * _PI)
     """reduced Planck quantity, ħ: Final = h / 2π"""
     g: Final = quantity(9.80665, 'm/s2')
     """standard acceleration of gravity"""
@@ -50,7 +54,7 @@ class SI(ConstClass):
 
     G: Final = quantity(6.674_30e-11, 'm3/(kg*s2)')
     """Newtonian quantity of gravitation"""
-    # kappa: Final = 8 * math.pi * G / c**4  # simplify=True
+    # kappa: Final = 8 * _PI * G / c**4  # simplify=True
     # """Einstein gravitational quantity"""
     # H0: Final = Quantity(70, 'km/s*Mpc')
     # """Hubble quantity, approx"""
@@ -67,7 +71,7 @@ class SI(ConstClass):
     """vacuum electric permittivity"""
     Z0: Final = (mu0 * c).to(si.ohm)  # simplify=True
     """characteristic impedance of vacuum"""
-    ke: Final = (1 / (4 * math.pi * epsilon0)).to('N*m2/C2')
+    ke: Final = (1 / (4 * _PI * epsilon0)).to('N*m2/C2')
     """Coulomb quantity"""
     KJ: Final = (2 * e / h).to('Hz/V')
     """Josephson quantity"""
@@ -99,7 +103,7 @@ class SI(ConstClass):
     """Hartree energy"""
     re: Final = alpha**2 * a0
     """classical electron radius"""
-    sigmae: Final = 8 * math.pi / 3 * re**2
+    sigmae: Final = 8 * _PI / 3 * re**2
     """Thomson cross section"""
     muB: Final = (e * hbar / (2 * me)).to('J/T')
     """Bohr magneton"""
@@ -115,11 +119,11 @@ class SI(ConstClass):
     F: Final = NA * e
     """Faraday quantity"""
 
-    sigma: Final = (math.pi**2 * kB**4 / (60 * hbar**3 * c**2)).to('W/(m2*K4)')
+    sigma: Final = (_PI**2 * kB**4 / (60 * hbar**3 * c**2)).to('W/(m2*K4)')
     """Stefan-Boltzmann quantity"""
     c1L: Final = (2 * h * c**2).to('W*m2/sr')
     """first radiation quantity for spectral radiance"""
-    c1: Final = c1L * math.pi * si.sr
+    c1: Final = c1L * _PI * si.sr
     """first radiation quantity"""
     c2: Final = h * c / kB
     """second radiation quantity"""

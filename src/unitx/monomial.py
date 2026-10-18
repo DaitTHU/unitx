@@ -5,7 +5,7 @@ from fractions import Fraction
 from types import MappingProxyType
 from typing import Generic, Literal, TypeVar
 
-from ._numerics import Fractionable, as_fraction
+from ._numerics import Fractionable, as_exponent
 from ._unicode import DOT, superscript
 
 __all__ = ['Monomial']
@@ -31,8 +31,8 @@ class Monomial(Generic[BaseT]):
     components : Mapping[BaseT, Fractionable], optional
         Bases and exponents. The mapping is copied and zero exponents are
         removed. Defaults to an empty monomial. Use int, Fraction, or Decimal
-        for exact exponents. Float exponents may be approximated with an
-        `InexactFloatWarning`.
+        for exact exponents. Float exponents use their shortest decimal text,
+        so 0.1 means Fraction(1, 10); no denominator limit is applied.
 
     Notes
     -----
@@ -76,7 +76,7 @@ class Monomial(Generic[BaseT]):
             raise TypeError(error_message)
         normalized: dict[BaseT, Fraction] = {}
         for base, exp in components.items():
-            if exponent := as_fraction(exp):
+            if exponent := as_exponent(exp):
                 normalized[base] = exponent
         obj = super().__new__(cls)
         object.__setattr__(obj, '_components', MappingProxyType(normalized))
@@ -193,7 +193,7 @@ class Monomial(Generic[BaseT]):
     def __pow__(self, other: Fractionable) -> Monomial[BaseT]:
         if not isinstance(other, Fractionable):
             return NotImplemented
-        other_as_fraction = as_fraction(other)
+        other_as_fraction = as_exponent(other)
         if other_as_fraction == 0:
             return self._from_dict({})
         return self._from_dict({base: exp * other_as_fraction for base, exp in self.components()})

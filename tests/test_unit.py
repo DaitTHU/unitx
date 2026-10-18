@@ -11,6 +11,7 @@ import pytest
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import InexactFloatWarning, UnitSymbolError, UnitSyntaxError
 from unitx.factor import ONE, PI, Factor, SymbolicConstant
+from unitx.monomial import Monomial
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
 
@@ -149,7 +150,9 @@ def test_unit_division_exact(unit: Unit, divisor) -> None:
     assert type(result.value) is Fraction
     assert result.value == 1 / Fraction(divisor)
     assert result.unit is unit
-    assert (result * divisor) == 1 * unit
+    # Unit / value constructs an exact Fraction reciprocal; keep that domain
+    # explicit when multiplying back by a Decimal divisor.
+    assert (result * Fraction(divisor)) == 1 * unit
 
 
 def test_unit_division_arcminute() -> None:
@@ -357,11 +360,13 @@ def test_unit_exact_exponents(
     assert type(unit.dimension.L) is Fraction
 
 
-def test_unit_float_power() -> None:
-    with pytest.warns(InexactFloatWarning, match='0.1'):
-        unit = Unit('m') ** 0.1
-    assert unit == Unit('m^0.1')
-    assert unit.dimension == Dimension(L=Fraction(1, 10))
+@pytest.mark.parametrize('exponent', [0.1, 1e-10, 1.000000000001])
+def test_unit_float_power(exponent: float) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        unit = Unit('m') ** exponent
+    assert unit == Unit('m') ** Fraction(str(exponent))
+    assert unit.dimension == Dimension(L=Fraction(str(exponent)))
 
 
 def test_unit_inplace_operations() -> None:
@@ -554,11 +559,12 @@ def test_scaled_unit_cancellation() -> None:
 
 def test_scaled_unit_float_power() -> None:
     unit = Factor(2) * Unit('cm')
-    with pytest.warns(InexactFloatWarning, match='0.1') as recorded:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
         root = unit**0.1
-    assert len(recorded) == 1
     assert type(root) is ScaledUnit
-    assert root**10 == unit
+    assert root == unit ** Fraction(1, 10)
+    assert root.dimension.L == Fraction(1, 10)
 
 
 def test_scaled_unit_exact_power() -> None:
@@ -669,3 +675,24 @@ def test_scaled_unit_invalid_power(value: object) -> None:
 def test_scaled_unit_invalid_boolean_power() -> None:
     with pytest.raises(TypeError, match='Cannot convert bool to Fraction'):
         (Factor(2) * Unit('m')) ** True  # pyright: ignore[reportUnusedExpression]
+
+
+@pytest.mark.parametrize('exponent', [0.1, 1e-10, 1.000000000001])
+def test_unit_exponent_consistency(exponent: float) -> None:
+    unit = Unit('m')
+    scaled = Factor(2) * unit
+    powered = scaled**exponent
+    assert powered.scale == scaled.scale**exponent
+    assert powered.dimension == scaled.dimension**exponent
+    assert (unit**exponent).dimension == Dimension(L=exponent)
+    assert Monomial({'m': exponent}) == Monomial({'m': 1}) ** exponent
+    assert Factor.from_dict({2: exponent}) == Factor(2) ** exponent
+    assert (Quantity(2, unit) ** exponent).unit == unit**exponent
+    assert (Quantity(2, unit) ** exponent).value == 2**exponent
+
+
+def test_unit_decimal_power() -> None:
+    unit = Unit('m')
+    assert unit**0.1 == Unit('m^0.1')
+    assert (unit**0.1) ** 10 == unit
+    assert str(unit**0.1) == str(unit ** Fraction(1, 10))

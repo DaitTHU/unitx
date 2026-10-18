@@ -210,14 +210,11 @@ def test_monomial_invalid_operands(value: object) -> None:
         value / monomial  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
 
 
-def test_monomial_inexact_float() -> None:
-    with pytest.warns(InexactFloatWarning) as warnings:
-        assert Monomial({'x': 1e-10}) == Monomial()
-    assert warnings[0].filename == __file__
-    with pytest.warns(InexactFloatWarning):
-        monomial = Monomial({'x': 1 / 7})
-    assert repr(monomial) == "Monomial({'x': Fraction(1, 7)})"
-    with pytest.warns(InexactFloatWarning) as warnings:
-        powered = monomial ** (1 / 3)
-    assert powered == Monomial({'x': Fraction(1, 21)})
-    assert warnings[0].filename == __file__
+def test_monomial_float_exponents() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        assert Monomial({'x': 1e-10}).exponent_of('x') == Fraction(1, 10**10)
+        monomial = Monomial({'x': 0.1})
+        assert monomial == Monomial({'x': Fraction(1, 10)})
+        assert monomial**10 == Monomial({'x': 1})
+        assert (Monomial({'x': 1}) ** 0.1) ** 10 == Monomial({'x': 1})

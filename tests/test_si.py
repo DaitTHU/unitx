@@ -134,7 +134,7 @@ def test_si_defining_constants(attribute: str, target: str, value: str) -> None:
 
 def test_si_hbar_value() -> None:
     assert SI.hbar.unit == SI.h.unit
-    assert SI.hbar.value == pytest.approx(1.0545718176461565e-34, rel=1e-15, abs=0)
+    assert float(SI.hbar.value) == pytest.approx(1.0545718176461565e-34, rel=1e-15, abs=0)
 
 
 @pytest.mark.parametrize(
@@ -192,3 +192,12 @@ def test_quantity_decimal_representation() -> None:
     assert type(result.value) is Decimal
     assert result.value == Decimal('6.62607015e-34')
     assert result.unit == si.J * si.s
+
+
+@pytest.mark.parametrize('attribute', ['epsilon0', 'RK', 'R', 'F', 'c2', 'Vm'])
+def test_si_decimal_display(attribute: str) -> None:
+    constant = getattr(SI, attribute)
+    assert type(constant.value) is Decimal
+    assert str(constant).startswith(str(constant.value))
+    assert len(str(constant.value)) < 40
+    assert '/' not in str(constant.value)

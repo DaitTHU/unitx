@@ -9,7 +9,14 @@ from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
 from typing import Any, overload
 
-from ._numerics import Fractionable, Magnitude, UnfactoredInteger, as_fraction, as_int_if_integral
+from ._numerics import (
+    Fractionable,
+    Magnitude,
+    UnfactoredInteger,
+    as_exponent,
+    as_fraction,
+    as_int_if_integral,
+)
 from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning
 from .monomial import Monomial
 
@@ -162,7 +169,7 @@ class SymbolicConstant:
     def __pow__(self, other: Fractionable) -> Factor:
         if not isinstance(other, Fractionable):
             return NotImplemented
-        return Factor._from_monomial(Monomial({self: as_fraction(other)}))
+        return Factor._from_monomial(Monomial({self: as_exponent(other)}))
 
     @property
     def symbol(self) -> str:
@@ -198,11 +205,13 @@ class Factor:
     and classification may be incomplete, and equivalent expressions may compare
     unequal. Install SymPy for more complete support.
 
-    Construction and arithmetic convert float inputs and exponents to Fractions
-    with denominators at most 1,000,000. Inexact conversions emit
-    InexactFloatWarning. Small positive floats can round to zero and fail the
-    positivity check: Factor(1e-10) warns and raises ValueError. Use Decimal or
-    Fraction for exact inputs and exponents.
+    Construction and ordinary multiplication/division convert float scales to
+    Fractions with denominators at most 1,000,000. Inexact conversions emit
+    InexactFloatWarning. Small positive float scales can round to zero and fail
+    the positivity check: Factor(1e-10) warns and raises ValueError. Use Decimal
+    or Fraction for exact scales. Exponents, including from_dict(), instead use
+    a float's shortest decimal text without a denominator limit, consistently
+    with Monomial, Dimension, and Unit. Use Fraction(1, 3) for exactly one third.
 
     Factor equality compares stored bases and exponents. Numeric operands are
     compared as exact rational values, including the stored value of floats.
@@ -282,7 +291,7 @@ class Factor:
             raise TypeError(error_message)
         normalized: dict[int | SymbolicConstant, Fraction] = {}
         for base, exponent in components.items():
-            normalized[base] = as_fraction(exponent)
+            normalized[base] = as_exponent(exponent)
         monomial = Monomial(normalized)
         if not all(isinstance(base, (int, SymbolicConstant)) for base in monomial.bases()):
             raise TypeError('All bases must be int or SymbolicConstant.')
@@ -500,7 +509,7 @@ class Factor:
         return NotImplemented
 
     def __pow__(self, other: Fractionable) -> Factor:
-        return Factor._from_monomial(self._monomial ** as_fraction(other))
+        return Factor._from_monomial(self._monomial ** as_exponent(other))
 
     @overload
     def __call__(self, magnitude: Fraction) -> Fraction | float: ...

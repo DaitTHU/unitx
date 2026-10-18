@@ -48,10 +48,11 @@ def test_dimension_roundtrip_conversion(dimension: Dimension) -> None:
         assert eval(repr(dimension)) == dimension
 
 
-def test_dimension_inexact_float_warning() -> None:
-    with pytest.warns(InexactFloatWarning, match='0.33333') as warnings:
-        Dimension(1 / 3)
-    assert warnings[0].filename == __file__
+def test_dimension_float_exponent() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        assert Dimension(L=0.1) == Dimension(L=Fraction(1, 10))
+        assert Dimension(L=1e-10).L == Fraction(1, 10**10)
 
 
 def test_dimension_properties() -> None:
@@ -124,10 +125,11 @@ def test_dimension_hash() -> None:
     assert {Dimension(L=1), Dimension(L=1)} == {Dimension(L=1)}
 
 
-def test_dimension_warns_for_inexact_float_power() -> None:
-    with pytest.warns(InexactFloatWarning, match='0.33333333333') as warnings:
-        Dimension(L=1) ** (1 / 3)  # pyright: ignore[reportUnusedExpression]
-    assert warnings[0].filename == __file__
+def test_dimension_float_power() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', InexactFloatWarning)
+        assert (Dimension(L=1) ** 0.1) ** 10 == Dimension(L=1)
+        assert (Dimension(L=1) ** 1e-10).L == Fraction(1, 10**10)
 
 
 @pytest.mark.parametrize('dimension', [Dimension(L=1), DIMENSIONLESS])
