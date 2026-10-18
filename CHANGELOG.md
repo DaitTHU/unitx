@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.2] - 2026-10-18
+
+### Added
+
+- Support multiplication and division between Quantity and Factor or SymbolicConstant in both operand orders. Multiplication and right-hand division preserve the magnitude and its type, combining the exact factor with the unit's scale; left-hand division takes the reciprocal magnitude and scales the reciprocal unit. Ordinary numeric operands continue to operate on the magnitude.
+- Preserve generic magnitude types in the corresponding public type hints, with runtime and static regression coverage for exact scaling and reciprocal operations.
+
+### Changed
+
+- Combine the compact exact scale and formal units in ScaledUnit string output, grouping denominator factors into one product, such as `J⋅s/(2⋅π)`.
+- Display quantities with scaled units using the combined product and multiplication dots between adjacent numeric factors, such as `3⋅60⋅s`, without evaluating the exact scale. String output remains readable display rather than parser input; `repr()` retains reconstructible state.
+- Document exact-factor quantity arithmetic and the distinction between a symbolic expression such as `SI.h / (2 * PI)` and predefined `SI.hbar`, which continues to expose its numerical value in ordinary `J*s` units.
+
 ## [0.6.1] - 2026-10-17
 
 ### Changed
