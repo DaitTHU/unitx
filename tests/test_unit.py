@@ -575,11 +575,16 @@ def test_scaled_unit_exact_power() -> None:
 @pytest.mark.parametrize(
     ('base', 'scale', 'expected'),
     [
-        ('s', Factor(60), '60 s'),
+        ('s', Factor(60), '60⋅s'),
         ('', Factor(2), '2'),
         ('1/s', Factor(2), '2/s'),
         ('1/(m*s)', Factor(2), '2/(m⋅s)'),
         ('cm', ONE, 'cm'),
+        ('J*s', 1 / (2 * PI), 'J⋅s/(2⋅π)'),
+        ('m/s', PI / 180, 'π⋅m/(180⋅s)'),
+        ('1/(m*s)', 1 / (2 * PI), '1/(2⋅π⋅m⋅s)'),
+        ('s', Factor(5040) ** Fraction(1, 2), '12⋅35¹ᐟ²⋅s'),
+        ('m^(1/2)/s', PI ** Fraction(1, 2), 'π¹ᐟ²⋅m¹ᐟ²/s'),
     ],
 )
 def test_scaled_unit_str(base: str, scale: Factor, expected: str) -> None:

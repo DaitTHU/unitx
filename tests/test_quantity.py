@@ -38,9 +38,14 @@ def test_quantity_str(unit: str, expected: str) -> None:
 @pytest.mark.parametrize(
     ('unit', 'expected'),
     [
-        (Factor(2) * Unit(), '3 (2)'),
-        (Factor(2) / Unit('s'), '3 (2/s)'),
-        (Factor(60) * Unit('s'), '3 (60 s)'),
+        (Factor(2) * Unit(), '3⋅2'),
+        (Factor(2) / Unit('s'), '3⋅2/s'),
+        (Factor(60) * Unit('s'), '3⋅60⋅s'),
+        (Unit('J*s') / (2 * PI), '3 J⋅s/(2⋅π)'),
+        (Unit('1/s') / (2 * PI), '3/(2⋅π⋅s)'),
+        (Unit() / PI, '3/π'),
+        (PI * Unit('s'), '3 π⋅s'),
+        (Factor(12) * Unit('s'), '3⋅12⋅s'),
         (ScaledUnit(Unit(), ONE), '3'),
         (ScaledUnit(Unit('1/s'), ONE), '3/s'),
     ],
@@ -50,6 +55,54 @@ def test_quantity_scaled_str(unit: ScaledUnit, expected: str) -> None:
     before = (quantity.value, quantity.unit, quantity.unit.factor)
     assert str(quantity) == expected
     assert (quantity.value, quantity.unit, quantity.unit.factor) == before
+
+
+@pytest.mark.parametrize('value', [0, -2, 2**60 + 1, 0.1, Fraction(3, 7), Decimal('1.2345'), 2j])
+@pytest.mark.parametrize('unit', [Unit('cm'), ScaledUnit('cm', PI), Unit('km/m')])
+@pytest.mark.parametrize('factor', [ONE, Factor(2), PI, 1 / (2 * PI), Factor(2) ** Fraction(1, 2)])
+def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
+    quantity = Quantity(value, unit)
+    before = (repr(quantity), hash(quantity))
+    with localcontext() as context:
+        context.prec = 2
+        products = (quantity * factor, factor * quantity)
+        quotient = quantity / factor
+    for result in products:
+        assert result.value is value
+        assert result.unit == unit * factor
+        assert (result / factor).unit == unit
+        assert result == value * (unit * factor)
+    assert quotient.value is value
+    assert quotient.unit == unit / factor
+    assert (quotient * factor) == quantity
+    assert hash(quotient * factor) == hash(quantity)
+    assert {quantity: 'found'}[quotient * factor] == 'found'
+    assert (repr(quantity), hash(quantity)) == before
+
+
+@pytest.mark.parametrize('value', [2, Fraction(3, 7), Decimal('1.2345'), 2j])
+@pytest.mark.parametrize('factor', [Factor(2), PI])
+def test_quantity_factor_reciprocal(value, factor) -> None:
+    quantity = Quantity(value, ScaledUnit('cm', PI))
+    result = factor / quantity
+    reciprocal = 1 / quantity
+    assert result.value == reciprocal.value
+    assert type(result.value) is type(reciprocal.value)
+    assert result.unit == factor / quantity.unit
+    assert result == reciprocal * factor
+
+
+def test_quantity_factor_scaling() -> None:
+    quantity = Quantity(3, 'cm')
+    numeric = quantity * 2
+    exact = quantity * Factor(2)
+    assert numeric.value == 6
+    assert numeric.unit == quantity.unit
+    assert exact.value == 3
+    assert exact.unit == ScaledUnit('cm', Factor(2))
+    assert exact == numeric
+    assert hash(exact) == hash(numeric)
+    assert (exact.to('m').to(exact.unit)).value == exact.value
 
 
 def test_quantity_scaled_operations() -> None:

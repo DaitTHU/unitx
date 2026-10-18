@@ -20,5 +20,6 @@ def test_si_unit_types() -> None:
 def test_si_constant_types() -> None:
     assert_type(SI.c, Quantity[int])
     assert_type(SI.h, Quantity[Decimal])
+    assert_type(SI.hbar, Quantity[Real])
     assert_type(SI.e, Quantity[Decimal])
     assert_type(SI.h.to(si.J * si.s), Quantity[Real])

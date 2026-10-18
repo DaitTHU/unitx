@@ -306,7 +306,8 @@ class ScaledUnit(Unit):
     involving a ScaledUnit return ScaledUnit, even when the scale becomes one.
     Equality compares the formal product and explicit scale, so a scale of one
     compares equal to the unscaled Unit. `symbol` describes only the product;
-    str() also includes its scale, and repr() reconstructs both.
+    str() combines its compact exact scale and formal units into a single
+    product with a grouped denominator, and repr() reconstructs both.
 
     Copying and pickling preserve the formal units and exact scale. Restoring
     a unit requires its referenced unit definitions to be registered.
@@ -315,7 +316,7 @@ class ScaledUnit(Unit):
     >>> minute
     ScaledUnit('s', scale=Factor.from_dict({2: 2, 3: 1, 5: 1}))
     >>> str(minute)
-    '60 s'
+    '60⋅s'
     >>> minute == Unit('s')
     False
     """
@@ -358,9 +359,11 @@ class ScaledUnit(Unit):
     def __str__(self) -> str:
         if self.scale == ONE:
             return self.symbol
-        if self.symbol.startswith('1'):
-            return f'{self.scale}{self.symbol[1:]}'
-        return f'{self.scale} {self.symbol}'
+        components: dict[SingleUnit | int | str, Fraction] = dict(
+            self.scale._display_monomial().components()
+        )
+        components.update(self._monomial.components())
+        return str(Monomial(components))
 
     def __hash__(self) -> int:
         if self.scale == ONE:

@@ -7,10 +7,11 @@ from fractions import Fraction
 from typing import Any, Generic, TypeVar, cast, overload
 
 from ._numerics import Fractionable, Magnitude, Number, Real, as_fraction, as_int_if_integral
+from ._unicode import DOT
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
-from .factor import ONE, Factor
-from .unit import ScaledUnit, Unit
+from .factor import ONE, Factor, SymbolicConstant
+from .unit import Unit
 
 # Magnitudes are exposed read-only; operations construct new quantities.
 T = TypeVar('T', bound=Magnitude, covariant=True)
@@ -22,7 +23,9 @@ class Quantity(Generic[T]):
     Construction preserves the magnitude's type. Conversion uses Factor's
     scaling rules and can change that type. Arithmetic converts finite Decimal
     operands exactly to Fraction; other magnitudes use native arithmetic.
-    Multiplication or division by a Unit preserves the magnitude unchanged.
+    Multiplication or division by a Unit, Factor, or SymbolicConstant preserves
+    the magnitude unchanged. Exact factors are combined with the unit's scale,
+    while ordinary numeric operands participate in magnitude arithmetic.
 
     Magnitudes must be scalars whose equality returns a bool. NumPy scalars,
     arrays, and NumPy operations are not supported yet; NumPy integration is
@@ -33,9 +36,9 @@ class Quantity(Generic[T]):
     Scalar multiplication and division accept int, float, Fraction, and Decimal.
 
     Type hints preserve the magnitude type at construction and when combining
-    with a Unit. Numeric conversions and arithmetic use unions where the result
-    depends on runtime units or values. In particular, float annotations also
-    accept int inputs, which may produce Fraction after scaling. Custom
+    with a Unit or exact factor. Numeric conversions and arithmetic use unions
+    where the result depends on runtime units or values. In particular, float
+    annotations also accept int inputs, which may produce Fraction after scaling. Custom
     magnitudes retain their arithmetic protocol rather than an assumed Self.
 
     Equality and hashing retain the exact rational coefficient and the unit's
@@ -50,9 +53,9 @@ class Quantity(Generic[T]):
     Powers normalize the exponent once using as_fraction(), just as Unit does,
     and use that exponent for both the magnitude and the unit. Nonintegral
     magnitude powers use native numerical evaluation and can be approximate.
-    str() is readable display and groups units with an explicit scale in
-    parentheses without evaluating that scale. repr() uses a reconstructible
-    Unit expression.
+    str() displays the magnitude followed by the unit's exact product expression
+    without evaluating its scale. Adjacent numeric factors use a multiplication
+    dot. repr() uses a reconstructible Unit expression.
 
     >>> Quantity(1, 'm') + Quantity(50, 'cm')
     Quantity(Fraction(3, 2), Unit('m'))
@@ -106,11 +109,13 @@ class Quantity(Generic[T]):
         return f'{type(self).__name__}({self.value!r}, {self.unit!r})'
 
     def __str__(self) -> str:
-        if isinstance(self.unit, ScaledUnit) and self.unit.scale != ONE:
-            return f'{self.value} ({self.unit})'
-        if self.unit.symbol.startswith('1'):
-            return f'{self.value}{self.unit.symbol[1:]}'
-        return f'{self.value} {self.unit}'
+        unit = str(self.unit)
+        if unit == '1':
+            return str(self.value)
+        if unit.startswith('1/'):
+            return f'{self.value}{unit[1:]}'
+        separator = DOT if unit[0].isdecimal() else ' '
+        return f'{self.value}{separator}{unit}'
 
     def is_dimensionless(self) -> bool:
         return self.dimension is DIMENSIONLESS
@@ -263,7 +268,7 @@ class Quantity(Generic[T]):
         return NotImplemented
 
     @overload
-    def __mul__(self, other: Unit, /) -> Quantity[T]: ...
+    def __mul__(self, other: Unit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
 
     @overload
     def __mul__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[int]: ...
@@ -281,7 +286,7 @@ class Quantity(Generic[T]):
             quantity = cast(Quantity[Magnitude], other)
             value = cast(Magnitude, quantity._arithmetic_value)
             return Quantity(self._arithmetic_value * value, self.unit * quantity.unit)
-        if isinstance(other, Unit):
+        if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, self.unit * other)
         if isinstance(other, Fractionable):
             value = cast(Magnitude, Fraction(other) if isinstance(other, Decimal) else other)
@@ -291,7 +296,7 @@ class Quantity(Generic[T]):
     __rmul__ = __mul__
 
     @overload
-    def __truediv__(self, other: Unit, /) -> Quantity[T]: ...
+    def __truediv__(self, other: Unit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
 
     @overload
     def __truediv__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[float]: ...
@@ -309,7 +314,7 @@ class Quantity(Generic[T]):
             quantity = cast(Quantity[Magnitude], other)
             value = cast(Magnitude, quantity._arithmetic_value)
             return Quantity(self._arithmetic_value / value, self.unit / quantity.unit)
-        if isinstance(other, Unit):
+        if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, self.unit / other)
         if isinstance(other, Fractionable):
             value = cast(Magnitude, Fraction(other) if isinstance(other, Decimal) else other)
@@ -317,18 +322,22 @@ class Quantity(Generic[T]):
         return NotImplemented
 
     @overload
-    def __rtruediv__(self: Quantity[int], other: Unit | int, /) -> Quantity[float]: ...
+    def __rtruediv__(
+        self: Quantity[int], other: Unit | Factor | SymbolicConstant | int, /
+    ) -> Quantity[float]: ...
 
     @overload
     def __rtruediv__[N: Fractionable](
-        self: Quantity[N], other: Unit | Fractionable, /
+        self: Quantity[N], other: Unit | Factor | SymbolicConstant | Fractionable, /
     ) -> Quantity[Real]: ...
 
     @overload
-    def __rtruediv__(self, other: Unit | Fractionable, /) -> Quantity[Magnitude]: ...
+    def __rtruediv__(
+        self, other: Unit | Factor | SymbolicConstant | Fractionable, /
+    ) -> Quantity[Magnitude]: ...
 
     def __rtruediv__(self, other: object, /) -> Quantity[Magnitude]:
-        if isinstance(other, Unit):
+        if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(1 / self._arithmetic_value, other / self.unit)
         if isinstance(other, Fractionable):
             value = Fraction(other) if isinstance(other, Decimal) else other

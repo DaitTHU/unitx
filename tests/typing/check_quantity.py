@@ -143,6 +143,19 @@ def test_quantity_unit_operations[T: Magnitude](value: T) -> Quantity[T]:
     return quantity
 
 
+def test_quantity_factor_operations[T: Magnitude](value: T) -> Quantity[T]:
+    quantity = Quantity(value, 'm')
+    for factor in (Factor(2), PI):
+        assert_type(quantity * factor, Quantity[T])
+        assert_type(factor * quantity, Quantity[T])
+        assert_type(quantity / factor, Quantity[T])
+        assert_type(factor / quantity, Quantity[Magnitude])
+        assert_type(Factor(2) / Quantity(2, 's'), Quantity[float])
+        assert_type(PI / Quantity(Decimal(2), 's'), Quantity[Real])
+    assert_type(Quantity(Decimal(2), 's') / (2 * PI), Quantity[Decimal])
+    return quantity
+
+
 def test_quantity_numeric_operations() -> None:
     integer = Quantity(1, 'm')
     rational = Quantity(Fraction(1), 'm')

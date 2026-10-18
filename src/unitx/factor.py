@@ -398,6 +398,10 @@ class Factor:
         """
         if not compact:
             return str(self._monomial)
+        return str(self._display_monomial())
+
+    def _display_monomial(self) -> Monomial[int | str]:
+        """Collect numeric bases for compact display, without changing exact state."""
         rational, irrational = self.decompose(rationalize_denominator=True)
         display_components: dict[int | str, Fraction] = {}
         if rational.numerator > 1:
@@ -417,7 +421,7 @@ class Factor:
             # Numeric roots use string keys to stay distinct from rational coefficients.
             # Symbol validation and Factor construction prevent collisions with symbols.
             display_components[str(base)] = exponent
-        return str(Monomial._from_dict(display_components))
+        return Monomial._from_dict(display_components)
 
     def __str__(self) -> str:
         return self.format()

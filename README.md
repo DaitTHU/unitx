@@ -124,7 +124,7 @@ True
 2
 >>> double_metre = metre * Factor(2)
 >>> print(double_metre)
-2 m
+2⋅m
 >>> (3 * double_metre).to('m').value
 6
 >>> arcmin = si.deg / 60
@@ -138,6 +138,35 @@ Fraction(1, 1)
 Multiplying a `ScaledUnit` by an ordinary number also constructs a quantity,
 keeping the exact scale in its unit and preserving the supplied magnitude.
 Combining a Unit with a Quantity continues to return a Quantity.
+
+Quantities also accept `Factor` and `SymbolicConstant` operands on either side
+of multiplication or division. Multiplication and right-hand division preserve
+the magnitude and its type, combining the exact factor with the unit instead.
+Left-hand division takes the reciprocal magnitude and unit. Ordinary numeric
+operands continue to act on the magnitude: `q * 2` and `q * Factor(2)` represent
+equal physical quantities but can have different `.value` and `.unit` pairs.
+
+```pycon
+>>> from unitx.factor import PI
+>>> hbar = SI.h / (2 * PI)
+>>> print(hbar)
+6.62607015E-34 J⋅s/(2⋅π)
+>>> hbar.value == SI.h.value
+True
+>>> hbar * (2 * PI) == SI.h
+True
+>>> round(float(hbar.to('J*s').value) / 1e-34, 8)
+1.05457182
+
+```
+
+The local `hbar` above retains the exact scale, whereas predefined `SI.hbar`
+provides its numerical value in ordinary `J*s` units. `.value` is always the
+magnitude paired with `.unit`, including its exact scale. Use
+`.to('J*s').value` to evaluate the local expression in joule seconds;
+conversion involving an irrational factor evaluates it approximately.
+String output combines the scale and formal units into one product, with
+grouped denominator factors and multiplication dots between adjacent numbers.
 
 ## Conversion and arithmetic
 

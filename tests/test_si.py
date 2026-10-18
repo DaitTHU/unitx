@@ -132,6 +132,11 @@ def test_si_defining_constants(attribute: str, target: str, value: str) -> None:
     assert result.value == Decimal(value)
 
 
+def test_si_hbar_value() -> None:
+    assert SI.hbar.unit == SI.h.unit
+    assert SI.hbar.value == pytest.approx(1.0545718176461565e-34, rel=1e-15, abs=0)
+
+
 @pytest.mark.parametrize(
     ('attribute', 'target'),
     [('Phi0', si.Wb), ('G0', si.S), ('RK', si.ohm), ('a0', si.m), ('lambdaC', si.m), ('Eh', si.J)],
