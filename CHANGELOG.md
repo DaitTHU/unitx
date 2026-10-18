@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.6.3] - 2026-10-18
+
+### Added
+
+- Add `Quantity.value_in(unit)` to return the same magnitude and concrete type as `.to(unit).value` without constructing a temporary quantity. The target unit is required and accepts a string or Unit, including ScaledUnit.
+- Add `Quantity.isclose()` for symmetric real scalar comparisons with relative and absolute tolerances in coherent SI units. Nonzero absolute tolerances for dimensional quantities must carry matching units. Rational coefficients remain exact; residual irrational factors are approximated. Zero tolerances use exact equality.
+- Make quantity truth values follow their magnitudes, so zero quantities are false regardless of unit.
+
+### Changed
+
+- Apply native magnitude operators in operand order for arithmetic, unary operations, and numerical powers, preserving numerical promotion, Decimal contexts, signals, and exceptions. Support the scalar operand types accepted by the magnitude, including complex values and custom scalars.
+- Keep Decimal conversions and arithmetic in Decimal. Rational conversions combine the magnitude and scale exactly before rounding once in the active context; identity conversions preserve the original magnitude. Addition and subtraction align integer operands in the Decimal domain when paired with Decimal magnitudes. Derived SI constants use Decimal arithmetic and `Decimal(str(math.pi))` where an approximate pi is required, with evaluation in the context active at import.
+- Interpret float formal exponents by their shortest decimal text, without a denominator limit, consistently across Monomial, Dimension, Factor, SymbolicConstant, Unit, and Quantity. For example, `0.1` represents `1/10` and `1e-10` remains nonzero. Numeric scale inputs to Factor retain their existing denominator-limit and warning rules.
+- Cache rationalized Factor decompositions lazily, independently of numerical value evaluation, while preserving equality, hashing, copying, and serialization.
+- Update public type hints, examples, and regression coverage for conversion, native arithmetic, comparisons, and formal exponents.
+
+### Fixed
+
+- Preserve native comparisons, including independent `!=`, Decimal signals, and complex ordering errors, when unit factors agree. Across different factors, compare builtin real values and complex components using exact coefficients, retaining consistent hashes for equal quantities and native unhashability for custom magnitudes.
+
+### Migration
+
+- Decimal arithmetic no longer converts operands to Fraction automatically. Mixing Decimal with float or Fraction in arithmetic now raises the native TypeError; explicitly choose a common numerical type when needed. Decimal conversion and derived SI constants can therefore have different result types and rounding from earlier releases.
+- Quantity numerical powers use the original exponent object; for example, an integer magnitude raised to `2.0` produces a float. Use `Fraction(1, 3)` for an exactly one-third formal exponent: the float `1 / 3` now represents the decimal `0.3333333333333333` and does not simplify as exactly one third.
+
 ## [0.6.2] - 2026-10-18
 
 ### Added
