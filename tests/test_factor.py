@@ -564,6 +564,85 @@ def test_factor_decompose(
     assert Factor(rational) * irrational == factor
 
 
+@pytest.mark.parametrize(
+    'factor',
+    [
+        Factor(12),
+        Factor(Fraction(3, 2)),
+        Factor(PI),
+        Factor.from_dict({2: Fraction(-3, 2)}),
+        TWO * PI,
+        TWO / Factor(3),
+        TWO ** Fraction(-3, 2),
+    ],
+)
+def test_factor_decompose_cache(factor: Factor, monkeypatch: pytest.MonkeyPatch) -> None:
+    first = factor.decompose(rationalize_denominator=True)
+    rational, irrational = first
+    assert Factor(rational) * irrational == factor
+
+    def unexpected_construction(cls, monomial) -> NoReturn:
+        pytest.fail('A cached decomposition must not construct another Factor.')
+
+    monkeypatch.setattr(Factor, '_from_monomial', classmethod(unexpected_construction))
+    assert factor.decompose(rationalize_denominator=True) is first
+
+
+@pytest.mark.parametrize('rationalize_first', [False, True])
+def test_factor_decompose_modes(rationalize_first: bool) -> None:
+    factor = TWO ** Fraction(-3, 2)
+    factor.decompose(rationalize_denominator=rationalize_first)
+    rationalized = factor.decompose(rationalize_denominator=True)
+    for _ in range(2):
+        assert factor.decompose() == (Fraction(1, 2), TWO ** Fraction(-1, 2))
+        assert factor.decompose(rationalize_denominator=True) is rationalized
+    assert rationalized == (Fraction(1, 4), TWO ** Fraction(1, 2))
+
+
+def test_factor_decompose_overflow() -> None:
+    factor = PI**10000 * TWO ** Fraction(-3, 2)
+    rationalized = factor.decompose(rationalize_denominator=True)
+    assert rationalized == (Fraction(1, 4), PI**10000 * TWO ** Fraction(1, 2))
+    with pytest.raises(OverflowError, match='Factor value is too large for a float'):
+        factor.value
+    assert factor.decompose(rationalize_denominator=True) is rationalized
+
+
+def test_factor_decompose_preserves_state() -> None:
+    factor = PI * TWO ** Fraction(-3, 2)
+    equivalent = Factor.from_dict({PI: 1, 2: Fraction(-3, 2)})
+    before = (repr(factor), hash(factor), factor.is_rational(), factor.is_integer())
+    value = factor.value
+    lookup = {factor: 'found'}
+    factor.decompose(rationalize_denominator=True)
+    assert (repr(factor), hash(factor), factor.is_rational(), factor.is_integer()) == before
+    assert factor.value is value
+    assert factor == equivalent
+    assert lookup[equivalent] == 'found'
+    assert len({factor, equivalent}) == 1
+    for result in (factor * TWO, factor / TWO, factor**2):
+        rational, irrational = result.decompose(rationalize_denominator=True)
+        assert Factor(rational) * irrational == result
+
+
+@pytest.mark.parametrize('warm_cache', [False, True])
+def test_factor_decompose_round_trip(warm_cache: bool) -> None:
+    import pickle
+    from copy import copy, deepcopy
+
+    factor = PI * TWO ** Fraction(-3, 2)
+    if warm_cache:
+        factor.decompose(rationalize_denominator=True)
+    for rebuilt in (copy(factor), deepcopy(factor), pickle.loads(pickle.dumps(factor))):
+        assert rebuilt == factor
+        assert hash(rebuilt) == hash(factor)
+        assert repr(rebuilt) == repr(factor)
+        assert rebuilt.decompose() == (Fraction(1, 2), PI * TWO ** Fraction(-1, 2))
+        rationalized = rebuilt.decompose(rationalize_denominator=True)
+        assert rationalized == (Fraction(1, 4), PI * TWO ** Fraction(1, 2))
+        assert rebuilt.decompose(rationalize_denominator=True) is rationalized
+
+
 # Numerical evaluation and scaling
 
 

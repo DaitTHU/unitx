@@ -226,11 +226,13 @@ class Factor:
     Fraction(127, 50)
     """
 
-    __slots__ = ('_monomial', '_value_cache')
+    __slots__ = ('_monomial', '_value_cache', '_decompose_cache')
     _monomial: Monomial[int | SymbolicConstant]
     _value_cache: int | Fraction | float | None
+    _decompose_cache: tuple[Fraction, Factor] | None
 
     def __init__(self, value: Fractionable | SymbolicConstant, /) -> None:
+        self._decompose_cache = None
         if isinstance(value, SymbolicConstant):
             self._monomial = Monomial({value: 1})
             self._value_cache = float(value)
@@ -264,6 +266,7 @@ class Factor:
         obj = object.__new__(cls)
         obj._monomial = monomial
         obj._value_cache = None
+        obj._decompose_cache = None
         return obj
 
     @classmethod
@@ -317,6 +320,8 @@ class Factor:
         The rational part is a Fraction, and the irrational part is a Factor
         containing only SymbolicConstant bases and integer bases with *proper*
         fraction exponents. The product of the two parts equals the original factor.
+        Rationalized decompositions are cached lazily on this factor; default
+        decompositions are computed on each call, independently of the value cache.
 
         Parameters
         ----------
@@ -337,6 +342,8 @@ class Factor:
         >>> (Factor(2) ** Fraction(-3, 2)).decompose(rationalize_denominator=True)
         (Fraction(1, 4), Factor.from_dict({2: Fraction(1, 2)}))
         """
+        if rationalize_denominator and self._decompose_cache is not None:
+            return self._decompose_cache
         rational = Fraction(1)
         irrational: dict[int | SymbolicConstant, Fraction] = {}
         for base, exponent in self._monomial.components():
@@ -348,7 +355,10 @@ class Factor:
                 integer_part = math.floor(exponent) if rationalize_denominator else int(exponent)
                 rational *= Fraction(base) ** integer_part
                 irrational[base] = exponent - integer_part
-        return rational, Factor._from_monomial(Monomial._from_dict(irrational))
+        result = rational, Factor._from_monomial(Monomial._from_dict(irrational))
+        if rationalize_denominator:
+            self._decompose_cache = result
+        return result
 
     @property
     def value(self) -> int | Fraction | float:
