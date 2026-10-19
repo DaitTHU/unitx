@@ -351,9 +351,27 @@ and `Unit.expression()` emits a `[name]` reference. Conversely, `SingleUnit.name
 falls back to a symbol if no name allows that prefix. Repr and pickle preserve
 the same formal unit, rather than replacing the prefix with an extra scale.
 
+`arcsec` and `arcsecond` accept prefixes, for example `marcsec` and
+`milliarcsecond`; `″` and `"` do not. `as` continues to mean attosecond,
+and `mas` is not an arcsecond alias. `a` (are) and `ha` (hectare) are separate
+unprefixable units; `Pa` remains pascal. `yr` remains exactly 365 days.
+`a_j` is the Julian year of exactly 365.25 days (31,557,600 seconds), while
+`mo` is one twelfth of that interval, rather than a variable calendar month.
 The name exceptions `megohm` and `kilohm` are supported alongside the older
 `megaohm` and `kiloohm` spellings; `gigaohm` retains both vowels. No general
 vowel-elision rule is applied.
+
+`ly` is defined using the speed of light and the Julian year; `eV` uses the
+elementary charge and volt. Both reuse the defining constants exposed by `SI`.
+`mHg` is the registered metre-of-mercury unit and `mmHg` is its milli-prefixed
+form; `760 * si.mmHg` converts to `si.atm` with value 1 under the library's
+existing pressure convention. Prefixes do not stack: `mmmHg` and `kmmHg` are
+invalid. `kt` retains its meaning as a knot alias; tonne remains unprefixable.
+
+The newly registered `u` denotes the unified atomic mass unit. ASCII micro
+spellings such as `um` still mean micrometres, but now issue `UnitSymbolWarning`
+because `u m` has a separate meaning. Use `µm`, `μm`, or `micrometre` to avoid
+this warning.
 
 Registration raises `UnitRegistryError` if a new spelling, including a generated
 prefixed form, already resolves to a unit or conflicts with another spelling

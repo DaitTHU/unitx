@@ -12,6 +12,10 @@ def test_si_unit_types() -> None:
     assert_type(si.m, Unit)
     assert_type(si.MeV, Unit)
     assert_type(si.au, Unit)
+    assert_type(si.ly, Unit)
+    assert_type(si.mHg, Unit)
+    assert_type(si.mmHg, Unit)
+    assert_type(si.cd, Unit)
     assert_type(2 * si.m, Quantity[int])
     assert_type(Decimal('0.5') * si.s, Quantity[Decimal])
 

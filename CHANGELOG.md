@@ -14,6 +14,14 @@
   accept a tuple of exact registered symbols, names, or aliases. Only those
   spellings accept prefixes; True enables all spellings and False or () disables
   all spellings. `PrefixPolicy` is `bool | tuple[str, ...]`.
+- Enable prefixes on `arcsec` and `arcsecond` while keeping angle punctuation
+  unprefixable. Register unprefixable are (`a`) and hectare (`ha`), and reactive
+  power (`var`, name `volt-ampere reactive`). Keep `as` as attosecond and `yr`
+  as a 365-day year.
+- Add the Julian year `a_j` (exactly 31,557,600 seconds) and its twelfth,
+  `mo`, as a fixed month interval distinct from variable calendar months.
+- Add light year (`ly`), unified atomic mass unit (`u`), and common prefixed
+  namespace attributes, including attosecond (`as_`) and petaelectronvolt (`PeV`).
 
 ### Changed
 
@@ -31,6 +39,15 @@
 - Reuse Unicode superscript tables, handle malformed name brackets through
   the common lexical error path, and simplify definition initialization,
   preferred spelling selection, and generated prefix-name validation.
+- Share coherent SI units and the seven defining constants through private
+  bases. Derive `ly` from `c` and the Julian year, and `eV` from `e` and `V`,
+  preserving the public `si` and `SI` namespaces and constant magnitude types.
+
+### Fixed
+
+- Register metre of mercury (`mHg`) as the prefixable unit and construct `mmHg`
+  from its milli prefix. Preserve `760 mmHg = 1 atm` and the existing Torr scale,
+  keep the definition exact, and reject stacked prefixes such as `kmmHg`.
 
 ### Migration
 
@@ -40,6 +57,12 @@
 - Long names remain whole-input lookups unless explicitly referenced in brackets.
   `str()` remains readable display and is not a general serialization format;
   use `expression()` for formal unit products and repr for ScaledUnit state.
+- `mmHg` now has the formal identity of milli-prefixed `mHg`; rebuild stored
+  units when moving between versions. Its pressure conversion scale is unchanged.
+  `kmmHg` and names with repeated prefixes are no longer accepted.
+- Registering `u` makes ASCII micro spellings such as `um` issue the existing
+  ambiguity warning. Their meaning is unchanged; use `µm`, `μm`, or `micrometre`
+  to avoid the warning. `kt` remains a knot alias and tonne stays unprefixable.
 
 ## [0.6.3] - 2026-10-18
 

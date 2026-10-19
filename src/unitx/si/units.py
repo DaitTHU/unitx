@@ -2,9 +2,9 @@ from collections.abc import Iterator
 from decimal import Decimal
 from typing import Final
 
-from .._constclass import ConstClass
-from ..factor import ONE, PI, TEN
+from ..factor import PI, TEN
 from ..unit import Unit
+from .bases import _SI, _si
 
 __all__ = ['si']
 
@@ -19,7 +19,7 @@ def _prefixed_units(unit: str, prefixes: str | list[str]) -> Iterator[Unit]:
     return (Unit(prefix + unit) for prefix in prefixes)
 
 
-class si(ConstClass):
+class si(_si):
     """The `si` constclass offers a comprehensive set of common units
     such as meters (m), kilograms (kg), and more.
 
@@ -32,91 +32,61 @@ class si(ConstClass):
 
     # SI base unit
 
-    one: Final = Unit()
-    """unitless"""
-    fs, ps, ns, us, ms, s = _prefixed_units('s', 'fpnum ')
+    as_, fs, ps, ns, us, ms = _prefixed_units('s', 'afpnum')
     """second, time"""
-    fm, pm, nm, um, mm, cm, dm, m, km = _prefixed_units('m', 'fpnumcd k')
+    fm, pm, nm, um, mm, cm, dm, km = _prefixed_units('m', 'fpnumcdk')
     """metre/meter, length"""
-    mg, g, kg = _prefixed_units('g', 'm k')
+    pg, ng, ug, mg, g = _prefixed_units('g', 'pnum ')
     """gram, mass"""
-    mA, A = _prefixed_units('A', 'm ')
+    pA, nA, uA, mA, kA = _prefixed_units('A', 'pnumk')
     """ampere, electric current"""
-    mK, K = _prefixed_units('K', 'm ')
+    nK, uK, mK = _prefixed_units('K', 'num')
     """kelvin, thermodynamic temperature"""
-    mmol, mol = _prefixed_units('mol', 'm ')
+    pmol, nmol, umol, mmol, kmol = _prefixed_units('mol', 'pnumk')
     """mole, amount of substance"""
-    cd = Unit('cd')
+    mcd: Final = Unit('mcd')
     """candela, luminous intensity"""
 
     # SI derived unit
 
-    rad: Final = one.define('rad', name='radian')
+    urad, mrad = _prefixed_units('rad', 'um')
     """radian, plane angle"""
-    sr: Final = one.define('sr', name='steradian')
-    """steradian, solid angle"""
-    Hz: Final = (ONE / s).define('Hz', name='hertz')
+    kHz, MHz, GHz, THz, PHz = _prefixed_units('Hz', 'kMGTP')
     """hertz, frequency"""
-    kHz, MHz, GHz, THz = _prefixed_units('Hz', 'kMGT')
-    """hertz, frequency"""
-    N: Final = (kg * m / s**2).define('N', name='newton')
+    pN, nN, uN, mN, kN, MN = _prefixed_units('N', 'pnumkM')
     """newton, force/weight"""
-    Pa: Final = (N / m**2).define('Pa', name='pascal')
+    mPa, hPa, kPa, MPa, GPa = _prefixed_units('Pa', 'mhkMG')
     """pascal, pressure/stress"""
-    kPa, MPa, GPa = _prefixed_units('Pa', 'kMG')
-    """pascal, pressure/stress"""
-    J: Final = (N * m).define('J', name='joule')
+    nJ, uJ, mJ, kJ, MJ, GJ = _prefixed_units('J', 'numkMG')
     """joule, energy/work/heat"""
-    mJ, kJ, MJ = _prefixed_units('J', 'mkM')
-    """joule, energy/work/heat"""
-    W: Final = (J / s).define('W', name='watt')
+    pW, nW, uW, mW, kW, MW, GW, TW = _prefixed_units('W', 'pnumkMGT')
     """watt, power/radiant flux"""
-    mW, kW, MW = _prefixed_units('W', 'mkM')
-    """watt, power/radiant flux"""
-    C: Final = (A * s).define('C', name='coulomb')
+    fC, pC, nC, uC, mC = _prefixed_units('C', 'fpnum')
     """coulomb, electric charge"""
-    pC, nC, uC, mC = _prefixed_units('C', 'pnum')
-    """coulomb, electric charge"""
-    V: Final = (W / A).define('V', name='volt')
+    nV, uV, mV, kV, MV = _prefixed_units('V', 'numkM')
     """volt, electric potential/voltage/emf"""
-    mV, kV = _prefixed_units('V', 'mk')
-    """volt, electric potential/voltage/emf"""
-    F: Final = (C / V).define('F', name='farad')
+    fF, pF, nF, uF, mF = _prefixed_units('F', 'fpnum')
     """farad, capacitance"""
-    pF, nF, uF, mF = _prefixed_units('F', 'pnum')
-    """farad, capacitance"""
-    ohm: Final = (V / A).define('Ω', name='ohm')
+    uohm, mohm, kohm, Mohm, Gohm = _prefixed_units('Ω', 'umkMG')
     """ohm, resistance/impedance/reactance"""
-    mohm, kohm = _prefixed_units('Ω', 'mk')
-    """ohm, resistance/impedance/reactance"""
-    S: Final = (A / V).define('S', name='siemens')
+    uS, mS = _prefixed_units('S', 'um')
     """siemens, electrical conductance"""
-    Wb: Final = (V * s).define('Wb', name='weber')
+    uWb, mWb = _prefixed_units('Wb', 'um')
     """weber, magnetic flux"""
-    T: Final = (Wb / m**2).define('T', name='tesla')
+    nT, uT, mT = _prefixed_units('T', 'num')
     """tesla, magnetic flux density"""
-    H: Final = (Wb / A).define('H', name='henry')
+    nH, uH, mH = _prefixed_units('H', 'num')
     """henry, inductance"""
-    lm: Final = (cd * sr).define('lm', name='lumen')
-    """lumen, luminous flux"""
-    lx: Final = (lm / m**2).define('lx', name='lux')
-    """lux, illuminance"""
-    Bq: Final = (ONE / s).define('Bq', name='becquerel')
+    kBq, MBq, GBq, TBq = _prefixed_units('Bq', 'kMGT')
     """becquerel, activity referred to a radionuclide"""
-    kBq, MBq, GBq = _prefixed_units('Bq', 'kMG')
-    """becquerel, activity referred to a radionuclide"""
-    Gy: Final = (J / kg).define('Gy', name='gray')
+    uGy, mGy = _prefixed_units('Gy', 'um')
     """gray, absorbed dose"""
-    Sv: Final = (J / kg).define('Sv', name='sievert')
-    """sievert, equivalent dose"""
     nSv, uSv, mSv = _prefixed_units('Sv', 'num')
     """sievert, equivalent dose"""
-    kat: Final = (mol / s).define('kat', name='katal')
-    """katal, catalytic activity"""
 
     # non-SI units accepted for use with SI
 
-    min: Final = (60 * s).define('min', name='minute', prefixable=False)
+    min: Final = (60 * _si.s).define('min', name='minute', prefixable=False)
     """minute, 1 min = 60 s, time"""
     h: Final = (60 * min).define('h', name='hour', prefixable=False)
     """hour, 1 h = 60 min, time"""
@@ -124,70 +94,85 @@ class si(ConstClass):
     """day, 1 d = 24 h, time"""
     yr: Final = (365 * d).define('yr', name='year', prefixable=False)
     """simple year, 1 yr = 365 d, time"""
-    # a = (365.25 * d).define('a', name='Julian year')
-    # """Julian year, 1 yr = 365.25 d, time"""
-    deg: Final = (PI / 180 * rad).define('°', name='degree', symbol_aliases='deg', prefixable=False)
+    a_j: Final = (365.25 * d).define('a_j', name='Julian year')
+    """Julian year, 1 a_j = 365.25 d, time"""
+    mo: Final = (a_j / 12).define('mo', name='month', prefixable=False)
+    """month, 1 mo = 1/12 a_j, time"""
+    deg: Final = (PI / 180 * _si.rad).define(
+        '°', name='degree', symbol_aliases='deg', prefixable=False
+    )
     """degree, plane angle"""
     arcmin: Final = (deg / 60).define(
         '′', name='arcminute', symbol_aliases=("'", 'arcmin'), prefixable=False
     )
     """arcminute, plane angle"""
     arcsec: Final = (arcmin / 60).define(
-        '″', name='arcsecond', symbol_aliases=('"', 'arcsec'), prefixable=False
+        '″',
+        name='arcsecond',
+        symbol_aliases=('"', 'arcsec'),
+        prefixable=('arcsec', 'arcsecond'),
     )
     """arcsecond, plane angle"""
-    # a: Final = (100 * m**2).define('a', name='are')
-    # """are, 1 a = 100 m², land area"""
-    b: Final = (m**2 / TEN**28).define('b', name='barn')
+    a: Final = (100 * _si.m**2).define('a', name='are', prefixable=False)
+    """are, 1 a = 100 m², land area"""
+    ha: Final = (100 * a).define('ha', name='hectare', prefixable=False)
+    """hectare, 1 ha = 100 a = 10000 m², land area"""
+    b: Final = (_si.m**2 / TEN**28).define('b', name='barn')
     """barn, 1 b = 10⁻²⁸ m², effective cross sections."""
     L: Final = (dm**3).define('L', 'liter', 'litre', symbol_aliases='l')
     """liter/litre, 1 L = 1 dm³, volume"""
-    mL: Final = Unit('mL')
-    """`millilitre, 1 mL = 1 cm³, volume"""
-    t: Final = (kg * 1000).define('t', name='tonne', prefixable=False)
+    nL, uL, mL, cL, dL = _prefixed_units('L', 'numcd')
+    """liter/litre, 1 L = 1 dm³, volume"""
+    t: Final = (1000 * _si.kg).define('t', name='tonne', prefixable=False)
     """tonne, 1 t = 1000 kg, mass"""
     # symbol aliases: chr(0xC5), chr(0x212B), 'A'+chr(0x30A)
-    angstrom: Final = (m / TEN**10).define('Å', 'ångström', 'angstrom', symbol_aliases=('Å', 'Å'))
+    angstrom: Final = (_si.m / TEN**10).define(
+        'Å', 'ångström', 'angstrom', symbol_aliases=('Å', 'Å')
+    )
     """ångström, 1 Å = 10⁻¹⁰ m,
     lengths of chemical bonds, sizes of atoms and molecules, and wavelengths.
     """
-    Gal: Final = (cm / s**2).define('Gal', name='gal')
+    Gal: Final = (cm / _si.s**2).define('Gal', name='gal')
     """gal, acceleration"""
-    bar: Final = (TEN**5 * Pa).define('bar', name='bar')
+    bar: Final = (TEN**5 * _si.Pa).define('bar', name='bar')
     """bar, standard-state pressure"""
-    Da: Final = (kg * Decimal('1.660_539_068_92e-27')).define('Da', name='dalton')
+    mbar: Final = Unit('mbar')
+    """millibar, standard-state pressure"""
+    Da: Final = (Decimal('1.660_539_068_92e-27') * _si.kg).define('Da', name='dalton')
     """dalton, unified atomic mass unit, 1 Da = m(¹²C) / 12, mass"""
-    # u = Da.define('u', name='unified atomic mass unit', symbol_aliases='amu')
-    # """unified atomic mass unit, 1 u = m(¹²C) / 12, mass"""
-    au: Final = (149_597_870_700 * m).define('au', name='astronomical unit')
+    u: Final = Da.define('u', name='unified atomic mass unit', prefixable=False)
+    """unified atomic mass unit, 1 u = m(¹²C) / 12, mass"""
+    au: Final = (149_597_870_700 * _si.m).define('au', name='astronomical unit')
     """astronomical unit, length"""
     pc: Final = (au / arcsec).define('pc', name='parsec')
     """parsec, length"""
-    # ly: Final = (c * yr).define('ly', name='light year', prefixable=False)
-    # """light year, length"""
-    nmile: Final = (1852 * m).define('nmi', 'nautical mile', symbol_aliases='NM')
+    ly: Final = (_SI.c * a_j).define('ly', name='light year', prefixable=False)
+    """light year, length"""
+    nmile: Final = (1852 * _si.m).define('nmi', 'nautical mile', symbol_aliases='NM')
     """nautical mile, length in marine and aerial navigation"""
     knot: Final = (nmile / h).define('kn', 'knot', symbol_aliases='kt')
     """knot, speed in marine and aerial navigation"""
-    atm: Final = (101_325 * Pa).define('atm', name='atmosphere')
+    atm: Final = (101_325 * _si.Pa).define('atm', name='atmosphere')
     """standard atmosphere"""
-    mmHg: Final = (atm / 760).define('mmHg', name='millimetre of mercury')
+    mHg: Final = (1000 * (atm / 760)).define('mHg', name='metre of mercury')
+    """metre of mercury, 0.760 mHg = 1 atm, pressure"""
+    mmHg: Final = Unit('mmHg')
     """millimetre of mercury, 760 mmHg = 1 atm, pressure"""
     Torr: Final = mmHg.define('Torr', 'torr', 'torricelli', prefixable=False)
     """torr, 760 Torr = 1 atm, pressure"""
-    Wh: Final = (W * h).define('Wh', name='watthour')
+    Wh: Final = (_si.W * h).define('Wh', name='watthour')
     """watthour, energy"""
-    kWh, MWh, GWh = _prefixed_units('Wh', 'kMG')
+    mWh, kWh, MWh, GWh, TWh = _prefixed_units('Wh', 'mkMGT')
     """watthour, energy"""
-    eV: Final = (Decimal('1.602_176_634e-19') * J).define('eV', name='electronvolt')
+    eV: Final = (_SI.e * _si.V).define('eV', name='electronvolt')
     """electron volt, energy"""
-    meV, keV, MeV, GeV, TeV = _prefixed_units('eV', 'mkMGT')
+    meV, keV, MeV, GeV, TeV, PeV = _prefixed_units('eV', 'mkMGTP')
     """electron volt, energy"""
-    cal: Final = (Decimal('4.184') * J).define('cal', name='calorie')
+    cal: Final = (Decimal('4.184') * _si.J).define('cal', name='calorie')
     """calorie, energy"""
     kcal: Final = Unit('kcal')
     """kilocalorie, energy"""
-    # var: Final = (V * A).define('var', name='volt-ampere reactive')
-    # """volt-ampere reactive, reactive power"""
-    # kvar: Final = Unit('kvar')
-    # """kilovolt-ampere reactive, reactive power"""
+    var: Final = (_si.V * _si.A).define('var', name='volt-ampere reactive')
+    """volt-ampere reactive, reactive power"""
+    kvar: Final = Unit('kvar')
+    """kilovolt-ampere reactive, reactive power"""

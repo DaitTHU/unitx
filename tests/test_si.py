@@ -9,10 +9,12 @@ from pathlib import Path
 
 import pytest
 
+from unitx.exceptions import UnitSymbolError
 from unitx.factor import PI
 from unitx.quantity import Quantity, quantity
 from unitx.si import SI, si
 from unitx.si.constants import Particle
+from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
 
 
@@ -56,6 +58,8 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('h', 's', 3600),
         ('d', 's', 86400),
         ('yr', 's', 31536000),
+        ('a_j', 's', 31557600),
+        ('mo', 's', 2629800),
         ('L', 'm3', Fraction(1, 1000)),
         ('t', 'kg', 1000),
         ('angstrom', 'm', Fraction(1, 10**10)),
@@ -64,6 +68,14 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('nmile', 'm', 1852),
         ('knot', 'm/s', Fraction(463, 900)),
         ('atm', 'Pa', 101325),
+        ('mHg', 'Pa', Fraction(2533125, 19)),
+        ('mmHg', 'Pa', Fraction(20265, 152)),
+        ('Torr', 'Pa', Fraction(20265, 152)),
+        ('ly', 'm', 9460730472580800),
+        ('a', 'm2', 100),
+        ('ha', 'm2', 10000),
+        ('u', 'kg', Decimal('1.66053906892e-27')),
+        ('var', 'W', 1),
         ('Wh', 'J', 3600),
         ('eV', 'J', Decimal('1.602176634e-19')),
         ('cal', 'J', Decimal('4.184')),
@@ -97,7 +109,9 @@ def test_si_angles() -> None:
         ('L', 'litre'),
         ('au', 'astronomical unit'),
         ('nmile', 'nautical mile'),
+        ('mHg', 'metre of mercury'),
         ('mmHg', 'millimetre of mercury'),
+        ('a_j', 'Julian year'),
     ],
 )
 def test_si_unit_names(attribute: str, text: str) -> None:
@@ -161,7 +175,9 @@ def test_si_namespace_readonly(namespace, attribute: str) -> None:
     assert getattr(namespace, attribute) is before
 
 
-@pytest.mark.parametrize('entry', ['unitx', 'unitx.si.units'])
+@pytest.mark.parametrize(
+    'entry', ['unitx', 'unitx.si.bases', 'unitx.si.units', 'unitx.si.constants']
+)
 def test_si_import_initialization(entry: str, tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[1]
     script = f"""
@@ -172,6 +188,8 @@ from unitx.si import SI, si
 assert Unit('N') == si.N
 assert Unit('astronomical unit') == si.au
 assert 1 * si.eV == SI.e * si.V
+assert (760 * si.mmHg).to(si.atm).value == 1
+assert (1 * si.ly).to(si.m).value == 9460730472580800
 importlib.import_module('unitx.si')
 """
     result = subprocess.run(
@@ -201,3 +219,44 @@ def test_si_decimal_display(attribute: str) -> None:
     assert str(constant).startswith(str(constant.value))
     assert len(str(constant.value)) < 40
     assert '/' not in str(constant.value)
+
+
+def test_si_binding_policies() -> None:
+    assert Unit('as').dimension == si.s.dimension
+    assert Unit('Pa') == si.Pa
+    assert Unit('a') == si.a
+    assert Quantity(1, 'ha').to('m2').value == 10000
+    assert Unit('ha') != Unit('a')
+    assert Unit('var') != si.W
+    assert Unit('var').factor == si.W.factor
+    assert Unit('volt-ampere reactive') == si.var
+    assert Unit('marcsec') == Unit('milliarcsecond')
+    assert SingleUnit('marcsec').symbol == 'marcsec'
+    assert Quantity(1000, 'marcsec').to(si.arcsec).value == 1
+    for text in ('m″', 'm"', 'mas', 'mha', 'ka', 'kare', 'khectare'):
+        with pytest.raises(UnitSymbolError):
+            Unit(text)
+
+
+def test_si_mercury_prefixes() -> None:
+    assert si.mmHg == Unit('millimetre of mercury')
+    assert (760 * si.mmHg).to(si.atm).value == 1
+    assert (1000 * si.mmHg).to(si.mHg).value == 1
+    assert (1 * si.Torr).to(si.mmHg).value == 1
+    assert Unit('µmHg').factor == si.mHg.factor / 10**6
+    assert Unit('kt') == si.knot
+    for unit in (si.mHg, si.mmHg, si.Torr):
+        assert Unit(unit.expression()) == unit
+    for text in ('mmmHg', 'kmmHg', 'millimillimetre of mercury', 'kTorr'):
+        with pytest.raises(UnitSymbolError):
+            Unit(text)
+
+
+def test_si_light_year() -> None:
+    assert 1 * si.ly == SI.c * si.a_j
+    assert 1 * si.eV == SI.e * si.V
+
+
+@pytest.mark.parametrize('name', ['volt-ampere reactive', 'kilovolt-ampere reactive'])
+def test_si_reactive_power_name(name: str) -> None:
+    assert Unit('[' + name + '] / s') == Unit(name) / si.s
