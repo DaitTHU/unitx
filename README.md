@@ -1,10 +1,14 @@
 # unitx
 
-Write Python formulas with ready-to-use units and physical constants. unitx
+[![PyPI version](https://img.shields.io/pypi/v/unitx)](https://pypi.org/project/unitx/)
+[![Python versions](https://img.shields.io/pypi/pyversions/unitx)](https://pypi.org/project/unitx/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Write Python formulas with ready-to-use units and physical constants. `unitx`
 handles scalar quantities, unit conversion, and dimensional analysis, with
 exact rational unit scales and exponents.
 
-unitx is in early development. Public APIs may change during the 0.x series.
+`unitx` is in early development. Public APIs may change during the 0.x series.
 
 ## Installation
 
@@ -79,15 +83,17 @@ astronomical units are included. Units and constants can be combined directly:
 
 Both namespaces are read-only and do not need to be instantiated. `si` exposes
 a selection of convenient attributes; other registered prefix combinations
-remain available through `Unit`, for example `Unit('Tm')`. Importing unitx
+remain available through `Unit`, for example `Unit('Tm')`. Importing `unitx`
 initializes the predefined unit catalogue. Defining a custom unit registers its
 text spellings without adding an attribute to `si`.
 
 SI defining constants retain their exact decimal values. Measured constants
 are stored nominal values; measurement uncertainties are not propagated.
 Derived Decimal constants are evaluated in the Decimal context active at
-import. Formulas involving pi use `Decimal(str(math.pi))` as an approximation;
-additional Decimal precision does not add precision to pi.
+import. Pi and the positive roots used by the Wien displacement constants
+(`SI.b` for wavelength and `SI.b_` for frequency) use fixed Decimal
+approximations with about 50 significant digits. Raising the context precision
+does not add accuracy beyond those stored approximations.
 
 ## Constructing units and quantities
 
@@ -245,7 +251,7 @@ meaning rather than acting as string delimiters. Bare compound names are
 not guessed from adjacent words, and ordinary parentheses still group products.
 
 The unit table contains `s`, `m`, `g`, `A`, `K`, `mol`, and `cd`, plus the
-dimensionless identity. Importing unitx also initializes the common units in
+dimensionless identity. Importing `unitx` also initializes the common units in
 `unitx.si`, including named derived units such as `N`. Mass scales are referenced
 to kilograms: `g` has factor `1/1000`, and `kg` has factor `1`.
 
@@ -369,10 +375,24 @@ form; `760 * si.mmHg` converts to `si.atm` with value 1 under the library's
 existing pressure convention. Prefixes do not stack: `mmmHg` and `kmmHg` are
 invalid. `kt` retains its meaning as a knot alias; tonne remains unprefixable.
 
-The newly registered `u` denotes the unified atomic mass unit. ASCII micro
-spellings such as `um` still mean micrometres, but now issue `UnitSymbolWarning`
-because `u m` has a separate meaning. Use `µm`, `μm`, or `micrometre` to avoid
-this warning.
+`si.mas` and `si.uas` provide milli- and microarcseconds as namespace shortcuts;
+their registered expressions are `marcsec` and `µarcsec`. The strings `mas`
+and `uas` are not registered aliases. `si.Da` and `si.u` now share one formal
+unit identity; only the spelling `Da` accepts prefixes, such as `kDa`.
+`si.mTorr` is available, and Torr accepts SI prefixes. Tonne uses `t` or
+`tonne`; the ambiguous spelling `ton` is not registered.
+
+`si.rpm` represents rotational frequency: `60 * si.rpm` converts to `si.Hz`
+with value 1. For angular velocity, multiply that frequency by `2 * PI` and
+convert to `si.rad / si.s`; directly converting frequency to `rad/s` does
+not insert the physical factor of 2π. `si.c` is a speed unit equal to the
+speed of light, while `SI.c` is the corresponding physical quantity.
+
+The spelling `u` denotes the unified atomic mass unit when used on its own.
+ASCII micro spellings such as `um` and `us` remain supported without warnings,
+so entering non-ASCII characters is optional. `um`, `µm`, `μm`, and
+`micrometre` all mean micrometres; the explicit product `u m` instead means
+unified atomic mass unit times metre.
 
 Registration raises `UnitRegistryError` if a new spelling, including a generated
 prefixed form, already resolves to a unit or conflicts with another spelling

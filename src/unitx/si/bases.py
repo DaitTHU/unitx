@@ -3,7 +3,6 @@
 from typing import Final
 
 from .._constnamespace import ConstNamespace
-from ..factor import ONE
 from ..quantity import Quantity, quantity
 from ..unit import Unit
 
@@ -34,7 +33,7 @@ class _si(ConstNamespace):
     """radian, plane angle"""
     sr: Final = one.define('sr', name='steradian')
     """steradian, solid angle"""
-    Hz: Final = (ONE / s).define('Hz', name='hertz')
+    Hz: Final = (s**-1).define('Hz', name='hertz')
     """hertz, frequency"""
     N: Final = (kg * m / s**2).define('N', name='newton')
     """newton, force/weight"""
@@ -64,7 +63,7 @@ class _si(ConstNamespace):
     """lumen, luminous flux"""
     lx: Final = (lm / m**2).define('lx', name='lux')
     """lux, illuminance"""
-    Bq: Final = (ONE / s).define('Bq', name='becquerel')
+    Bq: Final = (s**-1).define('Bq', name='becquerel')
     """becquerel, activity referred to a radionuclide"""
     Gy: Final = (J / kg).define('Gy', name='gray')
     """gray, absorbed dose"""
@@ -76,7 +75,7 @@ class _si(ConstNamespace):
 
 class _SI(ConstNamespace):
     DeltanuCs: Final = Quantity(9_192_631_770, _si.Hz)
-    """hyperfine transition frequency of Cs-133, definition of second."""
+    """hyperfine transition frequency ∆ν of Cs-133, definition of second."""
     c: Final = Quantity(299_792_458, _si.m / _si.s)
     """speed of light in vacuum"""
     h: Final = quantity(6.626_070_15e-34, _si.J * _si.s)
@@ -89,3 +88,6 @@ class _SI(ConstNamespace):
     """Avogadro constant"""
     Kcd: Final = Quantity(683, _si.lm / _si.W)
     """luminous efficacy of 540 THz radiation, definition of candela"""
+
+    g: Final = quantity(9.80665, _si.m / _si.s**2)  # defined here for si.kgf
+    """standard acceleration of gravity"""

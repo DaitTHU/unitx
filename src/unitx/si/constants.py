@@ -1,4 +1,3 @@
-import math
 from decimal import Decimal
 from typing import Final
 
@@ -9,8 +8,12 @@ from .units import si
 
 __all__ = ['SI', 'Particle']
 
-# Match the constants' Decimal magnitudes when using the approximate value of pi.
-_PI = Decimal(str(math.pi))
+_PI = Decimal('3.1415926535897932384626433832795028841971693993751')
+"""the ratio of the circumference of a circle to its diameter"""
+_WIEN_W = Decimal('4.9651142317442763036987591313228939440555849867973')
+"""Approximate positive root of x = 5*(1 - exp(-x))."""
+_WIEN_F = Decimal('2.8214393721220788934031913302944851953458817440731')
+"""Approximate positive root of x = 3*(1 - exp(-x))."""
 
 
 class SI(_SI):
@@ -31,8 +34,6 @@ class SI(_SI):
 
     hbar: Final = _SI.h / (2 * _PI)
     """reduced Planck constant, ħ: Final = h / 2π"""
-    g: Final = quantity(9.80665, 'm/s2')
-    """standard acceleration of gravity"""
     T0: Final = quantity(273.15, si.K)
     """standard temperature"""
 
@@ -40,12 +41,8 @@ class SI(_SI):
 
     G: Final = quantity(6.674_30e-11, 'm3/(kg*s2)')
     """Newtonian constant of gravitation"""
-    # kappa: Final = 8 * _PI * G / c**4  # simplify=True
-    # """Einstein gravitational constant"""
-    # H0: Final = Quantity(70, 'km/s*Mpc')
-    # """Hubble constant, approx"""
-    # Lambda: Final = quantity(1.089e-52, 'm-2')
-    # """cosmological constant, approx"""
+    kappa: Final = (8 * _PI * G / _SI.c**4).to(si.N**-1)
+    """Einstein gravitational constant"""
 
     # electromagnetic constants
 
@@ -104,7 +101,6 @@ class SI(_SI):
     """molar gas constant"""
     F: Final = _SI.NA * _SI.e
     """Faraday constant"""
-
     sigma: Final = (_PI**2 * _SI.kB**4 / (60 * hbar**3 * _SI.c**2)).to('W/(m2*K4)')
     """Stefan-Boltzmann constant"""
     c1L: Final = (2 * _SI.h * _SI.c**2).to('W*m2/sr')
@@ -113,19 +109,15 @@ class SI(_SI):
     """first radiation constant"""
     c2: Final = _SI.h * _SI.c / _SI.kB
     """second radiation constant"""
-    # b: Final = c2 / Math.WEIN_W
-    # """Wien wavelength displacement law constant"""
-    # b_: Final = (Math.WEIN_F * c / c2).to('Hz/K')
-    # """Wien frequency displacement law constant"""
+    b: Final = c2 / _WIEN_W
+    """Wien wavelength displacement law constant"""
+    b_: Final = (_WIEN_F * _SI.c / c2).to('Hz/K')
+    """Wien frequency displacement law constant"""
 
     Vm: Final = (R * T0 / si.bar).to('m3/mol')
     """molar volume of ideal gas (273.15 K, 100 kPa)"""
-    # Vmatm: Final = (R * T0 / si.atm).to(Vm.unit)
-    # """molar volume of ideal gas (273.15 K, 101.325 kPa)"""
     n0: Final = _SI.NA / Vm
     """Loschmidt constant (273.15 K, 100 kPa)"""
-    # n0atm: Final = _SI.NA / Vmatm
-    # """Loschmidt constant (273.15 K, 101.32 kPa)"""
 
 
 class Particle(ConstNamespace):

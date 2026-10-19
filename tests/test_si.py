@@ -1,8 +1,11 @@
 """Public SI namespaces, conversions, and constant values."""
 
+import copy
 import os
+import pickle
 import subprocess
 import sys
+import warnings
 from decimal import Decimal, localcontext
 from fractions import Fraction
 from pathlib import Path
@@ -79,6 +82,18 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('Wh', 'J', 3600),
         ('eV', 'J', Decimal('1.602176634e-19')),
         ('cal', 'J', Decimal('4.184')),
+        ('percent', '', Fraction(1, 100)),
+        ('permille', '', Fraction(1, 1000)),
+        ('permyriad', '', Fraction(1, 10000)),
+        ('rpm', 'Hz', Fraction(1, 60)),
+        ('c', 'm/s', 299792458),
+        ('gf', 'N', Decimal('0.00980665')),
+        ('kgf', 'N', Decimal('9.80665')),
+        ('Ah', 'C', 3600),
+        ('VA', 'W', 1),
+        ('mho', 'S', 1),
+        ('nt', 'cd/m2', 1),
+        ('mTorr', 'Pa', Fraction(4053, 30400)),
     ],
 )
 def test_si_unit_conversions(attribute: str, target: str, value: int | Fraction | Decimal) -> None:
@@ -149,6 +164,20 @@ def test_si_defining_constants(attribute: str, target: str, value: str) -> None:
 def test_si_hbar_value() -> None:
     assert SI.hbar.unit == SI.h.unit
     assert float(SI.hbar.value) == pytest.approx(1.0545718176461565e-34, rel=1e-15, abs=0)
+
+
+@pytest.mark.parametrize(
+    ('attribute', 'target', 'value'),
+    [
+        ('kappa', '1/N', 2.076647442844972e-43),
+        ('b', 'm*K', 2.8977719551851727e-3),
+        ('b_', 'Hz/K', 5.878925757646825e10),
+    ],
+)
+def test_si_derived_constants(attribute: str, target: str, value: float) -> None:
+    constant = getattr(SI, attribute)
+    assert constant.unit.dimension == Unit(target).dimension
+    assert float(constant.value_in(target)) == pytest.approx(value, rel=1e-14, abs=0)
 
 
 @pytest.mark.parametrize(
@@ -247,7 +276,8 @@ def test_si_mercury_prefixes() -> None:
     assert Unit('kt') == si.knot
     for unit in (si.mHg, si.mmHg, si.Torr):
         assert Unit(unit.expression()) == unit
-    for text in ('mmmHg', 'kmmHg', 'millimillimetre of mercury', 'kTorr'):
+    assert Quantity(1, 'kTorr').to(si.Torr).value == 1000
+    for text in ('mmmHg', 'kmmHg', 'millimillimetre of mercury'):
         with pytest.raises(UnitSymbolError):
             Unit(text)
 
@@ -255,6 +285,37 @@ def test_si_mercury_prefixes() -> None:
 def test_si_light_year() -> None:
     assert 1 * si.ly == SI.c * si.a_j
     assert 1 * si.eV == SI.e * si.V
+
+
+def test_si_dalton_aliases() -> None:
+    assert si.u == si.Da == Unit('unified atomic mass unit')
+    assert hash(si.u) == hash(si.Da)
+    assert {si.Da: 'found'}[si.u] == 'found'
+    assert Quantity(1, si.kDa).to(si.Da).value == 1000
+    for text in ('mu', 'kilodalton', 'kilounified atomic mass unit', 'ton'):
+        with pytest.raises(UnitSymbolError):
+            Unit(text)
+
+
+def test_si_ascii_micro() -> None:
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter('always')
+        assert Unit('um') == si.um
+        assert Unit('us') == si.us
+        assert Unit('u m') == si.u * si.m
+        assert Unit('u m') != Unit('um')
+    assert not recorded
+
+
+@pytest.mark.parametrize('attribute', ['mas', 'uas', 'u', 'Da', 'mTorr', 'c', 'gf', 'VA', 'Ah'])
+def test_si_unit_roundtrip(attribute: str) -> None:
+    unit = getattr(si, attribute)
+    assert Unit(unit.expression()) == unit
+    assert eval(repr(unit), {'Unit': Unit}) == unit
+    assert copy.copy(unit) == copy.deepcopy(unit) == unit
+    restored = pickle.loads(pickle.dumps(unit))
+    assert restored == unit
+    assert hash(restored) == hash(unit)
 
 
 @pytest.mark.parametrize('name', ['volt-ampere reactive', 'kilovolt-ampere reactive'])

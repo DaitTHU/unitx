@@ -6,6 +6,23 @@
 
 - Accept a single exact spelling string for `prefixable`, equivalent to a
   one-element tuple, with the same spelling validation before registration.
+- Expand the `si` namespace's prefixed shortcuts and common units, including
+  percent, permille, permyriad, rotational frequency (`rpm`), speed of light
+  (`c`), gram-force, volt-ampere, ampere-hour, mho, and nit. Enable Torr prefixes.
+- Add `SI.kappa` and the wavelength and frequency Wien displacement constants,
+  `SI.b` and `SI.b_`.
+
+### Changed
+
+- Use fixed Decimal approximations with about 50 significant digits for pi and
+  the positive roots in the Wien displacement laws. Derived constants still use
+  the Decimal context active at import.
+- Treat `u` and `Da` as spellings of one formal unit, with prefixes enabled only
+  on `Da`. Rebuild stored units when migrating from the separate `u` identity;
+  the mass conversion scale is unchanged. Use `kDa` rather than `kilodalton`.
+- Keep ASCII micro spellings such as `um` and `us` convenient to type without
+  warnings. The explicit product `u m` retains its separate mass-times-length
+  meaning.
 
 ## [0.7.0] - 2026-10-19
 

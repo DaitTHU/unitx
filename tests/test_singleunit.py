@@ -53,6 +53,9 @@ def test_single_unit_combinations() -> None:
                 ('M', 'Ω'): 'megohm',
                 ('k', 'Ω'): 'kilohm',
             }.get((prefix, symbol), prefix_definition.name + unit_definition.name)
+            if prefix and not unit_definition.allows_prefix(unit_definition.name):
+                # Da permits prefixed symbols but no prefixed names.
+                expected_name = unit.symbol
             assert unit.name == expected_name
             assert SingleUnit(unit.name) == unit
             assert unit.dimension == unit_definition.dimension
@@ -96,7 +99,6 @@ def test_single_unit_name_alias(prefix: str) -> None:
         ('KK', 'kK', 'kilokelvin', Dimension(Theta=1), 1000),
         ('Kmol', 'kmol', 'kilomole', Dimension(N=1), 1000),
         ('Kcd', 'kcd', 'kilocandela', Dimension(J=1), 1000),
-        ('um', 'µm', 'micrometre', Dimension(L=1), Fraction(1, 10**6)),
     ],
 )
 def test_single_unit_symbol_warning(
@@ -120,7 +122,9 @@ def test_single_unit_symbol_warning(
     assert type(unit.factor.value) is type(factor)
 
 
-@pytest.mark.parametrize('text', ['', 'K', 'kelvin', 'kK', 'km', 'ms', 'Ms', 'µm', 'μm'])
+@pytest.mark.parametrize(
+    'text', ['', 'K', 'kelvin', 'kK', 'km', 'ms', 'Ms', 'um', 'us', 'µm', 'μm']
+)
 def test_single_unit_no_warning(text: str) -> None:
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter('always')
