@@ -285,10 +285,11 @@ class Unit:
         All new texts, including prefixed forms, must be unambiguous and must
         not already resolve to registered units or implicit unit products.
         Complex names work standalone or in ``[name]`` references in expressions.
-        ``prefixable`` accepts True for all spellings, False for none, or a
-        tuple of exact symbols, names, or aliases from this definition, such as
+        ``prefixable`` accepts True for all spellings, False for none, a single
+        spelling string, or a tuple of exact symbols, names, or aliases, such as
         ``('arcsec', 'arcsecond')``. Only listed spellings accept prefixes;
-        an empty tuple disables all prefixes. Unknown spellings are errors.
+        ``'arcsec'`` is equivalent to ``('arcsec',)``. An empty tuple disables
+        all prefixes. Unknown or empty spellings are errors.
         Invalid definitions raise TypeError, ValueError, or UnitRegistryError
         before changing the registry.
         """

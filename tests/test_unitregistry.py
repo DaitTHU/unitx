@@ -116,9 +116,30 @@ def test_unit_define_duplicate_spellings() -> None:
         Unit('millireview policy')
 
 
-@pytest.mark.parametrize('policy', [None, [], ['rvpolicy'], {}, {'rvpolicy': True}, 'rvpolicy', 1])
+@pytest.mark.parametrize('source', [Unit('m'), PI * Unit('m'), Quantity(Fraction(3, 7), 'm')])
+@pytest.mark.parametrize('spelling', ['rvselect', 'rvselected', 'review selected', 'review alias'])
+def test_unit_define_string_policy(source, spelling: str) -> None:
+    unit = source.define(
+        'rvselect',
+        'review selected',
+        'review alias',
+        symbol_aliases='rvselected',
+        prefixable=spelling,
+    )
+    for text in ('rvselect', 'rvselected', 'review selected', 'review alias'):
+        assert Unit(text) == unit
+        prefixed = ('kilo' if ' ' in text else 'k') + text
+        if text == spelling:
+            assert Unit(prefixed).factor == 1000 * unit.factor
+            assert Unit(Unit(prefixed).expression()) == Unit(prefixed)
+        else:
+            with pytest.raises(UnitSymbolError):
+                Unit(prefixed)
+
+
+@pytest.mark.parametrize('policy', [None, [], ['rvpolicy'], {}, {'rvpolicy': True}, 1])
 def test_unit_define_invalid_policy(policy, unit_registry) -> None:
-    with pytest.raises(TypeError, match='Prefixable must be bool or tuple of spellings'):
+    with pytest.raises(TypeError, match='Prefixable must be bool, str or tuple of spellings'):
         Unit('m').define('rvpolicy', 'review policy', prefixable=policy)
     assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
@@ -131,9 +152,12 @@ def test_unit_define_invalid_policy_type(text, unit_registry) -> None:
 
 
 @pytest.mark.parametrize('text', ['unknown', '', 'mrvpolicy', 'm', 'µ'])
-def test_unit_define_invalid_policy_spelling(text: str, unit_registry) -> None:
+@pytest.mark.parametrize('as_tuple', [False, True])
+def test_unit_define_invalid_policy_spelling(text: str, as_tuple: bool, unit_registry) -> None:
     with pytest.raises(ValueError, match='is not a registered spelling'):
-        Unit('m').define('rvpolicy', 'review policy', prefixable=('rvpolicy', text))
+        Unit('m').define(
+            'rvpolicy', 'review policy', prefixable=('rvpolicy', text) if as_tuple else text
+        )
     assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 

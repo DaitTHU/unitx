@@ -124,6 +124,12 @@ def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
 def test_unit_define() -> None:
     policy: PrefixPolicy = ('rvpolicy',)
     assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=policy), Unit)
+    single_policy: PrefixPolicy = 'rvpolicy'
+    assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=single_policy), Unit)
+    assert_type((PI * Unit('m')).define('rvpolicy', 'review policy', prefixable='rvpolicy'), Unit)
+    assert_type(
+        Quantity(2, 'm').define('rvpolicy', 'review policy', prefixable='review policy'), Unit
+    )
     assert_type(
         Unit('m').define(
             'rvbound',

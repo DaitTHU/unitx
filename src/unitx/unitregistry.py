@@ -22,11 +22,11 @@ from .factor import ONE, TEN, Factor
 
 __all__ = ['PrefixPolicy']
 
-type PrefixPolicy = bool | tuple[str, ...]
+type PrefixPolicy = bool | str | tuple[str, ...]
 
 _UNIT_SYMBOL_PATTERN = r'[^\s\d' + re.escape('*^()/+-[]' + SUPERSCRIPTS) + ']+'
 _UNIT_SYMBOL_RE = re.compile(_UNIT_SYMBOL_PATTERN)
-_UNIT_NAME_RE = re.compile(_UNIT_SYMBOL_PATTERN + '(?:[ -]' + _UNIT_SYMBOL_PATTERN + ')*')
+_UNIT_NAME_RE = re.compile(f'{_UNIT_SYMBOL_PATTERN}(?:[ -]{_UNIT_SYMBOL_PATTERN})*')
 _PREFIXED_NAME_EXCEPTIONS = {('M', 'ohm'): 'megohm', ('k', 'ohm'): 'kilohm'}
 
 
@@ -113,7 +113,7 @@ class UnitDefinition:
         self.factor = factor
         self.names = (name, *name_aliases)
         self.dimension = dimension
-        self.prefixable = prefixable
+        self.prefixable = (prefixable,) if isinstance(prefixable, str) else prefixable
         self.symbols: tuple[str, ...] = ()
 
     def allows_prefix(self, spelling: str) -> bool:
@@ -229,7 +229,7 @@ def _preferred_unit_spelling(
 def _register_unit(symbol: str, definition: UnitDefinition, /, *symbol_aliases: str) -> None:
     """Validate every binding and generated spelling before updating indexes."""
     if not isinstance(definition.prefixable, (bool, tuple)):
-        raise TypeError('Prefixable must be bool or tuple of spellings.')
+        raise TypeError('Prefixable must be bool, str or tuple of spellings.')
     for kind, texts in (
         ('symbol', (symbol,)),
         ('name', (definition.name,)),

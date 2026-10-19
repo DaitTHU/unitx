@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Accept a single exact spelling string for `prefixable`, equivalent to a
+  one-element tuple, with the same spelling validation before registration.
+
 ## [0.7.0] - 2026-10-19
 
 ### Added

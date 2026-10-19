@@ -315,8 +315,9 @@ Bare multiword names are recognized only as complete inputs. For example,
 as a factor; use `[astronomical unit] / arcsec`, symbols, or Unit objects instead.
 
 SI prefixes are enabled by default. `prefixable: PrefixPolicy = True` accepts
-`True` for all spellings, `False` for none, or a tuple of exact symbols, names,
-and aliases supplied in that definition. With a tuple, only the listed
+`True` for all spellings, `False` for none, a single spelling string, or a tuple
+of exact symbols, names, and aliases supplied in that definition. A string such
+as `prefixable='Da'` is equivalent to `prefixable=('Da',)`. Only the selected
 spellings accept prefixes; an empty tuple disables prefixes. Unknown spellings
 and non-string entries are errors. For example,
 `prefixable=('arcsec', 'arcsecond')` enables all SI prefixes on those two
@@ -325,7 +326,7 @@ spellings, while other spellings of that unit remain unprefixable.
 The tuple selects **unit spellings**, not prefix symbols. Prefix names attach
 directly to the first word of a multiword name, as in `kiloastronomical unit`;
 a separate `kilo astronomical unit` is not accepted. `PrefixPolicy` is available
-from `unitx.unitregistry` for annotations and means `bool | tuple[str, ...]`.
+from `unitx.unitregistry` for annotations and means `bool | str | tuple[str, ...]`.
 
 ```pycon
 >>> tick = si.s.define(
