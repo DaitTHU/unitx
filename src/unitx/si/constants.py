@@ -2,7 +2,7 @@ import math
 from decimal import Decimal
 from typing import Final
 
-from .._constclass import ConstClass
+from .._constnamespace import ConstNamespace
 from ..quantity import quantity
 from .bases import _SI
 from .units import si
@@ -128,7 +128,7 @@ class SI(_SI):
     # """Loschmidt constant (273.15 K, 101.32 kPa)"""
 
 
-class Particle(ConstClass):
+class Particle(ConstNamespace):
     """
     Common particle data, including mass and magnetic moment of
     electron (e), muon (μ), tau (τ), proton (p), neutron (n),

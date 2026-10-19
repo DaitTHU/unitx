@@ -2,13 +2,13 @@
 
 from typing import Final
 
-from .._constclass import ConstClass
+from .._constnamespace import ConstNamespace
 from ..factor import ONE
 from ..quantity import Quantity, quantity
 from ..unit import Unit
 
 
-class _si(ConstClass):
+class _si(ConstNamespace):
     # SI base unit
 
     one: Final = Unit()
@@ -74,7 +74,7 @@ class _si(ConstClass):
     """katal, catalytic activity"""
 
 
-class _SI(ConstClass):
+class _SI(ConstNamespace):
     DeltanuCs: Final = Quantity(9_192_631_770, _si.Hz)
     """hyperfine transition frequency of Cs-133, definition of second."""
     c: Final = Quantity(299_792_458, _si.m / _si.s)
