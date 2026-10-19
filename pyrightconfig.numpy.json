@@ -1,0 +1,5 @@
+{
+  "extends": "./pyrightconfig.json",
+  "include": ["tests/numpy_typing"],
+  "strict": ["tests/numpy_typing"]
+}

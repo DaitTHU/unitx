@@ -1,8 +1,12 @@
+from importlib.util import find_spec
+
 import pytest
 
 from unitx._numerics import as_fraction
 from unitx.exceptions import InexactFloatWarning
 from unitx.factor import Factor
+
+collect_ignore = ['src/unitx/_numpy.py'] if find_spec('numpy') is None else []
 
 _DOCTEST_FILTER: dict[str, tuple[pytest.MarkDecorator, ...]] = {
     f'{obj.__module__}.{obj.__qualname__}': tuple(

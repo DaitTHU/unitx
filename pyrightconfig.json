@@ -1,6 +1,7 @@
 {
   "include": [
     "src/unitx/quantity.py",
+    "src/unitx/_numpy.py",
     "src/unitx/_numerics.py",
     "src/unitx/factor.py",
     "src/unitx/unit.py",

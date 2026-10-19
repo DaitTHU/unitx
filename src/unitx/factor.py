@@ -11,7 +11,7 @@ from typing import Any, overload
 
 from ._numerics import (
     Fractionable,
-    Magnitude,
+    Scalar,
     UnfactoredInteger,
     as_exponent,
     as_fraction,
@@ -518,7 +518,7 @@ class Factor:
     def __call__(self, magnitude: int | float | Decimal) -> int | Fraction | float: ...
 
     @overload
-    def __call__(self, magnitude: Magnitude) -> Magnitude: ...
+    def __call__(self, magnitude: Scalar) -> Scalar: ...
 
     @overload
     def __call__(self, magnitude: Any) -> Any: ...

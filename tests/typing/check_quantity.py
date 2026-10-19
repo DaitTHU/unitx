@@ -4,7 +4,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any, assert_type
 
-from unitx._numerics import Magnitude, Number, Real
+from unitx._numerics import Number, Real, Scalar
 from unitx.factor import PI, Factor
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
@@ -32,9 +32,7 @@ def test_quantity_isclose() -> None:
     assert_type(Quantity(Fraction(1), '').isclose(Decimal('1'), abs_tol=Decimal('0.1')), bool)
 
 
-def test_unit_value_operations[T: Magnitude](
-    value: T, unit: Unit
-) -> tuple[Quantity[T], Quantity[T]]:
+def test_unit_value_operations[T: Scalar](value: T, unit: Unit) -> tuple[Quantity[T], Quantity[T]]:
     product = value * unit
     quotient = value / unit
     assert_type(product, Quantity[T])
@@ -156,15 +154,15 @@ def test_unit_define() -> None:
     assert_type(Quantity(Decimal('0.3048'), 'm').define('rvft', name='reviewfoot'), Unit)
 
 
-def test_quantity_value_in(quantity: Quantity[Magnitude]) -> None:
+def test_quantity_value_in(quantity: Quantity[Scalar]) -> None:
     assert_type(Quantity(1, 'm').value_in('cm'), Real)
     assert_type(Quantity(Fraction(1), 'm').value_in('cm'), Fraction | float)
     assert_type(Quantity(Decimal(1), 'm').value_in('cm'), Decimal)
     assert_type(Quantity(1.0, 'm').value_in('cm'), Real)
     assert_type(Quantity[float](1, 'cm').value_in('m'), Real)
     assert_type(Quantity(1, 'm').value_in(ScaledUnit('cm', Factor(2))), Real)
-    assert_type(Quantity(1j, 'cm').value_in('m'), Magnitude)
-    assert_type(quantity.value_in('m'), Magnitude)
+    assert_type(Quantity(1j, 'cm').value_in('m'), Scalar)
+    assert_type(quantity.value_in('m'), Scalar)
 
 
 def test_quantity_conversion() -> None:
@@ -176,7 +174,7 @@ def test_quantity_conversion() -> None:
     assert_type(Quantity[float](1, 'cm').to('m'), Quantity[Real])
 
 
-def test_quantity_unit_operations[T: Magnitude](value: T) -> Quantity[T]:
+def test_quantity_unit_operations[T: Scalar](value: T) -> Quantity[T]:
     quantity = Quantity(value, 'm')
     unit = Unit('s')
     assert_type(quantity, Quantity[T])
@@ -187,13 +185,13 @@ def test_quantity_unit_operations[T: Magnitude](value: T) -> Quantity[T]:
     return quantity
 
 
-def test_quantity_factor_operations[T: Magnitude](value: T) -> Quantity[T]:
+def test_quantity_factor_operations[T: Scalar](value: T) -> Quantity[T]:
     quantity = Quantity(value, 'm')
     for factor in (Factor(2), PI):
         assert_type(quantity * factor, Quantity[T])
         assert_type(factor * quantity, Quantity[T])
         assert_type(quantity / factor, Quantity[T])
-        assert_type(factor / quantity, Quantity[Magnitude])
+        assert_type(factor / quantity, Quantity[Scalar])
         assert_type(Factor(2) / Quantity(2, 's'), Quantity[float])
         assert_type(PI / Quantity(Decimal(2), 's'), Quantity[Decimal])
     assert_type(Quantity(Decimal(2), 's') / (2 * PI), Quantity[Decimal])
@@ -231,9 +229,9 @@ def test_quantity_unary() -> None:
     assert_type(-Quantity(1j, 'm'), Quantity[complex])
 
 
-def test_quantity_unary_generic(quantity: Quantity[Magnitude]) -> None:
-    assert_type(+quantity, Quantity[Magnitude])
-    assert_type(-quantity, Quantity[Magnitude])
+def test_quantity_unary_generic(quantity: Quantity[Scalar]) -> None:
+    assert_type(+quantity, Quantity[Scalar])
+    assert_type(-quantity, Quantity[Scalar])
 
 
 def test_quantity_dimensionless() -> None:
@@ -252,27 +250,27 @@ def test_quantity_powers() -> None:
     assert_type(Quantity(Decimal(2), 'm') ** Decimal('0.5'), Quantity[Decimal])
 
 
-def test_quantity_custom(value: Magnitude) -> None:
+def test_quantity_custom(value: Scalar) -> None:
     quantity = Quantity(value, 'm')
-    assert_type(quantity, Quantity[Magnitude])
-    assert_type(quantity.to('cm'), Quantity[Magnitude])
-    assert_type(quantity + quantity, Quantity[Magnitude])
-    assert_type(quantity * 2, Quantity[Magnitude])
-    assert_type(quantity / 2, Quantity[Magnitude])
-    assert_type(-quantity, Quantity[Magnitude])
-    assert_type(quantity**2, Quantity[Magnitude])
+    assert_type(quantity, Quantity[Scalar])
+    assert_type(quantity.to('cm'), Quantity[Scalar])
+    assert_type(quantity + quantity, Quantity[Scalar])
+    assert_type(quantity * 2, Quantity[Scalar])
+    assert_type(quantity / 2, Quantity[Scalar])
+    assert_type(-quantity, Quantity[Scalar])
+    assert_type(quantity**2, Quantity[Scalar])
     assert_type(value == value, bool)
     assert_type(value != value, bool)
     assert_type(quantity == quantity, bool)
     assert_type(quantity != quantity, bool)
 
 
-def test_factor_scaling(factor: Factor, value: Magnitude) -> None:
+def test_factor_scaling(factor: Factor, value: Scalar) -> None:
     assert_type(factor(1), Real)
     assert_type(factor(1.0), Real)
     assert_type(factor(Decimal(1)), Real)
     assert_type(factor(Fraction(1)), Fraction | float)
-    assert_type(factor(value), Magnitude)
+    assert_type(factor(value), Scalar)
     # Factor also permits native multiplication of nonnumeric magnitudes.
     assert_type(factor([1, 2]), Any)
 
@@ -293,14 +291,14 @@ def test_quantity_decimal_types() -> None:
     assert_type(decimal ** Decimal('0.5'), Quantity[Decimal])
 
 
-def test_quantity_custom_scalars(value: Magnitude) -> None:
+def test_quantity_custom_scalars(value: Scalar) -> None:
     quantity = Quantity(value, '')
-    assert_type(quantity + value, Quantity[Magnitude])
-    assert_type(value + quantity, Quantity[Magnitude])
-    assert_type(quantity * value, Quantity[Magnitude])
-    assert_type(value * quantity, Quantity[Magnitude])
-    assert_type(quantity / value, Quantity[Magnitude])
-    assert_type(value / quantity, Quantity[Magnitude])
+    assert_type(quantity + value, Quantity[Scalar])
+    assert_type(value + quantity, Quantity[Scalar])
+    assert_type(quantity * value, Quantity[Scalar])
+    assert_type(value * quantity, Quantity[Scalar])
+    assert_type(quantity / value, Quantity[Scalar])
+    assert_type(value / quantity, Quantity[Scalar])
 
 
 def test_quantity_power_types() -> None:

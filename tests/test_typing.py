@@ -29,3 +29,28 @@ def test_pyright_type_hints() -> None:
         timeout=60,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_numpy_type_hints() -> None:
+    if find_spec('numpy') is None:
+        import pytest
+
+        pytest.skip('NumPy is optional')
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            '-m',
+            'pyright',
+            '--project',
+            str(root / 'pyrightconfig.numpy.json'),
+            '--pythonpath',
+            sys.executable,
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

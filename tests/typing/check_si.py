@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import assert_type
 
-from unitx.quantity import Magnitude, Quantity
+from unitx.quantity import Quantity, Scalar
 from unitx.si import SI, si
 from unitx.unit import Unit
 
@@ -29,7 +29,7 @@ def test_si_constant_types() -> None:
     assert_type(SI.h, Quantity[Decimal])
     assert_type(SI.hbar, Quantity[Decimal])
     # Integer powers currently have a conservative numeric return type.
-    assert_type(SI.kappa, Quantity[Magnitude])
+    assert_type(SI.kappa, Quantity[Scalar])
     assert_type(SI.b, Quantity[Decimal])
     assert_type(SI.b_, Quantity[Decimal])
     assert_type(SI.e, Quantity[Decimal])

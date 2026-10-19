@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 from fractions import Fraction
-from typing import TYPE_CHECKING, Self, overload
+from typing import TYPE_CHECKING, Any, Self, cast, overload
 
-from ._numerics import Fractionable, Magnitude, as_exponent
+from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_object
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import ONE, Factor, SymbolicConstant
 from .monomial import Monomial
@@ -43,8 +43,8 @@ class Unit:
     reciprocal; float divisors use native floating-point division. Booleans
     are not accepted as right-hand numeric operands.
     Factor and SymbolicConstant operands instead construct a ScaledUnit on
-    either side and preserve their exact scale. NumPy scalars, arrays, and
-    NumPy operations are not supported yet; NumPy integration is planned.
+    either side and preserve their exact scale. Optional NumPy support constructs
+    one Quantity for the entire numeric array, preserving the input object.
 
     Equality and hashing compare canonical unit identities and rational
     exponents, regardless of factor insertion order. Aliases compare equal,
@@ -134,6 +134,9 @@ class Unit:
         return self._monomial == other._monomial
 
     @overload
+    def __mul__[A: Array](self, other: A) -> Quantity[A]: ...
+
+    @overload
     def __mul__[T: Fractionable](self, other: T) -> Quantity[T]: ...
 
     @overload
@@ -148,6 +151,8 @@ class Unit:
     def __mul__(self, other: object) -> Unit | Quantity[Magnitude]:
         from .quantity import Quantity
 
+        if is_numpy_object(other):
+            return Quantity(cast(Array, other), self)
         if isinstance(other, Fractionable):
             if isinstance(other, bool):
                 raise TypeError('Boolean numeric operands are not supported.')
@@ -158,6 +163,9 @@ class Unit:
         if not isinstance(other, Unit):
             return NotImplemented
         return Unit._from_monomial(self._monomial * other._monomial)
+
+    @overload
+    def __truediv__(self, other: Array) -> Quantity[Array]: ...
 
     @overload
     def __truediv__(self, other: int | Fraction | Decimal) -> Quantity[Fraction]: ...
@@ -177,6 +185,11 @@ class Unit:
     def __truediv__(self, other: object) -> Unit | Quantity[Magnitude]:
         from .quantity import Quantity
 
+        if is_numpy_object(other):
+            from ._numpy import apply_ufunc, validate_magnitude
+
+            validate_magnitude(other)
+            return apply_ufunc('true_divide', self, other)
         if isinstance(other, Fractionable):
             if isinstance(other, bool):
                 raise TypeError('Boolean numeric operands are not supported.')
@@ -223,6 +236,13 @@ class Unit:
         if not isinstance(exponent, Fractionable):
             return NotImplemented
         return Unit._from_monomial(self._monomial ** as_exponent(exponent))
+
+    def __array_ufunc__(
+        self, ufunc: object, method: str, *inputs: object, **kwargs: object
+    ) -> object:
+        from ._numpy import dispatch_ufunc
+
+        return dispatch_ufunc(ufunc, method, inputs, kwargs)
 
     @property
     def symbol(self) -> str:
@@ -388,18 +408,24 @@ class ScaledUnit(Unit):
         return self._monomial == other._monomial and self.scale == other_scale
 
     @overload
+    def __mul__[A: Array](self, other: A) -> Quantity[A]: ...
+
+    @overload
     def __mul__[T: Fractionable](self, other: T) -> Quantity[T]: ...
 
     @overload
     def __mul__(self, other: Unit | SymbolicConstant | Factor) -> ScaledUnit: ...
 
     def __mul__(self, other: object) -> ScaledUnit | Quantity[Magnitude]:
-        if isinstance(other, Fractionable | SymbolicConstant | Factor):
-            return super().__mul__(other)
+        if is_numpy_object(other) or isinstance(other, Fractionable | SymbolicConstant | Factor):
+            return super().__mul__(cast(Any, other))
         if not isinstance(other, Unit):
             return NotImplemented
         scale = self.scale * other.scale if isinstance(other, ScaledUnit) else self.scale
         return ScaledUnit._from_monomial(self._monomial * other._monomial, scale)
+
+    @overload
+    def __truediv__(self, other: Array) -> Quantity[Array]: ...
 
     @overload
     def __truediv__(self, other: int | Fraction | Decimal) -> Quantity[Fraction]: ...
@@ -411,8 +437,8 @@ class ScaledUnit(Unit):
     def __truediv__(self, other: Unit | SymbolicConstant | Factor) -> ScaledUnit: ...
 
     def __truediv__(self, other: object) -> ScaledUnit | Quantity[Magnitude]:
-        if isinstance(other, Fractionable | SymbolicConstant | Factor):
-            return super().__truediv__(other)
+        if is_numpy_object(other) or isinstance(other, Fractionable | SymbolicConstant | Factor):
+            return super().__truediv__(cast(Any, other))
         if not isinstance(other, Unit):
             return NotImplemented
         scale = self.scale / other.scale if isinstance(other, ScaledUnit) else self.scale

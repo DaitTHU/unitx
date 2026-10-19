@@ -5,8 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Write Python formulas with ready-to-use units and physical constants. `unitx`
-handles scalar quantities, unit conversion, and dimensional analysis, with
-exact rational unit scales and exponents.
+handles scalar and optional NumPy quantities, unit conversion, and dimensional
+analysis, with exact rational unit scales and exponents.
 
 `unitx` is in early development. Public APIs may change during the 0.x series.
 
@@ -548,9 +548,10 @@ python -m pip install sympy
 
 ## Current scope
 
-- **NumPy scalars, arrays, and NumPy operations are not supported yet. NumPy
-  integration is planned.** Structural compatibility with a magnitude protocol
-  does not imply NumPy support.
+- Optional NumPy support accepts plain numeric ndarrays and NumPy numeric
+  scalars. Install `unitx[numpy]`; see the [support matrix and numerical
+  contract](docs/numpy.md). Array operations preserve units, comparisons return
+  masks, and implicit unit stripping and writable `out` are rejected.
 - Custom magnitudes must support scalar arithmetic, return a Python `bool`
   from equality, and defer raw operations with `Unit` operands to its reflected
   operators.
@@ -566,7 +567,7 @@ python -m pip install sympy
 | Class | Import module | Purpose |
 | --- | --- | --- |
 | `si` / `SI` | `unitx.si` | Ready-to-use units and physical constants |
-| `Quantity` | `unitx.quantity` | Scalar values paired with units, conversion, and arithmetic |
+| `Quantity` | `unitx.quantity` | Scalar or NumPy magnitudes paired with units, conversion, and arithmetic |
 | `Unit` | `unitx.unit` | Compound units, scaling factors, and physical dimensions |
 | `ScaledUnit` | `unitx.unit` | Formal unit products with an additional exact scale |
 | `Dimension` | `unitx.dimension` | Seven physical dimensions with rational exponents |
