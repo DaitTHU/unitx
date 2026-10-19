@@ -550,7 +550,7 @@ python -m pip install sympy
 
 - Optional NumPy support accepts plain numeric ndarrays and NumPy numeric
   scalars. Install `unitx[numpy]`; see the [support matrix and numerical
-  contract](docs/numpy.md). Array operations preserve units, comparisons return
+  contract](https://github.com/DaitTHU/unitx/blob/v0.8.0/docs/numpy.md). Array operations preserve units, comparisons return
   masks, and implicit unit stripping and writable `out` are rejected.
 - Custom magnitudes must support scalar arithmetic, return a Python `bool`
   from equality, and defer raw operations with `Unit` operands to its reflected

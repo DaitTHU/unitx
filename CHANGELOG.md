@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.8.0] - 2026-10-19
+
+### Added
+
+- Add optional NumPy >= 2.1 support through `unitx[numpy]`, with one Quantity
+  wrapping an entire plain numeric ndarray or NumPy numeric scalar. Preserve
+  input objects in both `array * unit` and `unit * array` construction.
+- Support unit-aware conversion, broadcasting arithmetic and comparisons,
+  matrix multiplication, indexing, iteration, array metadata, transpose, and
+  flattening. Preserve NumPy scalar indexing and view/copy behavior.
+- Implement a documented set of NumPy ufuncs and functions, including roots,
+  dimensionless transcendental functions, concatenation, statistics, predicates,
+  and position queries. Keep exact unit exponents and ScaledUnit factors.
+- Extend Quantity.isclose with symmetric array comparisons and broadcasting
+  tolerances; implement NumPy isclose/allclose with their own defaults and
+  asymmetric formula. Validate tolerance dimensions, finiteness, and signs.
+- Add runtime and installed-consumer typing coverage, import-order and optional
+  dependency checks, and CI jobs for minimum and current NumPy versions.
+
+### Changed
+
+- Define `Scalar`, `Array`, and `Magnitude = Scalar | Array` in `_numerics`.
+  Preserve concrete magnitude types at construction and in unit-only operations;
+  use conservative result types for array numerical operations.
+- Keep Python scalar arithmetic, Decimal behavior, and exact scalar comparisons
+  independent of the optional NumPy adapter. Array conversion follows the
+  documented NumPy promotion, rounding, and overflow rules.
+
+### NumPy scope
+
+- Document the supported function/keyword matrix and precision/storage rules in
+  `docs/numpy.md`. Other array backends, ndarray subclasses, object/boolean
+  magnitudes, and implicit list/tuple conversion are unsupported.
+- Reject implicit unit removal by `np.asarray(q)` or `np.array(q)`; use `.value`
+  or `.value_in(unit)` explicitly. NumPy magnitudes produce unhashable Quantities.
+- Reject writable out, item assignment, and operations that would require
+  heterogeneous units. Python augmented assignment creates and rebinds a result.
+
 ## [0.7.1] - 2026-10-19
 
 ### Added
