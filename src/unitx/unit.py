@@ -5,12 +5,12 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Self, overload
 
 from ._numerics import Fractionable, Magnitude, as_exponent
-from ._unit_data import UnitData, _register_unit
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import ONE, Factor, SymbolicConstant
 from .monomial import Monomial
 from .singleunit import SingleUnit
 from .unitparser import UnitParser
+from .unitregistry import PrefixPolicy, UnitDefinition, _register_unit
 
 if TYPE_CHECKING:
     from .quantity import Quantity
@@ -23,8 +23,8 @@ class Unit:
     `'m/(s A)'`, or `'m^(1/2)'`. Registered symbols, singular English names,
     prefixes, and aliases are resolved by `SingleUnit` and are case-sensitive.
     Registered multiword names are accepted when they occupy the entire
-    input; use their symbols inside compound expressions or combine Unit
-    objects instead.
+    input; use ``[registered name]`` or their symbols inside compound
+    expressions, or combine Unit objects instead.
     The default empty string, whitespace-only strings, and `'1'` represent
     the multiplicative identity. See `UnitParser` for the full grammar.
 
@@ -246,11 +246,11 @@ class Unit:
     def expression(self) -> str:
         """Return only the formal unit product in parser syntax."""
         return ' * '.join(
-            f'{unit}'
+            unit._expression()
             if exponent == 1
-            else f'{unit}**{exponent.numerator}'
+            else f'{unit._expression()}**{exponent.numerator}'
             if exponent.denominator == 1
-            else f'{unit}**({exponent})'
+            else f'{unit._expression()}**({exponent})'
             for unit, exponent in self._monomial.components()
         )
 
@@ -261,17 +261,18 @@ class Unit:
         name: str,
         *name_aliases: str,
         symbol_aliases: str | tuple[str, ...] = (),
-        prefixable: bool = True,
+        prefixable: PrefixPolicy = True,
     ) -> Unit:
         """Register a new unit in this process and return it without changing self.
 
         The new unit has this unit's exact SI factor and physical dimension,
         but a distinct formal identity. Symbols and symbol aliases must each
         be one printable UnitParser unit token. Names and name aliases may
-        contain multiple such tokens separated by single ASCII spaces, without
+        contain multiple such tokens separated by single ASCII spaces or hyphens, without
         leading or trailing spaces. Decimal digits and grammar operators are
-        not allowed in any token. The primary symbol and name are required
-        and must be nonempty. Empty aliases are ignored.
+        not allowed in any token; square brackets and integer superscripts are
+        reserved. The primary symbol and name must be nonempty. Empty aliases
+        are ignored.
 
         The symbol is positional-only. The primary name accepts positional or
         keyword input. Additional names are optional positional arguments;
@@ -283,7 +284,11 @@ class Unit:
         prefix names attach directly to the first word of a multiword name.
         All new texts, including prefixed forms, must be unambiguous and must
         not already resolve to registered units or implicit unit products.
-        Multiword names are recognized only as complete inputs by UnitParser.
+        Complex names work standalone or in ``[name]`` references in expressions.
+        ``prefixable`` accepts True for all spellings, False for none, or a
+        tuple of exact symbols, names, or aliases from this definition, such as
+        ``('arcsec', 'arcsecond')``. Only listed spellings accept prefixes;
+        an empty tuple disables all prefixes. Unknown spellings are errors.
         Invalid definitions raise TypeError, ValueError, or UnitRegistryError
         before changing the registry.
         """
@@ -291,10 +296,14 @@ class Unit:
             raise TypeError('Symbol aliases must be str or tuple of str.')
         if isinstance(symbol_aliases, str):
             symbol_aliases = (symbol_aliases,)
-        data = UnitData(
-            self.factor, name, *name_aliases, dimension=self.dimension, prefixable=prefixable
+        definition = UnitDefinition(
+            self.factor,
+            name,
+            *name_aliases,
+            dimension=self.dimension,
+            prefixable=prefixable,
         )
-        _register_unit(symbol, data, *symbol_aliases)
+        _register_unit(symbol, definition, *symbol_aliases)
         return Unit(symbol)
 
 

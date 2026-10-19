@@ -1,74 +1,15 @@
 from __future__ import annotations
 
-import warnings
-
-from ._unit_data import (
-    PREFIX_NAME_TO_SYMBOL,
-    PREFIX_SYMBOL_ALIASES,
-    PREFIXES,
-    UNIT_NAME_TO_SYMBOL,
-    UNIT_SYMBOL_ALIASES,
-    UNITS,
-)
 from .dimension import Dimension
-from .exceptions import _WARNING_SKIP_PREFIXES, UnitSymbolError, UnitSymbolWarning
 from .factor import Factor
+from .unitregistry import (
+    PREFIX_DEFINITIONS,
+    UNIT_DEFINITIONS,
+    _preferred_unit_spelling,
+    _resolve_unit_spelling,
+)
 
 __all__ = ['SingleUnit']
-
-_PREFIX_MAXLEN = max(map(len, PREFIXES))
-_PREFIX_NAME_MINLEN = min(map(len, PREFIX_NAME_TO_SYMBOL))
-_PREFIX_NAME_MAXLEN = max(map(len, PREFIX_NAME_TO_SYMBOL))
-
-
-def _resolve_single(text: str, *, warn: bool = True) -> tuple[str, str]:
-    """Resolve a symbol or name; registration checks can suppress alias warnings."""
-    # unit symbol without prefix
-    if text in UNITS:
-        return '', text
-    # unit alias symbol without prefix
-    if text in UNIT_SYMBOL_ALIASES:
-        return '', UNIT_SYMBOL_ALIASES[text]
-    # unit (alias) symbol with prefix symbol
-    if len(text) > 1:
-        for prefix_length in range(1, _PREFIX_MAXLEN + 1):
-            prefix_symbol, unit_symbol = text[:prefix_length], text[prefix_length:]
-            if prefix_symbol in PREFIX_SYMBOL_ALIASES:
-                prefix_symbol_alias = prefix_symbol
-                prefix_symbol = PREFIX_SYMBOL_ALIASES[prefix_symbol]
-            else:
-                prefix_symbol_alias = None
-            if unit_symbol in UNIT_SYMBOL_ALIASES:
-                unit_symbol = UNIT_SYMBOL_ALIASES[unit_symbol]
-            if prefix_symbol in PREFIXES and unit_symbol in UNITS:
-                if UNITS[unit_symbol].prefixable:
-                    if warn and prefix_symbol_alias in UNITS:
-                        symbol = prefix_symbol + unit_symbol
-                        name = f'{PREFIXES[prefix_symbol].name}{UNITS[unit_symbol].name}'
-                        ambiguous_symbol = f'{prefix_symbol_alias} {unit_symbol}'
-                        ambiguous = f'{UNITS[prefix_symbol_alias].name} {UNITS[unit_symbol].name}'
-                        warning_message = (
-                            f'{text!r} is interpreted as {symbol!r} ({name}). '
-                            f'Use {symbol!r} for {name}, or {ambiguous_symbol!r} for {ambiguous}.'
-                        )
-                        warnings.warn(
-                            warning_message,
-                            UnitSymbolWarning,
-                            skip_file_prefixes=_WARNING_SKIP_PREFIXES,
-                        )
-                    return prefix_symbol, unit_symbol
-    # unit name without prefix
-    if text in UNIT_NAME_TO_SYMBOL:
-        return '', UNIT_NAME_TO_SYMBOL[text]
-    # unit name with prefix name
-    if len(text) > _PREFIX_NAME_MINLEN:
-        for prefix_length in range(_PREFIX_NAME_MINLEN, _PREFIX_NAME_MAXLEN + 1):
-            prefix_name, unit_name = text[:prefix_length], text[prefix_length:]
-            if prefix_name in PREFIX_NAME_TO_SYMBOL and unit_name in UNIT_NAME_TO_SYMBOL:
-                if UNITS[UNIT_NAME_TO_SYMBOL[unit_name]].prefixable:
-                    return PREFIX_NAME_TO_SYMBOL[prefix_name], UNIT_NAME_TO_SYMBOL[unit_name]
-    error_message = f'{text!r} is not a valid unit symbol.'
-    raise UnitSymbolError(error_message)
 
 
 class SingleUnit:
@@ -81,8 +22,13 @@ class SingleUnit:
     The empty string represents a dimensionless unit.
 
     Registered names may contain words separated by single ASCII spaces,
-    as in ``astronomical unit``. Prefix names attach directly to the first
-    word, as in ``kiloastronomical unit``. Names are matched exactly.
+    as in ``astronomical unit``, or hyphens as in ``pascal-second``.
+    Prefix names attach directly to the first word, as in
+    ``kiloastronomical unit``. Names are matched exactly.
+    Prefix permissions are checked on the spelling used, before alias
+    normalization. ``symbol`` prefers a permitted symbol, then a name;
+    ``name`` prefers a permitted name, then a symbol. This keeps reconstruction
+    valid even when only names or only symbol aliases accept a given prefix.
 
     The built-in unit table contains s, m, g, A, K, mol, and cd; Unit.define()
     can register more units in the current process. Compound expressions and
@@ -108,15 +54,15 @@ class SingleUnit:
     True
     """
 
-    __slots__ = ('_unit', '_prefix')
-    _unit: str
-    _prefix: str
+    __slots__ = ('_unit_symbol', '_prefix_symbol')
+    _unit_symbol: str
+    _prefix_symbol: str
 
     def __new__(cls, text: str, /) -> SingleUnit:
         if not isinstance(text, str):
             raise TypeError(f'Unit symbol or name must be str, got {type(text).__name__}.')
-        prefix, unit = _resolve_single(text)
-        return cls._from_symbol(prefix, unit)
+        prefix_symbol, unit_symbol = _resolve_unit_spelling(text)
+        return cls._from_symbols(prefix_symbol, unit_symbol)
 
     def __setattr__(self, name: str, value: object) -> None:
         raise AttributeError('SingleUnit objects are immutable.')
@@ -125,11 +71,11 @@ class SingleUnit:
         raise AttributeError('SingleUnit objects are immutable.')
 
     @classmethod
-    def _from_symbol(cls, prefix: str, unit: str) -> SingleUnit:
+    def _from_symbols(cls, prefix_symbol: str, unit_symbol: str) -> SingleUnit:
         """Construct from canonical symbols. Internal use only."""
         obj = super().__new__(cls)
-        object.__setattr__(obj, '_prefix', prefix)
-        object.__setattr__(obj, '_unit', unit)
+        object.__setattr__(obj, '_prefix_symbol', prefix_symbol)
+        object.__setattr__(obj, '_unit_symbol', unit_symbol)
         return obj
 
     def __repr__(self) -> str:
@@ -160,36 +106,42 @@ class SingleUnit:
 
     @property
     def prefix_symbol(self) -> str:
-        return self._prefix
+        return self._prefix_symbol
 
     @property
     def unprefixed_symbol(self) -> str:
-        return self._unit
+        return self._unit_symbol
 
     @property
     def symbol(self) -> str:
-        return self.prefix_symbol + self.unprefixed_symbol
+        return _preferred_unit_spelling(self.prefix_symbol, self.unprefixed_symbol)[0]
+
+    def _expression(self) -> str:
+        spelling, is_name = _preferred_unit_spelling(self.prefix_symbol, self.unprefixed_symbol)
+        return f'[{spelling}]' if is_name else spelling
 
     @property
     def prefix_name(self) -> str:
-        return PREFIXES[self.prefix_symbol].name
+        return PREFIX_DEFINITIONS[self.prefix_symbol].name
 
     @property
     def unprefixed_name(self) -> str:
-        return UNITS[self.unprefixed_symbol].name
+        return UNIT_DEFINITIONS[self.unprefixed_symbol].name
 
     @property
     def name(self) -> str:
-        return self.prefix_name + self.unprefixed_name
+        return _preferred_unit_spelling(
+            self.prefix_symbol, self.unprefixed_symbol, prefer_name=True
+        )[0]
 
     @property
     def prefix_factor(self) -> Factor:
-        return PREFIXES[self.prefix_symbol].factor
+        return PREFIX_DEFINITIONS[self.prefix_symbol].factor
 
     @property
     def unprefixed_factor(self) -> Factor:
         """Scale from the unprefixed unit to its coherent SI unit."""
-        return UNITS[self.unprefixed_symbol].factor
+        return UNIT_DEFINITIONS[self.unprefixed_symbol].factor
 
     @property
     def factor(self) -> Factor:
@@ -198,11 +150,11 @@ class SingleUnit:
 
     @property
     def dimension(self) -> Dimension:
-        return UNITS[self.unprefixed_symbol].dimension
+        return UNIT_DEFINITIONS[self.unprefixed_symbol].dimension
 
     def without_prefix(self) -> SingleUnit:
         """Return the unit without its prefix; no magnitude is converted."""
-        return SingleUnit._from_symbol('', self._unit) if self.has_prefix() else self
+        return SingleUnit._from_symbols('', self._unit_symbol) if self.has_prefix() else self
 
     def has_prefix(self) -> bool:
         return self.prefix_symbol != ''

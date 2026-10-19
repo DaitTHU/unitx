@@ -2,14 +2,14 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._unit_data import (
-    PREFIX_NAME_TO_SYMBOL,
-    PREFIX_SYMBOL_ALIASES,
-    PREFIXES,
-    UNIT_NAME_TO_SYMBOL,
-    UNITS,
-)
 from unitx.dimension import DIMENSIONLESS, Dimension
+from unitx.unitregistry import (
+    PREFIX_DEFINITIONS,
+    PREFIX_NAME_TO_SYMBOL,
+    PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
+    UNIT_DEFINITIONS,
+    UNIT_NAME_TO_SYMBOL,
+)
 
 
 @pytest.mark.parametrize(
@@ -42,24 +42,24 @@ from unitx.dimension import DIMENSIONLESS, Dimension
         ('q', 'quecto', -30),
     ],
 )
-def test_prefix_data_definitions(symbol: str, name: str, exponent: int) -> None:
-    data = PREFIXES[symbol]
-    assert data.name == name
-    assert data.factor.value == Fraction(10) ** exponent
-    assert type(data.factor.value) is (int if exponent >= 0 else Fraction)
+def test_prefix_definition_values(symbol: str, name: str, exponent: int) -> None:
+    definition = PREFIX_DEFINITIONS[symbol]
+    assert definition.name == name
+    assert definition.factor.value == Fraction(10) ** exponent
+    assert type(definition.factor.value) is (int if exponent >= 0 else Fraction)
     if name:
         assert PREFIX_NAME_TO_SYMBOL[name] == symbol
     else:
         assert name not in PREFIX_NAME_TO_SYMBOL
 
 
-def test_prefix_data_aliases() -> None:
-    assert PREFIX_SYMBOL_ALIASES['u'] == PREFIX_SYMBOL_ALIASES['μ'] == 'µ'
+def test_prefix_definition_aliases() -> None:
+    assert PREFIX_SYMBOL_ALIAS_TO_SYMBOL['u'] == PREFIX_SYMBOL_ALIAS_TO_SYMBOL['μ'] == 'µ'
 
 
-def test_unit_data_name_alias() -> None:
+def test_unit_definition_name_alias() -> None:
     assert UNIT_NAME_TO_SYMBOL['meter'] == UNIT_NAME_TO_SYMBOL['metre'] == 'm'
-    assert UNITS['m'].name == 'metre'
+    assert UNIT_DEFINITIONS['m'].name == 'metre'
 
 
 @pytest.mark.parametrize(
@@ -75,15 +75,15 @@ def test_unit_data_name_alias() -> None:
         ('cd', 'candela', Dimension(J=1), 1, True),
     ],
 )
-def test_unit_data_definitions(
+def test_unit_definition_values(
     symbol: str, name: str, dimension: Dimension, factor: int | Fraction, prefixable: bool
 ) -> None:
-    data = UNITS[symbol]
-    assert data.name == name
-    assert data.dimension == dimension
-    assert data.factor.value == factor
-    assert type(data.factor.value) is type(factor)
-    assert data.prefixable is prefixable
+    definition = UNIT_DEFINITIONS[symbol]
+    assert definition.name == name
+    assert definition.dimension == dimension
+    assert definition.factor.value == factor
+    assert type(definition.factor.value) is type(factor)
+    assert definition.prefixable is prefixable
     if name:
         assert UNIT_NAME_TO_SYMBOL[name] == symbol
     else:

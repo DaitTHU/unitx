@@ -8,6 +8,7 @@ from unitx._numerics import Magnitude, Number, Real
 from unitx.factor import PI, Factor
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
+from unitx.unitregistry import PrefixPolicy
 
 
 class _Magnitude(int):
@@ -121,6 +122,24 @@ def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
 
 
 def test_unit_define() -> None:
+    policy: PrefixPolicy = ('rvpolicy',)
+    assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=policy), Unit)
+    assert_type(
+        Unit('m').define(
+            'rvbound',
+            'review bound',
+            prefixable=('rvbound', 'review bound'),
+        ),
+        Unit,
+    )
+    assert_type(
+        (PI * Unit('m')).define('rvbound', 'review bound', prefixable=()),
+        Unit,
+    )
+    assert_type(
+        Quantity(2, 'm').define('rvbound', 'review bound', prefixable=('review bound',)),
+        Unit,
+    )
     assert_type(Unit('m').define('rvlen', name='reviewlength'), Unit)
     assert_type(Unit('m').define('rvlen', 'reviewlength'), Unit)
     assert_type(Unit('m').define('rvlen', 'reviewlength', 'reviewdistance', 'reviewspan'), Unit)

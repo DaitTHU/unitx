@@ -1,16 +1,17 @@
 """Unicode utilities for unitx."""
 
 from fractions import Fraction
-from typing import Literal, TypeAlias
+from typing import Literal
 
 __all__ = ['DOT', 'DotType', 'superscript']
 
 DOT = '⋅'  # chr(0x22C5)
-DotType: TypeAlias = Literal['⋅']
+type DotType = Literal['⋅']
 
-DIGITS = '0123456789+-=()'
-SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾'
+DIGITS = '0123456789+-'
+SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻'
 DIGIT_TO_SUP = str.maketrans(DIGITS, SUPERSCRIPTS)
+SUP_TO_DIGIT = str.maketrans(SUPERSCRIPTS, DIGITS)
 SUPERSCRIPT_SLASH = 'ᐟ'  # Canadian Syllabics Final Acute, chr(0x141F)
 
 

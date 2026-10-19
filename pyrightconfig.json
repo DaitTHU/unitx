@@ -4,6 +4,9 @@
     "src/unitx/_numerics.py",
     "src/unitx/factor.py",
     "src/unitx/unit.py",
+    "src/unitx/unitregistry.py",
+    "src/unitx/singleunit.py",
+    "src/unitx/unitparser.py",
     "tests/typing"
   ],
   "strict": [

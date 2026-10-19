@@ -6,9 +6,11 @@ import re
 from collections.abc import Iterator
 from fractions import Fraction
 
+from ._unicode import SUP_TO_DIGIT, SUPERSCRIPTS
 from .exceptions import UnitSymbolError, UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit
+from .unitregistry import _UNIT_SYMBOL_PATTERN, _resolve_unit_name
 
 _PATTERNS = {
     'POW': r'\*\*|\^',
@@ -19,7 +21,9 @@ _PATTERNS = {
     'RPAREN': r'\)',
     'SIGN': r'[-+]',  # leading sign, e.g., m^-(2/3)
     'SPACE': r'\s+',
-    'UNIT': r'[^\s\d' + re.escape('*^()/+-') + ']+',  # supports non-ascii
+    'NAME_REF': r'\[[^\[\]]*\]',
+    'SUPERSCRIPT': '[' + SUPERSCRIPTS + ']+',
+    'UNIT': _UNIT_SYMBOL_PATTERN,
     'UNMATCHED': r'.',  # any single character not matched by other patterns
 }
 
@@ -47,6 +51,9 @@ class Token:
 
     def __init__(self, kind: str | None, value: str) -> None:
         self.kind, self.value = kind, value
+        if kind == 'UNMATCHED':
+            error_message = f'Unmatched character {value!r}.'
+            raise UnitSyntaxError(error_message)
 
     @classmethod
     def from_match(cls, match: re.Match[str]) -> Token:
@@ -90,8 +97,8 @@ class UnitParser:
         expression     := (registered_name | product | "/" factor) EOF
         product        := factor (("*" | "/" | implicit_mul) factor)*
         factor         := base exponent?
-        base           := UNIT | "1" | "(" product ")"
-        exponent       := adjacent_NUM | ("**" | "^") exponent_value
+        base           := UNIT | NAME_REF | "1" | "(" product ")"
+        exponent       := adjacent_NUM | adjacent_SUPERSCRIPT | ("**" | "^") exponent_value
         exponent_value := NUM | ("+(" | "-(" | "(") fraction ")"
         fraction       := NUM ("/" NUM)?
 
@@ -101,21 +108,31 @@ class UnitParser:
     handled by ``SingleUnit``. Adjacent letters form one token: ``ms`` denotes a
     millisecond, while ``m s`` denotes metre times second.
 
-    A registered multiword name, optionally prefixed, is recognized before
-    parsing a product when it occupies the entire input. Whitespace between
-    its words is treated as a single space. Inside products, parentheses,
-    reciprocals, and powers, use its symbol or combine Unit objects instead;
-    multiword names are not recognized as individual factors. For example,
-    a registered ``astronomical unit`` can be used alone, while a compound
-    expression must use its symbol, such as ``au / arcsec``.
+    A registered multiword or hyphenated name, optionally prefixed, is
+    recognized before parsing a product when it occupies the entire input.
+    Whitespace between its words is normalized to a single space. Inside
+    expressions, use ``[name]`` to make a name one factor, for example
+    ``[astronomical unit] / s``, or use its symbol. NAME_REF tokens resolve
+    only registered names and name aliases, never symbols or expressions.
+    Prefix names belong inside the brackets and obey that spelling's policy.
+    Empty, nested, and unclosed references are invalid. Quotes retain their
+    existing unit-symbol meaning; there are no string escapes or interpolation.
+
+    Adjacent Unicode superscripts denote exact integer powers, for example
+    ``m²``, ``s⁻¹²``, and ``[metre]⁺²``. Only an optional leading sign followed
+    by superscript digits is accepted. Superscripts cannot follow whitespace,
+    ``^``, or another exponent; fractional powers use the ASCII grammar below.
+    Brackets and these superscript characters are reserved, including when
+    registering custom unit symbols and names.
 
     ``NUM`` is an optionally signed integer or decimal. Decimals require digits
     on both sides of the decimal point. Only the literal ``1`` is permitted as a
     base; other numbers are valid only as exponents or parts of an exponent.
 
     Whitespace, including newlines and Unicode spaces, separates tokens.
-    Implicit multiplication applies when the next token is a unit, number, or
-    opening parenthesis, as in ``kg m``, ``m 1/s``, or ``m(s)``. An adjacent
+    Implicit multiplication applies when the next token is a unit, name
+    reference, number, or opening parenthesis, as in ``kg m``, ``m[second]``,
+    ``m 1/s``, or ``m(s)``. An adjacent
     number takes precedence as an exponent: ``m2`` means ``m^2``, while ``m 2``
     attempts to multiply by the invalid numeric base ``2``.
 
@@ -205,14 +222,17 @@ class UnitParser:
         """
         if self._result is not None:
             return self._result
+        if not isinstance(self._expression, str):
+            raise TypeError('Unit expression must be str.')
         self._tokens = map(Token.from_match, _TOKEN_RE.finditer(self._expression))
         name = ' '.join(self._expression.split())
-        if ' ' in name:
+        if ' ' in name or '-' in name:
             try:
-                unit = SingleUnit(name)
+                prefix, symbol = _resolve_unit_name(name)
             except UnitSymbolError:
                 pass
             else:
+                unit = SingleUnit._from_symbols(prefix, symbol)
                 self._tokens = iter(())
                 self.next_token()
                 self._result = Monomial({unit: 1})
@@ -226,7 +246,7 @@ class UnitParser:
             token = self.token
             if self.match('MUL') or self.match('DIV'):
                 pass
-            if self.current_nonempty_token.kind in ('UNIT', 'NUM', 'LPAREN'):
+            if self.current_nonempty_token.kind in ('UNIT', 'NAME_REF', 'NUM', 'LPAREN'):
                 try:
                     factor = self._parse_factor()
                 except (UnitSyntaxError, UnitSymbolError):
@@ -282,7 +302,7 @@ class UnitParser:
                 result *= self._parse_factor()
             elif self.match('DIV'):
                 result /= self._parse_factor()
-            elif self.token.kind in ('UNIT', 'NUM', 'LPAREN'):  # no consuming token
+            elif self.token.kind in ('UNIT', 'NAME_REF', 'NUM', 'LPAREN'):  # no consuming token
                 result *= self._parse_factor()
             else:
                 break
@@ -295,6 +315,11 @@ class UnitParser:
         ``^`` and ``**`` operators permit intervening whitespace.
         """
         base = self._parse_base()
+        if token := self.match('SUPERSCRIPT', skip_space=False):
+            exponent = token.value.translate(SUP_TO_DIGIT)
+            if re.fullmatch(r'[+-]?[0-9]+', exponent) is None:
+                raise UnitSyntaxError(f'Invalid superscript exponent {token.value!r}.')
+            return base ** Fraction(exponent)
         if token := self.match('NUM', skip_space=False):
             return base ** Fraction(token.value)
         if self.match('POW'):
@@ -305,6 +330,12 @@ class UnitParser:
         """Parse a registered unit, the literal identity, or a grouped product."""
         if token := self.match('UNIT'):
             return Monomial({SingleUnit(token.value): 1})
+        elif token := self.match('NAME_REF'):
+            name = ' '.join(token.value[1:-1].split())
+            if not name:
+                raise UnitSyntaxError('Unit name reference must not be empty.')
+            prefix, symbol = _resolve_unit_name(name)
+            return Monomial({SingleUnit._from_symbols(prefix, symbol): 1})
         elif token := self.match('NUM'):
             if token.value != '1':
                 error_message = f'Invalid number {token.value!r} as a base.'

@@ -14,6 +14,7 @@ from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
 from .factor import ONE, Factor, SymbolicConstant
 from .unit import Unit
+from .unitregistry import PrefixPolicy
 
 # Magnitudes are exposed read-only; operations construct new quantities.
 T = TypeVar('T', bound=Magnitude, covariant=True)
@@ -208,7 +209,7 @@ class Quantity(Generic[T]):
         name: str,
         *name_aliases: str,
         symbol_aliases: str | tuple[str, ...] = (),
-        prefixable: bool = True,
+        prefixable: PrefixPolicy = True,
     ) -> Unit:
         """Register a unit equal to this quantity, using Unit.define's name rules.
 
@@ -222,7 +223,11 @@ class Quantity(Generic[T]):
         """
         scale = Factor(self.value)
         return (scale * self.unit).define(
-            symbol, name, *name_aliases, symbol_aliases=symbol_aliases, prefixable=prefixable
+            symbol,
+            name,
+            *name_aliases,
+            symbol_aliases=symbol_aliases,
+            prefixable=prefixable,
         )
 
     def _comparison_pair(self) -> tuple[Magnitude, Factor]:

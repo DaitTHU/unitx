@@ -6,15 +6,6 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._unit_data import (
-    PREFIX_NAME_TO_SYMBOL,
-    PREFIX_SYMBOL_ALIASES,
-    PREFIXES,
-    UNIT_NAME_TO_SYMBOL,
-    UNIT_SYMBOL_ALIASES,
-    UNITS,
-    UnitData,
-)
 from unitx.dimension import Dimension
 from unitx.exceptions import (
     InexactFloatWarning,
@@ -28,12 +19,21 @@ from unitx.quantity import Quantity
 from unitx.singleunit import SingleUnit
 from unitx.unit import ScaledUnit, Unit
 from unitx.unitparser import UnitParser
+from unitx.unitregistry import (
+    PREFIX_DEFINITIONS,
+    PREFIX_NAME_TO_SYMBOL,
+    PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
+    UNIT_DEFINITIONS,
+    UNIT_NAME_TO_SYMBOL,
+    UNIT_SYMBOL_ALIAS_TO_SYMBOL,
+    UnitDefinition,
+)
 
 
 @pytest.fixture(autouse=True)
-def unit_registry() -> Iterator[tuple[dict[str, UnitData], dict[str, str], dict[str, str]]]:
+def unit_registry() -> Iterator[tuple[dict[str, UnitDefinition], dict[str, str], dict[str, str]]]:
     """Keep definitions local to each test without replacing shared dictionaries."""
-    tables = UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES
+    tables = UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL
     snapshots = tuple(table.copy() for table in tables)
     yield snapshots  # pyright: ignore[reportReturnType]
     for table, snapshot in zip(tables, snapshots):
@@ -271,34 +271,34 @@ def test_unit_define_invalid_product(name: str, use_alias: bool, unit_registry) 
                 Unit('m').define('rvau', 'review astronomical unit', name)
             else:
                 Unit('m').define('rvau', name)
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize('use_alias', [False, True])
 def test_unit_define_invalid_prefixed_product(use_alias: bool) -> None:
     Unit('s').define('rvtime', 'kiloreview', prefixable=False)
-    before = UNITS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIASES.copy()
+    before = UNIT_DEFINITIONS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIAS_TO_SYMBOL.copy()
     with pytest.raises(UnitRegistryError, match="'kiloreview second' already parses"):
         if use_alias:
             Unit('m').define('rvau', 'review astronomical unit', 'review second')
         else:
             Unit('m').define('rvau', 'review second')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == before
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == before
 
 
 def test_unit_define_invalid_multiword_conflict() -> None:
     unit = Unit('s').define('rvtime', 'kiloreview astronomical unit', prefixable=False)
-    before = UNITS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIASES.copy()
+    before = UNIT_DEFINITIONS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIAS_TO_SYMBOL.copy()
     with pytest.raises(UnitRegistryError, match="'kiloreview astronomical unit' already resolves"):
         Unit('m').define('rvau', 'review astronomical unit')
     assert Unit('kiloreview astronomical unit') == unit
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == before
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == before
 
 
 def test_unit_define_invalid_multiword_prefix(unit_registry) -> None:
     with pytest.raises(UnitRegistryError, match='conflicting prefix meanings'):
         Unit('m').define('rvau', 'review astronomical unit', 'kiloreview astronomical unit')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 def test_scaled_unit_define_exact() -> None:
@@ -358,18 +358,21 @@ def test_quantity_define_warning_error(unit_registry) -> None:
             Quantity(0.1, 'm').define(
                 'rvlen', 'reviewlength', 'reviewspan', symbol_aliases='rvspan'
             )
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 def test_unit_define_registry_stability() -> None:
     def resolutions() -> dict[str, tuple[SingleUnit, str, Factor, Dimension]]:
-        texts = set(UNITS) | set(UNIT_SYMBOL_ALIASES) | set(UNIT_NAME_TO_SYMBOL)
-        for text in (*UNITS, *UNIT_SYMBOL_ALIASES):
-            symbol = UNIT_SYMBOL_ALIASES.get(text, text)
-            if UNITS[symbol].prefixable:
-                texts.update(prefix + text for prefix in (*PREFIXES, *PREFIX_SYMBOL_ALIASES))
+        texts = set(UNIT_DEFINITIONS) | set(UNIT_SYMBOL_ALIAS_TO_SYMBOL) | set(UNIT_NAME_TO_SYMBOL)
+        for text in (*UNIT_DEFINITIONS, *UNIT_SYMBOL_ALIAS_TO_SYMBOL):
+            symbol = UNIT_SYMBOL_ALIAS_TO_SYMBOL.get(text, text)
+            if UNIT_DEFINITIONS[symbol].allows_prefix(text):
+                texts.update(
+                    prefix + text
+                    for prefix in (*PREFIX_DEFINITIONS, *PREFIX_SYMBOL_ALIAS_TO_SYMBOL)
+                )
         for name, symbol in UNIT_NAME_TO_SYMBOL.items():
-            if UNITS[symbol].prefixable:
+            if UNIT_DEFINITIONS[symbol].allows_prefix(name):
                 texts.update(prefix + name for prefix in PREFIX_NAME_TO_SYMBOL)
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UnitSymbolWarning)
@@ -396,12 +399,16 @@ def test_unit_define_registry_stability() -> None:
         assert {text: after[text] for text in before} == before
         before = after
 
-    registered = UNITS.copy(), UNIT_NAME_TO_SYMBOL.copy(), UNIT_SYMBOL_ALIASES.copy()
+    registered = (
+        UNIT_DEFINITIONS.copy(),
+        UNIT_NAME_TO_SYMBOL.copy(),
+        UNIT_SYMBOL_ALIAS_TO_SYMBOL.copy(),
+    )
     for text in ('metre', 'Krvlenalias', 'kiloreviewlengthalias', 'rvmin'):
         with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
             Unit('kg').define(text, name='reviewmass')
         assert resolutions() == before
-        assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == registered
+        assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == registered
 
 
 @pytest.mark.parametrize('symbol', ['', 'm/s', 'review2', '1', 'm s', '(m)', 'rv\x00'])
@@ -410,7 +417,7 @@ def test_unit_define_invalid_symbol(symbol: str) -> None:
         Unit('m').define(symbol, name='reviewlength')
     assert 'reviewlength' not in UNIT_NAME_TO_SYMBOL
     if symbol:
-        assert symbol not in UNITS
+        assert symbol not in UNIT_DEFINITIONS
 
 
 @pytest.mark.parametrize(
@@ -429,29 +436,29 @@ def test_unit_define_invalid_symbol(symbol: str) -> None:
 def test_unit_define_invalid_name(name: str) -> None:
     with pytest.raises(ValueError, match='Unit name must consist of printable unit tokens'):
         Unit('m').define('rvlen', name=name)
-    assert 'rvlen' not in UNITS
+    assert 'rvlen' not in UNIT_DEFINITIONS
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 def test_unit_define_invalid_empty_name(source, unit_registry) -> None:
     with pytest.raises(ValueError, match='Unit name must consist of printable unit tokens'):
         source.define('rvlen', '', 'reviewlength', '', symbol_aliases='rvspan')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 def test_unit_define_invalid_missing_name(source: Unit | Quantity[int], unit_registry) -> None:
     with pytest.raises(TypeError, match="required positional argument: 'name'"):
         source.define('rvlen')  # pyright: ignore[reportCallIssue]
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize('alias', ['m/s', 'review2', 'rv alias'])
 def test_unit_define_invalid_alias(alias: str) -> None:
     with pytest.raises(ValueError, match='Unit symbol alias must be a single printable unit token'):
         Unit('m').define('rvlen', name='reviewlength', symbol_aliases=('rvok', alias))
-    assert 'rvlen' not in UNITS
-    assert 'rvok' not in UNIT_SYMBOL_ALIASES
+    assert 'rvlen' not in UNIT_DEFINITIONS
+    assert 'rvok' not in UNIT_SYMBOL_ALIAS_TO_SYMBOL
     assert 'reviewlength' not in UNIT_NAME_TO_SYMBOL
 
 
@@ -466,7 +473,7 @@ def test_unit_define_invalid_type(symbol: object) -> None:
 def test_unit_define_invalid_name_type(name) -> None:
     with pytest.raises(TypeError, match='Unit name must be str'):
         Unit('m').define('rvlen', name=name)
-    assert 'rvlen' not in UNITS
+    assert 'rvlen' not in UNIT_DEFINITIONS
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
@@ -474,7 +481,7 @@ def test_unit_define_invalid_name_type(name) -> None:
 def test_unit_define_invalid_name_alias_type(source, name_aliases, unit_registry) -> None:
     with pytest.raises(TypeError, match='Unit name alias must be str'):
         source.define('rvlen', 'reviewlength', *name_aliases)
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
@@ -482,7 +489,7 @@ def test_unit_define_invalid_name_alias_type(source, name_aliases, unit_registry
 def test_unit_define_invalid_name_alias(source, alias: str, unit_registry) -> None:
     with pytest.raises(ValueError, match='Unit name alias must consist of printable unit tokens'):
         source.define('rvlen', 'reviewlength', 'reviewspan', alias)
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 def test_unit_define_invalid_alias_type() -> None:
@@ -520,7 +527,7 @@ def test_unit_define_invalid_namespace(
 ) -> None:
     with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
         Unit('m').define('rvlen', name, *name_aliases, symbol_aliases=symbol_aliases)
-    assert 'rvlen' not in UNITS
+    assert 'rvlen' not in UNIT_DEFINITIONS
 
 
 def test_unit_define_invalid_duplicate() -> None:
@@ -540,7 +547,7 @@ def test_unit_define_invalid_prefixed_conflict(use_name: bool) -> None:
     with pytest.raises(UnitRegistryError, match="'krvlen' already resolves"):
         Unit('m').define('rvlen', name='reviewlength')
     assert Unit('krvlen') == existing
-    assert 'rvlen' not in UNITS
+    assert 'rvlen' not in UNIT_DEFINITIONS
 
 
 def test_unit_define_invalid_prefixed_name() -> None:
@@ -548,13 +555,13 @@ def test_unit_define_invalid_prefixed_name() -> None:
     with pytest.raises(UnitRegistryError, match="'kiloreviewlength' already resolves"):
         Unit('m').define('rvlen', name='reviewlength')
     assert Unit('kiloreviewlength') == existing
-    assert 'rvlen' not in UNITS
+    assert 'rvlen' not in UNIT_DEFINITIONS
 
 
 def test_unit_define_invalid_ambiguity() -> None:
     with pytest.raises(UnitRegistryError, match='conflicting prefix meanings'):
         Unit('m').define('rvlen', name='krvlen')
-    assert 'rvlen' not in UNITS
+    assert 'rvlen' not in UNIT_DEFINITIONS
     unit = Unit('m').define('rvlen', name='krvlen', prefixable=False)
     assert Unit('krvlen') == unit
 
@@ -569,21 +576,21 @@ def test_unit_define_duplicate_aliases() -> None:
 def test_quantity_define_invalid_scale(value, unit_registry) -> None:
     with pytest.raises(ValueError, match='Factor must be positive'):
         Quantity(value, 'm').define('rvlen', name='reviewlength')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize('value', [True, False])
 def test_quantity_define_invalid_boolean(value: bool, unit_registry) -> None:
     with pytest.raises(TypeError, match='Factor must be a number'):
         Quantity(value, 'm').define('rvlen', name='reviewlength')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize('value', [float('nan'), Decimal('NaN')])
 def test_quantity_define_invalid_nan(value: float | Decimal, unit_registry) -> None:
     with pytest.raises(ValueError, match='cannot convert NaN to integer ratio'):
         Quantity(value, 'm').define('rvlen', name='reviewlength')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 @pytest.mark.parametrize(
@@ -592,7 +599,7 @@ def test_quantity_define_invalid_nan(value: float | Decimal, unit_registry) -> N
 def test_quantity_define_invalid_infinity(value: float | Decimal, unit_registry) -> None:
     with pytest.raises(OverflowError, match='cannot convert Infinity to integer ratio'):
         Quantity(value, 'm').define('rvlen', name='reviewlength')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
 
 
 def test_quantity_define_invalid_float(unit_registry) -> None:
@@ -601,4 +608,4 @@ def test_quantity_define_invalid_float(unit_registry) -> None:
         pytest.raises(ValueError, match='Factor must be positive'),
     ):
         Quantity(1e-10, 'm').define('rvlen', name='reviewlength')
-    assert (UNITS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIASES) == unit_registry
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry

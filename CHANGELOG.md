@@ -1,5 +1,46 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add `[registered name]` references as single factors in unit expressions,
+  including products, reciprocals, parentheses, and rational powers. References
+  resolve names and name aliases only, with whitespace normalization and no
+  expression evaluation or nested quoting.
+- Support standalone hyphenated names and adjacent Unicode integer superscripts
+  such as `m²`, `s⁻¹²`, and `[metre]²`.
+- Extend `prefixable: PrefixPolicy = True` on all `.define()` entry points to
+  accept a tuple of exact registered symbols, names, or aliases. Only those
+  spellings accept prefixes; True enables all spellings and False or () disables
+  all spellings. `PrefixPolicy` is `bool | tuple[str, ...]`.
+
+### Changed
+
+- Move definitions, spelling resolution, and registration validation into
+  `unitx.unitregistry`, shared by SingleUnit and UnitParser. Preserve formal identities,
+  exact SI factors, existing `.define()` defaults, and validation before mutation.
+- Remove the superseded private `_unit_data` module. Name definition records
+  `PrefixDefinition` and `UnitDefinition`, with explicit definition indexes and
+  alias-to-symbol mappings.
+- Select permitted canonical output spellings after applying binding policies.
+  When only a name permits a prefix, expressions use `[name]` so repr and pickle
+  preserve the prefixed identity. Expose `PrefixPolicy` for type annotations.
+- Use the finite spelling exceptions `megohm` and `kilohm` in preferred names,
+  retaining `megaohm` and `kiloohm` as accepted inputs.
+- Reuse Unicode superscript tables, handle malformed name brackets through
+  the common lexical error path, and simplify definition initialization,
+  preferred spelling selection, and generated prefix-name validation.
+
+### Migration
+
+- Square brackets and `⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻` are now reserved grammar characters and can
+  no longer occur in registered symbols or names. Rename custom spellings that
+  previously used them before rebuilding or unpickling those definitions.
+- Long names remain whole-input lookups unless explicitly referenced in brackets.
+  `str()` remains readable display and is not a general serialization format;
+  use `expression()` for formal unit products and repr for ScaledUnit state.
+
 ## [0.6.3] - 2026-10-18
 
 ### Added

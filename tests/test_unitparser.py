@@ -9,6 +9,7 @@ import pytest
 from unitx.exceptions import UnitSymbolError, UnitSymbolWarning, UnitSyntaxError
 from unitx.monomial import Monomial
 from unitx.singleunit import SingleUnit
+from unitx.unit import Unit
 from unitx.unitparser import Token, UnitParser
 
 _WHITESPACE = [' ', '\t', '\n', '\r', '\r\n', '\v', '\f', '\xa0', '\u2003', '\u2028', '\u2029']
@@ -588,3 +589,80 @@ def test_unit_parser_invalid_exponent_parenthesis(text: str) -> None:
 def test_unit_parser_invalid_zero_denominator(text: str) -> None:
     with pytest.raises(UnitSyntaxError, match='Division by zero'):
         UnitParser(text).parse()
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('[metre]', 'm'),
+        ('[metre][second]', 'm*s'),
+        ('[metre]s', 'm*s'),
+        ('m[second]', 'm*s'),
+        ('/[metre]', '1/m'),
+        ('([metre] / s)**2', 'm2/s2'),
+        ('[metre]2', 'm2'),
+        ('[kilometre] / [second]', 'km/s'),
+        ('[ astronomical\tunit ] / s', 'au/s'),
+    ],
+)
+def test_unit_parser_name_reference(text: str, expected: str) -> None:
+    parser = UnitParser(text)
+    result = parser.parse()
+    assert result is parser.parse()
+    assert Unit(text) == Unit(expected)
+    assert Unit(Unit(text).expression()) == Unit(text)
+
+
+@pytest.mark.parametrize('text', ['[]', '[  \t\n]'])
+def test_unit_parser_invalid_empty_reference(text: str) -> None:
+    with pytest.raises(UnitSyntaxError, match='name reference must not be empty'):
+        Unit(text)
+
+
+@pytest.mark.parametrize('text', ['[metre', '[[metre]]', '[foo[bar]]', 'm/[metre'])
+def test_unit_parser_invalid_open_reference(text: str) -> None:
+    parser = UnitParser(text)
+    for _ in range(2):
+        with pytest.raises(UnitSyntaxError, match='Unmatched character'):
+            parser.parse()
+
+
+@pytest.mark.parametrize('text', ['[metre]]', 'metre]', '[metre][second]]'])
+def test_unit_parser_invalid_close_reference(text: str) -> None:
+    with pytest.raises(UnitSyntaxError):
+        Unit(text)
+
+
+@pytest.mark.parametrize('text', ['[m]', '[m/s]', '[metre second]', '[2]', '[unknown]', 'k[metre]'])
+def test_unit_parser_invalid_name_reference(text: str) -> None:
+    with pytest.raises(UnitSymbolError):
+        Unit(text)
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('m²', 'm2'),
+        ('m⁻²', 'm-2'),
+        ('m⁺¹²', 'm12'),
+        ('m⁰', ''),
+        ('(m/s)²', '(m/s)2'),
+        ('[metre]⁻¹²', 'm-12'),
+        ('m⁻²s³', 'm-2*s3'),
+    ],
+)
+def test_unit_parser_superscript(text: str, expected: str) -> None:
+    assert Unit(text) == Unit(expected)
+    assert Unit(Unit(text).expression()) == Unit(text)
+
+
+@pytest.mark.parametrize('text', ['m⁻', 'm⁺', 'm⁻⁺²', 'm²⁻¹'])
+def test_unit_parser_invalid_superscript(text: str) -> None:
+    with pytest.raises(UnitSyntaxError, match='Invalid superscript exponent'):
+        Unit(text)
+
+
+@pytest.mark.parametrize('text', ['m ²', 'm^²', 'm2²', 'm²2', 'm²³⁺', 'm⁻²³⁻'])
+def test_unit_parser_invalid_mixed_exponent(text: str) -> None:
+    with pytest.raises(UnitSyntaxError):
+        Unit(text)

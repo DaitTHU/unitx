@@ -5,10 +5,11 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._unit_data import PREFIXES, UNITS
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import UnitSymbolError, UnitSymbolWarning
 from unitx.singleunit import SingleUnit
+from unitx.unit import Unit
+from unitx.unitregistry import PREFIX_DEFINITIONS, UNIT_DEFINITIONS
 
 
 @pytest.mark.parametrize(
@@ -39,19 +40,23 @@ def test_single_unit_creation(text: str, prefix: str, unit: str) -> None:
 
 
 def test_single_unit_combinations() -> None:
-    for prefix, prefix_data in PREFIXES.items():
-        for symbol, unit_data in UNITS.items():
-            if prefix and not unit_data.prefixable:
+    for prefix, prefix_definition in PREFIX_DEFINITIONS.items():
+        for symbol, unit_definition in UNIT_DEFINITIONS.items():
+            if prefix and not unit_definition.allows_prefix(symbol):
                 continue
             unit = SingleUnit(prefix + symbol)
             assert unit.prefix_symbol == prefix
             assert unit.unprefixed_symbol == symbol
-            assert unit.prefix_name == prefix_data.name
-            assert unit.unprefixed_name == unit_data.name
-            assert unit.name == prefix_data.name + unit_data.name
+            assert unit.prefix_name == prefix_definition.name
+            assert unit.unprefixed_name == unit_definition.name
+            expected_name = {
+                ('M', 'Ω'): 'megohm',
+                ('k', 'Ω'): 'kilohm',
+            }.get((prefix, symbol), prefix_definition.name + unit_definition.name)
+            assert unit.name == expected_name
             assert SingleUnit(unit.name) == unit
-            assert unit.dimension == unit_data.dimension
-            assert unit.factor == prefix_data.factor * unit_data.factor
+            assert unit.dimension == unit_definition.dimension
+            assert unit.factor == prefix_definition.factor * unit_definition.factor
 
 
 @pytest.mark.parametrize('symbol', ['s', 'm', 'g', 'A', 'K', 'mol', 'cd'])
@@ -64,9 +69,9 @@ def test_single_unit_aliases(symbol: str) -> None:
     assert all(lookup[alias] == 'micro' for alias in aliases)
 
 
-@pytest.mark.parametrize('prefix', list(PREFIXES))
+@pytest.mark.parametrize('prefix', list(PREFIX_DEFINITIONS))
 def test_single_unit_name_alias(prefix: str) -> None:
-    prefix_name = PREFIXES[prefix].name
+    prefix_name = PREFIX_DEFINITIONS[prefix].name
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter('always')
         unit = SingleUnit(prefix_name + 'meter')
@@ -94,7 +99,7 @@ def test_single_unit_name_alias(prefix: str) -> None:
     ],
 )
 def test_single_unit_symbol_warning(
-    text: str, symbol: str, name: str, dimension: Dimension, factor: int
+    text: str, symbol: str, name: str, dimension: Dimension, factor: int | Fraction
 ) -> None:
     with pytest.warns(UnitSymbolWarning) as recorded:
         unit = SingleUnit(text)
@@ -111,7 +116,7 @@ def test_single_unit_symbol_warning(
     assert unit.name == name
     assert unit.dimension == dimension
     assert unit.factor.value == factor
-    assert type(unit.factor.value) is int
+    assert type(unit.factor.value) is type(factor)
 
 
 @pytest.mark.parametrize('text', ['', 'K', 'kelvin', 'kK', 'km', 'ms', 'Ms', 'µm', 'μm', 'um'])
@@ -257,7 +262,7 @@ def test_single_unit_pickle(symbol: str, protocol: int) -> None:
     assert restored.dimension == unit.dimension
     assert {unit: 'unchanged'}[restored] == 'unchanged'
     with pytest.raises(AttributeError, match='SingleUnit objects are immutable'):
-        restored._unit = 's'
+        restored._unit_symbol = 's'
 
 
 @pytest.mark.parametrize('value', [None, True, 1, 1.0, b'm', [], {}])
@@ -294,4 +299,18 @@ def test_single_unit_invalid_symbol(symbol: str) -> None:
         warnings.simplefilter('always')
         with pytest.raises(UnitSymbolError, match='is not a valid unit symbol'):
             SingleUnit(symbol)
+    assert not recorded
+
+
+@pytest.mark.parametrize(
+    ('short', 'long', 'symbol'),
+    [('megohm', 'megaohm', 'MΩ'), ('kilohm', 'kiloohm', 'kΩ'), ('gigaohm', 'gigaohm', 'GΩ')],
+)
+def test_single_unit_name_exception(short: str, long: str, symbol: str) -> None:
+    assert Unit(short) == Unit(long) == Unit(symbol)
+    assert SingleUnit(symbol).name == short
+    assert Unit('[' + short + ']/s') == Unit(symbol + '/s')
+    assert Unit(short) != Unit('Ω')
+    with warnings.catch_warnings(record=True) as recorded:
+        Unit(short)
     assert not recorded
