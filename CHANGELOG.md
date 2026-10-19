@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Support `out` for covered single-output NumPy ufunc calls. Numeric results
+  write to compatible Quantity ndarray buffers after unit conversion; boolean
+  comparisons and predicates write to bare boolean ndarrays. Preserve target
+  identity, dtype, unit, and masked-out values, including overlapping views.
+- Stage computation, unit conversion, and casting before writing; validation
+  and temporary computation failures leave the target unchanged. Function and
+  reduction outputs, item assignment, and multi-output ufuncs remain unsupported.
+
 ## [0.8.0] - 2026-10-19
 
 ### Added

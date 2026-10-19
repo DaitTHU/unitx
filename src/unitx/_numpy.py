@@ -3,7 +3,8 @@
 An identity scale retains storage. Integral scales use a Python int multiplier;
 nonintegral rational scales use one Python float multiplier, and irrational
 scales use Factor's approximation. NumPy then controls promotion and errors.
-No Fraction/Decimal object arrays are produced and no input is written.
+No Fraction/Decimal object arrays are produced. Explicit ufunc outputs write
+only after computing, converting, and casting a temporary result.
 """
 
 from fractions import Fraction
@@ -37,7 +38,7 @@ def _is_supported_operand(value: Any) -> bool:
     return type(value) in (int, float, complex) or _is_numpy_magnitude(value)
 
 
-def scale_magnitude(value: Any, factor: Factor) -> Any:
+def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
     if not _is_supported_operand(value):
         raise TypeError('NumPy operations require numeric arrays or int/float/complex scalars.')
     if factor == ONE:
@@ -49,7 +50,7 @@ def scale_magnitude(value: Any, factor: Factor) -> Any:
         else float(factor.value)
     )
     # Do not pass a Fraction to NumPy (it would create object dtype).
-    return np.multiply(value, multiplier)
+    return np.multiply(value, multiplier, where=where, out=None)
 
 
 def _operand_parts(value: Any) -> tuple[Any, Unit]:
@@ -85,6 +86,66 @@ def _validate_where(kwargs: dict[str, Any]) -> None:
 
 
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    outputs = kwargs.get('out', ())
+    if any(x is not None for x in outputs):
+        if method != '__call__' or ufunc.nout != 1 or len(outputs) != 1:
+            return NotImplemented
+        target = outputs[0]
+        predicates = (
+            np.equal,
+            np.not_equal,
+            np.less,
+            np.less_equal,
+            np.greater,
+            np.greater_equal,
+            np.isfinite,
+            np.isnan,
+            np.isinf,
+            np.signbit,
+        )
+        if ufunc in predicates:
+            if type(target) is not np.ndarray or target.dtype.kind != 'b':
+                return NotImplemented
+        elif not isinstance(target, Quantity):
+            return NotImplemented
+        options = {k: v for k, v in kwargs.items() if k != 'out'}
+        result = _dispatch_ufunc(ufunc, method, inputs, options)
+        if result is NotImplemented:
+            return NotImplemented
+        if isinstance(target, Quantity) and type(target.value) is not np.ndarray:
+            raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
+        if not (target.value if isinstance(target, Quantity) else target).flags.writeable:
+            raise ValueError('out buffer is read-only.')
+        return _write_ufunc_output(result, target, options)
+    return _dispatch_ufunc(ufunc, method, inputs, kwargs)
+
+
+def _write_ufunc_output(result: Any, target: Any, options: dict[str, Any]) -> Any:
+    """Stage a single output without replacing its magnitude, dtype, or unit."""
+    mask = options.get('where', True)
+    if isinstance(result, Quantity):
+        if result.dimension != target.dimension:
+            raise DimensionError('out has an incompatible dimension.')
+        value = scale_magnitude(result.value, result.unit.factor / target.unit.factor, where=mask)
+        buffer = target.value
+    else:
+        value, buffer = result, target
+    # Validate broadcasting and casting before touching shared storage. Casting
+    # also runs in temporary storage so e.g. float narrowing errors cannot
+    # partially overwrite the caller's buffer.
+    value = np.broadcast_to(value, buffer.shape)
+    mask = np.broadcast_to(mask, buffer.shape)
+    if np.may_share_memory(mask, buffer):
+        mask = mask.copy()
+    staged = np.empty(buffer.shape, dtype=buffer.dtype)
+    np.copyto(staged, value, where=mask, casting=options.get('casting', 'same_kind'))
+    np.copyto(buffer, staged, where=mask, casting='no')
+    return target
+
+
+def _dispatch_ufunc(
+    ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]
+) -> Any:
     if not all(isinstance(x, Unit) or _is_supported_operand(x) for x in inputs):
         return NotImplemented
     if any(x is not None for x in kwargs.get('out', ())):
@@ -106,6 +167,9 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
     # Explicit dtype=object/str/etc must not escape the supported numerical domain.
     if 'dtype' in kwargs and np.dtype(kwargs['dtype']).kind not in 'biufc':
         return NotImplemented
+    if 'where' in kwargs:
+        # A masked temporary intentionally has unspecified unused elements.
+        kwargs['out'] = None
     if ufunc in (np.add, np.subtract):
         if any(isinstance(x, Unit) for x in inputs):
             return NotImplemented

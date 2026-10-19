@@ -310,13 +310,13 @@ def test_close_bad_tolerances(tolerance):
         q.isclose(q, rel_tol=Quantity(0.1, 'm'))
 
 
-def test_out_mask_and_unsupported_functions_do_not_mutate():
+def test_unsupported_outputs_do_not_mutate():
     q = Quantity(np.arange(3.0), 'm')
     buffer = np.full(3, -123.0)
     target = Quantity(buffer, 'm')
+    with pytest.raises(TypeError):
+        np.add(q, q, out=buffer)
     for out in (buffer, target):
-        with pytest.raises(TypeError):
-            np.add(q, q, out=out)
         with pytest.raises(TypeError):
             np.sum(q, out=out)
         with pytest.raises(TypeError):
@@ -339,6 +339,204 @@ def test_out_mask_and_unsupported_functions_do_not_mutate():
         q + Decimal(1)
     with pytest.raises(TypeError):
         q * np.ma.array([1, 2, 3])
+
+
+@pytest.mark.parametrize('tuple_out', [False, True])
+def test_ufunc_out_conversion(tuple_out):
+    q = Quantity(np.array([1.0, 2.0, 3.0]), 'm')
+    buffer = np.full(3, -1.0)
+    unit = Factor(2) * Unit('cm')
+    target = Quantity(buffer, unit)
+    result = np.add(q, Quantity(100, 'cm'), out=(target,) if tuple_out else target)
+    assert result is target and target.value is buffer and target.unit is unit
+    assert_quantity(result, [100, 150, 200], unit)
+    np.testing.assert_array_equal(q.value, [1, 2, 3])
+    assert_quantity(np.add(q, q, out=(None,)), [2, 4, 6], 'm')
+
+
+def test_ufunc_out_broadcast():
+    # A zero-dimensional result can broadcast into a larger output buffer.
+    target = Quantity(np.empty((2, 3)), 'cm')
+    assert np.add(Quantity(1, 'm'), Quantity(2, 'm'), target) is target
+    assert_quantity(target, np.full((2, 3), 300), 'cm')
+    scalar = Quantity(np.empty(()), 'm')
+    assert np.multiply(Quantity(2, 'm'), 3, out=scalar) is scalar
+    assert scalar.value.shape == () and scalar.value == 6
+    empty = Quantity(np.empty((0, 3)), 'm')
+    assert np.negative(Quantity(np.empty((0, 3)), 'm'), out=empty) is empty
+
+
+def test_ufunc_out_mask():
+    target = Quantity(np.full(3, -123.0), 'cm')
+    # Masked-out invalid values are neither evaluated nor scaled for writing.
+    q = Quantity(np.array([1.0, 0.0, 3.0]), 'm')
+    with np.errstate(divide='raise', invalid='raise'):
+        assert (
+            np.divide(q, np.array([1.0, 0.0, 1.0]), out=target, where=np.array([True, False, True]))
+            is target
+        )
+    assert_quantity(target, [100, -123, 300], 'cm')
+    assert np.add(q, q, out=target, where=False) is target
+    assert_quantity(target, [100, -123, 300], 'cm')
+
+
+@pytest.mark.parametrize('operation', [np.multiply, np.divide, np.sqrt, np.matmul])
+def test_ufunc_out_unit_algebra(operation):
+    a = Quantity(np.array([[1.0, 4.0], [9.0, 16.0]]), 'cm2')
+    b = Quantity(np.full((2, 2), 2.0), 's')
+    expected = operation(a) if operation is np.sqrt else operation(a, b)
+    target = Quantity(np.empty(expected.shape), expected.unit / Factor(2))
+    result = operation(a, out=target) if operation is np.sqrt else operation(a, b, out=target)
+    assert result is target
+    np.testing.assert_allclose(target.value, expected.value * 2)
+
+
+def test_ufunc_out_dimensionless():
+    target = Quantity(np.zeros(2), 'km/m')
+    assert np.exp(Quantity(np.zeros(2), ''), out=target) is target
+    assert_quantity(target, [0.001, 0.001], 'km/m')
+    with pytest.raises(TypeError):
+        np.exp(Quantity(np.zeros(2), ''), out=np.empty(2))
+    with pytest.raises(DimensionError, match='out has an incompatible dimension'):
+        np.exp(Quantity(np.zeros(2), ''), out=Quantity(np.empty(2), 'm'))
+
+
+@pytest.mark.parametrize('casting', ['same_kind', 'safe', 'no'])
+def test_ufunc_out_casting(casting):
+    q = Quantity(np.array([1.0, 2.0], dtype=np.float64), 'm')
+    buffer = np.full(2, -123.0, dtype=np.float32)
+    target = Quantity(buffer, 'm')
+    if casting == 'same_kind':
+        assert np.add(q, q, out=target, casting=casting) is target
+        assert target.dtype == np.dtype('float32')
+        assert_quantity(target, [2, 4], 'm')
+    else:
+        with pytest.raises(TypeError):
+            np.add(q, q, out=target, casting=casting)
+        np.testing.assert_array_equal(buffer, [-123, -123])
+
+
+def test_ufunc_out_integer_casting():
+    q = Quantity(np.array([1, 2], dtype=np.int64), 'cm')
+    target = Quantity(np.full(2, -123, dtype=np.int64), 'm')
+    with pytest.raises(TypeError):
+        np.add(q, q, out=target)
+    np.testing.assert_array_equal(target.value, [-123, -123])
+    # Explicit unsafe casting follows NumPy's truncation rules.
+    assert np.add(q, q, out=target, casting='unsafe') is target
+    np.testing.assert_array_equal(target.value, [0, 0])
+    floating = Quantity(np.empty(2), 'm')
+    assert np.add(q, q, out=floating, dtype=np.float64) is floating
+    assert_quantity(floating, [0.02, 0.04], 'm')
+
+
+def test_ufunc_out_shared_storage():
+    storage = np.arange(6.0)
+    source = Quantity(storage[:-1], 'm')
+    target = Quantity(storage[1:], 'cm')
+    assert np.add(source, source, out=target) is target
+    np.testing.assert_array_equal(storage, [0, 0, 200, 400, 600, 800])
+    assert np.negative(target, out=target) is target
+    np.testing.assert_array_equal(storage, [0, 0, -200, -400, -600, -800])
+    a = Quantity(np.arange(4.0).reshape(2, 2), 'm')
+    expected = a.value @ a.value
+    assert np.matmul(a, a, out=Quantity(a.value, 'm2')).value is a.value
+    np.testing.assert_array_equal(a.value, expected)
+
+
+def test_ufunc_out_strided_buffer():
+    storage = np.full((2, 6), -123.0)
+    target = Quantity(storage[:, ::2], 'm')
+    q = Quantity(np.arange(6.0).reshape(2, 3), PI * Unit('m'))
+    assert np.positive(q, out=target) is target
+    np.testing.assert_allclose(target.value, q.value * float(PI))
+    np.testing.assert_array_equal(storage[:, 1::2], np.full((2, 3), -123.0))
+    readonly = Quantity(np.arange(6.0).reshape(2, 3), 'm')
+    readonly.value.flags.writeable = False
+    assert np.add(readonly, readonly, out=target) is target
+    assert_quantity(target, readonly.value * 2, 'm')
+
+
+def test_ufunc_out_shared_mask():
+    storage = np.array([True, False, True, False, True, False])
+    target = storage[1:]
+    mask = storage[:-1]
+    expected = np.isfinite(np.array([1.0, 2.0, np.nan, 4.0, np.inf]))
+    original, original_mask = target.copy(), mask.copy()
+    q = Quantity(np.array([1.0, 2.0, np.nan, 4.0, np.inf]), 'm')
+    assert np.isfinite(q, out=target, where=mask) is target
+    np.testing.assert_array_equal(target, np.where(original_mask, expected, original))
+
+
+def test_ufunc_out_invalid_scale():
+    q = Quantity(np.array([1, 2], dtype=np.int8), 'km')
+    target = Quantity(np.full(2, -123.0), 'mm')
+    with pytest.raises(OverflowError):
+        np.positive(q, out=target)
+    np.testing.assert_array_equal(target.value, [-123] * 2)
+    complex_q = Quantity(np.array([1 + 2j, 3 + 4j]), 'm')
+    with pytest.raises(TypeError):
+        np.add(complex_q, complex_q, out=target)
+    np.testing.assert_array_equal(target.value, [-123] * 2)
+
+
+def test_ufunc_out_invalid_buffer():
+    q = Quantity(np.arange(3.0), 'm')
+    for target in (Quantity(np.full(3, -123.0), 's'), Quantity(np.full(2, -123.0), 'm')):
+        with pytest.raises((DimensionError, ValueError)):
+            np.add(q, q, out=target)
+        assert np.all(target.value == -123)
+    readonly = Quantity(np.full(3, -123.0), 'm')
+    readonly.value.flags.writeable = False
+    with pytest.raises(ValueError, match='read-only'):
+        np.add(q, q, out=readonly)
+    with pytest.raises(TypeError, match='ndarray buffer'):
+        np.add(q, q, out=Quantity(np.float64(1), 'm'))
+    with pytest.raises(TypeError, match='ndarray buffer'):
+        np.add(q, q, out=Quantity(1.0, 'm'))
+    target = Quantity(np.full(3, -123.0), 'm')
+    with pytest.raises(TypeError, match='boolean mask'):
+        np.add(q, q, out=target, where=np.array([1, 0, 1]))
+    with pytest.raises(ValueError):
+        np.add(q, q, out=target, where=np.ones(2, dtype=bool))
+    np.testing.assert_array_equal(target.value, [-123] * 3)
+
+
+def test_ufunc_out_cast_error():
+    q = Quantity(np.array([1.0, 1e300]), 'm')
+    target = Quantity(np.full(2, -123.0, dtype=np.float32), 'm')
+    with np.errstate(over='raise'):
+        with pytest.raises(FloatingPointError):
+            np.add(q, q, out=target)
+    np.testing.assert_array_equal(target.value, [-123] * 2)
+
+
+@pytest.mark.parametrize('operation', [np.isfinite, np.equal])
+def test_ufunc_out_predicates(operation):
+    q = Quantity(np.array([1.0, np.inf, np.nan]), 'm')
+    target = np.array([False, True, True])
+    args = (q, q) if operation is np.equal else (q,)
+    assert operation(*args, out=target, where=np.array([True, True, False])) is target
+    np.testing.assert_array_equal(target, [True, operation is np.equal, True])
+    with pytest.raises(TypeError):
+        operation(*args, out=np.empty(3))
+    with pytest.raises(TypeError):
+        operation(*args, out=Quantity(np.empty(3), ''))
+
+
+def test_ufunc_out_protocol():
+    q = Quantity(np.arange(3.0), 'm')
+
+    class Foreign:
+        def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+            return 'foreign dispatched'
+
+    assert np.add(q, q, out=Foreign()) == 'foreign dispatched'
+    target = Quantity(np.full(3, -123.0), 'm')
+    for operation in (np.add.reduce, np.multiply.accumulate, np.modf):
+        with pytest.raises(TypeError):
+            operation(q, out=(target, None)) if operation is np.modf else operation(q, out=target)
+    np.testing.assert_array_equal(target.value, [-123] * 3)
 
 
 @pytest.mark.parametrize('numpy_first', [True, False])

@@ -26,7 +26,9 @@ from .factor import ONE, Factor, SymbolicConstant
 from .unit import Unit
 from .unitregistry import PrefixPolicy
 
-# Magnitudes are exposed read-only; operations construct new quantities.
+# Covariance is safe because Quantity never replaces its magnitude or unit.
+# NumPy out= may write ndarray elements, preserving the array type and dtype;
+# array aliases were already writable through .value. No arbitrary T is stored.
 T = TypeVar('T', bound=Magnitude, covariant=True)
 
 _COMPARISON_UFUNCS: dict[Callable[[Any, Any], bool], str] = {
@@ -94,6 +96,8 @@ class Quantity(Generic[T]):
     NumPy support accepts plain numeric ndarrays and NumPy numeric scalars,
     with one unit for the whole magnitude. See docs/numpy.md for supported
     operations, scaling, comparison, and storage rules.
+    Explicit NumPy ufunc out= may write an existing ndarray magnitude without
+    replacing its object, dtype, or unit. Ordinary operators still create results.
 
     Addition and subtraction preserve the left quantity's unit. Plain numbers
     can be added to dimensionless quantities and represent unscaled values.

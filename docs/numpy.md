@@ -72,8 +72,9 @@ methods, mixed array types, and keywords fail explicitly.
 | isfinite, isnan, isinf, signbit | Bare boolean results |
 | add.reduce, add.accumulate | Preserve unit; accept axis and dtype, plus keepdims for reduce |
 
-Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and empty
-`out`. Each kernel validates its own options. `where` is a bare boolean scalar
+Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and
+single-output `out` as described below. Each kernel validates its own options.
+`where` is a bare boolean scalar
 or plain boolean ndarray; masked-out positions without an output buffer follow
 NumPy's uninitialized-result behavior. Numeric outputs must stay in the
 supported dtype domain. Product reductions, at, outer, and reduceat are
@@ -95,9 +96,55 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 
 Supply the first magnitude argument positionally; concatenate/stack take a
 sequence. Options follow each supported signature, including positional out
-checks. Writable `out` and overwrite_input=True are rejected. Unsupported
+checks. Function and reduction `out` and overwrite_input=True are rejected. Unsupported
 initial, statistical where, mean, correction, and other keywords raise TypeError.
 There is no `__setitem__`; `q += other` creates a result and rebinds q.
+
+## Ufunc output buffers
+
+Supported single-output ufunc calls accept a Quantity whose magnitude is a
+writable plain numeric ndarray. `out=target`, `out=(target,)`, and positional
+outputs return that same target. Its magnitude object, dtype, and unit stay
+fixed. Zero-dimensional, empty, and noncontiguous output arrays are supported.
+NumPy scalars and Python scalars cannot serve as output buffers.
+
+```python
+target = Quantity(np.full((2, 3), -1.0), 'cm')
+assert np.add(q, q, out=target, where=a > 0) is target
+```
+
+The operation first computes its ordinary result in temporary storage, then
+converts that result to the target unit and casts it into a staging buffer.
+The numerical kernel uses the input dtypes and any explicit `dtype`; the
+target dtype is used for the final cast. This is not a promise of NumPy's
+output-dependent kernel selection or allocation-free execution. Both the
+result and `where` mask must broadcast to the target shape. Only true mask
+positions are written; false positions retain their original target values.
+Unit conversion also skips false positions. Input/output overlap and shared
+slices are handled through temporaries; a mask sharing output storage is copied.
+
+The natural result dimension must match the target dimension. For example,
+multiplying lengths can write to an area target, but cannot write back to a
+length target. `ScaledUnit` factors participate in the conversion. Every numeric
+result, including a coherent or scaled dimensionless result, requires a Quantity
+target; writing it to a bare ndarray would discard its unit. Boolean predicates
+and comparisons instead accept only a bare boolean ndarray output.
+
+Final casting uses `casting='same_kind'` by default, or the explicitly requested
+NumPy casting policy. It does not silently enable `unsafe`; nonintegral unit
+conversion into an integer target normally fails. `same_kind` can narrow float
+precision, whereas `safe` rejects such narrowing. Dimension, broadcast, read-only,
+casting, and temporary computation/conversion failures leave the target unchanged.
+The final copy is not a general transaction against concurrent changes or
+external buffer failures. Temporaries cost memory proportional to the result
+and target; `out` provides controlled writes, not a zero-allocation guarantee.
+
+`out=None` and `out=(None,)` allocate ordinary results. Multiple-output ufuncs,
+ufunc reductions with an output, and function outputs remain unsupported.
+Output writes preserve the magnitude's type and dtype, so the covariant
+`Quantity[T]` contract remains valid; no setter or arbitrary replacement of T
+is introduced. NumPy's own stubs do not accept Quantity outputs or infer wrapped
+return types; these runtime calls may require a local type-checker suppression.
 
 ## Close comparisons and typing
 

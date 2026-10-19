@@ -59,3 +59,19 @@ def generic_contracts(q: Quantity[Magnitude], array_q: Quantity[Array]) -> None:
     assert_type(Unit('s') / array_q, Quantity[Array])
     assert_type(Quantity(2, 'm') ** np.array(2), Quantity[Array])
     assert_type(Quantity(2, 'm').isclose(Quantity(2, 'm'), rel_tol=np.array([0.0])), Array)
+
+
+def array_alias(q: Quantity[Array]) -> Quantity[Array]:
+    return q
+
+
+def output_contracts(a: npt.NDArray[np.float64]) -> None:
+    q = Quantity(a, 'm')
+    widened = array_alias(q)
+    # Covariant aliases may be output targets: only ndarray elements change,
+    # never the magnitude object or dtype described by the narrower type.
+    # NumPy's own out stubs accept ndarray only; check the protocol entry here.
+    q.__array_ufunc__(np.add, '__call__', q, q, out=(widened,))
+    assert_type(widened.value, Array)
+    assert_type(q.value, npt.NDArray[np.float64])
+    assert_type(q * Unit('s'), Quantity[npt.NDArray[np.float64]])
