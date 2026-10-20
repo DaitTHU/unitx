@@ -83,6 +83,17 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     scalar_target = Quantity(np.empty(()), 'cm')
     q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))
     q.__array_function__(np.sum, (Quantity,), (q,), {'out': scalar_target})
+    product_target = Quantity(np.empty(()), 'm2')
+    q.__array_ufunc__(
+        np.multiply, 'reduce', q, out=(product_target,), where=np.array([True, False, True])
+    )
+    q.__array_function__(
+        np.prod,
+        (Quantity,),
+        (q,),
+        {'initial': Quantity(2, 's'), 'out': Quantity(np.empty(()), 'm2 s')},
+    )
+    assert_type(product_target.value.dtype, np.dtype[np.float64])
     assert_type(scalar_target.value.dtype, np.dtype[np.float64])
     assert_type(widened.value, Array)
     assert_type(q.value, npt.NDArray[np.float64])

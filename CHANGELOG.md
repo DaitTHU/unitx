@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Support prod and multiply.reduce with exact product units, scalar initial
+  values (including Quantities), boolean input masks, and staged output writes.
+  Require equal selected counts for dimensional outputs; normalize dimensionless
+  inputs before reduction. Document empty products and accumulator dtype rules.
+
+### Improved
+
+- Keep Python-comparison-to-ufunc mapping in the optional NumPy adapter and
+  replace redundant Fractionable type guards with direct isinstance checks.
+
 ## [0.8.3] - 2026-10-20
 
 ### Added

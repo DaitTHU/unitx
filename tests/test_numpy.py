@@ -365,7 +365,7 @@ def test_empty_zero_dim_and_ufunc_methods():
     assert_quantity(np.add.accumulate(Quantity(np.array([1, 2]), 'm')), [1, 3], 'm')
     with pytest.raises(TypeError):
         np.add.at(q, 0, q)
-    for method in (np.multiply.reduce, np.multiply.accumulate, np.add.outer):
+    for method in (np.multiply.accumulate, np.add.outer):
         with pytest.raises(TypeError):
             method(q, q) if method == np.add.outer else method(q)
 
@@ -440,7 +440,7 @@ def test_unsupported_outputs_do_not_mutate():
     np.testing.assert_array_equal(result.value[[0, 2]], [0, 4])
     with pytest.raises(TypeError):
         np.add(q, q, where=Quantity(np.array([1, 0, 1]), ''))
-    for f in (np.prod, np.linalg.norm, np.sort):
+    for f in (np.linalg.norm, np.sort):
         with pytest.raises(TypeError):
             f(q)
     with pytest.raises(TypeError):
@@ -643,7 +643,7 @@ def test_ufunc_out_protocol():
 
     assert np.add(q, q, out=Foreign()) == 'foreign dispatched'
     target = Quantity(np.full(3, -123.0), 'm')
-    for operation in (np.multiply.reduce, np.multiply.accumulate, np.modf):
+    for operation in (np.multiply.accumulate, np.modf):
         with pytest.raises(TypeError):
             operation(q, out=(target, None)) if operation is np.modf else operation(q, out=target)
     np.testing.assert_array_equal(target.value, [-123] * 3)
@@ -686,7 +686,7 @@ def test_unknown_protocol_inputs_allow_other_dispatch():
     assert q + other == 'foreign dispatched'
     assert q * other == 'foreign dispatched'
     assert q.__array_function__(np.sum, (Quantity, Foreign), (q,), {}) is NotImplemented
-    assert q.__array_ufunc__(np.multiply, 'reduce', q) is NotImplemented
+    assert q.__array_ufunc__(np.multiply, 'accumulate', q) is NotImplemented
     with pytest.raises(TypeError, match='Unsupported array backend'):
         Quantity(other, 'm')
 

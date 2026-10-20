@@ -32,19 +32,6 @@ from .unitregistry import PrefixPolicy
 # array aliases were already writable through .value. No arbitrary T is stored.
 T = TypeVar('T', bound=Magnitude, covariant=True)
 
-_COMPARISON_UFUNCS: dict[Callable[[Any, Any], bool], str] = {
-    operator.eq: 'equal',
-    operator.ne: 'not_equal',
-    operator.lt: 'less',
-    operator.le: 'less_equal',
-    operator.gt: 'greater',
-    operator.ge: 'greater_equal',
-}
-
-
-def _is_fractionable(value: object) -> TypeGuard[Fractionable]:
-    return isinstance(value, Fractionable)
-
 
 def _is_quantity(value: object) -> TypeGuard[Quantity[Magnitude]]:
     return isinstance(value, Quantity)
@@ -282,7 +269,7 @@ class Quantity(Generic[T]):
 
     def _comparison_pair(self) -> tuple[Scalar, Factor]:
         value = cast(Scalar, self.value)
-        if _is_fractionable(value):
+        if isinstance(value, Fractionable):
             try:
                 # Compare stored float bits exactly, without tolerance or rounding.
                 value = Fraction(value)
@@ -308,9 +295,9 @@ class Quantity(Generic[T]):
 
     def _equal(self, other: object, op: Callable[[Any, Any], bool]) -> bool:
         if self._has_numpy_operand(other):
-            from ._numpy import apply_ufunc
+            from ._numpy import compare
 
-            return apply_ufunc(_COMPARISON_UFUNCS[op], self, other)
+            return compare(self, other, op)
         if not _is_quantity(other):
             if not self.is_dimensionless():
                 return NotImplemented
@@ -390,9 +377,9 @@ class Quantity(Generic[T]):
 
     def _compare(self, other: object, op: Callable[[Any, Any], bool]) -> bool:
         if self._has_numpy_operand(other):
-            from ._numpy import apply_ufunc
+            from ._numpy import compare
 
-            return apply_ufunc(_COMPARISON_UFUNCS[op], self, other)
+            return compare(self, other, op)
         if not _is_quantity(other):
             if not self.is_dimensionless():
                 return NotImplemented
@@ -576,7 +563,7 @@ class Quantity(Generic[T]):
             from ._numpy import isclose
 
             return isclose(self, other, rel_tol, abs_tol, symmetric=True)
-        if not _is_fractionable(rel_tol):
+        if not isinstance(rel_tol, Fractionable):
             raise TypeError('rel_tol must be a real scalar.')
         try:
             relative = Fraction(rel_tol)
@@ -586,14 +573,14 @@ class Quantity(Generic[T]):
             raise ValueError('rel_tol must be finite and nonnegative.')
 
         if not _is_quantity(other):
-            if not _is_fractionable(other):
+            if not isinstance(other, Fractionable):
                 raise TypeError('other must be a Quantity or real scalar.')
             other = Quantity(other, '')
         if self.dimension != other.dimension:
             raise DimensionError('Cannot compare quantities with different dimensions.')
 
         if not isinstance(abs_tol, Quantity):
-            if not _is_fractionable(abs_tol):
+            if not isinstance(abs_tol, Fractionable):
                 raise TypeError('abs_tol must be a Quantity or real scalar.')
             abs_tol = Quantity(abs_tol, self.unit if abs_tol == 0 else Unit())
         if self.dimension != abs_tol.dimension:
@@ -604,7 +591,7 @@ class Quantity(Generic[T]):
         if (isinstance(absolute, float) and not math.isfinite(absolute)) or absolute < 0:
             raise ValueError('abs_tol must be finite and nonnegative.')
 
-        if not _is_fractionable(self.value) or not _is_fractionable(other.value):
+        if not isinstance(self.value, Fractionable) or not isinstance(other.value, Fractionable):
             raise TypeError('isclose() requires real scalar magnitudes.')
         if self == other:
             return True

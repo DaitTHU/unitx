@@ -7,6 +7,8 @@ No Fraction/Decimal object arrays are produced. Explicit outputs write
 only after computing, converting, and casting a temporary result.
 """
 
+import math
+import operator
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any, Literal
@@ -18,6 +20,15 @@ from .exceptions import DimensionError
 from .factor import ONE, Factor
 from .quantity import Quantity
 from .unit import Unit
+
+_COMPARISON_UFUNCS = {
+    operator.eq: np.equal,
+    operator.ne: np.not_equal,
+    operator.lt: np.less,
+    operator.le: np.less_equal,
+    operator.gt: np.greater,
+    operator.ge: np.greater_equal,
+}
 
 
 def _is_numpy_magnitude(value: Any) -> bool:
@@ -103,19 +114,12 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         ):
             return NotImplemented
         target = outputs[0]
-        predicates = (
-            np.equal,
-            np.not_equal,
-            np.less,
-            np.less_equal,
-            np.greater,
-            np.greater_equal,
+        if ufunc in _COMPARISON_UFUNCS.values() or ufunc in (
             np.isfinite,
             np.isnan,
             np.isinf,
             np.signbit,
-        )
-        if ufunc in predicates:
+        ):
             if type(target) is not np.ndarray or target.dtype.kind != 'b':
                 return NotImplemented
         elif not isinstance(target, Quantity):
@@ -127,7 +131,7 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         return _write_output(
             result,
             target,
-            where=options.get('where', True),
+            where=options.get('where', True) if method == '__call__' else True,
             casting=options.get('casting', 'same_kind'),
             broadcast=method == '__call__',
         )
@@ -186,6 +190,16 @@ def _dispatch_ufunc(
     if any(x is not None for x in kwargs.get('out', ())):
         return NotImplemented
     kwargs = {k: v for k, v in kwargs.items() if k != 'out'}
+    if method == 'reduce' and ufunc is np.multiply:
+        if not isinstance(inputs[0], Quantity) or kwargs.keys() - {
+            'axis',
+            'dtype',
+            'keepdims',
+            'initial',
+            'where',
+        }:
+            return NotImplemented
+        return _prod(inputs[0], **{'axis': 0, **kwargs})
     if method in ('reduce', 'accumulate') and ufunc is np.add:
         allowed = {'axis', 'dtype', 'keepdims'} if method == 'reduce' else {'axis', 'dtype'}
         if kwargs.keys() - allowed:
@@ -210,7 +224,7 @@ def _dispatch_ufunc(
             return NotImplemented
         a, b, unit = _align_operands(*inputs)
         return Quantity(ufunc(a, b, **kwargs), unit)
-    if ufunc in (np.equal, np.not_equal, np.less, np.less_equal, np.greater, np.greater_equal):
+    if ufunc in _COMPARISON_UFUNCS.values():
         a, u = _operand_parts(inputs[0])
         b, v = _operand_parts(inputs[1])
         if u.dimension != v.dimension:
@@ -277,6 +291,11 @@ def _dispatch_ufunc(
 def apply_ufunc(name: str, *inputs: Any) -> Any:
     """Enter NumPy dispatch, including other operands' protocol overrides."""
     return getattr(np, name)(*inputs)
+
+
+def compare(left: Any, right: Any, op: Any) -> Any:
+    """Map Python comparisons at the optional NumPy boundary."""
+    return _COMPARISON_UFUNCS[op](left, right)
 
 
 def _convert_tolerance(value: Any, unit: Unit, name: str) -> Any:
@@ -370,6 +389,8 @@ def dispatch_function(
         return _median(*args, **kwargs)
     if func is np.cumsum:
         return _cumsum(*args, **kwargs)
+    if func is np.prod:
+        return _prod(*args, **kwargs)
     if func in (np.std, np.var):
         return _std_var(func, *args, **kwargs)
     if func in (np.sum, np.mean):
@@ -406,7 +427,9 @@ def _join_arrays(
     return _write_output(result, out, casting=casting)
 
 
-def _reshape(q: Any, shape: Any, order: Literal['C', 'F', 'A'] = 'C', *, copy: Any = None) -> Any:
+def _reshape(
+    q: Any, shape: Any, order: Literal['C', 'F', 'A'] = 'C', *, copy: bool | None = None
+) -> Any:
     return Quantity(np.reshape(q.value, shape, order=order, copy=copy), q.unit)
 
 
@@ -439,6 +462,55 @@ def _sum_mean(
     _validate_dtype(dtype)
     result = Quantity(func(q.value, axis=axis, dtype=dtype, keepdims=keepdims), q.unit)
     return _write_output(result, out)
+
+
+def _prod(
+    q: Any,
+    axis: Any = None,
+    dtype: Any = None,
+    out: Any = None,
+    keepdims: bool = False,
+    *,
+    initial: Any = 1,
+    where: Any = True,
+) -> Any:
+    _validate_dtype(dtype)
+    _validate_where({'where': where})
+    initial_value, initial_unit = None, Unit()
+    if initial is not None:
+        if not _is_supported_operand(initial):
+            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+        initial_value, initial_unit = _operand_parts(initial)
+        if np.ndim(initial_value) != 0:
+            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+
+    value, unit = _operand_parts(q)
+    mask = np.broadcast_to(where, np.shape(value))
+    # Different counts still have one coherent unit for dimensionless inputs.
+    if unit.is_dimensionless():
+        value = scale_magnitude(value, unit.factor, where=mask)
+        unit = Unit()
+    result = np.multiply.reduce(
+        value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where
+    )
+    if not unit.is_dimensionless():
+        shape = np.shape(value)
+        axes = range(len(shape)) if axis is None else axis if isinstance(axis, tuple) else (axis,)
+        # NumPy has already validated axes, including its scalar 0/-1 special case.
+        count = math.prod(shape[i] for i in axes) if shape else 1
+        if np.ndim(where) == 0:
+            count = count if bool(where) else 0
+        else:
+            counts = np.sum(mask, axis=axis)
+            if np.size(counts):
+                count = int(np.asarray(counts).flat[0])
+                if np.any(counts != count):
+                    raise DimensionError(
+                        'Product reductions require equal element counts per result.'
+                    )
+            # With no output elements, retain the nominal reduction extent.
+        unit = unit**count
+    return _write_output(Quantity(result, unit * initial_unit), out)
 
 
 def _std_var(
