@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.2] - 2026-10-20
+
+### Fixed
+
+- Support Decimal and Fraction scalar operands in NumPy calculations, including
+  SI constants such as h and kB. Convert them to Python floats at the NumPy
+  boundary without changing stored constants or Python scalar arithmetic.
+  Keep exact Fraction/Decimal unit exponents in dimensional NumPy powers.
+- Remove recursive arithmetic return constraints from the Scalar protocol to
+  avoid excessive type-checker work against NumPy overloads. Preserve scalar
+  boolean equality and public Quantity result overloads.
+
+### Improved
+
+- Describe array arithmetic, conversion, indexing, and iteration with concrete
+  ndarray/NumPy-numeric-scalar result unions. Preserve the magnitude type and
+  dtype for transpose, expose NumPy dtype metadata, and type flatten as ndarray.
+- Add strict NumPy method-completion and no-NumPy scalar-consumer checks,
+  installed-wheel validation, and a runnable blackbody example using asarray.
+- Rewrite the README as a concise user guide, retaining detailed unit, scalar,
+  and migration documentation under docs/. Document NumPy stub limitations and
+  validate the example's supported type-inference path without an explicit dtype.
+
 ## [0.8.1] - 2026-10-19
 
 ### Added
