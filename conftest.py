@@ -6,7 +6,10 @@ from unitx._numerics import as_fraction
 from unitx.exceptions import InexactFloatWarning
 from unitx.factor import Factor
 
-collect_ignore = ['src/unitx/_numpy.py'] if find_spec('numpy') is None else []
+# Static-only fixtures run through Pyright in tests/test_typing.py.
+collect_ignore = ['tests/example_typing']
+if find_spec('numpy') is None:
+    collect_ignore.append('src/unitx/_numpy.py')
 
 _DOCTEST_FILTER: dict[str, tuple[pytest.MarkDecorator, ...]] = {
     f'{obj.__module__}.{obj.__qualname__}': tuple(
