@@ -646,9 +646,8 @@ def test_ufunc_out_protocol():
 
     assert np.add(q, q, out=Foreign()) == 'foreign dispatched'
     target = Quantity(np.full(3, -123.0), 'm')
-    for operation in (np.multiply.accumulate, np.modf):
-        with pytest.raises(TypeError):
-            operation(q, out=(target, None)) if operation is np.modf else operation(q, out=target)
+    with pytest.raises(TypeError):
+        np.multiply.accumulate(q, out=target)
     np.testing.assert_array_equal(target.value, [-123] * 3)
 
 

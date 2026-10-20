@@ -106,6 +106,8 @@ def _validate_where(kwargs: dict[str, Any]) -> None:
 
 
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    if ufunc in (np.modf, np.frexp) and method == '__call__':
+        return _dispatch_multi_output(ufunc, inputs, kwargs)
     outputs = kwargs.get('out', ())
     if any(x is not None for x in outputs):
         if (
@@ -139,6 +141,56 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
     return _dispatch_ufunc(ufunc, method, inputs, kwargs)
 
 
+def _dispatch_multi_output(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    outputs = kwargs.get('out', (None, None))
+    if len(outputs) != 2:
+        return NotImplemented
+    for index, target in enumerate(outputs):
+        if target is None:
+            continue
+        if ufunc is np.frexp and index == 1:
+            if type(target) is not np.ndarray or target.dtype.kind not in 'iu':
+                return NotImplemented
+        elif not isinstance(target, Quantity):
+            return NotImplemented
+    options = {k: v for k, v in kwargs.items() if k != 'out'}
+    result = _dispatch_ufunc(ufunc, '__call__', inputs, options)
+    if result is NotImplemented:
+        return NotImplemented
+    buffers = [x.value if isinstance(x, Quantity) else x for x in outputs if x is not None]
+    if any(type(buffer) is not np.ndarray for buffer in buffers):
+        raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
+    if len(buffers) == 2 and np.shares_memory(*buffers):
+        raise ValueError('Multiple output buffers must not overlap.')
+    # All outputs share the ufunc broadcast shape, including newly allocated
+    # outputs. Do not broadcast one provided output into another's larger shape.
+    shape = np.broadcast_shapes(np.shape(result[0].value), *(x.shape for x in buffers))
+    if any(buffer.shape != shape for buffer in buffers):
+        raise ValueError('All output buffers must have the ufunc broadcast shape.')
+    where = options.get('where', True)
+    if type(where) is np.ndarray:
+        # A mask can alias either output; retain it across both final writes.
+        where = where.copy()
+    returned = []
+    staged = []
+    for value, target in zip(result, outputs):
+        raw = value.value if isinstance(value, Quantity) else value
+        if np.shape(raw) != shape:
+            raw = np.broadcast_to(raw, shape).copy()
+            value = Quantity(raw, value.unit) if isinstance(value, Quantity) else raw
+        if target is not None:
+            staged.append(
+                _stage_output(
+                    value, target, where=where, casting=options.get('casting', 'same_kind')
+                )
+            )
+        returned.append(value if target is None else target)
+    # No caller storage changes until every output has converted and cast.
+    for buffer, temporary, mask in staged:
+        np.copyto(buffer, temporary, where=mask, casting='no')
+    return tuple(returned)
+
+
 def _write_output(
     result: Any,
     target: Any,
@@ -150,6 +202,21 @@ def _write_output(
     """Stage a single output without replacing its magnitude, dtype, or unit."""
     if target is None:
         return result
+    buffer, staged, mask = _stage_output(
+        result, target, where=where, casting=casting, broadcast=broadcast
+    )
+    np.copyto(buffer, staged, where=mask, casting='no')
+    return target
+
+
+def _stage_output(
+    result: Any,
+    target: Any,
+    *,
+    where: Any = True,
+    casting: Any = 'same_kind',
+    broadcast: bool = False,
+) -> tuple[Any, Any, Any]:
     if isinstance(result, Quantity):
         if not isinstance(target, Quantity) or type(target.value) is not np.ndarray:
             raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
@@ -179,8 +246,7 @@ def _write_output(
         mask = mask.copy()
     staged = np.empty(buffer.shape, dtype=buffer.dtype)
     np.copyto(staged, value, where=mask, casting=casting)
-    np.copyto(buffer, staged, where=mask, casting='no')
-    return target
+    return buffer, staged, mask
 
 
 def _dispatch_ufunc(
@@ -219,7 +285,7 @@ def _dispatch_ufunc(
         return NotImplemented
     if 'where' in kwargs:
         # A masked temporary intentionally has unspecified unused elements.
-        kwargs['out'] = None
+        kwargs['out'] = (None,) * ufunc.nout
     if ufunc in (np.add, np.subtract):
         if any(isinstance(x, Unit) for x in inputs):
             return NotImplemented
@@ -254,6 +320,11 @@ def _dispatch_ufunc(
         unit = u / v if ufunc in (np.divide, np.true_divide) else u * v
         return Quantity(ufunc(a, b, **kwargs), unit)
     a, unit = _operand_parts(inputs[0])
+    if ufunc in (np.modf, np.frexp):
+        first, second = ufunc(a, **kwargs)
+        # Decompose the stored coordinates. Both modf parts, and the frexp
+        # mantissa, carry the input unit; the binary exponent is a bare integer.
+        return Quantity(first, unit), Quantity(second, unit) if ufunc is np.modf else second
     if ufunc in (np.positive, np.negative, np.absolute, np.fabs, np.conjugate):
         return Quantity(ufunc(a, **kwargs), unit)
     if ufunc in (np.isfinite, np.isnan, np.isinf, np.signbit):

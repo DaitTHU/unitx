@@ -79,11 +79,13 @@ methods, mixed array types, and keywords fail explicitly.
 | power, float_power / `**` | Dimensional bases require a finite real scalar exponent; dimensionless bases/exponents normalize their scales |
 | sin, cos, tan, exp, expm1, log, log2, log10, log1p | Require coherent dimensionless values; return dimensionless Quantity |
 | isfinite, isnan, isinf, signbit | Bare boolean results |
+| modf | Fractional and integral parts in the input unit |
+| frexp | Mantissa in the input unit; bare integer binary exponent |
 | add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims for reduce |
 | multiply.reduce | Product unit rules below; accepts axis, dtype, keepdims, initial, where, out |
 
 Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and
-single-output `out` as described below. Each kernel validates its own options.
+`out` as described below (two outputs for modf/frexp). Each kernel validates its own options.
 `where` is a bare boolean scalar
 or plain boolean ndarray; masked-out positions without an output buffer follow
 NumPy's uninitialized-result behavior. Numeric outputs must stay in the
@@ -234,12 +236,58 @@ indices = np.empty(3, dtype=np.intp)
 assert np.argmax(q, axis=0, out=indices) is indices
 ```
 
-`out=None` and ufunc `out=(None,)` allocate ordinary results.
-Multiple-output ufuncs and product accumulations remain unsupported.
+`out=None` and ufunc `out=(None,)` allocate ordinary single-output results.
+The supported multiple-output calls are described below; other multiple-output
+ufuncs and product accumulations remain unsupported.
 Output writes preserve the magnitude's type and dtype, so the covariant
 `Quantity[T]` contract remains valid; no setter or arbitrary replacement of T
 is introduced. NumPy's own stubs do not accept Quantity outputs or infer wrapped
 return types; these runtime calls may require a local type-checker suppression.
+
+## Multiple-output decompositions
+
+`np.modf(q)` returns `(fractional, integral)`, both Quantities with q's unit.
+`np.frexp(q)` returns `(mantissa, exponent)`, with q's unit on the mantissa and
+a bare integer ndarray or NumPy scalar for the binary exponent. These functions
+decompose **stored coordinates**, including for ScaledUnit and scaled
+dimensionless inputs: convert q to the desired unit before decomposing it.
+Changing the input unit can change both numerical outputs. There is no implicit
+conversion to coherent dimensionless values. Thus `fractional + integral`
+reconstructs q. For frexp, reconstruct with
+`Quantity(np.ldexp(mantissa.value, exponent), mantissa.unit)`; separately
+computing `np.exp2(exponent)` can overflow for large finite inputs. Dtype,
+signed-zero, NaN/Inf, and real-input restrictions follow
+[NumPy modf](https://numpy.org/doc/stable/reference/generated/numpy.modf.html) and
+[frexp](https://numpy.org/doc/stable/reference/generated/numpy.frexp.html).
+Only their ordinary `__call__` operation is supported.
+
+Both accept `out=(first, second)` or positional output arguments. Each `None`
+allocates that output; `(None, None)` allocates both. Every unit-bearing output
+requires a Quantity with a writable plain numeric ndarray; frexp's exponent
+requires a bare integer ndarray. The existing conversion, casting, and `where`
+rules apply independently to each output. Supplied buffers must all have the
+common broadcast shape of the inputs, mask, and outputs. An allocated output
+also has that shape. False mask positions retain supplied values; without a
+buffer those positions are unspecified.
+
+```python
+parts = Quantity(np.array([1.25, -2.5]), 'm')
+fractional = Quantity(np.empty(2), 'cm')
+integral = Quantity(np.empty(2), 'm')
+f, i = np.modf(parts, out=(fractional, integral))
+assert f is fractional and i is integral
+np.testing.assert_array_equal(f.value, [25, -50])
+np.testing.assert_array_equal(i.value, [1, -2])
+```
+
+All supplied outputs are converted and staged before any is written. A shape,
+unit, casting, read-only, computation, or conversion failure leaves **all**
+targets unchanged. Input/output overlap and masks sharing output storage are
+supported. The two output buffers may share storage only when their elements
+do not overlap; overlapping outputs raise ValueError before writing. This
+avoids one result overwriting another. Final writes have the same concurrent
+mutation and external-buffer limitations as single outputs, and require
+temporary storage. The covariance and NumPy-stub limitations above still apply.
 
 ## Close comparisons and typing
 
