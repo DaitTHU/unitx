@@ -22,10 +22,9 @@ python -m pip install -e '.[numpy]' matplotlib jupyterlab
 jupyter lab examples/
 ```
 
-Open a notebook and run all cells from the beginning. The optical and wave-packet
-examples use product reductions and integration in the current checkout;
-published unitx 0.8.3 does not include those extensions. The examples do not
-download datasets or write files. Keep physical quantities in calculations;
+Open a notebook and run all cells from the beginning. These notebooks require
+unitx 0.8.4 or newer for product reductions and unit-aware integration.
+The examples do not download datasets or write files. Keep physical quantities in calculations;
 plot their `.value` and derive labels from their `.unit`. Convert only to choose
 a useful display scale or to align units at a numerical boundary. Quantiles use
 an explicit numerical boundary and reattach the input unit, without naming a
