@@ -5,6 +5,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Self, cast, overload
 
 from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_object
+from ._numpy_typing import NumpyValue
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import ONE, Factor, SymbolicConstant
 from .monomial import Monomial
@@ -165,7 +166,7 @@ class Unit:
         return Unit._from_monomial(self._monomial * other._monomial)
 
     @overload
-    def __truediv__(self, other: Array) -> Quantity[Array]: ...
+    def __truediv__(self, other: Array) -> Quantity[NumpyValue]: ...
 
     @overload
     def __truediv__(self, other: int | Fraction | Decimal) -> Quantity[Fraction]: ...
@@ -425,7 +426,7 @@ class ScaledUnit(Unit):
         return ScaledUnit._from_monomial(self._monomial * other._monomial, scale)
 
     @overload
-    def __truediv__(self, other: Array) -> Quantity[Array]: ...
+    def __truediv__(self, other: Array) -> Quantity[NumpyValue]: ...
 
     @overload
     def __truediv__(self, other: int | Fraction | Decimal) -> Quantity[Fraction]: ...

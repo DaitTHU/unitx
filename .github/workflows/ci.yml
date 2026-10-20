@@ -66,7 +66,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package and dependencies
-        run: python -m pip install -e '.[test,numpy]'
+        run: python -m pip install -e '.[test,numpy]' 'matplotlib>=3.9'
       - name: Select minimum NumPy
         if: matrix.numpy != 'latest'
         run: python -m pip install 'numpy==${{ matrix.numpy }}'

@@ -46,6 +46,15 @@ allocates and never writes to the input. Integer overflow, multiplier
 conversion errors, and float overflow/underflow remain possible, including for
 extended precision inputs. Conversion never creates Fraction/Decimal arrays.
 
+Python Decimal and Fraction scalar operands (including Quantity magnitudes
+such as `SI.h` and `SI.kB`) enter NumPy computations as Python floats. NumPy
+then controls promotion, so a float32 array need not become float64. This
+conversion rounds, may overflow or underflow, and does not preserve extended
+precision from a Decimal/Fraction scalar. Constants and scalar-only arithmetic
+retain their original types and Decimal context rules. Object arrays remain
+unsupported. Formal unit powers retain exact Fraction/Decimal exponents even
+though the numerical kernel uses floating exponents.
+
 Comparisons broadcast and return bare boolean results. Equal unit factors
 compare native values; otherwise both operands convert to coherent SI values.
 Different dimensions yield False equality / True inequality masks; ordering
@@ -159,21 +168,57 @@ tolerance is dimensionless, so dimensional `np.isclose` calls need a Quantity
 atol or zero. Matching infinities are close; NaNs require equal_nan=True.
 The NumPy path enters at least float64 before subtraction, preserving
 longdouble when present; large integers may lose precision. Mixed NumPy
-operations require supported arrays/scalars or Python int/float/complex.
+operations accept supported arrays/scalars or Python int/float/complex,
+Decimal, and Fraction scalars under the conversion rule above.
 
 ```python
 np.isclose(q, Quantity(a * 100, 'cm'), atol=Quantity(1e-8, 'm'))
 q.isclose(Quantity(a * 100, 'cm'), abs_tol=Quantity(1e-8, 'm'))
 ```
 
-`_numerics.py` defines `Scalar`, `Array`, and `Magnitude = Scalar | Array`
-without importing NumPy. Array is a typing protocol, not a guarantee of other
-backend support. Construction and unit-only operators preserve Quantity[T];
-numerical array results conservatively use Array. NumPy's left-operand and
-function stubs cannot generally infer wrapped unitx results; use
-Quantity(array, unit) or unit * array for precise construction types. Arbitrary
-shape/dtype inference is not promised. NumPy-free scalar consumers retain
-working type hints.
+`_numerics.py` defines `Scalar`, `Array`, and `Magnitude = Array | Scalar`
+without importing NumPy. Array is an input capability protocol, not a guarantee
+of other backend support. Construction and unit-only operators preserve
+Quantity[T], as does `.T`. Numerical array operations, conversions, indexing,
+and iteration return `Quantity[NDArray[Any] | numpy.number[Any]]`; `.flatten()`
+returns `Quantity[NDArray[Any]]`. `.value` therefore exposes native NumPy
+methods such as reshape, astype, and sum. `.dtype` exposes a NumPy dtype.
+Changed dtypes are not falsely annotated as the original dtype, and possible
+zero-dimensional-array to NumPy-scalar results remain in the result union.
+Boolean comparisons and isclose retain the NumPy-independent Array protocol.
+
+`Scalar` is nonrecursive: its arithmetic methods return object at the protocol
+boundary, while equality still returns bool. Concrete scalar and array result
+types are described by Quantity's public overloads. Custom scalar magnitudes
+must still return valid scalar results. This avoids recursively comparing
+NumPy's many arithmetic overloads against Scalar's own return protocol.
+
+`_numpy_typing.py` imports concrete NumPy types only for static analysis; core
+runtime imports still do not load NumPy. Strict scalar-consumer checks also
+run with NumPy absent. Checking the full library's optional NumPy annotations
+requires NumPy; `pyrightconfig.scalar.json` checks scalar consumers without it.
+
+NumPy's left-operand and function stubs do not generally describe every
+unit-aware dispatch. With NumPy 2.5 stubs and Pyright 1.1.414, the documented
+`np.asarray([3000, 4000, 5000]) * si.K` expression retains a Quantity type
+without an explicit dtype. This path has strict regression coverage. NumPy
+2.1 and 2.4 stubs can still infer Any here; runtime support remains NumPy >= 2.1.
+`np.array([...]) * unit` can also become Any because its unknown-dtype array
+matches NumPy's object-array multiplication fallback. `unit * array` or
+`Quantity(array, unit)` provide alternatives across the supported versions.
+Arbitrary shape/dtype inference is not promised, including the dtype NumPy
+infers for unannotated input lists.
+
+A direct `np.expm1(q)` works at runtime but NumPy's stubs may infer Any or ndarray
+rather than Quantity for that intermediate result. The full example's final
+Quantity types are checked independently; this does not imply that NumPy's
+ufunc stubs preserve the wrapper at every intermediate call. For an explicit
+numerical boundary, use `np.expm1(np.asarray(q.value_in(si.one)))` after
+checking dimensions and normalizing the scale.
+
+Use `.value` or `.value_in(unit)` at Matplotlib plotting boundaries too.
+`.to()` returns a new Quantity; write `q = q.to(unit)` to retain the conversion.
+It has no `inplace` option. NumPy-free scalar consumers retain working type hints.
 
 References: [NumPy dispatch](https://numpy.org/doc/stable/reference/arrays.classes.html),
 [promotion](https://numpy.org/doc/stable/reference/arrays.promotion.html),

@@ -7,6 +7,7 @@ No Fraction/Decimal object arrays are produced. Explicit ufunc outputs write
 only after computing, converting, and casting a temporary result.
 """
 
+from decimal import Decimal
 from fractions import Fraction
 from typing import Any, Literal
 
@@ -35,12 +36,19 @@ def validate_magnitude(value: Any) -> None:
 def _is_supported_operand(value: Any) -> bool:
     if isinstance(value, Quantity):
         value = value.value
-    return type(value) in (int, float, complex) or _is_numpy_magnitude(value)
+    return type(value) in (int, float, complex, Decimal, Fraction) or _is_numpy_magnitude(value)
+
+
+def _numeric_value(value: Any) -> Any:
+    # NumPy has no native Decimal/Fraction dtype. Enter its floating domain at
+    # this boundary, leaving scalar Quantity arithmetic and constants intact.
+    return float(value) if isinstance(value, (Decimal, Fraction)) else value
 
 
 def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
     if not _is_supported_operand(value):
-        raise TypeError('NumPy operations require numeric arrays or int/float/complex scalars.')
+        raise TypeError('NumPy operations require numeric arrays or supported numeric scalars.')
+    value = _numeric_value(value)
     if factor == ONE:
         return value
     rational, irrational = factor.decompose()
@@ -55,10 +63,10 @@ def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
 
 def _operand_parts(value: Any) -> tuple[Any, Unit]:
     if isinstance(value, Quantity):
-        return value.value, value.unit
+        return _numeric_value(value.value), value.unit
     if isinstance(value, Unit):
         return 1, value
-    return value, Unit()
+    return _numeric_value(value), Unit()
 
 
 def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
@@ -225,7 +233,12 @@ def _dispatch_ufunc(
         if np.ndim(exponent) != 0:
             raise TypeError('Dimensional powers require one scalar exponent.')
         scalar = exponent.item() if isinstance(exponent, (np.ndarray, np.generic)) else exponent
-        power = as_exponent(scalar) if type(scalar) in (int, float) else Fraction(str(scalar))
+        raw_exponent = inputs[1].value if isinstance(inputs[1], Quantity) else inputs[1]
+        rational, irrational = exponent_unit.factor.decompose()
+        if isinstance(raw_exponent, (Fraction, Decimal)) and irrational == ONE:
+            power = Fraction(raw_exponent) * rational
+        else:
+            power = as_exponent(scalar) if type(scalar) in (int, float) else Fraction(str(scalar))
         return Quantity(ufunc(a, exponent, **kwargs), unit**power)
     if ufunc in (np.sin, np.cos, np.tan, np.exp, np.expm1, np.log, np.log2, np.log10, np.log1p):
         if not unit.is_dimensionless():
@@ -428,8 +441,6 @@ def _validate_dtype(dtype: Any) -> None:
 
 
 def power(q: Any, exponent: Any) -> Any:
-    from decimal import Decimal
-
     if isinstance(exponent, (Fraction, Decimal)):
         exact = as_exponent(exponent)
         unit = Unit() if q.is_dimensionless() else q.unit**exact

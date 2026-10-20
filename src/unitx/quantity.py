@@ -19,6 +19,7 @@ from ._numerics import (
     as_int_if_integral,
     is_numpy_object,
 )
+from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue
 from ._unicode import DOT
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
@@ -73,7 +74,7 @@ def _scale_value(value: Magnitude, factor: Factor) -> Magnitude:
             scaled *= Fraction(Decimal(str(irrational.value)))
         # Round the final value once, avoiding intermediate Decimal range loss.
         return Decimal(scaled.numerator) / Decimal(scaled.denominator)
-    return value * cast(Scalar, factor.value)
+    return cast(Scalar, value * cast(Scalar, factor.value))
 
 
 class Quantity(Generic[T]):
@@ -185,7 +186,7 @@ class Quantity(Generic[T]):
         return bool(self.value)
 
     @overload
-    def value_in(self: Quantity[Array], unit: str | Unit, /) -> Array: ...
+    def value_in(self: Quantity[Array], unit: str | Unit, /) -> NumpyValue: ...
 
     @overload
     def value_in(self: Quantity[Decimal], unit: str | Unit, /) -> Decimal: ...
@@ -229,7 +230,7 @@ class Quantity(Generic[T]):
         return _scale_value(self.value, conversion_factor)
 
     @overload
-    def to(self: Quantity[Array], unit: str | Unit, /) -> Quantity[Array]: ...
+    def to(self: Quantity[Array], unit: str | Unit, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def to(self: Quantity[Decimal], unit: str | Unit, /) -> Quantity[Decimal]: ...
@@ -293,7 +294,7 @@ class Quantity(Generic[T]):
             value = value * cast(Scalar, as_int_if_integral(rational))
         if irrational != ONE and value == 0:
             irrational = ONE
-        return value, irrational
+        return cast(Scalar, value), irrational
 
     def _equality_parts(self) -> tuple[Scalar, Scalar, Factor]:
         if isinstance(self.value, complex):
@@ -617,7 +618,7 @@ class Quantity(Generic[T]):
         )
 
     @overload
-    def __pos__(self: Quantity[Array], /) -> Quantity[Array]: ...
+    def __pos__(self: Quantity[Array], /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __pos__[N: (int, float, Fraction, Decimal, complex)](
@@ -635,10 +636,10 @@ class Quantity(Generic[T]):
             from ._numpy import apply_ufunc
 
             return apply_ufunc('positive', self)
-        return Quantity(+cast(Scalar, self.value), self.unit)
+        return Quantity(cast(Scalar, +cast(Scalar, self.value)), self.unit)
 
     @overload
-    def __neg__(self: Quantity[Array], /) -> Quantity[Array]: ...
+    def __neg__(self: Quantity[Array], /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __neg__[N: (int, float, Fraction, Decimal, complex)](
@@ -656,12 +657,12 @@ class Quantity(Generic[T]):
             from ._numpy import apply_ufunc
 
             return apply_ufunc('negative', self)
-        return Quantity(-cast(Scalar, self.value), self.unit)
+        return Quantity(cast(Scalar, -cast(Scalar, self.value)), self.unit)
 
     def _add_sub(
         self,
         other: object,
-        op: Callable[[Scalar, Scalar], Scalar],
+        op: Callable[[Scalar, Scalar], object],
         *,
         reverse: bool = False,
     ) -> Quantity[Scalar]:
@@ -685,15 +686,15 @@ class Quantity(Generic[T]):
         other_value = cast(Scalar, _scale_value(other_value, conversion_factor))
         value = cast(Scalar, self.value)
         left, right = (other_value, value) if reverse else (value, other_value)
-        return Quantity(op(left, right), self.unit)
+        return Quantity(cast(Scalar, op(left, right)), self.unit)
 
     @overload
     def __add__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __add__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __add__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __add__(
@@ -730,10 +731,10 @@ class Quantity(Generic[T]):
     @overload
     def __radd__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __radd__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __radd__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __radd__(self: Quantity[Decimal], other: Decimal | int, /) -> Quantity[Decimal]: ...
@@ -762,10 +763,10 @@ class Quantity(Generic[T]):
     @overload
     def __sub__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __sub__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __sub__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __sub__(
@@ -802,10 +803,10 @@ class Quantity(Generic[T]):
     @overload
     def __rsub__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __rsub__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __rsub__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __rsub__(self: Quantity[Decimal], other: Decimal | int, /) -> Quantity[Decimal]: ...
@@ -837,10 +838,10 @@ class Quantity(Generic[T]):
     @overload
     def __mul__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __mul__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __mul__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __mul__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[int]: ...
@@ -877,11 +878,12 @@ class Quantity(Generic[T]):
             return apply_ufunc('multiply', self, other)
         if _is_quantity(other):
             return Quantity(
-                cast(Scalar, self.value) * cast(Scalar, other.value), self.unit * other.unit
+                cast(Scalar, cast(Scalar, self.value) * cast(Scalar, other.value)),
+                self.unit * other.unit,
             )
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, self.unit * other)
-        return Quantity(cast(Scalar, self.value) * cast(Scalar, other), self.unit)
+        return Quantity(cast(Scalar, cast(Scalar, self.value) * cast(Scalar, other)), self.unit)
 
     @overload
     def __rmul__(self, other: Unit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
@@ -889,10 +891,10 @@ class Quantity(Generic[T]):
     @overload
     def __rmul__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __rmul__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __rmul__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __rmul__(self: Quantity[int], other: int, /) -> Quantity[int]: ...
@@ -921,7 +923,7 @@ class Quantity(Generic[T]):
             return apply_ufunc('multiply', other, self)
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, other * self.unit)
-        return Quantity(cast(Scalar, other) * cast(Scalar, self.value), self.unit)
+        return Quantity(cast(Scalar, cast(Scalar, other) * cast(Scalar, self.value)), self.unit)
 
     @overload
     def __truediv__(self, other: Unit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
@@ -929,10 +931,10 @@ class Quantity(Generic[T]):
     @overload
     def __truediv__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __truediv__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __truediv__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __truediv__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[float]: ...
@@ -969,21 +971,22 @@ class Quantity(Generic[T]):
             return apply_ufunc('true_divide', self, other)
         if _is_quantity(other):
             return Quantity(
-                cast(Scalar, self.value) / cast(Scalar, other.value), self.unit / other.unit
+                cast(Scalar, cast(Scalar, self.value) / cast(Scalar, other.value)),
+                self.unit / other.unit,
             )
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, self.unit / other)
-        return Quantity(cast(Scalar, self.value) / cast(Scalar, other), self.unit)
+        return Quantity(cast(Scalar, cast(Scalar, self.value) / cast(Scalar, other)), self.unit)
 
     @overload
     def __rtruediv__(
         self: Quantity[Array],
         other: Unit | Factor | SymbolicConstant | Quantity[Magnitude] | Magnitude,
         /,
-    ) -> Quantity[Array]: ...
+    ) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __rtruediv__(self, other: Quantity[Array] | Array, /) -> Quantity[Array]: ...
+    def __rtruediv__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __rtruediv__(
@@ -1021,14 +1024,14 @@ class Quantity(Generic[T]):
 
             return apply_ufunc('true_divide', other, self)
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
-            return Quantity(1 / cast(Scalar, self.value), other / self.unit)
-        return Quantity(cast(Scalar, other) / cast(Scalar, self.value), self.unit**-1)
+            return Quantity(cast(Scalar, 1 / cast(Scalar, self.value)), other / self.unit)
+        return Quantity(cast(Scalar, cast(Scalar, other) / cast(Scalar, self.value)), self.unit**-1)
 
     @overload
-    def __pow__(self: Quantity[Array], exponent: object, /) -> Quantity[Array]: ...
+    def __pow__(self: Quantity[Array], exponent: object, /) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __pow__(self, exponent: Array | Quantity[Array], /) -> Quantity[Array]: ...
+    def __pow__(self, exponent: Array | Quantity[Array], /) -> Quantity[NumpyValue]: ...
 
     @overload
     def __pow__(self: Quantity[Decimal], exponent: int | Decimal, /) -> Quantity[Decimal]: ...
@@ -1053,7 +1056,7 @@ class Quantity(Generic[T]):
         if not isinstance(exponent, Fractionable):
             return NotImplemented
         power = as_exponent(exponent)
-        return Quantity(cast(Scalar, self.value) ** exponent, self.unit**power)
+        return Quantity(cast(Scalar, cast(Scalar, self.value) ** exponent), self.unit**power)
 
     def _has_numpy_operand(self, *others: object) -> bool:
         return is_numpy_object(self.value) or any(
@@ -1093,24 +1096,30 @@ class Quantity(Generic[T]):
         return self._array_value().size
 
     @property
-    def dtype(self) -> object:
+    def dtype(self: Quantity[Array]) -> NumpyDType:
         return self._array_value().dtype
 
     @property
-    def T(self: Quantity[Array]) -> Quantity[Array]:
+    def T[A: Array](self: Quantity[A]) -> Quantity[A]:
         return Quantity(self._array_value().T, self.unit)
 
-    def __getitem__(self: Quantity[Array], key: Any) -> Quantity[Array]:
+    def __getitem__(self: Quantity[Array], key: Any) -> Quantity[NumpyValue]:
         return Quantity(self._array_value()[key], self.unit)
 
     def __len__(self: Quantity[Array]) -> int:
         return len(self._array_value())
 
-    def __iter__(self: Quantity[Array]) -> Iterator[Quantity[Array]]:
+    def __iter__(self: Quantity[Array]) -> Iterator[Quantity[NumpyValue]]:
         return (Quantity(value, self.unit) for value in self._array_value())
 
-    def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[Array]:
+    def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]:
         return Quantity(self._array_value().flatten(order), self.unit)
+
+    @overload
+    def __abs__(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __abs__(self) -> Quantity[Magnitude]: ...
 
     def __abs__(self) -> Quantity[Magnitude]:
         if is_numpy_object(self.value):
@@ -1119,14 +1128,14 @@ class Quantity(Generic[T]):
             return apply_ufunc('absolute', self)
         return Quantity(abs(cast(Any, self.value)), self.unit)
 
-    def __matmul__(self, other: object) -> Quantity[Array]:
+    def __matmul__(self, other: object) -> Quantity[NumpyValue]:
         if not self._has_numpy_operand(other):
             return NotImplemented
         from ._numpy import apply_ufunc
 
         return apply_ufunc('matmul', self, other)
 
-    def __rmatmul__(self, other: object) -> Quantity[Array]:
+    def __rmatmul__(self, other: object) -> Quantity[NumpyValue]:
         if not self._has_numpy_operand(other):
             return NotImplemented
         from ._numpy import apply_ufunc

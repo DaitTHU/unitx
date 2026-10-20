@@ -1,9 +1,10 @@
 """NumPy's numeric domain, unit rules, and deliberate failure boundaries."""
 
 import os
+import runpy
 import subprocess
 import sys
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from fractions import Fraction
 from pathlib import Path
 
@@ -92,6 +93,22 @@ def test_views_index_iteration_and_metadata():
         _ = Quantity(1, 'm').shape
 
 
+@pytest.mark.parametrize('value', [np.array([1], dtype=np.int16), np.array(1), np.float32(1)])
+def test_quantity_numpy_result_types(value):
+    q = Quantity(value, 'm')
+    for actual, expected in (
+        (q * 2, np.multiply(value, 2)),
+        (q.to('cm'), np.multiply(value, 100)),
+        (q.to('km'), np.multiply(value, 0.001)),
+    ):
+        assert type(actual.value) is type(expected)
+        assert actual.value.dtype == expected.dtype
+        np.testing.assert_array_equal(actual.value, expected)
+    assert type(q.T.value) is type(value) and q.T.value.dtype == value.dtype
+    assert type(q.flatten().value) is np.ndarray
+    assert q.flatten().value.dtype == value.dtype
+
+
 def test_scaling_identity_rational_irrational_dtype_and_storage():
     a = np.arange(4, dtype=np.int16)
     q = Quantity(a, 'm')
@@ -153,6 +170,100 @@ def test_operators_and_matmul():
     a += Quantity(np.array([100, 200]), 'cm')
     assert a is not original
     np.testing.assert_array_equal(original.value, [1, 2])
+
+
+@pytest.mark.parametrize('value', [Decimal('1.25'), Fraction(5, 4)])
+@pytest.mark.parametrize('dtype', [np.int32, np.float32, np.float64, np.complex64])
+def test_quantity_numpy_scalar_mixing(value, dtype):
+    a = np.array([2, 4], dtype=dtype)
+    q = Quantity(a, 'm')
+    scalar = Quantity(value, 'm')
+    for left, right in ((q, scalar), (scalar, q)):
+        assert_quantity(left + right, a + float(value), 'm')
+        assert_quantity(left * right, a * float(value), 'm2')
+    assert_quantity(q - scalar, a - float(value), 'm')
+    assert_quantity(scalar - q, float(value) - a, 'm')
+    assert_quantity(q / scalar, a / float(value), '')
+    assert_quantity(scalar / q, float(value) / a, '')
+    for result in (q * value, value * q):
+        assert_quantity(result, a * float(value), 'm')
+        assert result.value.dtype == (a * float(value)).dtype
+    np.testing.assert_array_equal(q == scalar, a == float(value))
+    assert scalar.value is value
+    np.testing.assert_array_equal(q.value, a)
+
+
+def test_quantity_numpy_decimal_context():
+    from unitx.si import SI
+
+    constant = SI.h.value
+    with localcontext() as context:
+        context.prec = 2
+        context.clear_flags()
+        q = SI.h * Quantity(np.array([1.0, 2.0]), 'Hz')
+        assert_quantity(q, float(constant) * np.array([1.0, 2.0]), 'J s Hz')
+        assert not any(context.flags.values())
+    assert SI.h.value is constant and isinstance(constant, Decimal)
+
+
+@pytest.mark.parametrize('exponent', [Fraction(1, 3), Decimal('0.25')])
+def test_quantity_numpy_exact_exponent(exponent):
+    q = Quantity(np.array([64.0]), 'm')
+    for power in (exponent, Quantity(exponent * 1000, 'm/km')):
+        result = np.power(q, power)
+        assert result.unit == Unit('m') ** exponent
+        np.testing.assert_allclose(result.value, np.power(q.value, float(exponent)))
+
+
+def test_quantity_numpy_scalar_output():
+    q = Quantity(np.array([1.0, 2.0]), 'm')
+    target = Quantity(np.zeros(2), 'cm')
+    assert np.multiply(q, Decimal('0.25'), out=target) is target
+    assert_quantity(target, [25, 50], 'cm')
+    np.testing.assert_array_equal(q.value, [1, 2])
+    np.testing.assert_array_equal(
+        q.isclose(Quantity(Decimal('1'), 'm'), rel_tol=Decimal('0.01')), [True, False]
+    )
+
+
+def test_quantity_numpy_blackbody():
+    from unitx.si import SI, si
+
+    lam = si.um * np.linspace(0.01, 3, 100)[:, None]
+    T = si.K * np.array([3000, 4000, 5000], dtype=np.float64)
+    nu = SI.c / lam
+    exponent = SI.h * nu / (SI.kB * T)
+    occupation = np.expm1(exponent)
+    radiance = (2 * SI.h * SI.c**2 / (lam**5 * occupation)).to('W/m3/sr')
+    wavelength = lam.value_in('m')
+    h, c, kB = float(SI.h.value), SI.c.value, float(SI.kB.value)
+    expected = 2 * h * c**2 / (wavelength**5 * np.expm1(h * c / (wavelength * kB * T.value)))
+    assert radiance.shape == (100, 3)
+    assert_quantity(radiance, expected, 'W/m3/sr')
+    assert np.all(np.isfinite(radiance.value)) and np.all(radiance.value >= 0)
+    peaks = lam.value[:, 0][np.argmax(radiance.value, axis=0)]
+    np.testing.assert_allclose(peaks, float(SI.b.value_in('um K')) / T.value, atol=0.02)
+
+
+def test_numpy_blackbody_example(tmp_path, monkeypatch):
+    matplotlib = pytest.importorskip('matplotlib')
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+
+    monkeypatch.setattr(plt, 'show', lambda: None)
+    try:
+        result = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'examples/blackbody.py'))
+        radiance = result['radiance']
+        assert isinstance(radiance, Quantity) and radiance.shape == (100, 3)
+        lines = plt.gca().get_lines()
+        assert len(lines) == 3
+        for index, line in enumerate(lines):
+            np.testing.assert_array_equal(line.get_ydata(), radiance.value[:, index])
+        output = tmp_path / 'blackbody.png'
+        plt.savefig(output)
+        assert output.stat().st_size > 0
+    finally:
+        plt.close('all')
 
 
 @pytest.mark.parametrize(
@@ -335,8 +446,6 @@ def test_unsupported_outputs_do_not_mutate():
         np.sum(q, initial=1)
     with pytest.raises(TypeError):
         np.median(q, overwrite_input=True)
-    with pytest.raises(TypeError):
-        q + Decimal(1)
     with pytest.raises(TypeError):
         q * np.ma.array([1, 2, 3])
 
