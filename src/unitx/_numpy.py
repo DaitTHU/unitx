@@ -377,6 +377,8 @@ def dispatch_function(
         return bool(np.all(result)) if func is np.allclose else result
     if func in (np.concatenate, np.stack):
         return _join_arrays(func, *args, **kwargs)
+    if func is np.trapezoid:
+        return _trapezoid(*args, **kwargs)
     if not args or not isinstance(args[0], Quantity) or not _is_supported_operand(args[0]):
         return NotImplemented
     if func is np.reshape:
@@ -435,6 +437,25 @@ def _reshape(
 
 def _transpose(q: Any, axes: Any = None) -> Any:
     return Quantity(np.transpose(q.value, axes), q.unit)
+
+
+def _trapezoid(y: Any, x: Any = None, dx: Any = 1.0, axis: int = -1) -> Any:
+    if not _is_supported_operand(y):
+        return NotImplemented
+    value, unit = _operand_parts(y)
+    if x is None:
+        if not _is_supported_operand(dx):
+            return NotImplemented
+        spacing, coordinate_unit = _operand_parts(dx)
+        if np.ndim(spacing) != 0:
+            raise TypeError('dx must be a numeric scalar or scalar Quantity.')
+        result = np.trapezoid(value, dx=spacing, axis=axis)
+    else:
+        if not _is_supported_operand(x):
+            return NotImplemented
+        coordinates, coordinate_unit = _operand_parts(x)
+        result = np.trapezoid(value, x=coordinates, axis=axis)
+    return Quantity(result, unit * coordinate_unit)
 
 
 def _argmin_max(

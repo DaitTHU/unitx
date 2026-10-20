@@ -103,6 +103,7 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | std, var | Preserve unit / square unit | axis, dtype, ddof, keepdims, out |
 | cumsum | Preserve unit | axis, dtype, out |
 | argmin, argmax | Bare indices | axis, keepdims, out |
+| trapezoid | Multiply ordinate and coordinate units | x, scalar dx, axis; no out |
 | isclose, allclose | Bare mask / Python bool | rtol, atol, equal_nan |
 
 Supply the first magnitude argument positionally; concatenate/stack take a
@@ -112,6 +113,16 @@ overwrite_input=True is rejected. Reduction/statistical `where` and `initial`
 are supported only for prod/multiply.reduce. Unsupported mean, correction,
 and other keywords raise TypeError.
 There is no `__setitem__`; `q += other` creates a result and rebinds q.
+
+`np.trapezoid(y, x=x)` accepts a Quantity for y, x, or both and returns a
+Quantity with unit `y.unit * x.unit`; bare inputs are dimensionless. With
+`x=None`, scalar `dx` supplies the coordinate unit instead (default: dimensionless
+1). NumPy dispatches this function on y and x, so at least one of those must be
+a Quantity to enter unitx; a Quantity supplied only as dx is insufficient.
+Explicit x makes dx irrelevant. Numeric arrays, scalar spacing, axis handling,
+coordinate order (including reversed or nonmonotonic x), broadcasting, and
+empty intervals follow [NumPy trapezoid](https://numpy.org/doc/stable/reference/generated/numpy.trapezoid.html).
+No coordinate sorting, interpolation, dtype option, or output buffer is added.
 
 ## Product reductions
 

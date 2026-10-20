@@ -8,6 +8,9 @@
   values (including Quantities), boolean input masks, and staged output writes.
   Require equal selected counts for dimensional outputs; normalize dimensionless
   inputs before reduction. Document empty products and accumulator dtype rules.
+- Support trapezoid integration with Quantity ordinates, coordinates, or scalar
+  spacing. Combine their units directly, preserving native coordinate order
+  and axis behavior without manual value extraction or unit reconstruction.
 
 ### Improved
 
