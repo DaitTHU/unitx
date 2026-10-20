@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1] - 2026-10-21
+
+### Fixed
+
+- Correct the display import regression test to allow an already-loaded optional
+  SymPy factorization backend. Display itself must not load additional optional
+  backends. Runtime display behavior is unchanged from 0.10.0.
+
 ## [0.10.0] - 2026-10-21
 
 ### Added
