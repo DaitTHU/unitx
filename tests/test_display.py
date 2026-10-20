@@ -119,16 +119,20 @@ def test_numpy_display_keeps_array_and_native_format_boundary():
         assert item.value is value
 
 
-def test_no_optional_imports():
+def test_display_does_not_import_optional_backends():
     code = """
 import sys
 from unitx.quantity import Quantity
 from unitx.unit import Unit
+optional = {'numpy', 'IPython', 'sympy'}
+before = optional.intersection(sys.modules)
+# Core factorization may already use an installed SymPy backend.
+assert before.isdisjoint({'numpy', 'IPython'})
 q = Quantity(2, Unit('m'))
 q.to_latex(); q.to_html(); format(q, '.2f;latex')
 q.to_siunitx(); q.unit.to_siunitx(); format(q, '.2f;siunitx')
 q.unit.to_latex(fraction=False); q.to_latex('.2f', fraction=False)
-assert not any(x in sys.modules for x in ('numpy', 'IPython', 'sympy'))
+assert optional.intersection(sys.modules) == before
 """
     subprocess.run([sys.executable, '-c', code], check=True)
 
