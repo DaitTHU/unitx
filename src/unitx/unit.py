@@ -126,6 +126,48 @@ class Unit:
     def __str__(self) -> str:
         return self.symbol
 
+    def __format__(self, format_spec: str) -> str:
+        """Select a display format or apply Python string alignment to the unit."""
+        if format_spec == 'latex':
+            return self.to_latex()
+        if format_spec == 'html':
+            return self.to_html()
+        if format_spec == 'siunitx':
+            return self.to_siunitx()
+        if format_spec == 'text':
+            return str(self)
+        return format(str(self), format_spec)
+
+    def to_latex(self, *, fraction: bool = True) -> str:
+        """Return a LaTeX fragment with slash fractions or signed unit powers."""
+        from ._display import unit_body
+
+        return unit_body(self, 'latex', fraction=fraction)
+
+    def to_siunitx(self) -> str:
+        """Return a siunitx v3 unit command, without math delimiters.
+
+        Simple ASCII symbols use native literal unit syntax. Extra scale or
+        other symbols use escaped LaTeX with unit parsing explicitly disabled.
+        """
+        from ._display import siunitx_unit_parts
+
+        body, parsed = siunitx_unit_parts(self)
+        options = '' if parsed else '[parse-units=false]'
+        return rf'\unit{options}{{{body or "1"}}}'
+
+    def to_html(self) -> str:
+        """Return an escaped HTML fragment, independent of MathJax."""
+        from ._display import html_span, unit_body
+
+        return html_span(unit_body(self, 'html'))
+
+    def _repr_latex_(self) -> str:
+        return '$' + self.to_latex() + '$'
+
+    def _repr_html_(self) -> str:
+        return self.to_html()
+
     def __hash__(self) -> int:
         return hash(self._monomial)
 

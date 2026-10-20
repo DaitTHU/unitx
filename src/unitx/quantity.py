@@ -168,6 +168,77 @@ class Quantity(Generic[T]):
         separator = DOT if unit[0].isdecimal() else ' '
         return f'{self.value}{separator}{unit}'
 
+    def __format__(self, format_spec: str) -> str:
+        """Format magnitude with ``;text``, ``;latex``, ``;html`` or ``;siunitx``.
+
+        Width/alignment apply to magnitude only. No implicit unit conversion or
+        float coercion is performed; magnitude controls supported numeric specs.
+        """
+        if not format_spec:
+            return str(self)
+        # A semicolon used as a Python fill character belongs to the numeric spec.
+        offset = 2 if len(format_spec) > 1 and format_spec[1] in '<>=^' else 0
+        split = format_spec.find(';', offset)
+        if split < 0:
+            numeric, style = format_spec, 'text'
+        else:
+            numeric, style = format_spec[:split], format_spec[split + 1 :]
+        if style == 'latex':
+            return self.to_latex(numeric)
+        if style == 'html':
+            return self.to_html(numeric)
+        if style == 'siunitx':
+            return self.to_siunitx(numeric)
+        if style != 'text':
+            raise ValueError(f'Unknown Quantity display option: {style!r}.')
+        if not numeric:
+            return str(self)
+        from ._display import format_magnitude
+
+        text = format_magnitude(self.value, numeric)
+        unit = str(self.unit)
+        if unit == '1':
+            return text
+        from .unit import ScaledUnit
+
+        if isinstance(self.unit, ScaledUnit) and self.unit.scale != ONE:
+            return f'{text} ({unit})'
+        if unit.startswith('1/'):
+            return f'{text}{unit[1:]}'
+        return f'{text} {unit}'
+
+    def to_latex(self, format_spec: str = '', *, fraction: bool = True) -> str:
+        """Return a LaTeX fragment with slash or signed-power unit display.
+
+        format_spec applies to magnitude; numeric scientific notation is typeset
+        mathematically while custom magnitude strings remain escaped text.
+        """
+        from ._display import quantity_body
+
+        return quantity_body(self.value, self.unit, format_spec, 'latex', fraction=fraction)
+
+    def to_siunitx(self, format_spec: str = '') -> str:
+        """Return a siunitx v3 quantity/number command, without math delimiters.
+
+        Native decimal/scientific notation is parsed by siunitx. Other values
+        remain escaped expressions with numerical parsing explicitly disabled.
+        """
+        from ._display import siunitx_quantity
+
+        return siunitx_quantity(self.value, self.unit, format_spec)
+
+    def to_html(self, format_spec: str = '') -> str:
+        """Return escaped HTML preserving magnitude whitespace and line breaks."""
+        from ._display import html_span, quantity_body
+
+        return html_span(quantity_body(self.value, self.unit, format_spec, 'html'))
+
+    def _repr_latex_(self) -> str:
+        return '$' + self.to_latex() + '$'
+
+    def _repr_html_(self) -> str:
+        return self.to_html()
+
     def is_dimensionless(self) -> bool:
         return self.dimension is DIMENSIONLESS
 

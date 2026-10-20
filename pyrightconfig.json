@@ -1,5 +1,6 @@
 {
   "include": [
+    "src/unitx/_display.py",
     "src/unitx/quantity.py",
     "src/unitx/_numpy.py",
     "src/unitx/_numpy_typing.py",

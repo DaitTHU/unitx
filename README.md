@@ -216,6 +216,24 @@ See the [unit and quantity guide](https://github.com/DaitTHU/unitx/blob/main/doc
 registration, spelling-specific prefix permissions, catalogue conventions,
 copying, and serialization.
 
+## Notebook display and formatting
+
+`Unit`, `ScaledUnit`, and `Quantity` provide Notebook LaTeX and HTML display.
+Use `.to_latex()` for a math fragment without `$` delimiters, or `.to_html()`
+for an escaped HTML fragment. No IPython dependency is required.
+
+```python
+from unitx.quantity import Quantity
+
+speed = Quantity(12.3456, 'm/s')
+assert f'{speed:.2f}' == '12.35 m/s'
+assert format(speed, '.2f;latex') == speed.to_latex('.2f')
+assert format(speed, '.2f;siunitx') == r'\qty{12.35}{m.s^{-1}}'
+```
+
+See [display and formatting](https://github.com/DaitTHU/unitx/blob/main/docs/display.md)
+for syntax, exact-scale rendering, escaping, and array limitations.
+
 ## Scope and types
 
 - Supported magnitudes are Python scalars and plain numeric NumPy

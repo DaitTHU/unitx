@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Notebook LaTeX/HTML display and explicit `to_latex()` / `to_html()` for
+  Unit, ScaledUnit and Quantity, with exact extra multipliers and escaped labels.
+- Quantity formatting with native magnitude specs and explicit `;text`, `;latex`,
+  `;html` and `;siunitx` output selection; Unit format selection and alignment.
+- Slash unit fractions by default and explicit `to_latex(fraction=False)`
+  signed-power output, independent of Fraction magnitude rendering.
+- Mathematical scientific notation and NaN/Inf display for ordinary real scalars,
+  plus siunitx v3 export through `to_siunitx()`. No new runtime dependencies.
+
 ## [0.9.0] - 2026-10-20
 
 ### Added

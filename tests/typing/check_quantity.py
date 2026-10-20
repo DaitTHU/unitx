@@ -330,3 +330,19 @@ def test_scalar_augmented_types(value: Scalar) -> None:
     custom += custom
     custom *= Unit('s')
     assert_type(custom, Quantity[Scalar])
+
+
+def test_display_types() -> None:
+    q = Quantity(Decimal('1.25'), 'm')
+    assert_type(format(q, '.2f;latex'), str)
+    assert_type(q.to_latex(), str)
+    assert_type(q.to_latex('.2e', fraction=False), str)
+    assert_type(q.unit.to_latex(fraction=False), str)
+    assert_type(format(q.unit, 'latex'), str)
+    assert_type(q.to_siunitx('.2f'), str)
+    assert_type(q.unit.to_siunitx(), str)
+    assert_type(format(q, '.2f;siunitx'), str)
+    assert_type(q.to_html('.2f'), str)
+    assert_type(q.unit.to_latex(), str)
+    assert_type(q.unit.to_html(), str)
+    assert_type(ScaledUnit('m', Factor(2)).to_latex(), str)
