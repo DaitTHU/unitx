@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.5] - 2026-10-20
+
+### Added
+
+- Support modf and frexp with units on both modf parts and the frexp mantissa;
+  return the binary exponent as a bare integer. Decompose stored coordinates
+  without implicitly normalizing scaled dimensionless units.
+- Support both outputs, positional buffers, partial None outputs, and boolean
+  masks. Stage every output before writing, preserve target units and dtypes,
+  and reject overlapping outputs. Validate scalar, empty, strided, and shared
+  storage cases, and use ldexp to reconstruct extreme finite floating values.
+
+### Improved
+
+- Consolidate Quantity-first NumPy function dispatch and reuse output staging
+  for single-output and multiple-output calls.
+- Use absolute documentation and image links in the README for PyPI rendering.
+
 ## [0.8.4] - 2026-10-20
 
 ### Added
