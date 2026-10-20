@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/unitx)](https://pypi.org/project/unitx/)
 [![Python versions](https://img.shields.io/pypi/pyversions/unitx)](https://pypi.org/project/unitx/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/DaitTHU/unitx/blob/main/LICENSE)
 
 A modern, intuitive unit library for Python 3.12+.
 Exact unit algebra, expressive type hints, and NumPy integration.
@@ -105,7 +105,7 @@ plt.title('Blackbody radiation')
 plt.show()
 ```
 
-![Blackbody spectral radiance](docs/images/blackbody.png)
+![Blackbody spectral radiance](https://raw.githubusercontent.com/DaitTHU/unitx/main/docs/images/blackbody.png)
 
 One Quantity wraps the entire ndarray with one unit. NumPy handles broadcasting;
 unitx checks dimensions and combines units. `SI.h` and `SI.kB` retain Decimal
@@ -115,7 +115,7 @@ values in the catalogue and enter NumPy calculations as floats.
 `.value_in(unit)` also converts it to a chosen unit. Implicit unit removal with
 `np.asarray(quantity)` or `np.array(quantity)` raises TypeError.
 
-The [blackbody notebook](examples/blackbody.ipynb) uses `np.asarray([...]) * unit`
+The [blackbody notebook](https://github.com/DaitTHU/unitx/blob/main/examples/blackbody.ipynb) uses `np.asarray([...]) * unit`
 without an explicit dtype. This automatic construction inference is checked
 with NumPy 2.5 stubs and Pyright; the example also runs on NumPy 2.1. Older
 NumPy stubs may still infer Any for this expression. NumPy's own stubs can
@@ -123,9 +123,9 @@ infer different types for `np.array` and `np.asarray`;
 `np.array([...]) * unit` can become Any. `unit * array` and
 `Quantity(array, unit)` provide alternative construction forms. Arbitrary
 shape/dtype inference and wrapped return types for every NumPy function are not
-promised. See the [supported operations, storage rules, and typing limits](docs/numpy.md).
+promised. See the [supported operations, storage rules, and typing limits](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md).
 
-The [physics notebooks](examples/README.md) also cover damped motion, Gaussian
+The [physics notebooks](https://github.com/DaitTHU/unitx/blob/main/examples/README.md) also cover damped motion, Gaussian
 wave-packet spreading, optical attenuation, and correlated measurement uncertainty.
 They include explanations and numerical checks; plots are generated when run,
 keeping saved notebooks small.
@@ -173,7 +173,7 @@ NumPy numerical operations instead follow the documented array conversion,
 promotion, rounding, and overflow rules. Array comparisons return boolean
 masks, and NumPy-backed quantities are unhashable.
 
-Read the [scalar numerical contract](docs/scalars.md) for Decimal conversion,
+Read the [scalar numerical contract](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md) for Decimal conversion,
 exact comparisons, powers, tolerances, and optional SymPy factorization.
 
 ## Expressions and custom units
@@ -212,7 +212,7 @@ Definitions register spellings in the current process and return a new Unit.
 Use `Factor` or `SymbolicConstant` with a unit when an additional exact unit
 scale is intended; ordinary numbers construct quantities.
 
-See the [unit and quantity guide](docs/units.md) for ScaledUnit, dynamic
+See the [unit and quantity guide](https://github.com/DaitTHU/unitx/blob/main/docs/units.md) for ScaledUnit, dynamic
 registration, spelling-specific prefix permissions, catalogue conventions,
 copying, and serialization.
 
@@ -240,11 +240,11 @@ with `_` are internal.
 
 ## Documentation and development
 
-- [Unit and quantity guide](docs/units.md)
-- [Scalar numerical behavior](docs/scalars.md)
-- [NumPy support matrix and typing](docs/numpy.md)
-- [Migration from 0.3.0](docs/migration.md)
-- [Changelog](CHANGELOG.md)
+- [Unit and quantity guide](https://github.com/DaitTHU/unitx/blob/main/docs/units.md)
+- [Scalar numerical behavior](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md)
+- [NumPy support matrix and typing](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md)
+- [Migration from 0.3.0](https://github.com/DaitTHU/unitx/blob/main/docs/migration.md)
+- [Changelog](https://github.com/DaitTHU/unitx/blob/main/CHANGELOG.md)
 
 Run the checks from the repository root:
 
@@ -259,9 +259,9 @@ Pytest includes runtime tests, source doctests, and Pyright checks. CI covers
 Python 3.12–3.15, optional SymPy, and minimum/current NumPy versions. Strict
 scalar consumers are also checked without NumPy installed.
 
-Publishing a GitHub Release triggers the [release workflow](.github/workflows/release.yml)
+Publishing a GitHub Release triggers the [release workflow](https://github.com/DaitTHU/unitx/blob/main/.github/workflows/release.yml)
 to validate and upload wheel/sdist distributions to PyPI. Manual workflow runs
 validate and store distributions without uploading them. Release tags must
 match the project version.
 
-Licensed under the [MIT License](LICENSE).
+Licensed under the [MIT License](https://github.com/DaitTHU/unitx/blob/main/LICENSE).
