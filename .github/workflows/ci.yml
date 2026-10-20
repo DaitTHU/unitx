@@ -47,7 +47,9 @@ jobs:
           ruff format --check .
 
       - name: Run tests
-        run: pytest -q
+        run: |
+          pytest -q
+          python -m doctest README.md docs/units.md docs/scalars.md
 
   numpy:
     name: NumPy ${{ matrix.numpy }} (Python ${{ matrix.python-version }})
@@ -71,4 +73,6 @@ jobs:
         if: matrix.numpy != 'latest'
         run: python -m pip install 'numpy==${{ matrix.numpy }}'
       - name: Run tests and typing
-        run: pytest -q
+        run: |
+          pytest -q
+          python -m doctest README.md docs/units.md docs/scalars.md
