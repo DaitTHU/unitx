@@ -85,7 +85,7 @@ def test_views_index_iteration_and_metadata():
     assert len(q) == 3
     assert len(list(q)) == 3
     assert_quantity(list(q)[1], a[1], 'm')
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match='read-only'):
         q[0] = q[1]
     for scalar in (np.array(2), np.int64(2)):
         with pytest.raises(TypeError):
@@ -169,8 +169,8 @@ def test_operators_and_matmul():
     assert_quantity(abs(-a), [1, 2], 'm')
     original = a
     a += Quantity(np.array([100, 200]), 'cm')
-    assert a is not original
-    np.testing.assert_array_equal(original.value, [1, 2])
+    assert a is original
+    np.testing.assert_array_equal(original.value, [2, 4])
 
 
 @pytest.mark.parametrize('value', [Decimal('1.25'), Fraction(5, 4)])

@@ -19,7 +19,7 @@ from ._numerics import (
     as_int_if_integral,
     is_numpy_object,
 )
-from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue
+from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
 from ._unicode import DOT
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
@@ -28,7 +28,7 @@ from .unit import Unit
 from .unitregistry import PrefixPolicy
 
 # Covariance is safe because Quantity never replaces its magnitude or unit.
-# NumPy out= may write ndarray elements, preserving the array type and dtype;
+# NumPy out= and indexed assignment write elements, preserving array type and dtype;
 # array aliases were already writable through .value. No arbitrary T is stored.
 T = TypeVar('T', bound=Magnitude, covariant=True)
 
@@ -85,7 +85,9 @@ class Quantity(Generic[T]):
     with one unit for the whole magnitude. See docs/numpy.md for supported
     operations, scaling, comparison, and storage rules.
     Explicit NumPy ufunc out= may write an existing ndarray magnitude without
-    replacing its object, dtype, or unit. Ordinary operators still create results.
+    replacing its object, dtype, or unit. Indexed assignment uses the same fixed
+    destination contract and same_kind casting. Augmented arithmetic on ndarrays
+    writes back to that same buffer; scalar magnitudes create ordinary results.
 
     Addition and subtraction preserve the left quantity's unit. Plain numbers
     can be added to dimensionless quantities and represent unscaled values.
@@ -1045,6 +1047,213 @@ class Quantity(Generic[T]):
         power = as_exponent(exponent)
         return Quantity(cast(Scalar, cast(Scalar, self.value) ** exponent), self.unit**power)
 
+    @overload
+    def __iadd__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
+
+    @overload
+    def __iadd__(
+        self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
+    ) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __iadd__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __iadd__(
+        self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __iadd__(
+        self: Quantity[int], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __iadd__[L: Real, R: Real](
+        self: Quantity[L], other: Quantity[R] | R, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __iadd__(
+        self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
+    ) -> Quantity[Scalar]: ...
+
+    @overload
+    def __iadd__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+
+    def __iadd__(self, other: object, /) -> Quantity[Magnitude]:
+        return self._inplace_result(self.__add__(cast(Any, other)))
+
+    @overload
+    def __isub__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
+
+    @overload
+    def __isub__(
+        self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
+    ) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __isub__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __isub__(
+        self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __isub__(
+        self: Quantity[int], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __isub__[L: Real, R: Real](
+        self: Quantity[L], other: Quantity[R] | R, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __isub__(
+        self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
+    ) -> Quantity[Scalar]: ...
+
+    @overload
+    def __isub__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+
+    def __isub__(self, other: object, /) -> Quantity[Magnitude]:
+        return self._inplace_result(self.__sub__(cast(Any, other)))
+
+    @overload
+    def __imul__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
+
+    @overload
+    def __imul__(self, other: Unit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
+
+    @overload
+    def __imul__(
+        self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
+    ) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __imul__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __imul__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[int]: ...
+
+    @overload
+    def __imul__(
+        self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __imul__(
+        self: Quantity[int], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __imul__[L: Real, R: Real](
+        self: Quantity[L], other: Quantity[R] | R, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __imul__(
+        self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
+    ) -> Quantity[Scalar]: ...
+
+    @overload
+    def __imul__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+
+    def __imul__(self, other: object, /) -> Quantity[Magnitude]:
+        return self._inplace_result(cast('Quantity[Magnitude]', self.__mul__(cast(Any, other))))
+
+    @overload
+    def __itruediv__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
+
+    @overload
+    def __itruediv__(self, other: Unit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
+
+    @overload
+    def __itruediv__(
+        self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
+    ) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __itruediv__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __itruediv__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[float]: ...
+
+    @overload
+    def __itruediv__(
+        self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __itruediv__(
+        self: Quantity[int], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __itruediv__[L: Real, R: Real](
+        self: Quantity[L], other: Quantity[R] | R, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __itruediv__(
+        self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
+    ) -> Quantity[Scalar]: ...
+
+    @overload
+    def __itruediv__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+
+    def __itruediv__(self, other: object, /) -> Quantity[Magnitude]:
+        return self._inplace_result(cast('Quantity[Magnitude]', self.__truediv__(cast(Any, other))))
+
+    @overload
+    def __ipow__[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[A], exponent: object, /
+    ) -> Quantity[A]: ...
+
+    @overload
+    def __ipow__(self: Quantity[Array], exponent: object, /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __ipow__(self, exponent: Array | Quantity[Array], /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def __ipow__(self: Quantity[Decimal], exponent: int | Decimal, /) -> Quantity[Decimal]: ...
+
+    @overload
+    def __ipow__(self: Quantity[int], exponent: Decimal, /) -> Quantity[Decimal]: ...
+
+    @overload
+    def __ipow__[N: Real](self: Quantity[N], exponent: Real, /) -> Quantity[Number]: ...
+
+    @overload
+    def __ipow__(self: Quantity[Scalar], exponent: Fractionable, /) -> Quantity[Scalar]: ...
+
+    @overload
+    def __ipow__(self, exponent: Fractionable, /) -> Quantity[Magnitude]: ...
+
+    def __ipow__(self, exponent: object, /) -> Quantity[Magnitude]:
+        return self._inplace_result(self.__pow__(cast(Any, exponent)))
+
+    @overload
+    def __imatmul__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
+
+    @overload
+    def __imatmul__(self, other: object, /) -> Quantity[NumpyValue]: ...
+
+    def __imatmul__(self, other: object, /) -> Quantity[Magnitude]:
+        return self._inplace_result(self.__matmul__(other))
+
+    def _inplace_result(self, result: Quantity[Magnitude]) -> Quantity[Magnitude]:
+        if result is NotImplemented:
+            return NotImplemented
+        if is_numpy_object(self.value):
+            from ._numpy import write_inplace
+
+            return write_inplace(self, result)
+        return result
+
     def _has_numpy_operand(self, *others: object) -> bool:
         return is_numpy_object(self.value) or any(
             is_numpy_object(x.value if _is_quantity(x) else x) for x in others
@@ -1092,6 +1301,21 @@ class Quantity(Generic[T]):
 
     def __getitem__(self: Quantity[Array], key: Any) -> Quantity[NumpyValue]:
         return Quantity(self._array_value()[key], self.unit)
+
+    def __setitem__(
+        self: Quantity[Array], key: Any, value: Quantity[Magnitude] | Magnitude
+    ) -> None:
+        """Assign compatible values to an ndarray, keeping its unit and dtype.
+
+        Bare values are dimensionless, including zero. Convert and broadcast
+        into temporary storage with same_kind casting before the indexed write.
+        NumPy scalar and Python scalar magnitudes do not support assignment.
+        """
+        if not is_numpy_object(self.value):
+            raise TypeError('Indexed assignment requires a plain numeric ndarray magnitude.')
+        from ._numpy import assign_item
+
+        assign_item(self, key, value)
 
     def __len__(self: Quantity[Array]) -> int:
         return len(self._array_value())

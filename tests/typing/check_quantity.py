@@ -306,3 +306,27 @@ def test_quantity_power_types() -> None:
     assert_type(Quantity(2, 'm') ** 2.0, Quantity[Number])
     assert_type(Quantity(Decimal(2), 'm') ** Decimal('0.5'), Quantity[Decimal])
     assert_type(Quantity(Decimal(2), 'm') ** 2, Quantity[Decimal])
+
+
+def test_scalar_augmented_types(value: Scalar) -> None:
+    decimal = Quantity(Decimal('1.25'), 'm')
+    decimal += Quantity(1, 'cm')
+    assert_type(decimal, Quantity[Decimal])
+    decimal -= Quantity(Decimal('0.25'), 'm')
+    decimal *= 2
+    decimal /= 2
+    decimal **= 2
+    assert_type(decimal, Quantity[Decimal])
+    integer = Quantity(2, 'm')
+    integer *= 2
+    integer *= Unit('s')
+    assert_type(integer, Quantity[int])
+    integer /= 2
+    assert_type(integer, Quantity[float])
+    real = Quantity(2, 'm')
+    real += real
+    assert_type(real, Quantity[Real])
+    custom = Quantity(value, 'm')
+    custom += custom
+    custom *= Unit('s')
+    assert_type(custom, Quantity[Scalar])

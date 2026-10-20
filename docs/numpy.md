@@ -118,7 +118,94 @@ overwrite_input=True is rejected. Reduction/statistical `where` is supported
 for sum, mean, std, var, add.reduce, prod, and multiply.reduce; `initial` is
 supported only for sum/add.reduce and prod/multiply.reduce. Precomputed `mean`,
 `correction`, and other unsupported keywords raise TypeError.
-There is no `__setitem__`; `q += other` creates a result and rebinds q.
+Indexed assignment and augmented arithmetic on ndarrays follow the fixed-target
+rules below. Python and NumPy scalar magnitudes retain ordinary result/rebinding
+behavior for augmented arithmetic.
+
+## Upgrading from 0.8
+
+Version 0.9 adds indexed writes and changes ndarray augmented arithmetic from
+rebinding to updating the existing buffer. Aliases now observe `q += other` and
+the other supported augmented operators. The array, dtype, shape, and unit stay
+fixed, so integer `q /= 2` and dimensional `q **= 2` can raise where the old
+rebinding behavior succeeded. Python and NumPy scalar arithmetic is unchanged.
+
+To retain the previous allocation and rebinding behavior, write `q = q + other`,
+`q = q / 2`, or `q = q ** 2` explicitly. Use ordinary multiplication and rebinding
+when changing units or dimensions. Indexed assignment uses `same_kind` casting;
+it does not inherit ndarray assignment's implicit float-to-integer truncation.
+The supported array domain and explicit unit-removal rules are unchanged.
+
+## Indexed assignment and augmented arithmetic
+
+`q[index] = value` writes into a writable plain numeric ndarray magnitude.
+The magnitude object, dtype, shape, and unit stay fixed. Values must be supported
+numeric scalars/ndarrays or Quantities with compatible dimensions; Quantity
+values convert to the destination unit. Bare values are coherent dimensionless
+values, including zero: use `Quantity(0, q.unit)` to clear a dimensional array.
+Decimal/Fraction scalars enter the same floating domain as other NumPy operations.
+Lists/tuples are allowed as indices, not as assigned magnitudes.
+
+```python
+positions = Quantity(np.array([1.0, 2, 3]), 'm')
+positions[0] = Quantity(50, 'cm')
+positions[positions > Quantity(1, 'm')] = Quantity(0, 'm')
+np.testing.assert_array_equal(positions.value, [0.5, 0, 0])
+```
+
+Basic slices, integer/boolean indexing, broadcasting, new axes, scalar elements,
+and repeated advanced indices follow [NumPy indexed assignment](https://numpy.org/doc/stable/user/basics.indexing.html#assigning-values-to-indexed-arrays).
+Array indices must be plain integer/boolean ndarrays; masked arrays and ndarray
+subclasses are rejected. Boolean masks are bare arrays, as returned by comparisons.
+Repeated indices use NumPy assignment semantics; no accumulation at repeated
+positions or particular winner among conflicting repeated writes is promised.
+NumPy scalar magnitudes are immutable; explicit zero-dimensional ndarrays are
+writable. Read-only arrays reject assignment, including empty selections.
+
+Assignment stages unit conversion and `same_kind` casting **before** the native
+indexed write. Shape and index errors then follow NumPy's unchanged-target rule;
+casting failures occur only in temporary storage. Assignment supports RHS views
+overlapping the target; index arrays are snapshotted before the write. Float
+narrowing and integer narrowing remain allowed by `same_kind`, while float to
+integer and complex to real writes fail. This deliberately differs from NumPy's
+ordinary assignment, which can silently truncate floats into integers.
+
+`+=`, `-=`, `*=`, `/=`, `**=`, and `@=` on ndarray Quantities return the same
+Quantity and update its original array. Each computes its ordinary result first,
+then uses the controlled output conversion, broadcasting, and `same_kind` casting
+rules. The natural result dimension must match the destination: multiplying a
+length by a time or squaring a length fails without modifying the destination.
+Dimensionless factors, Units, and Quantities may scale the numerical values while
+the destination unit stays fixed; exact Factor/SymbolicConstant operands first
+participate in ordinary exact unit algebra, then convert back to that fixed unit.
+Unit changes remain available through ordinary arithmetic and rebinding.
+
+```python
+positions = Quantity(np.array([1.0, 2, 3]), 'm')
+alias = positions
+buffer = positions.value
+positions += Quantity(50, 'cm')
+positions *= Quantity(2, 'km/m')
+assert positions is alias and positions.value is buffer
+np.testing.assert_allclose(buffer, [3000, 5000, 7000])
+positions[1:] += Quantity(100, 'cm')
+np.testing.assert_allclose(buffer, [3000, 5001, 7001])
+```
+
+All aliases observe successful writes. Basic indexed augmented assignment acts
+on its view; advanced indexed augmented assignment computes on a copy and writes
+back, so repeated indices do not accumulate repeatedly. Python/NumPy scalars
+continue to create new Quantities and may change their magnitude type or unit.
+An ndarray target that cannot represent a result raises instead of silently
+rebinding to a wider dtype or a different unit. Use `q = q / 2` when an integer
+array needs a floating result. `__setitem__` and augmented arithmetic preserve
+the covariant magnitude contract because no operation replaces T, its dtype,
+or its storage. Concrete ndarray annotations retain their dtype after successful
+augmented arithmetic; a generic Array annotation may also describe an immutable
+NumPy scalar and therefore retains the broader result type.
+
+These operations use temporaries; they do not promise zero allocation or general
+rollback against concurrent mutation or external buffer failures.
 
 `np.trapezoid(y, x=x)` accepts a Quantity for y, x, or both and returns a
 Quantity with unit `y.unit * x.unit`; bare inputs are dimensionless. With
@@ -337,8 +424,8 @@ assert np.argmax(q, axis=0, out=indices) is indices
 The supported multiple-output calls are described below; other multiple-output
 ufuncs and product accumulations remain unsupported.
 Output writes preserve the magnitude's type and dtype, so the covariant
-`Quantity[T]` contract remains valid; no setter or arbitrary replacement of T
-is introduced. NumPy's own stubs do not accept Quantity outputs or infer wrapped
+`Quantity[T]` contract remains valid; no arbitrary replacement of T is introduced.
+NumPy's own stubs do not accept Quantity outputs or infer wrapped
 return types; these runtime calls may require a local type-checker suppression.
 
 ## Multiple-output decompositions

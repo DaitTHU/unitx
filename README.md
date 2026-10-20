@@ -223,9 +223,11 @@ copying, and serialization.
   and implicit list/tuple magnitudes are unsupported.
 - Conversion uses multiplication by a scale. Offset temperature scales such
   as Celsius and Fahrenheit are unsupported.
-- Covered single-output NumPy ufuncs support unit-aware `out` buffers.
-  Item assignment, true in-place operators, function/reduction `out`, and
-  heterogeneous-unit reductions remain outside the current support matrix.
+- Covered NumPy ufuncs, functions, and reductions support unit-aware `out`
+  buffers. Writable ndarray Quantities also support indexed assignment and
+  augmented arithmetic, keeping the destination array, dtype, and unit fixed.
+  Results requiring heterogeneous units remain unsupported. See the
+  [NumPy support matrix](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md).
 - The package ships inline annotations and `py.typed`. Construction and
   unit-only operations preserve the magnitude type; `.T` also retains it.
   Array calculations and conversion use concrete ndarray/NumPy-scalar result

@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Support indexed assignment to ndarray Quantities with compatible-unit
+  conversion, fixed destination dtype, staged same_kind casting, and native
+  indexing/broadcasting rules, including overlapping RHS values and index aliases.
+- Support true ndarray augmented arithmetic (`+=`, `-=`, `*=`, `/=`, `**=`, `@=`)
+  while keeping the original Quantity, buffer, dtype, and unit. Reject dimension
+  changes and incompatible casts without modifying the target. Scalar magnitudes
+  retain ordinary result/rebinding semantics.
+
+### Changed
+
+- Array augmented arithmetic now updates shared storage instead of rebinding to
+  a new result. Aliases observe writes; integer true division or dimensional
+  changes can now fail where ordinary arithmetic and rebinding would succeed.
+
 ## [0.8.6] - 2026-10-20
 
 ### Added

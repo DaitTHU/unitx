@@ -107,6 +107,55 @@ def _validate_where(kwargs: dict[str, Any]) -> None:
         raise TypeError('where must be a unitless boolean mask.')
 
 
+def _snapshot_index(key: Any) -> Any:
+    """Keep index arrays independent from storage modified by assignment."""
+    if isinstance(key, np.ndarray):
+        if type(key) is not np.ndarray or key.dtype.kind not in 'biu':
+            raise TypeError('Array indices must be plain boolean or integer ndarrays.')
+        return key.copy()
+    if isinstance(key, (tuple, list)):
+        return type(key)(_snapshot_index(item) for item in key)
+    if isinstance(key, slice):
+        return slice(
+            *(
+                None if item is None else operator.index(item)
+                for item in (key.start, key.stop, key.step)
+            )
+        )
+    if key is None or key is Ellipsis or isinstance(key, (bool, np.bool_)):
+        return key
+    return operator.index(key)
+
+
+def assign_item(target: Quantity[Any], key: Any, value: Any) -> None:
+    """Convert and stage selected values before modifying caller storage."""
+    buffer = target.value
+    if type(buffer) is not np.ndarray:
+        raise TypeError('Indexed assignment requires a plain numeric ndarray magnitude.')
+    if not buffer.flags.writeable:
+        raise ValueError('Assignment destination is read-only.')
+    if not _is_supported_operand(value):
+        raise TypeError('Assignment requires a numeric scalar, ndarray, or Quantity.')
+    raw, unit = _operand_parts(value)
+    if unit.dimension != target.dimension:
+        raise DimensionError('Assigned value has an incompatible dimension.')
+    key = _snapshot_index(key)
+    raw = scale_magnitude(raw, unit.factor / target.unit.factor)
+    staged = np.empty(np.shape(raw), dtype=buffer.dtype)
+    # Resolve every cast before entering NumPy indexed assignment, which leaves
+    # its target unchanged on index/shape errors but not on casting errors.
+    # Preserve RHS shape so native scalar/boolean assignment rules still apply.
+    np.copyto(staged, raw, casting='same_kind')
+    buffer[key] = staged
+
+
+def write_inplace(target: Quantity[Any], result: Quantity[Any]) -> Any:
+    # NumPy scalars stay immutable and follow ordinary result/rebinding rules.
+    if type(target.value) is not np.ndarray:
+        return result
+    return _write_output(result, target, broadcast=True)
+
+
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     if ufunc in (np.modf, np.frexp) and method == '__call__':
         return _dispatch_multi_output(ufunc, inputs, kwargs)

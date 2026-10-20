@@ -71,6 +71,34 @@ def array_alias(q: Quantity[Array]) -> Quantity[Array]:
     return q
 
 
+def mutation_contracts(a: npt.NDArray[np.float64], scalar: np.float64) -> None:
+    q = Quantity(a, 'm')
+    widened = array_alias(q)
+    # Element writes never replace the object or dtype held by either alias.
+    widened[0] = Quantity(100, 'cm')
+    q[:] = Quantity(a, 'cm')
+    assert_type(q.value, npt.NDArray[np.float64])
+    q += Quantity(1, 'm')
+    assert_type(q, Quantity[npt.NDArray[np.float64]])
+    q -= Quantity(a, 'cm')
+    assert_type(q, Quantity[npt.NDArray[np.float64]])
+    q *= 2
+    assert_type(q, Quantity[npt.NDArray[np.float64]])
+    q /= 2
+    assert_type(q, Quantity[npt.NDArray[np.float64]])
+    q **= 1
+    assert_type(q, Quantity[npt.NDArray[np.float64]])
+    q @= a
+    assert_type(q, Quantity[npt.NDArray[np.float64]])
+    widened += Quantity(1, 'm')
+    # A protocol-only alias could hold an immutable NumPy scalar too.
+    assert_type(widened.value, NumpyValue)
+    assert_type(q.value.dtype, np.dtype[np.float64])
+    numpy_scalar = Quantity(scalar, 'm')
+    numpy_scalar += Quantity(scalar, 'm')
+    assert_type(numpy_scalar, Quantity[NumpyValue])
+
+
 def output_contracts(a: npt.NDArray[np.float64]) -> None:
     q = Quantity(a, 'm')
     widened = array_alias(q)
