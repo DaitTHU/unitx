@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 
-def _check_type_hints(config: str, *, pythonpath: str = sys.executable) -> None:
+def _check_type_hints(*paths: str, pythonpath: str = sys.executable) -> None:
     assert find_spec('pyright') is not None, (
         f'Pyright is not installed for {sys.executable}.\n'
         f'Install it with: "{sys.executable}" -m pip install "pyright>=1.1.414"'
@@ -23,9 +23,10 @@ def _check_type_hints(config: str, *, pythonpath: str = sys.executable) -> None:
             '-m',
             'pyright',
             '--project',
-            str(root / config),
+            str(root / 'pyrightconfig.json'),
             '--pythonpath',
             pythonpath,
+            *paths,
         ],
         cwd=root,
         capture_output=True,
@@ -38,20 +39,22 @@ def _check_type_hints(config: str, *, pythonpath: str = sys.executable) -> None:
 
 def test_pyright_type_hints() -> None:
     # Full optional NumPy annotations need NumPy; scalar consumers do not.
-    config = 'pyrightconfig.json' if find_spec('numpy') else 'pyrightconfig.scalar.json'
-    _check_type_hints(config)
+    if find_spec('numpy') is None:
+        _check_type_hints('tests/typing')
+    else:
+        _check_type_hints()
 
 
 def test_numpy_type_hints() -> None:
     if find_spec('numpy') is None:
         pytest.skip('NumPy is optional')
-    _check_type_hints('pyrightconfig.numpy.json')
+    _check_type_hints('tests/numpy_typing')
 
 
 def test_numpy_example_type_hints() -> None:
     if find_spec('numpy') is None or find_spec('matplotlib') is None:
         pytest.skip('NumPy and Matplotlib are optional')
-    _check_type_hints('pyrightconfig.examples.json')
+    _check_type_hints('examples')
 
 
 def test_asarray_type_hints() -> None:
@@ -59,7 +62,7 @@ def test_asarray_type_hints() -> None:
         pytest.skip('NumPy is optional')
     if tuple(map(int, version('numpy').split('.')[:2])) < (2, 5):
         pytest.skip('Older NumPy stubs can infer Any for asarray(...) * unit')
-    _check_type_hints('pyrightconfig.asarray.json')
+    _check_type_hints('tests/example_typing')
 
 
 def test_scalar_optional_type_hints(tmp_path: Path) -> None:
@@ -79,4 +82,4 @@ def test_scalar_optional_type_hints(tmp_path: Path) -> None:
         check=True,
         timeout=20,
     )
-    _check_type_hints('pyrightconfig.scalar.json', pythonpath=str(launcher))
+    _check_type_hints('tests/typing', pythonpath=str(launcher))

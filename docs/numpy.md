@@ -221,7 +221,9 @@ NumPy's many arithmetic overloads against Scalar's own return protocol.
 `_numpy_typing.py` imports concrete NumPy types only for static analysis; core
 runtime imports still do not load NumPy. Strict scalar-consumer checks also
 run with NumPy absent. Checking the full library's optional NumPy annotations
-requires NumPy; `pyrightconfig.scalar.json` checks scalar consumers without it.
+requires NumPy; `pyright tests/typing` checks scalar consumers without it.
+All checks share `pyrightconfig.json`; the test runner selects the input
+directories and skips optional cases when their dependencies are unavailable.
 
 NumPy's left-operand and function stubs do not generally describe every
 unit-aware dispatch. With NumPy 2.5 stubs and Pyright 1.1.414, the documented

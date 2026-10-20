@@ -13,7 +13,9 @@
   ],
   "strict": [
     "src/unitx/quantity.py",
-    "tests/typing"
+    "tests/typing",
+    "tests/numpy_typing",
+    "tests/example_typing"
   ],
   "extraPaths": ["src"],
   "pythonVersion": "3.12",
