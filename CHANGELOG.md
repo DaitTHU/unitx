@@ -17,6 +17,14 @@
 - Keep Python-comparison-to-ufunc mapping in the optional NumPy adapter and
   replace redundant Fractionable type guards with direct isinstance checks.
 
+### Examples
+
+- Replace the blackbody script with a notebook and add damped motion, free
+  Gaussian wave-packet propagation, optical attenuation, and correlated
+  measurement-uncertainty notebooks. Keep calculations as Quantities and derive
+  plot labels from their units. Check execution, typing, and output-free notebook
+  files without adding Jupyter as a library or test dependency.
+
 ## [0.8.3] - 2026-10-20
 
 ### Added

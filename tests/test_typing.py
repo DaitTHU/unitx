@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from ._notebooks import notebook_source
+
 
 def _check_type_hints(*paths: str, pythonpath: str = sys.executable) -> None:
     assert find_spec('pyright') is not None, (
@@ -51,10 +53,13 @@ def test_numpy_type_hints() -> None:
     _check_type_hints('tests/numpy_typing')
 
 
-def test_numpy_example_type_hints() -> None:
+def test_numpy_example_type_hints(tmp_path: Path) -> None:
     if find_spec('numpy') is None or find_spec('matplotlib') is None:
         pytest.skip('NumPy and Matplotlib are optional')
-    _check_type_hints('examples')
+    examples = Path(__file__).resolve().parents[1] / 'examples'
+    for path in examples.glob('*.ipynb'):
+        (tmp_path / f'{path.stem}.py').write_text(notebook_source(path), encoding='utf-8')
+    _check_type_hints(str(tmp_path))
 
 
 def test_asarray_type_hints() -> None:

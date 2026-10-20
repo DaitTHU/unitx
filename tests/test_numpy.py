@@ -1,7 +1,6 @@
 """NumPy's numeric domain, unit rules, and deliberate failure boundaries."""
 
 import os
-import runpy
 import subprocess
 import sys
 from decimal import Decimal, localcontext
@@ -14,6 +13,8 @@ from unitx.exceptions import DimensionError
 from unitx.factor import PI, Factor
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
+
+from ._notebooks import notebook_source
 
 np = pytest.importorskip('numpy')
 
@@ -252,7 +253,9 @@ def test_numpy_blackbody_example(tmp_path, monkeypatch):
 
     monkeypatch.setattr(plt, 'show', lambda: None)
     try:
-        result = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'examples/blackbody.py'))
+        path = Path(__file__).resolve().parents[1] / 'examples/blackbody.ipynb'
+        result = {'__name__': '__main__'}
+        exec(compile(notebook_source(path), str(path), 'exec'), result)
         radiance = result['radiance']
         assert isinstance(radiance, Quantity) and radiance.shape == (100, 3)
         lines = plt.gca().get_lines()

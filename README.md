@@ -115,7 +115,7 @@ values in the catalogue and enter NumPy calculations as floats.
 `.value_in(unit)` also converts it to a chosen unit. Implicit unit removal with
 `np.asarray(quantity)` or `np.array(quantity)` raises TypeError.
 
-The [runnable example](examples/blackbody.py) uses `np.asarray([...]) * unit`
+The [blackbody notebook](examples/blackbody.ipynb) uses `np.asarray([...]) * unit`
 without an explicit dtype. This automatic construction inference is checked
 with NumPy 2.5 stubs and Pyright; the example also runs on NumPy 2.1. Older
 NumPy stubs may still infer Any for this expression. NumPy's own stubs can
@@ -124,6 +124,11 @@ infer different types for `np.array` and `np.asarray`;
 `Quantity(array, unit)` provide alternative construction forms. Arbitrary
 shape/dtype inference and wrapped return types for every NumPy function are not
 promised. See the [supported operations, storage rules, and typing limits](docs/numpy.md).
+
+The [physics notebooks](examples/README.md) also cover damped motion, Gaussian
+wave-packet spreading, optical attenuation, and correlated measurement uncertainty.
+They include explanations and numerical checks; plots are generated when run,
+keeping saved notebooks small.
 
 ## Values and conversion
 
