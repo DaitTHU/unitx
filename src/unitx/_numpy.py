@@ -295,6 +295,15 @@ def _stage_output(
     mask = np.broadcast_to(where, buffer.shape)
     if np.may_share_memory(mask, buffer):
         mask = mask.copy()
+    # Kernels and nonidentity conversions usually already own a temporary.
+    # Reuse it when no cast or separation from the destination is needed.
+    # can_cast still validates an explicit casting option, even for equal dtypes.
+    if (
+        value.dtype == buffer.dtype
+        and np.can_cast(value.dtype, buffer.dtype, casting=casting)
+        and not np.may_share_memory(value, buffer)
+    ):
+        return buffer, value, mask
     staged = np.empty(buffer.shape, dtype=buffer.dtype)
     np.copyto(staged, value, where=mask, casting=casting)
     return buffer, staged, mask

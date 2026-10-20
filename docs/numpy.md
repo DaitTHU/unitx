@@ -205,7 +205,13 @@ augmented arithmetic; a generic Array annotation may also describe an immutable
 NumPy scalar and therefore retains the broader result type.
 
 These operations use temporaries; they do not promise zero allocation or general
-rollback against concurrent mutation or external buffer failures.
+rollback against concurrent mutation or external buffer failures. Output staging
+reuses an already independent result when its dtype matches the target; otherwise
+it stages a cast or an overlapping value. Identity scaling still retains storage,
+and nonidentity scaling follows the algorithm documented above. Run
+`python benchmarks/numpy_writes.py` from the checkout to measure output,
+assignment, and augmented-operation timings and traced peak allocations. Timings
+are machine dependent; they are not a performance guarantee.
 
 `np.trapezoid(y, x=x)` accepts a Quantity for y, x, or both and returns a
 Quantity with unit `y.unit * x.unit`; bare inputs are dimensionless. With

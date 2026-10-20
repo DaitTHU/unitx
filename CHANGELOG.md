@@ -11,6 +11,12 @@
   while keeping the original Quantity, buffer, dtype, and unit. Reject dimension
   changes and incompatible casts without modifying the target. Scalar magnitudes
   retain ordinary result/rebinding semantics.
+- Add a reproducible benchmark for controlled array writes and peak allocations.
+
+### Improved
+
+- Reuse independent numerical temporaries with matching destination dtype when
+  staging outputs, removing a redundant full-size allocation and copy.
 
 ### Changed
 
