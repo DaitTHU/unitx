@@ -87,6 +87,15 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     scalar_target = Quantity(np.empty(()), 'cm')
     q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))
     q.__array_function__(np.sum, (Quantity,), (q,), {'out': scalar_target})
+    mask = np.array([True, False, True])
+    q.__array_ufunc__(
+        np.add, 'reduce', q, out=(scalar_target,), where=mask, initial=Quantity(2, 'cm')
+    )
+    for operation in (np.sum, np.mean, np.std):
+        q.__array_function__(operation, (Quantity,), (q,), {'where': mask, 'out': scalar_target})
+    q.__array_function__(
+        np.var, (Quantity,), (q,), {'where': mask, 'out': Quantity(np.empty(()), 'm2')}
+    )
     product_target = Quantity(np.empty(()), 'm2')
     q.__array_ufunc__(
         np.multiply, 'reduce', q, out=(product_target,), where=np.array([True, False, True])

@@ -81,7 +81,7 @@ methods, mixed array types, and keywords fail explicitly.
 | isfinite, isnan, isinf, signbit | Bare boolean results |
 | modf | Fractional and integral parts in the input unit |
 | frexp | Mantissa in the input unit; bare integer binary exponent |
-| add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims for reduce |
+| add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims, initial, where for reduce |
 | multiply.reduce | Product unit rules below; accepts axis, dtype, keepdims, initial, where, out |
 
 Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and
@@ -99,10 +99,11 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | --- | --- | --- |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
-| sum, mean | Preserve unit | axis, dtype, keepdims, out |
+| sum | Preserve unit | axis, dtype, keepdims, initial, where, out |
+| mean | Preserve unit | axis, dtype, keepdims, where, out |
 | prod | Product unit rules below | axis, dtype, keepdims, initial, where, out |
 | median | Preserve unit | axis, keepdims, out; overwrite_input=False |
-| std, var | Preserve unit / square unit | axis, dtype, ddof, keepdims, out |
+| std, var | Preserve unit / square unit | axis, dtype, ddof, keepdims, where, out |
 | cumsum | Preserve unit | axis, dtype, out |
 | argmin, argmax | Bare indices | axis, keepdims, out |
 | trapezoid | Multiply ordinate and coordinate units | x, scalar dx, axis; no out |
@@ -111,9 +112,10 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 Supply the first magnitude argument positionally; concatenate/stack take a
 sequence. Options follow each supported signature, including positional out
 checks. Function and reduction outputs follow the rules below;
-overwrite_input=True is rejected. Reduction/statistical `where` and `initial`
-are supported only for prod/multiply.reduce. Unsupported mean, correction,
-and other keywords raise TypeError.
+overwrite_input=True is rejected. Reduction/statistical `where` is supported
+for sum, mean, std, var, add.reduce, prod, and multiply.reduce; `initial` is
+supported only for sum/add.reduce and prod/multiply.reduce. Precomputed `mean`,
+`correction`, and other unsupported keywords raise TypeError.
 There is no `__setitem__`; `q += other` creates a result and rebinds q.
 
 `np.trapezoid(y, x=x)` accepts a Quantity for y, x, or both and returns a
@@ -125,6 +127,54 @@ Explicit x makes dx irrelevant. Numeric arrays, scalar spacing, axis handling,
 coordinate order (including reversed or nonmonotonic x), broadcasting, and
 empty intervals follow [NumPy trapezoid](https://numpy.org/doc/stable/reference/generated/numpy.trapezoid.html).
 No coordinate sorting, interpolation, dtype option, or output buffer is added.
+
+## Masked sums and statistics
+
+`np.sum(q)` and `np.add.reduce(q)` preserve q's unit, including ScaledUnit and
+scaled dimensionless units. Their default axes are all axes and axis 0,
+respectively. Both accept `initial`, a numeric scalar or scalar Quantity,
+including NumPy scalars and zero-dimensional arrays. A Quantity initial must
+have the input's dimension and is converted to the input unit, then added once
+to every result slice. Bare nonzero initial values are coherent dimensionless
+values; they do not implicitly acquire the input unit. Bare zero is accepted
+as the additive identity in any dimension, while a Quantity zero retains its
+declared dimension. Empty or fully masked sums return zero in the input unit,
+or the converted initial when supplied. Explicit `initial=None` uses NumPy's
+first-element semantics and fails on empty reductions.
+
+The input and explicit `dtype` select the accumulator; initial does not promote
+it. NumPy casts the converted initial into that dtype before summation, so an
+integer accumulator can truncate a fractional initial. Decimal/Fraction initial
+values enter the NumPy floating domain. Complex initial values follow NumPy's
+casting rules, even for complex zero. Unsupported initial arrays, bools, or
+incompatible dimensions fail before writing an output.
+
+`where` on sum, add.reduce, mean, std, and var is a bare boolean scalar or plain
+boolean ndarray broadcast to the input shape. It selects **input elements**;
+all result positions are written when `out` is supplied. Different slices may
+have different selected counts. Mean and standard deviation retain the input
+unit; variance has its square. Statistics use stored coordinates, including
+for scaled dimensionless input. NumPy controls dtype, complex statistics, NaN/Inf,
+empty-sample warnings, and degrees of freedom (N in `N - ddof` is the selected count).
+Masks do not imply automatic NaN omission. These operations use the same staged
+output rules as other reductions, including exact shape and unchanged targets
+on computation, unit, shape, or casting errors. `add.accumulate`, cumsum, and
+median do not gain `where` or `initial`.
+
+```python
+samples = Quantity(np.array([[1.0, 2, 3], [4, 5, 6]]), 'm')
+selected = np.array([[True, False, True], [False, True, True]])
+totals = np.sum(samples, axis=1, where=selected, initial=Quantity(50, 'cm'))
+assert totals.unit == samples.unit
+np.testing.assert_allclose(totals.value, [4.5, 11.5])
+means = np.mean(samples, axis=1, where=selected)
+np.testing.assert_allclose(means.value, [2, 5.5])
+```
+
+The numerical rules follow [NumPy sum](https://numpy.org/doc/stable/reference/generated/numpy.sum.html),
+[mean](https://numpy.org/doc/stable/reference/generated/numpy.mean.html), and
+[var](https://numpy.org/doc/stable/reference/generated/numpy.var.html), with the
+unit and output constraints above.
 
 ## Product reductions
 

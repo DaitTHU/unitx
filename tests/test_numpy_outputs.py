@@ -223,7 +223,8 @@ def test_numpy_reduction_out_protocol():
     assert np.add.reduce(q, out=Foreign()) == 'foreign dispatched'
     assert np.sum(q, out=Foreign()) == 'foreign dispatched'
     target = Quantity(np.array(-123.0), 'm')
-    for options in ({'where': True}, {'initial': 1}, {'casting': 'unsafe'}):
-        with pytest.raises(TypeError):
-            np.add.reduce(q, out=target, **options)
+    with pytest.raises(DimensionError, match='initial has an incompatible dimension'):
+        np.add.reduce(q, out=target, initial=1)
+    with pytest.raises(TypeError):
+        np.add.reduce(q, out=target, casting='unsafe')
     assert target.value == -123

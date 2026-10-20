@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Support input masks for sum, add.reduce, mean, std, and var, including staged
+  output writes. Preserve units, selected-sample statistics, and native NumPy
+  dtype, empty-sample warnings, and degrees-of-freedom behavior.
+- Support scalar initial values for sum/add.reduce, converting compatible
+  Quantities to the input unit. Bare nonzero initial values remain dimensionless;
+  bare zero is an additive identity. Document accumulator casting and empty sums.
+
 ## [0.8.5] - 2026-10-20
 
 ### Added

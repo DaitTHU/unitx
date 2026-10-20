@@ -257,7 +257,7 @@ def _dispatch_ufunc(
     if any(x is not None for x in kwargs.get('out', ())):
         return NotImplemented
     kwargs = {k: v for k, v in kwargs.items() if k != 'out'}
-    if method == 'reduce' and ufunc is np.multiply:
+    if method == 'reduce' and ufunc in (np.add, np.multiply):
         if not isinstance(inputs[0], Quantity) or kwargs.keys() - {
             'axis',
             'dtype',
@@ -266,10 +266,10 @@ def _dispatch_ufunc(
             'where',
         }:
             return NotImplemented
-        return _prod(inputs[0], **{'axis': 0, **kwargs})
-    if method in ('reduce', 'accumulate') and ufunc is np.add:
-        allowed = {'axis', 'dtype', 'keepdims'} if method == 'reduce' else {'axis', 'dtype'}
-        if kwargs.keys() - allowed:
+        handler = _sum if ufunc is np.add else _prod
+        return handler(inputs[0], **{'axis': 0, **kwargs})
+    if method == 'accumulate' and ufunc is np.add:
+        if kwargs.keys() - {'axis', 'dtype'}:
             return NotImplemented
         if kwargs.get('dtype') is not None and np.dtype(kwargs['dtype']).kind not in 'iufc':
             return NotImplemented
@@ -540,11 +540,55 @@ def _cumsum(q: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any
     return _write_output(Quantity(np.cumsum(q.value, axis=axis, dtype=dtype), q.unit), out)
 
 
-def _sum_mean(
-    func: Any, q: Any, axis: Any = None, dtype: Any = None, out: Any = None, keepdims: bool = False
+def _mean(
+    q: Any,
+    axis: Any = None,
+    dtype: Any = None,
+    out: Any = None,
+    keepdims: bool = False,
+    *,
+    where: Any = True,
 ) -> Any:
     _validate_dtype(dtype)
-    result = Quantity(func(q.value, axis=axis, dtype=dtype, keepdims=keepdims), q.unit)
+    _validate_where({'where': where})
+    result = Quantity(
+        np.mean(q.value, axis=axis, dtype=dtype, keepdims=keepdims, where=where), q.unit
+    )
+    return _write_output(result, out)
+
+
+def _sum(
+    q: Any,
+    axis: Any = None,
+    dtype: Any = None,
+    out: Any = None,
+    keepdims: bool = False,
+    initial: Any = 0,
+    where: Any = True,
+) -> Any:
+    _validate_dtype(dtype)
+    _validate_where({'where': where})
+    value, unit = _operand_parts(q)
+    initial_value = None
+    if initial is not None:
+        if not _is_supported_operand(initial):
+            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+        initial_value, initial_unit = _operand_parts(initial)
+        if np.ndim(initial_value) != 0:
+            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+        if initial_unit.dimension != unit.dimension:
+            # Bare zero is the additive identity in any dimension. A Quantity
+            # zero still has its declared dimension and must be compatible.
+            if isinstance(initial, Quantity) or initial != 0:
+                raise DimensionError('initial has an incompatible dimension.')
+        else:
+            initial_value = scale_magnitude(initial_value, initial_unit.factor / unit.factor)
+    result = Quantity(
+        np.add.reduce(
+            value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where
+        ),
+        unit,
+    )
     return _write_output(result, out)
 
 
@@ -605,10 +649,15 @@ def _std_var(
     out: Any = None,
     ddof: Any = 0,
     keepdims: bool = False,
+    *,
+    where: Any = True,
 ) -> Any:
     _validate_dtype(dtype)
+    _validate_where({'where': where})
     unit = q.unit**2 if func is np.var else q.unit
-    result = Quantity(func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims), unit)
+    result = Quantity(
+        func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims, where=where), unit
+    )
     return _write_output(result, out)
 
 
@@ -638,6 +687,6 @@ _QUANTITY_FUNCTIONS = {
     np.prod: _prod,
     np.std: partial(_std_var, np.std),
     np.var: partial(_std_var, np.var),
-    np.sum: partial(_sum_mean, np.sum),
-    np.mean: partial(_sum_mean, np.mean),
+    np.sum: _sum,
+    np.mean: _mean,
 }

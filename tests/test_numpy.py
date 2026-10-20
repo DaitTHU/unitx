@@ -446,7 +446,7 @@ def test_unsupported_outputs_do_not_mutate():
     for f in (np.linalg.norm, np.sort):
         with pytest.raises(TypeError):
             f(q)
-    with pytest.raises(TypeError):
+    with pytest.raises(DimensionError):
         np.sum(q, initial=1)
     with pytest.raises(TypeError):
         np.median(q, overwrite_input=True)
