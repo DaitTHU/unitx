@@ -11,6 +11,7 @@ import math
 import operator
 from decimal import Decimal
 from fractions import Fraction
+from functools import partial
 from typing import Any, Literal
 
 import numpy as np  # pyright: ignore[reportMissingImports]
@@ -358,46 +359,37 @@ def dispatch_function(
     if any(t not in (Quantity, np.ndarray) for t in types):
         return NotImplemented
     if func in (np.isclose, np.allclose):
-        if not 2 <= len(args) <= 5 or kwargs.keys() - {'rtol', 'atol', 'equal_nan'}:
-            return NotImplemented
-        options: dict[str, Any] = dict(zip(('rtol', 'atol', 'equal_nan'), args[2:]))
-        if options.keys() & kwargs.keys():
-            raise TypeError('Multiple values for tolerance argument.')
-        options.update(kwargs)
-        if not all(_is_supported_operand(x) for x in args[:2]):
-            return NotImplemented
-        result = isclose(
-            args[0],
-            args[1],
-            options.get('rtol', 1e-5),
-            options.get('atol', 1e-8),
-            symmetric=False,
-            equal_nan=options.get('equal_nan', False),
-        )
-        return bool(np.all(result)) if func is np.allclose else result
+        return _close_comparison(func, *args, **kwargs)
     if func in (np.concatenate, np.stack):
         return _join_arrays(func, *args, **kwargs)
     if func is np.trapezoid:
         return _trapezoid(*args, **kwargs)
     if not args or not isinstance(args[0], Quantity) or not _is_supported_operand(args[0]):
         return NotImplemented
-    if func is np.reshape:
-        return _reshape(*args, **kwargs)
-    if func is np.transpose:
-        return _transpose(*args, **kwargs)
-    if func in (np.argmin, np.argmax):
-        return _argmin_max(func, *args, **kwargs)
-    if func is np.median:
-        return _median(*args, **kwargs)
-    if func is np.cumsum:
-        return _cumsum(*args, **kwargs)
-    if func is np.prod:
-        return _prod(*args, **kwargs)
-    if func in (np.std, np.var):
-        return _std_var(func, *args, **kwargs)
-    if func in (np.sum, np.mean):
-        return _sum_mean(func, *args, **kwargs)
-    return NotImplemented
+    handler = _QUANTITY_FUNCTIONS.get(func)
+    if handler is None:
+        return NotImplemented
+    return handler(*args, **kwargs)
+
+
+def _close_comparison(func: Any, *args: Any, **kwargs: Any) -> Any:
+    if not 2 <= len(args) <= 5 or kwargs.keys() - {'rtol', 'atol', 'equal_nan'}:
+        return NotImplemented
+    options: dict[str, Any] = dict(zip(('rtol', 'atol', 'equal_nan'), args[2:]))
+    if options.keys() & kwargs.keys():
+        raise TypeError('Multiple values for tolerance argument.')
+    options.update(kwargs)
+    if not all(_is_supported_operand(x) for x in args[:2]):
+        return NotImplemented
+    result = isclose(
+        args[0],
+        args[1],
+        options.get('rtol', 1e-5),
+        options.get('atol', 1e-8),
+        symmetric=False,
+        equal_nan=options.get('equal_nan', False),
+    )
+    return bool(np.all(result)) if func is np.allclose else result
 
 
 def _join_arrays(
@@ -561,3 +553,20 @@ def power(q: Any, exponent: Any) -> Any:
         value = scale_magnitude(q.value, q.unit.factor) if q.is_dimensionless() else q.value
         return Quantity(np.power(value, float(exponent)), unit)
     return apply_ufunc('power', q, exponent)
+
+
+# These handlers share the validated Quantity-first input contract. Sequence
+# and mixed-input functions retain their separate dispatch paths above.
+_QUANTITY_FUNCTIONS = {
+    np.reshape: _reshape,
+    np.transpose: _transpose,
+    np.argmin: partial(_argmin_max, np.argmin),
+    np.argmax: partial(_argmin_max, np.argmax),
+    np.median: _median,
+    np.cumsum: _cumsum,
+    np.prod: _prod,
+    np.std: partial(_std_var, np.std),
+    np.var: partial(_std_var, np.var),
+    np.sum: partial(_sum_mean, np.sum),
+    np.mean: partial(_sum_mean, np.mean),
+}
