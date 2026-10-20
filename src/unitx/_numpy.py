@@ -3,7 +3,7 @@
 An identity scale retains storage. Integral scales use a Python int multiplier;
 nonintegral rational scales use one Python float multiplier, and irrational
 scales use Factor's approximation. NumPy then controls promotion and errors.
-No Fraction/Decimal object arrays are produced. Explicit ufunc outputs write
+No Fraction/Decimal object arrays are produced. Explicit outputs write
 only after computing, converting, and casting a temporary result.
 """
 
@@ -96,7 +96,11 @@ def _validate_where(kwargs: dict[str, Any]) -> None:
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     outputs = kwargs.get('out', ())
     if any(x is not None for x in outputs):
-        if method != '__call__' or ufunc.nout != 1 or len(outputs) != 1:
+        if (
+            method not in ('__call__', 'reduce', 'accumulate')
+            or ufunc.nout != 1
+            or len(outputs) != 1
+        ):
             return NotImplemented
         target = outputs[0]
         predicates = (
@@ -120,33 +124,56 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         result = _dispatch_ufunc(ufunc, method, inputs, options)
         if result is NotImplemented:
             return NotImplemented
-        if isinstance(target, Quantity) and type(target.value) is not np.ndarray:
-            raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
-        if not (target.value if isinstance(target, Quantity) else target).flags.writeable:
-            raise ValueError('out buffer is read-only.')
-        return _write_ufunc_output(result, target, options)
+        return _write_output(
+            result,
+            target,
+            where=options.get('where', True),
+            casting=options.get('casting', 'same_kind'),
+            broadcast=method == '__call__',
+        )
     return _dispatch_ufunc(ufunc, method, inputs, kwargs)
 
 
-def _write_ufunc_output(result: Any, target: Any, options: dict[str, Any]) -> Any:
+def _write_output(
+    result: Any,
+    target: Any,
+    *,
+    where: Any = True,
+    casting: Any = 'same_kind',
+    broadcast: bool = False,
+) -> Any:
     """Stage a single output without replacing its magnitude, dtype, or unit."""
-    mask = options.get('where', True)
+    if target is None:
+        return result
     if isinstance(result, Quantity):
+        if not isinstance(target, Quantity) or type(target.value) is not np.ndarray:
+            raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
         if result.dimension != target.dimension:
             raise DimensionError('out has an incompatible dimension.')
-        value = scale_magnitude(result.value, result.unit.factor / target.unit.factor, where=mask)
+        factor = result.unit.factor / target.unit.factor
         buffer = target.value
     else:
-        value, buffer = result, target
+        kinds = 'b' if np.asarray(result).dtype.kind == 'b' else 'iu'
+        if type(target) is not np.ndarray or target.dtype.kind not in kinds:
+            raise TypeError('Unitless out requires a plain ndarray with the matching result kind.')
+        factor = ONE
+        buffer = target
+    if not buffer.flags.writeable:
+        raise ValueError('out buffer is read-only.')
+    value = result.value if isinstance(result, Quantity) else result
+    if not broadcast and np.shape(value) != buffer.shape:
+        raise ValueError('out must have exactly the result shape.')
+    if isinstance(result, Quantity):
+        value = scale_magnitude(value, factor, where=where)
     # Validate broadcasting and casting before touching shared storage. Casting
     # also runs in temporary storage so e.g. float narrowing errors cannot
     # partially overwrite the caller's buffer.
     value = np.broadcast_to(value, buffer.shape)
-    mask = np.broadcast_to(mask, buffer.shape)
+    mask = np.broadcast_to(where, buffer.shape)
     if np.may_share_memory(mask, buffer):
         mask = mask.copy()
     staged = np.empty(buffer.shape, dtype=buffer.dtype)
-    np.copyto(staged, value, where=mask, casting=options.get('casting', 'same_kind'))
+    np.copyto(staged, value, where=mask, casting=casting)
     np.copyto(buffer, staged, where=mask, casting='no')
     return target
 
@@ -306,11 +333,6 @@ def isclose(
     return result
 
 
-def _reject_out(out: Any) -> None:
-    if out is not None:
-        raise TypeError('Writable out is not supported for Quantity.')
-
-
 def dispatch_function(
     func: Any, types: tuple[type, ...], args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
@@ -364,7 +386,8 @@ def _join_arrays(
     dtype: Any = None,
     casting: str = 'same_kind',
 ) -> Any:
-    _reject_out(out)
+    if out is not None and dtype is not None:
+        raise TypeError('Cannot provide both dtype and out for concatenate/stack.')
     arrays = tuple(arrays)
     if not arrays or not all(_is_supported_operand(x) for x in arrays):
         return NotImplemented
@@ -379,7 +402,8 @@ def _join_arrays(
         values.append(scale_magnitude(raw, unit.factor / first.unit.factor))
     if dtype is not None and np.dtype(dtype).kind not in 'iufc':
         raise TypeError('Only numeric output dtypes are supported.')
-    return Quantity(func(values, axis=axis, dtype=dtype, casting=casting), first.unit)
+    result = Quantity(func(values, axis=axis, dtype=dtype, casting=casting), first.unit)
+    return _write_output(result, out, casting=casting)
 
 
 def _reshape(q: Any, shape: Any, order: Literal['C', 'F', 'A'] = 'C', *, copy: Any = None) -> Any:
@@ -393,31 +417,28 @@ def _transpose(q: Any, axes: Any = None) -> Any:
 def _argmin_max(
     func: Any, q: Any, axis: Any = None, out: Any = None, *, keepdims: bool = False
 ) -> Any:
-    _reject_out(out)
-    return func(q.value, axis=axis, keepdims=keepdims)
+    return _write_output(func(q.value, axis=axis, keepdims=keepdims), out)
 
 
 def _median(
     q: Any, axis: Any = None, out: Any = None, overwrite_input: bool = False, keepdims: bool = False
 ) -> Any:
-    _reject_out(out)
     if overwrite_input:
         raise TypeError('overwrite_input is not supported for Quantity.')
-    return Quantity(np.median(q.value, axis=axis, keepdims=keepdims), q.unit)
+    return _write_output(Quantity(np.median(q.value, axis=axis, keepdims=keepdims), q.unit), out)
 
 
 def _cumsum(q: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any:
-    _reject_out(out)
     _validate_dtype(dtype)
-    return Quantity(np.cumsum(q.value, axis=axis, dtype=dtype), q.unit)
+    return _write_output(Quantity(np.cumsum(q.value, axis=axis, dtype=dtype), q.unit), out)
 
 
 def _sum_mean(
     func: Any, q: Any, axis: Any = None, dtype: Any = None, out: Any = None, keepdims: bool = False
 ) -> Any:
-    _reject_out(out)
     _validate_dtype(dtype)
-    return Quantity(func(q.value, axis=axis, dtype=dtype, keepdims=keepdims), q.unit)
+    result = Quantity(func(q.value, axis=axis, dtype=dtype, keepdims=keepdims), q.unit)
+    return _write_output(result, out)
 
 
 def _std_var(
@@ -429,10 +450,10 @@ def _std_var(
     ddof: Any = 0,
     keepdims: bool = False,
 ) -> Any:
-    _reject_out(out)
     _validate_dtype(dtype)
     unit = q.unit**2 if func is np.var else q.unit
-    return Quantity(func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims), unit)
+    result = Quantity(func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims), unit)
+    return _write_output(result, out)
 
 
 def _validate_dtype(dtype: Any) -> None:

@@ -78,6 +78,12 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     # never the magnitude object or dtype described by the narrower type.
     # NumPy's own out stubs accept ndarray only; check the protocol entry here.
     q.__array_ufunc__(np.add, '__call__', q, q, out=(widened,))
+    q.__array_ufunc__(np.add, 'accumulate', q, out=(widened,))
+    q.__array_function__(np.cumsum, (Quantity,), (q,), {'out': widened})
+    scalar_target = Quantity(np.empty(()), 'cm')
+    q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))
+    q.__array_function__(np.sum, (Quantity,), (q,), {'out': scalar_target})
+    assert_type(scalar_target.value.dtype, np.dtype[np.float64])
     assert_type(widened.value, Array)
     assert_type(q.value, npt.NDArray[np.float64])
     assert_type(q * Unit('s'), Quantity[npt.NDArray[np.float64]])

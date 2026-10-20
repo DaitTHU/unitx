@@ -427,13 +427,14 @@ def test_unsupported_outputs_do_not_mutate():
     target = Quantity(buffer, 'm')
     with pytest.raises(TypeError):
         np.add(q, q, out=buffer)
-    for out in (buffer, target):
-        with pytest.raises(TypeError):
-            np.sum(q, out=out)
-        with pytest.raises(TypeError):
-            np.sum(q, None, None, out)
-        with pytest.raises(TypeError):
-            np.concatenate((q, q), out=out)
+    with pytest.raises(TypeError):
+        np.sum(q, out=buffer)
+    with pytest.raises(ValueError, match='result shape'):
+        np.sum(q, None, None, target)
+    with pytest.raises(TypeError):
+        np.concatenate((q, q), out=buffer)
+    with pytest.raises(ValueError, match='result shape'):
+        np.concatenate((q, q), out=target)
     np.testing.assert_array_equal(buffer, [-123] * 3)
     result = np.add(q, q, where=np.array([True, False, True]))
     np.testing.assert_array_equal(result.value[[0, 2]], [0, 4])
@@ -642,7 +643,7 @@ def test_ufunc_out_protocol():
 
     assert np.add(q, q, out=Foreign()) == 'foreign dispatched'
     target = Quantity(np.full(3, -123.0), 'm')
-    for operation in (np.add.reduce, np.multiply.accumulate, np.modf):
+    for operation in (np.multiply.reduce, np.multiply.accumulate, np.modf):
         with pytest.raises(TypeError):
             operation(q, out=(target, None)) if operation is np.modf else operation(q, out=target)
     np.testing.assert_array_equal(target.value, [-123] * 3)

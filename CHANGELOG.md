@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Support unit-aware `out` for sum, mean, median, std, var, cumsum,
+  concatenate, stack, and add.reduce/accumulate. Require the exact result shape,
+  preserve target identity, unit, and dtype, and stage computation, conversion,
+  and casting before writing. Argmin/argmax accept bare integer ndarray outputs.
+- Document function/reduction output casting and add regressions for scaled
+  units, positional outputs, overlapping/strided buffers, and unchanged outputs
+  on failure, plus installed-consumer type checks.
+
 ## [0.8.2] - 2026-10-20
 
 ### Fixed

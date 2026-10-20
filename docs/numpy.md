@@ -79,7 +79,7 @@ methods, mixed array types, and keywords fail explicitly.
 | power, float_power / `**` | Dimensional bases require a finite real scalar exponent; dimensionless bases/exponents normalize their scales |
 | sin, cos, tan, exp, expm1, log, log2, log10, log1p | Require coherent dimensionless values; return dimensionless Quantity |
 | isfinite, isnan, isinf, signbit | Bare boolean results |
-| add.reduce, add.accumulate | Preserve unit; accept axis and dtype, plus keepdims for reduce |
+| add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims for reduce |
 
 Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and
 single-output `out` as described below. Each kernel validates its own options.
@@ -95,25 +95,29 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | NumPy function | Unit/result rule | Supported options |
 | --- | --- | --- |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
-| concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting |
-| sum, mean | Preserve unit | axis, dtype, keepdims |
-| median | Preserve unit | axis, keepdims; overwrite_input=False |
-| std, var | Preserve unit / square unit | axis, dtype, ddof, keepdims |
-| cumsum | Preserve unit | axis, dtype |
-| argmin, argmax | Bare indices | axis, keepdims |
+| concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
+| sum, mean | Preserve unit | axis, dtype, keepdims, out |
+| median | Preserve unit | axis, keepdims, out; overwrite_input=False |
+| std, var | Preserve unit / square unit | axis, dtype, ddof, keepdims, out |
+| cumsum | Preserve unit | axis, dtype, out |
+| argmin, argmax | Bare indices | axis, keepdims, out |
 | isclose, allclose | Bare mask / Python bool | rtol, atol, equal_nan |
 
 Supply the first magnitude argument positionally; concatenate/stack take a
 sequence. Options follow each supported signature, including positional out
-checks. Function and reduction `out` and overwrite_input=True are rejected. Unsupported
-initial, statistical where, mean, correction, and other keywords raise TypeError.
+checks. Function and reduction outputs follow the rules below;
+overwrite_input=True is rejected. Unsupported initial, reduction/statistical
+where, mean, correction, and other keywords raise TypeError.
 There is no `__setitem__`; `q += other` creates a result and rebinds q.
 
-## Ufunc output buffers
+## Output buffers
 
-Supported single-output ufunc calls accept a Quantity whose magnitude is a
+Supported single-output ufunc calls, add.reduce/accumulate, and the numeric
+functions listed with `out` above accept a Quantity whose magnitude is a
 writable plain numeric ndarray. `out=target`, `out=(target,)`, and positional
-outputs return that same target. Its magnitude object, dtype, and unit stay
+outputs for ufuncs return that same target; functions accept `out=target` or
+the positional output argument in their NumPy signature, without a tuple.
+The target's magnitude object, dtype, and unit stay
 fixed. Zero-dimensional, empty, and noncontiguous output arrays are supported.
 NumPy scalars and Python scalars cannot serve as output buffers.
 
@@ -127,7 +131,10 @@ converts that result to the target unit and casts it into a staging buffer.
 The numerical kernel uses the input dtypes and any explicit `dtype`; the
 target dtype is used for the final cast. This is not a promise of NumPy's
 output-dependent kernel selection or allocation-free execution. Both the
-result and `where` mask must broadcast to the target shape. Only true mask
+result and `where` mask must broadcast to the target shape for ufunc calls.
+Function and reduction outputs must have exactly the ordinary result's shape,
+including axes retained by `keepdims`; they do not broadcast into a larger
+target. Only true mask
 positions are written; false positions retain their original target values.
 Unit conversion also skips false positions. Input/output overlap and shared
 slices are handled through temporaries; a mask sharing output storage is copied.
@@ -138,6 +145,8 @@ length target. `ScaledUnit` factors participate in the conversion. Every numeric
 result, including a coherent or scaled dimensionless result, requires a Quantity
 target; writing it to a bare ndarray would discard its unit. Boolean predicates
 and comparisons instead accept only a bare boolean ndarray output.
+`argmin` and `argmax` accept only a bare integer ndarray output, with the
+same exact shape requirement as other function outputs.
 
 Final casting uses `casting='same_kind'` by default, or the explicitly requested
 NumPy casting policy. It does not silently enable `unsafe`; nonintegral unit
@@ -148,8 +157,24 @@ The final copy is not a general transaction against concurrent changes or
 external buffer failures. Temporaries cost memory proportional to the result
 and target; `out` provides controlled writes, not a zero-allocation guarantee.
 
-`out=None` and `out=(None,)` allocate ordinary results. Multiple-output ufuncs,
-ufunc reductions with an output, and function outputs remain unsupported.
+Functions and add.reduce/accumulate use `same_kind` for the final cast and do
+not accept a new `casting` keyword. Concatenate and stack use their existing
+`casting` option for the final write as well as the kernel; their `dtype` and
+`out` options cannot be combined. Index outputs also use `same_kind`, including
+its allowance for integer narrowing. These policies intentionally do not
+reproduce every function's native output casting rule. An explicit `dtype`
+controls the temporary numerical computation for supported reductions; the
+target dtype does not select the accumulator or kernel dtype.
+
+```python
+totals = Quantity(np.empty(3), 'cm')
+assert np.sum(q, axis=0, out=totals) is totals
+indices = np.empty(3, dtype=np.intp)
+assert np.argmax(q, axis=0, out=indices) is indices
+```
+
+`out=None` and ufunc `out=(None,)` allocate ordinary results.
+Multiple-output ufuncs and product reductions remain unsupported.
 Output writes preserve the magnitude's type and dtype, so the covariant
 `Quantity[T]` contract remains valid; no setter or arbitrary replacement of T
 is introduced. NumPy's own stubs do not accept Quantity outputs or infer wrapped
