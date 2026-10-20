@@ -96,6 +96,8 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     q.__array_function__(
         np.var, (Quantity,), (q,), {'where': mask, 'out': Quantity(np.empty(()), 'm2')}
     )
+    q.__array_function__(np.diff, (Quantity,), (q,), {'prepend': Quantity(2, 'cm')})
+    q.__array_function__(np.gradient, (Quantity,), (q, Quantity(2, 's')), {'axis': 0})
     product_target = Quantity(np.empty(()), 'm2')
     q.__array_ufunc__(
         np.multiply, 'reduce', q, out=(product_target,), where=np.array([True, False, True])

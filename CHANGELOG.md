@@ -4,6 +4,10 @@
 
 ### Added
 
+- Support diff with compatible boundary values converted to the input unit,
+  and gradient with scalar spacing or coordinate arrays carrying units. Return
+  each gradient component in the ordinate unit divided by that axis's
+  coordinate unit, including mixed units across axes.
 - Support input masks for sum, add.reduce, mean, std, and var, including staged
   output writes. Preserve units, selected-sample statistics, and native NumPy
   dtype, empty-sample warnings, and degrees-of-freedom behavior.

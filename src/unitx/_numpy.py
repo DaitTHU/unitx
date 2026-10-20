@@ -22,6 +22,8 @@ from .factor import ONE, Factor
 from .quantity import Quantity
 from .unit import Unit
 
+_UNSET = object()
+
 _COMPARISON_UFUNCS = {
     operator.eq: np.equal,
     operator.ne: np.not_equal,
@@ -435,6 +437,10 @@ def dispatch_function(
         return _join_arrays(func, *args, **kwargs)
     if func is np.trapezoid:
         return _trapezoid(*args, **kwargs)
+    if func is np.diff:
+        return _diff(*args, **kwargs)
+    if func is np.gradient:
+        return _gradient(*args, **kwargs)
     if not args or not isinstance(args[0], Quantity) or not _is_supported_operand(args[0]):
         return NotImplemented
     handler = _QUANTITY_FUNCTIONS.get(func)
@@ -519,6 +525,43 @@ def _trapezoid(y: Any, x: Any = None, dx: Any = 1.0, axis: int = -1) -> Any:
         coordinates, coordinate_unit = _operand_parts(x)
         result = np.trapezoid(value, x=coordinates, axis=axis)
     return Quantity(result, unit * coordinate_unit)
+
+
+def _diff(a: Any, n: int = 1, axis: int = -1, prepend: Any = _UNSET, append: Any = _UNSET) -> Any:
+    if not _is_supported_operand(a):
+        return NotImplemented
+    # Like NumPy, the no-op retains the input and ignores axis and boundaries.
+    if n == 0:
+        return a
+    value, unit = _operand_parts(a)
+    boundaries = {}
+    for name, boundary in (('prepend', prepend), ('append', append)):
+        if boundary is _UNSET:
+            continue
+        if not _is_supported_operand(boundary):
+            return NotImplemented
+        raw, source = _operand_parts(boundary)
+        if source.dimension != unit.dimension:
+            raise DimensionError(f'{name} has an incompatible dimension.')
+        boundaries[name] = scale_magnitude(raw, source.factor / unit.factor)
+    return Quantity(np.diff(value, n=n, axis=axis, **boundaries), unit)
+
+
+def _gradient(f: Any, *varargs: Any, axis: Any = None, edge_order: Literal[1, 2] = 1) -> Any:
+    if not all(_is_supported_operand(x) for x in (f, *varargs)):
+        return NotImplemented
+    value, unit = _operand_parts(f)
+    spacings = [_operand_parts(x) for x in varargs]
+    result = np.gradient(value, *(x[0] for x in spacings), axis=axis, edge_order=edge_order)
+    # NumPy validates axes, coordinate shapes, and argument counts. Scalar
+    # spacing applies to every selected axis; otherwise each axis has its own.
+    if not isinstance(result, tuple):
+        return Quantity(result, unit / (spacings[0][1] if spacings else Unit()))
+    if not spacings or len(spacings) == 1 and np.ndim(spacings[0][0]) == 0:
+        coordinate_units = [spacings[0][1] if spacings else Unit()] * len(result)
+    else:
+        coordinate_units = [x[1] for x in spacings]
+    return tuple(Quantity(raw, unit / source) for raw, source in zip(result, coordinate_units))
 
 
 def _argmin_max(
