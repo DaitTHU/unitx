@@ -4,31 +4,37 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/unitx)](https://pypi.org/project/unitx/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Write physical formulas with units and constants. `unitx` combines unit
-conversion and dimensional analysis with Python scalar arithmetic and optional
-NumPy arrays. Unit scales and rational exponents retain their exact structure.
+A modern, intuitive unit library for Python 3.12+.
+Exact unit algebra, expressive type hints, and NumPy integration.
+
+Write physical formulas with units and constants in Python. `unitx` provides
+unit conversion and dimensional analysis for Python scalars and integrates
+with NumPy array arithmetic, broadcasting, and supported functions.
+Unit scales and rational exponents retain their exact structure.
 
 The library is in early development; public APIs may change during the 0.x series.
 
 ## Install
 
-Python **3.12 or later** is required. The scalar library has no mandatory
-runtime dependencies:
+Python **3.12 or later** is required. Install unitx with:
 
 ```sh
-python -m pip install unitx
+pip install unitx
 ```
 
-For arrays, install NumPy support. Add Matplotlib to run the plotting example:
+There are no mandatory runtime dependencies. If you already use NumPy **2.1
+or later**, this installation also lets you use units in your NumPy calculations.
+For NumPy work in a new environment or with an older NumPy version, use the
+following command to install unitx and a compatible NumPy version:
 
 ```sh
-python -m pip install 'unitx[numpy]' matplotlib
+pip install 'unitx[numpy]'
 ```
 
-For development, install into the same interpreter that runs your code:
+For development, install into your active Python environment:
 
 ```sh
-python -m pip install -e '.[test,numpy]'
+pip install -e '.[test,numpy]'
 ```
 
 This README describes the current source tree. For an older release, consult
@@ -36,8 +42,17 @@ its matching Git tag.
 
 ## Start with units and constants
 
-`si` provides units; `SI` provides physical constants. Both are read-only
-namespaces in `unitx.si`:
+The `unitx.si` submodule provides ready-to-use units and physical constants
+based on the International System of Units (SI), through two read-only
+namespaces:
+
+- `si` contains units such as `si.m`, `si.s`, and `si.MeV`, including common
+  prefixes and non-SI units.
+- `SI` contains physical constants expressed in SI units, such as the speed
+  of light `SI.c` and the Planck constant `SI.h`.
+
+In the import below, `unitx.si` is the module path; the imported `si` and `SI`
+are the namespaces you use directly in formulas:
 
 ```pycon
 >>> from unitx.si import SI, si
@@ -61,10 +76,13 @@ division combine units; addition and subtraction align compatible quantities
 to the left operand's unit. Incompatible conversions and arithmetic raise
 `DimensionError`.
 
-## NumPy example: blackbody radiation
+## Units in NumPy: blackbody radiation
 
-Broadcast a column of wavelengths against three temperatures, then plot
-Planck's spectral radiance:
+Attach units to NumPy arrays, then use broadcasting and NumPy functions to
+evaluate a physical formula. Here, a column of wavelengths and three
+temperatures broadcast to give Planck's spectral radiance.
+
+Add `matplotlib` to your environment to plot the result:
 
 ```python
 import numpy as np
@@ -195,7 +213,7 @@ copying, and serialization.
 
 ## Scope and types
 
-- Supported magnitudes are Python scalars and optional plain numeric NumPy
+- Supported magnitudes are Python scalars and plain numeric NumPy
   arrays/scalars. Other array backends, ndarray subclasses, object arrays,
   and implicit list/tuple magnitudes are unsupported.
 - Conversion uses multiplication by a scale. Offset temperature scales such
@@ -226,9 +244,9 @@ with `_` are internal.
 Run the checks from the repository root:
 
 ```sh
-python -m pytest -q
-python -m ruff check .
-python -m ruff format --check .
+pytest -q
+ruff check .
+ruff format --check .
 python -m doctest README.md docs/units.md docs/scalars.md
 ```
 
