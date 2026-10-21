@@ -3,19 +3,18 @@ from __future__ import annotations
 from collections.abc import Hashable, ItemsView, KeysView, Mapping, ValuesView
 from fractions import Fraction
 from types import MappingProxyType
-from typing import Generic, Literal, TypeVar
+from typing import Literal
 
+from ._immutable import _Immutable
 from ._numerics import Fractionable, as_exponent
 from ._unicode import DOT, superscript
 
 __all__ = ['Monomial']
 
-BaseT = TypeVar('BaseT', bound=Hashable)
-
 _ZERO = Fraction(0)
 
 
-class Monomial(Generic[BaseT]):
+class Monomial[BaseT: Hashable](_Immutable):
     """An immutable formal product of bases raised to rational exponents.
 
     A monomial represents `product(base ** exponent)` as a sparse mapping from
@@ -81,12 +80,6 @@ class Monomial(Generic[BaseT]):
         obj = super().__new__(cls)
         object.__setattr__(obj, '_components', MappingProxyType(normalized))
         return obj
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError('Monomial objects are immutable.')
-
-    def __delattr__(self, name: str) -> None:
-        raise AttributeError('Monomial objects are immutable.')
 
     @staticmethod
     def _from_dict(components: dict[BaseT, Fraction], /) -> Monomial[BaseT]:

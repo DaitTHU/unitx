@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from fractions import Fraction
 from typing import Literal
 
+from ._immutable import _Immutable
 from ._numerics import Fractionable, as_exponent, as_int_if_integral
 from ._unicode import superscript
 
@@ -14,7 +15,7 @@ _ASCII_SYMBOLS = ('T', 'L', 'M', 'I', 'Theta', 'N', 'J')
 _LEN = len(_SYMBOLS)
 
 
-class Dimension:
+class Dimension(_Immutable):
     """Immutable physical dimensions represented by seven rational exponents.
 
     - `T`: time
@@ -65,12 +66,6 @@ class Dimension:
         obj = object.__new__(cls)
         object.__setattr__(obj, '_exponents', exponents)
         return obj
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError('Dimension objects are immutable.')
-
-    def __delattr__(self, name: str) -> None:
-        raise AttributeError('Dimension objects are immutable.')
 
     @classmethod
     def _from_iter(cls, exponents: Iterable[Fraction], /) -> Dimension:

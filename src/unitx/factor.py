@@ -9,6 +9,7 @@ from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
 from typing import Any, overload
 
+from ._immutable import _Immutable
 from ._numerics import (
     Fractionable,
     Scalar,
@@ -36,7 +37,7 @@ _NUMBER_RE = re.compile(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?')
 _INVALID_CHARS = re.compile(r'[\s' + re.escape('+-−*/×÷⋅·∗⁄∕^()[]{}=') + ']')
 
 
-class SymbolicConstant:
+class SymbolicConstant(_Immutable):
     """
     An immutable symbolic representation of a mathematical constant.
 
@@ -89,12 +90,6 @@ class SymbolicConstant:
         object.__setattr__(obj, '_symbol', symbol)
         object.__setattr__(obj, '_value', value)
         return obj
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError('SymbolicConstant objects are immutable.')
-
-    def __delattr__(self, name: str) -> None:
-        raise AttributeError('SymbolicConstant objects are immutable.')
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}({self._symbol!r}, {self._value!r})'

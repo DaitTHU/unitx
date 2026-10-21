@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ._immutable import _Immutable
 from .dimension import Dimension
 from .factor import Factor
 from .unitregistry import (
@@ -12,7 +13,7 @@ from .unitregistry import (
 __all__ = ['SingleUnit']
 
 
-class SingleUnit:
+class SingleUnit(_Immutable):
     """An immutable unit identified by its canonical prefix and unit symbols.
 
     Accept a registered symbol or singular English name, optionally with one
@@ -63,12 +64,6 @@ class SingleUnit:
             raise TypeError(f'Unit symbol or name must be str, got {type(text).__name__}.')
         prefix_symbol, unit_symbol = _resolve_unit_spelling(text)
         return cls._from_symbols(prefix_symbol, unit_symbol)
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError('SingleUnit objects are immutable.')
-
-    def __delattr__(self, name: str) -> None:
-        raise AttributeError('SingleUnit objects are immutable.')
 
     @classmethod
     def _from_symbols(cls, prefix_symbol: str, unit_symbol: str) -> SingleUnit:
