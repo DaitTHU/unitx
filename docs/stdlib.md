@@ -4,6 +4,17 @@
 provides integer nanosecond clock readings and explicit duration adapters.
 Both work without NumPy installed.
 
+## Supported modules
+
+| Module | Use |
+| --- | --- |
+| `unitx.math` | Unit-aware real mathematical functions with scalar and optional NumPy backends |
+| `unitx.time` | Integer ns clocks, scalar sleep and timedelta conversion |
+
+These are explicit adapters, not complete replacements for Python's modules.
+For numerical precision see [scalar behavior](scalars.md); for annotations
+see [typing](typing.md).
+
 ## Mathematical functions
 
 ```pycon
@@ -144,3 +155,5 @@ conversion, or leap-second handling.
 The backends follow the Python documentation for [math](https://docs.python.org/3/library/math.html),
 [time](https://docs.python.org/3/library/time.html), and
 [timedelta](https://docs.python.org/3/library/datetime.html#timedelta-objects).
+
+[Documentation index](README.md) · [NumPy support](numpy.md)

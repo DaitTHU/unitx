@@ -139,28 +139,13 @@ layout guarantee. No magnitude is forced to float and no buffer is modified.
 
 Reference: [siunitx official manual source](https://github.com/josephwright/siunitx/blob/main/siunitx.tex).
 
-## Comparison and design choices
+## Limits
 
-The following comparison is based on the linked official documentation and
-source reviewed on 2026-10-21; it is an API/design comparison, not a performance
-benchmark. The libraries have different object models and precision contracts.
+Quantity width/alignment applies to the magnitude. To align the complete
+quantity, format `str(q)` separately. Native array precision specifications,
+complex-number mathematical typesetting, and siunitx semantic macro mapping
+remain outside this formatter's scope. Custom labels are escaped literal
+text, not trusted TeX. Rendering has no global defaults, automatic unit
+conversion or formatter-plugin registration.
 
-| Library | Useful approach | Decision for unitx |
-| --- | --- | --- |
-| [Pint](https://pint.readthedocs.io/en/stable/user/formatting.html) | Numeric formats plus display selectors, HTML/LaTeX/siunitx, scientific typesetting | Keep explicit `numeric_spec;style` and add scientific typesetting; preserve stored coordinates rather than automatic compact conversion |
-| [Astropy](https://docs.astropy.org/en/stable/units/format.html) | Explicit unit formats and fraction/negative-power LaTeX variants | Add Unit format selection and explicit `fraction=False`; default to slash fractions consistent with ordinary text, with separate Notebook delimiters |
-| [Astropy Quantity source](https://docs.astropy.org/en/stable/_modules/astropy/units/quantity.html) | Dedicated array formatting through `array2string`, precision and formatter controls | Recognize this as a broader capability; retain the documented native-array format boundary rather than silently invent elementwise formatting |
-| [unyt](https://unyt.readthedocs.io/en/stable/usage.html#printing-units) | Unit LaTeX output and NumPy print settings | Keep structural unit rendering, native magnitude formatting and scoped `np.printoptions` |
-
-Pint's formatter registry, custom sorting/localization and automatic compact
-conversion serve its wider ecosystem. unitx has no current need for that
-configuration machinery. Astropy's fallback from value formatting to whole-string
-formatting is convenient, but unitx keeps Quantity width/alignment tied to the
-magnitude, so the same spec does not silently change meaning after a failed
-numeric operation. Use a separate string format for whole-Quantity alignment.
-
-Remaining deliberate limits include native array precision specifications,
-complex-number mathematical typesetting, and siunitx semantic macro mapping.
-Custom labels remain escaped literal text, not trusted user-supplied TeX code.
-No formatter plugin registry, global display defaults, implicit conversion,
-or optional runtime dependency is introduced by these improvements.
+[Documentation index](README.md) · [Units and quantities](units.md)

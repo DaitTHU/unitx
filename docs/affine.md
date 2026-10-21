@@ -160,7 +160,8 @@ Use `delta_unit.factor` for the coordinate step. Multiplication, division and
 powers on the descriptor operate on its linear side, like a Unit; operations
 on an AffineQuantity point remain restricted.
 
-Register with `.define(symbol, name, ...)`. Registration adds both the linear
+Register with `.define(symbol, name, ...)`; common spelling and prefix rules are
+described in [custom units](custom-units.md). Registration adds both the linear
 difference spelling and its coordinate metadata. Registered descriptors retain
 this spelling when projected to a linear Unit; anonymous descriptors use their
 delta_unit. For example Quantity(1, si.degC), 1 * si.degC, and si.degC * 1
@@ -254,3 +255,5 @@ precise construction typing.
   `point -= point` produces a difference and cannot write back into a point array.
 - Implicit `np.asarray(point)` and `np.array(point)` are forbidden. Use `.value`
   or `.value_in(unit)` explicitly. NumPy remains an optional dependency.
+
+[Documentation index](README.md) · [Scalar numerical behavior](scalars.md) · [NumPy support](numpy.md)

@@ -1,0 +1,190 @@
+# Units and physical constants
+
+```pycon
+>>> from unitx import Quantity, Unit
+>>> from unitx.si import SI, si
+>>> si.m == Unit('metre')
+True
+>>> SI.c == 299792458 * si.m / si.s
+True
+
+```
+
+`unitx.si` is a module containing two read-only namespaces: lowercase `si`
+contains ready-to-use units and coordinate descriptors; uppercase `SI` contains
+physical-constant Quantities. Importing unitx initializes this catalogue.
+
+## Available groups
+
+The following are examples of namespace attributes, not an exhaustive list
+of accepted parser spellings:
+
+| Group | Examples in `si` |
+| --- | --- |
+| SI bases | s, m, kg, A, K, mol, cd |
+| Named derived units | rad, sr, Hz, N, Pa, J, W, C, V, F, ohm, S, Wb, T, H, lm, lx, Bq, Gy, Sv, kat |
+| Common prefixes | ns, ms, um, cm, km, MeV, kW, mA |
+| Angles and ratios | deg, arcmin, arcsec, mas, uas, percent, permille |
+| Time and frequency | min, h, d, yr, a_j, mo, rpm |
+| Length, area and volume | au, pc, ly, nmile, angstrom, a, ha, b, L |
+| Mass and mechanics | t, Da, u, c, Gal, knot, gf, kgf |
+| Pressure and energy | bar, atm, mHg, mmHg, Torr, mTorr, Wh, eV, cal |
+| Electrical variants | VA, var, mho |
+| Temperature and logarithmic coordinates | degC, degF, degR, dBm, dBW, dBV |
+| Logarithmic differences | Np, B, dB |
+
+The parser accepts permitted prefixes even when a convenience attribute is
+not listed in `si`: construct `Unit('...')` for those spellings. Namespace
+attributes are predefined; dynamically registering a unit does not add one.
+For the complete definitions see [unit source](../src/unitx/si/units.py) and
+[SI bases](../src/unitx/si/bases.py).
+
+## Constants and precision
+
+`SI` includes the seven SI defining constants, plus constants such as hbar,
+G, mu0, epsilon0, me, mp, mn, alpha and the Wien displacement constants.
+Particle data are separately available from
+`from unitx.si.constants import Particle`.
+
+Defining decimal values are stored using Decimal/int magnitudes. Measured
+constants carry the digits in the catalogue; Quantity does not attach an
+uncertainty model to them. Derived constants are numerical values calculated
+when the catalogue loads; increasing Decimal precision later does not
+recompute them. The catalogue does not promise arbitrary-precision constants.
+See [constant source](../src/unitx/si/constants.py) for the stored definitions.
+
+`unitx.pi` is a symbolic Factor base with a float approximation for numerical
+evaluation. It supports exact cancellation in unit scales. It is distinct
+from predefined `SI.hbar`, whose numerical magnitude is expressed in ordinary
+J s units. See [symbolic factors](scalars.md#symbolic-factors-and-pi) and
+[exact extra scales](custom-units.md#exact-extra-scales).
+
+## Spelling and scale conventions
+
+Symbols and names are case-sensitive. Lowercase `k` is kilo and uppercase
+`K` is kelvin: `km` is kilometre; `K m` is kelvin times metre. Unsupported
+`Km`/`Kg` spellings raise UnitSymbolError. Micro accepts canonical `µ`, Unicode
+`μ`, and ASCII `u` without warnings. The mass reference scale is kg: g has
+SI factor 1/1000. Angle units remain physically dimensionless, retaining their
+formal identity and scale; deg has exact factor pi/180.
+
+`arcsec` and `arcsecond` accept prefixes, for example `marcsec` and
+`milliarcsecond`; `″` and `"` do not. `as` continues to mean attosecond,
+and `mas` is not an arcsecond alias. `a` (are) and `ha` (hectare) are separate
+unprefixable units; `Pa` remains pascal. `yr` remains exactly 365 days.
+`a_j` is the Julian year of exactly 365.25 days (31,557,600 seconds), while
+`mo` is one twelfth of that interval, rather than a variable calendar month.
+The name exceptions `megohm` and `kilohm` are supported alongside the older
+`megaohm` and `kiloohm` spellings; `gigaohm` retains both vowels. No general
+vowel-elision rule is applied.
+
+`ly` is defined using the speed of light and the Julian year; `eV` uses the
+elementary charge and volt. Both reuse the defining constants exposed by `SI`.
+`mHg` is the registered metre-of-mercury unit and `mmHg` is its milli-prefixed
+form; `760 * si.mmHg` converts to `si.atm` with value 1 under the library's
+existing pressure convention. Prefixes do not stack: `mmmHg` and `kmmHg` are
+invalid. `kt` retains its meaning as a knot alias; tonne remains unprefixable.
+
+`si.mas` and `si.uas` provide milli- and microarcseconds as namespace shortcuts;
+their registered expressions are `marcsec` and `µarcsec`. The strings `mas`
+and `uas` are not registered aliases. `si.Da` and `si.u` now share one formal
+unit identity; only the spelling `Da` accepts prefixes, such as `kDa`.
+`si.mTorr` is available, and Torr accepts SI prefixes. Tonne uses `t` or
+`tonne`; the ambiguous spelling `ton` is not registered.
+
+`si.rpm` represents rotational frequency: `60 * si.rpm` converts to `si.Hz`
+with value 1. For angular velocity, multiply that frequency by `2 * pi` and
+convert to `si.rad / si.s`; directly converting frequency to `rad/s` does
+not insert the physical factor of 2π. `si.c` is a speed unit equal to the
+speed of light, while `SI.c` is the corresponding physical quantity.
+
+The spelling `u` denotes the unified atomic mass unit when used on its own.
+ASCII micro spellings such as `um` and `us` remain supported without warnings,
+so entering non-ASCII characters is optional. `um`, `µm`, `μm`, and
+`micrometre` all mean micrometres; the explicit product `u m` instead means
+unified atomic mass unit times metre.
+
+
+## Unicode unit characters
+
+Unicode includes dedicated unit characters in
+[Letterlike Symbols](https://www.unicode.org/charts/PDF/U2100.pdf) and
+[CJK Compatibility](https://www.unicode.org/charts/PDF/U3300.pdf).
+The following characters are accepted as symbol aliases for existing units;
+they preserve canonical unit identity, hashes and output spellings.
+Load the catalogue with `from unitx.si import si` (also loaded by `unitx`).
+Use strings such as `Unit('㍴')`; these aliases do not add Python attributes to `si`.
+
+| Character | Code point | Canonical spelling / namespace |
+| --- | --- | --- |
+| ℃ | U+2103 | °C / si.degC |
+| ℉ | U+2109 | °F / si.degF |
+| ℓ | U+2113 | L / si.L |
+| Ω | U+2126 | Ω / si.ohm |
+| K | U+212A | K / si.K |
+| Å | U+212B | Å / si.angstrom (already supported) |
+| ℧ | U+2127 | mho / si.mho (already supported) |
+| ㍳ | U+3373 | au / si.au |
+| ㍴ | U+3374 | bar / si.bar |
+| ㍶ | U+3376 | pc / si.pc |
+| ㎈ | U+3388 | cal / si.cal |
+| ㎐ | U+3390 | Hz / si.Hz |
+| ㎩ | U+33A9 | Pa / si.Pa |
+| ㎭ | U+33AD | rad / si.rad |
+| ㏃ | U+33C3 | Bq / si.Bq |
+| ㏅ | U+33C5 | cd / si.cd |
+| ㏉ | U+33C9 | Gy / si.Gy |
+| ㏊ | U+33CA | ha / si.ha |
+| ㏏ | U+33CF | kn / si.knot |
+| ㏐ | U+33D0 | lm / si.lm |
+| ㏓ | U+33D3 | lx / si.lx |
+| ㏖ | U+33D6 | mol / si.mol |
+| ㏛ | U+33DB | sr / si.sr |
+| ㏜ | U+33DC | Sv / si.Sv |
+| ㏝ | U+33DD | Wb / si.Wb |
+
+Aliases follow each unit's existing prefix policy: `m㍴`, `kΩ` and `mℓ`
+are accepted, while temperature coordinates disable prefixes.
+`Unit('℃')` denotes a temperature difference, and
+`AffineQuantity(0, '℃')` denotes a Celsius point, following the same rules as
+`degC`. The characters do not change point/difference semantics.
+
+```pycon
+>>> Unit('㍴') == si.bar
+True
+>>> Unit('㎩') == si.Pa
+True
+>>> Unit('kΩ') == si.kohm
+True
+>>> from unitx import AffineQuantity
+>>> AffineQuantity(32, '℉') == AffineQuantity(0, '℃')
+True
+
+```
+
+Other Unicode characters already contain prefixes or compound expressions:
+
+| Characters | Corresponding unit expressions (not character aliases) |
+| --- | --- |
+| ㍱, ㎪, ㎫, ㎬ | hPa, kPa, MPa, GPa |
+| ㎏, ㎎, ㎍ | kg, mg, ug |
+| ㎞, ㎝, ㎜, ㎛, ㎚ | km, cm, mm, um, nm |
+| ㎡, ㎢, ㎠, ㎟ | m², km², cm², mm² |
+| ㎥, ㎦, ㎤, ㎣ | m³, km³, cm³, mm³ |
+| ㎧, ㎨, ㎮, ㎯ | m/s, m/s², rad/s, rad/s² |
+| ㎑, ㎒, ㎓, ㎔ | kHz, MHz, GHz, THz |
+| ㏀, ㏁, ㏈ | kΩ, MΩ, dB |
+| ㎉, ㎖, ㎕ | kcal, mL, uL |
+| ㏞, ㏟ | V/m, A/m |
+
+These characters are listed for reference and are not currently accepted as
+aliases. Registering `㎏` as an alias of `g`, for example, would assign the
+wrong scale; defining another unit for it would lose the formal identity of
+`kg`. The parser does not apply blanket Unicode compatibility normalization.
+The block also contains byte, horsepower, inch, pH, mathematical operators,
+and Japanese phonetic unit forms; their presence in Unicode does not imply
+support in this catalogue. For portable input, use ordinary unit expressions.
+
+
+[Documentation index](README.md) · [Unit expressions](units.md#unit-expressions) ·
+[Custom units](custom-units.md)
