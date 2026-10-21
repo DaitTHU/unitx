@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- SingleUnit now holds shared immutable prefix and unit definitions. Metadata and
+  spelling selection use these references directly; canonical identity, prefix
+  permissions, and text-based reconstruction retain their existing behavior.
+  Built-in tables derive their indexes from self-contained definition records;
+  the shared NO_PREFIX identity is separate from the actual prefix indexes.
+  Resolvers return shared definitions directly; parsing and dynamic registration
+  reuse them rather than resolving canonical symbols again. Registration preflight
+  reads prefix names and aliases from the same definitions. Ohm spelling
+  exceptions use one full-name mapping shared by parsing, output, and preflight.
+- PrefixDefinition and UnitDefinition accept a string or tuple of strings for
+  symbol aliases and normalize strings to one-element tuples. Symbols and names
+  precede required keyword-only scale factors and dimensions.
+- Iterate prefix spellings lazily instead of constructing a combined tuple for
+  each lookup.
+
 ## [0.10.1] - 2026-10-21
 
 ### Fixed

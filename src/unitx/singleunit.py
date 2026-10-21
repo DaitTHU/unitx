@@ -4,10 +4,11 @@ from ._immutable import _Immutable
 from .dimension import Dimension
 from .factor import Factor
 from .unitregistry import (
-    PREFIX_DEFINITIONS,
-    UNIT_DEFINITIONS,
-    _preferred_unit_spelling,
-    _resolve_unit_spelling,
+    NO_PREFIX,
+    PrefixDefinition,
+    UnitDefinition,
+    _format_prefixed_name,
+    _resolve_unit,
 )
 
 __all__ = ['SingleUnit']
@@ -16,10 +17,12 @@ __all__ = ['SingleUnit']
 class SingleUnit(_Immutable):
     """An immutable unit identified by its canonical prefix and unit symbols.
 
+    Hold shared immutable prefix and unit definitions resolved at construction.
+
     Accept a registered symbol or singular English name, optionally with one
     SI prefix: `'m'`, `'metre'`, `'km'`, and `'kilometre'`. Inputs are
-    case-sensitive. Micro prefix aliases `'u'` and `'μ'` normalize to
-    `'µ'`; kilo uses lowercase `'k'`, while `'K'` denotes kelvin.
+    case-sensitive. Micro aliases normalize to 'µ'; the uppercase kilo alias
+    'K' remains accepted with UnitSymbolWarning.
     The empty string represents a dimensionless unit.
 
     Registered names may contain words separated by single ASCII spaces,
@@ -55,22 +58,23 @@ class SingleUnit(_Immutable):
     True
     """
 
-    __slots__ = ('_unit_symbol', '_prefix_symbol')
-    _unit_symbol: str
-    _prefix_symbol: str
+    __slots__ = ('_prefix', '_unit')
+    _prefix: PrefixDefinition
+    _unit: UnitDefinition
 
     def __new__(cls, text: str, /) -> SingleUnit:
         if not isinstance(text, str):
-            raise TypeError(f'Unit symbol or name must be str, got {type(text).__name__}.')
-        prefix_symbol, unit_symbol = _resolve_unit_spelling(text)
-        return cls._from_symbols(prefix_symbol, unit_symbol)
+            error_message = f'Unit symbol or name must be str, got {type(text).__name__}.'
+            raise TypeError(error_message)
+        prefix, unit = _resolve_unit(text)
+        return cls._from_definitions(prefix, unit)
 
     @classmethod
-    def _from_symbols(cls, prefix_symbol: str, unit_symbol: str) -> SingleUnit:
-        """Construct from canonical symbols. Internal use only."""
+    def _from_definitions(cls, prefix: PrefixDefinition, unit: UnitDefinition) -> SingleUnit:
+        """Construct from shared immutable definitions. Internal use only."""
         obj = super().__new__(cls)
-        object.__setattr__(obj, '_prefix_symbol', prefix_symbol)
-        object.__setattr__(obj, '_unit_symbol', unit_symbol)
+        object.__setattr__(obj, '_prefix', prefix)
+        object.__setattr__(obj, '_unit', unit)
         return obj
 
     def __repr__(self) -> str:
@@ -101,42 +105,68 @@ class SingleUnit(_Immutable):
 
     @property
     def prefix_symbol(self) -> str:
-        return self._prefix_symbol
+        return self._prefix.symbol
 
     @property
     def unprefixed_symbol(self) -> str:
-        return self._unit_symbol
+        return self._unit.symbol
 
     @property
     def symbol(self) -> str:
-        return _preferred_unit_spelling(self.prefix_symbol, self.unprefixed_symbol)[0]
-
-    def _expression(self) -> str:
-        spelling, is_name = _preferred_unit_spelling(self.prefix_symbol, self.unprefixed_symbol)
-        return f'[{spelling}]' if is_name else spelling
+        spelling = self._get_symbol()
+        if spelling is None:
+            spelling = self._get_name()
+        assert spelling is not None
+        return spelling
 
     @property
     def prefix_name(self) -> str:
-        return PREFIX_DEFINITIONS[self.prefix_symbol].name
+        return self._prefix.name
 
     @property
     def unprefixed_name(self) -> str:
-        return UNIT_DEFINITIONS[self.unprefixed_symbol].name
+        return self._unit.name
 
     @property
     def name(self) -> str:
-        return _preferred_unit_spelling(
-            self.prefix_symbol, self.unprefixed_symbol, prefer_name=True
-        )[0]
+        spelling = self._get_name()
+        if spelling is None:
+            spelling = self._get_symbol()
+        assert spelling is not None
+        return spelling
+
+    def _expression(self) -> str:
+        symbol = self._get_symbol()
+        if symbol is not None:
+            return symbol
+        name = self._get_name()
+        assert name is not None
+        return f'[{name}]'
+
+    def _get_symbol(self) -> str | None:
+        """Return a permitted symbol, or None if this prefix requires a name."""
+        if not self.has_prefix():
+            return self._unit.symbol
+        for symbol in filter(self._unit.allows_prefix, self._unit.symbols):
+            return self._prefix.symbol + symbol
+        return None
+
+    def _get_name(self) -> str | None:
+        """Return a permitted name, or None if this prefix requires a symbol."""
+        if not self.has_prefix():
+            return self._unit.name
+        for name in filter(self._unit.allows_prefix, self._unit.names):
+            return _format_prefixed_name(self._prefix, name)
+        return None
 
     @property
     def prefix_factor(self) -> Factor:
-        return PREFIX_DEFINITIONS[self.prefix_symbol].factor
+        return self._prefix.factor
 
     @property
     def unprefixed_factor(self) -> Factor:
         """Scale from the unprefixed unit to its coherent SI unit."""
-        return UNIT_DEFINITIONS[self.unprefixed_symbol].factor
+        return self._unit.factor
 
     @property
     def factor(self) -> Factor:
@@ -145,11 +175,11 @@ class SingleUnit(_Immutable):
 
     @property
     def dimension(self) -> Dimension:
-        return UNIT_DEFINITIONS[self.unprefixed_symbol].dimension
+        return self._unit.dimension
 
     def without_prefix(self) -> SingleUnit:
         """Return the unit without its prefix; no magnitude is converted."""
-        return SingleUnit._from_symbols('', self._unit_symbol) if self.has_prefix() else self
+        return SingleUnit._from_definitions(NO_PREFIX, self._unit) if self.has_prefix() else self
 
     def has_prefix(self) -> bool:
         return self.prefix_symbol != ''

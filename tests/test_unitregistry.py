@@ -6,13 +6,24 @@ from fractions import Fraction
 
 import pytest
 
+from unitx.dimension import Dimension
 from unitx.exceptions import UnitRegistryError, UnitSymbolError
 from unitx.factor import PI, Factor
 from unitx.quantity import Quantity
 from unitx.singleunit import SingleUnit
 from unitx.unit import ScaledUnit, Unit
 from unitx.unitparser import UnitParser
-from unitx.unitregistry import UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL
+from unitx.unitregistry import (
+    NO_PREFIX,
+    PREFIX_DEFINITIONS,
+    UNIT_DEFINITIONS,
+    UNIT_NAME_TO_SYMBOL,
+    UNIT_SYMBOL_ALIAS_TO_SYMBOL,
+    PrefixDefinition,
+    UnitDefinition,
+    _resolve_unit,
+    _resolve_unit_name,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -98,6 +109,24 @@ def test_single_unit_symbol_fallback() -> None:
     assert Unit('krvonlysymbol').expression() == 'krvonlysymbol'
     with pytest.raises(UnitSymbolError):
         Unit('[kiloreview symbol]')
+
+
+@pytest.mark.parametrize('allowed', ['rvallowed', 'review permitted'])
+def test_single_unit_empty_aliases(allowed: str) -> None:
+    Unit('m').define(
+        'rvempty',
+        'review empty',
+        '',
+        'review permitted',
+        symbol_aliases=('', 'rvallowed'),
+        prefixable=allowed,
+    )
+    spelling = 'krvallowed' if allowed == 'rvallowed' else 'kiloreview permitted'
+    single = SingleUnit(spelling)
+    assert single.symbol == single.name == spelling
+    assert single.without_prefix() == SingleUnit('rvempty')
+    assert Unit(Unit(spelling).expression()) == Unit(spelling)
+    assert pickle.loads(pickle.dumps(single)) == single
 
 
 @pytest.mark.parametrize('policy', [False, ()])
@@ -226,3 +255,143 @@ def test_unit_parser_reference_retry() -> None:
     assert result is parser.parse()
     assert result == UnitParser('rvpending/s').parse()
     assert Unit('[review pending]') == unit
+
+
+@pytest.mark.parametrize(
+    ('definition', 'attribute'),
+    [
+        *(
+            (PREFIX_DEFINITIONS['k'], field)
+            for field in ('symbol', 'symbol_aliases', 'names', 'factor')
+        ),
+        *(
+            (UNIT_DEFINITIONS['m'], field)
+            for field in ('symbols', 'names', 'factor', 'dimension', 'prefixable')
+        ),
+    ],
+)
+def test_unit_definition_immutable(definition, attribute: str) -> None:
+    single = SingleUnit('km')
+    before = single.symbol, single.name, single.factor, single.dimension, hash(single)
+    with pytest.raises(AttributeError):
+        setattr(definition, attribute, None)
+    with pytest.raises(AttributeError):
+        delattr(definition, attribute)
+    assert (single.symbol, single.name, single.factor, single.dimension, hash(single)) == before
+    assert {single: 'distance'}[SingleUnit('kilometre')] == 'distance'
+
+
+def test_single_unit_registration_stability() -> None:
+    Unit('m').define('rvstable', 'review stable', prefixable='review stable')
+    single = SingleUnit('kiloreview stable')
+    lookup = {single: 'original'}
+    before = single.symbol, single.name, single.factor, single.dimension, hash(single)
+    Unit('s').define('rvadditional', 'review additional')
+    with pytest.raises(UnitRegistryError):
+        Unit('s').define('rvstable', 'review replacement')
+    assert (single.symbol, single.name, single.factor, single.dimension, hash(single)) == before
+    assert lookup[SingleUnit(single.symbol)] == 'original'
+    assert pickle.loads(pickle.dumps(single)) == single
+    assert single.without_prefix() == SingleUnit('rvstable')
+    assert Unit(Unit(single.symbol).expression()) == Unit('kiloreview stable')
+    assert SingleUnit('rvadditional').dimension == Unit('s').dimension
+
+
+@pytest.mark.parametrize(
+    ('aliases', 'expected'),
+    [
+        ('', ('',)),
+        ('rvalias', ('rvalias',)),
+        ((), ()),
+        (('rvfirst', 'rvsecond'), ('rvfirst', 'rvsecond')),
+    ],
+)
+def test_prefix_definition_aliases(
+    aliases: str | tuple[str, ...], expected: tuple[str, ...]
+) -> None:
+    definition = PrefixDefinition(
+        'rvprefix', 'review prefix', factor=Factor(10), symbol_aliases=aliases
+    )
+    assert definition.symbol_aliases == expected
+
+
+@pytest.mark.parametrize(
+    ('aliases', 'expected'),
+    [
+        ('', ('',)),
+        ('rvalias', ('rvalias',)),
+        ((), ()),
+        (('rvfirst', 'rvsecond'), ('rvfirst', 'rvsecond')),
+    ],
+)
+def test_unit_definition_aliases(aliases: str | tuple[str, ...], expected: tuple[str, ...]) -> None:
+    definition = UnitDefinition(
+        'rvunit', 'review unit', factor=Factor(1), dimension=Dimension(L=1), symbol_aliases=aliases
+    )
+    assert definition.symbols == ('rvunit', *expected)
+
+
+@pytest.mark.parametrize(
+    ('text', 'prefix', 'symbol'),
+    [
+        ('', '', ''),
+        ('m', '', 'm'),
+        ('meter', '', 'm'),
+        ('kg', 'k', 'g'),
+        ('kilogram', 'k', 'g'),
+        ('um', 'µ', 'm'),
+        ('μm', 'µ', 'm'),
+        ('micrometre', 'µ', 'm'),
+        ('u', '', 'Da'),
+        ('megaohm', 'M', 'Ω'),
+        ('megohm', 'M', 'Ω'),
+        ('kilohm', 'k', 'Ω'),
+    ],
+)
+def test_unit_resolver_definitions(text: str, prefix: str, symbol: str) -> None:
+    resolved_prefix, resolved_unit = _resolve_unit(text)
+    assert resolved_prefix is (PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX)
+    assert resolved_unit is UNIT_DEFINITIONS[symbol]
+
+
+@pytest.mark.parametrize(
+    ('text', 'prefix', 'symbol'),
+    [
+        ('meter', '', 'm'),
+        ('kilogram', 'k', 'g'),
+        ('micrometre', 'µ', 'm'),
+        ('megaohm', 'M', 'Ω'),
+        ('megohm', 'M', 'Ω'),
+        ('kilohm', 'k', 'Ω'),
+    ],
+)
+def test_unit_name_definitions(text: str, prefix: str, symbol: str) -> None:
+    resolved_prefix, resolved_unit = _resolve_unit_name(text)
+    assert resolved_prefix is (PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX)
+    assert resolved_unit is UNIT_DEFINITIONS[symbol]
+
+
+def test_unit_resolver_permissions() -> None:
+    Unit('m').define(
+        'rvrecord',
+        'review record',
+        'review permitted',
+        symbol_aliases='rvallowed',
+        prefixable=('rvallowed', 'review permitted'),
+    )
+    prefix, definition = _resolve_unit('urvallowed')
+    name_prefix, name_definition = _resolve_unit_name('microreview permitted')
+    assert prefix is name_prefix is PREFIX_DEFINITIONS['µ']
+    assert definition is name_definition is UNIT_DEFINITIONS['rvrecord']
+    for text in ('urvrecord', 'microreview record'):
+        with pytest.raises(UnitSymbolError):
+            _resolve_unit(text)
+    with pytest.raises(UnitSymbolError):
+        _resolve_unit_name('urvallowed')
+
+
+@pytest.mark.parametrize('spelling', ['megaohm', 'megohm', 'kiloohm', 'kilohm'])
+def test_unit_define_invalid_contraction(spelling: str, unit_registry) -> None:
+    with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
+        Unit('m').define(spelling, 'review reserved')
+    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry

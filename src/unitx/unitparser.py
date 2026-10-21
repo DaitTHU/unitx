@@ -228,11 +228,11 @@ class UnitParser:
         name = ' '.join(self._expression.split())
         if ' ' in name or '-' in name:
             try:
-                prefix, symbol = _resolve_unit_name(name)
+                prefix, definition = _resolve_unit_name(name)
             except UnitSymbolError:
                 pass
             else:
-                unit = SingleUnit._from_symbols(prefix, symbol)
+                unit = SingleUnit._from_definitions(prefix, definition)
                 self._tokens = iter(())
                 self.next_token()
                 self._result = Monomial({unit: 1})
@@ -334,8 +334,8 @@ class UnitParser:
             name = ' '.join(token.value[1:-1].split())
             if not name:
                 raise UnitSyntaxError('Unit name reference must not be empty.')
-            prefix, symbol = _resolve_unit_name(name)
-            return Monomial({SingleUnit._from_symbols(prefix, symbol): 1})
+            prefix, definition = _resolve_unit_name(name)
+            return Monomial({SingleUnit._from_definitions(prefix, definition): 1})
         elif token := self.match('NUM'):
             if token.value != '1':
                 error_message = f'Invalid number {token.value!r} as a base.'

@@ -11,7 +11,7 @@ from .factor import ONE, Factor, SymbolicConstant
 from .monomial import Monomial
 from .singleunit import SingleUnit
 from .unitparser import UnitParser
-from .unitregistry import PrefixPolicy, UnitDefinition, _register_unit
+from .unitregistry import NO_PREFIX, PrefixPolicy, UnitDefinition, _register_unit
 
 if TYPE_CHECKING:
     from .quantity import Quantity
@@ -357,18 +357,21 @@ class Unit:
         before changing the registry.
         """
         if not isinstance(symbol_aliases, (str, tuple)):
-            raise TypeError('Symbol aliases must be str or tuple of str.')
-        if isinstance(symbol_aliases, str):
-            symbol_aliases = (symbol_aliases,)
+            wrong_type = type(symbol_aliases).__name__
+            error_message = f'Symbol aliases must be str or tuple of str, got {wrong_type}.'
+            raise TypeError(error_message)
         definition = UnitDefinition(
-            self.factor,
+            symbol,
             name,
             *name_aliases,
+            factor=self.factor,
             dimension=self.dimension,
+            symbol_aliases=symbol_aliases,
             prefixable=prefixable,
         )
-        _register_unit(symbol, definition, *symbol_aliases)
-        return Unit(symbol)
+        _register_unit(definition)
+        single_unit = SingleUnit._from_definitions(NO_PREFIX, definition)
+        return Unit._from_monomial(Monomial({single_unit: 1}))
 
 
 class ScaledUnit(Unit):

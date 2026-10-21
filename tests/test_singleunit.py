@@ -9,7 +9,7 @@ from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import UnitSymbolError, UnitSymbolWarning
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
-from unitx.unitregistry import PREFIX_DEFINITIONS, UNIT_DEFINITIONS
+from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
 
 
 @pytest.mark.parametrize(
@@ -40,7 +40,8 @@ def test_single_unit_creation(text: str, prefix: str, unit: str) -> None:
 
 
 def test_single_unit_combinations() -> None:
-    for prefix, prefix_definition in PREFIX_DEFINITIONS.items():
+    for prefix_definition in (NO_PREFIX, *PREFIX_DEFINITIONS.values()):
+        prefix = prefix_definition.symbol
         for symbol, unit_definition in UNIT_DEFINITIONS.items():
             if prefix and not unit_definition.allows_prefix(symbol):
                 continue
@@ -72,9 +73,9 @@ def test_single_unit_aliases(symbol: str) -> None:
     assert all(lookup[alias] == 'micro' for alias in aliases)
 
 
-@pytest.mark.parametrize('prefix', list(PREFIX_DEFINITIONS))
+@pytest.mark.parametrize('prefix', ('', *PREFIX_DEFINITIONS))
 def test_single_unit_name_alias(prefix: str) -> None:
-    prefix_name = PREFIX_DEFINITIONS[prefix].name
+    prefix_name = PREFIX_DEFINITIONS[prefix].name if prefix else NO_PREFIX.name
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter('always')
         unit = SingleUnit(prefix_name + 'meter')
@@ -267,7 +268,7 @@ def test_single_unit_pickle(symbol: str, protocol: int) -> None:
     assert restored.dimension == unit.dimension
     assert {unit: 'unchanged'}[restored] == 'unchanged'
     with pytest.raises(AttributeError, match='SingleUnit objects are immutable'):
-        restored._unit_symbol = 's'
+        restored._unit = UNIT_DEFINITIONS['s']
 
 
 @pytest.mark.parametrize('value', [None, True, 1, 1.0, b'm', [], {}])
@@ -319,3 +320,14 @@ def test_single_unit_name_exception(short: str, long: str, symbol: str) -> None:
     with warnings.catch_warnings(record=True) as recorded:
         Unit(short)
     assert not recorded
+
+
+def test_single_unit_distinct_identity() -> None:
+    hertz, becquerel = SingleUnit('Hz'), SingleUnit('Bq')
+    assert hertz.dimension == becquerel.dimension
+    assert hertz.factor == becquerel.factor
+    assert hertz != becquerel
+    lookup = {hertz: 'frequency', becquerel: 'activity'}
+    assert lookup[SingleUnit('hertz')] == 'frequency'
+    assert lookup[SingleUnit('becquerel')] == 'activity'
+    assert len({hertz, becquerel, SingleUnit('hertz')}) == 2

@@ -4,6 +4,7 @@ import pytest
 
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.unitregistry import (
+    NO_PREFIX,
     PREFIX_DEFINITIONS,
     PREFIX_NAME_TO_SYMBOL,
     PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
@@ -27,7 +28,6 @@ from unitx.unitregistry import (
         ('k', 'kilo', 3),
         ('h', 'hecto', 2),
         ('da', 'deca', 1),
-        ('', '', 0),
         ('d', 'deci', -1),
         ('c', 'centi', -2),
         ('m', 'milli', -3),
@@ -51,6 +51,16 @@ def test_prefix_definition_values(symbol: str, name: str, exponent: int) -> None
         assert PREFIX_NAME_TO_SYMBOL[name] == symbol
     else:
         assert name not in PREFIX_NAME_TO_SYMBOL
+
+
+def test_no_prefix_identity() -> None:
+    assert NO_PREFIX.symbol == NO_PREFIX.name == ''
+    assert NO_PREFIX.symbol_aliases == ()
+    assert NO_PREFIX.factor.value == 1
+    assert type(NO_PREFIX.factor.value) is int
+    assert '' not in PREFIX_DEFINITIONS
+    assert '' not in PREFIX_NAME_TO_SYMBOL
+    assert '' not in PREFIX_SYMBOL_ALIAS_TO_SYMBOL
 
 
 def test_prefix_definition_aliases() -> None:
