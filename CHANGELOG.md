@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `unitx.math`: real roots, trigonometric/inverse trigonometric functions,
+  exponentials/logarithms, hypot and atan2, with explicit units and optional NumPy support.
+- `unitx.time`: time, monotonic, perf_counter, process_time and thread_time
+  return integer nanosecond Quantities using the standard library's native ns clocks.
+  Scalar duration adapters provide sleep and exact timedelta import, with
+  nearest-microsecond, ties-to-even export.
+- NumPy arcsin/arccos/arctan, hypot and arctan2 dispatch, including unit-aware outputs.
+
 ## [0.12.1] - 2026-10-21
 
 ### Fixed

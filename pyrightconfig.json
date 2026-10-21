@@ -1,6 +1,8 @@
 {
   "include": [
     "src/unitx/_display.py",
+    "src/unitx/math.py",
+    "src/unitx/time.py",
     "src/unitx/affineunit.py",
     "src/unitx/affinequantity.py",
     "src/unitx/_conversion.py",

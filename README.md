@@ -76,6 +76,28 @@ division combine units; addition and subtraction align compatible quantities
 to the left operand's unit. Incompatible conversions and arithmetic raise
 `DimensionError`.
 
+## Mathematical functions and clocks
+
+```pycon
+>>> from unitx import math, time
+>>> math.sqrt(9 * si.m**2)
+Quantity(3.0, Unit('m'))
+>>> math.sin(90 * si.deg).value
+1.0
+>>> start = time.perf_counter()
+>>> elapsed = time.perf_counter() - start
+>>> isinstance(elapsed.value, int)
+True
+>>> elapsed.unit == si.ns
+True
+
+```
+
+`time.time()` returns integer nanoseconds since the Unix epoch. Monotonic,
+performance and CPU clocks also return `Quantity[int]` in ns. Explicit duration
+adapters connect to `datetime.timedelta` and `time.sleep`. See the
+[math and time guide](docs/stdlib.md) for function coverage and clock semantics.
+
 ## Units in NumPy: blackbody radiation
 
 Attach units to NumPy arrays, then use broadcasting and NumPy functions to
@@ -255,8 +277,9 @@ for syntax, exact-scale rendering, escaping, and array limitations.
   unchanged dtype. Scalar protocols avoid recursive arithmetic return types
   so editor analysis remains responsive.
 
-The package root exports `Quantity`, `Unit`, `Dimension`, `DIMENSIONLESS`,
-`one`, `ten`, and `pi`; `SI` and `si` are imported from `unitx.si`.
+The package root exports `Quantity`, `AffineQuantity`, `Unit`, `AffineUnit`,
+`Dimension`, `DIMENSIONLESS`, `one`, `ten`, `pi`, and the `math`/`time` modules;
+the `SI` and `si` namespaces are imported from `unitx.si`.
 Other building blocks are available from their modules. Modules beginning
 with `_` are internal.
 
@@ -264,6 +287,7 @@ with `_` are internal.
 
 - [Unit and quantity guide](https://github.com/DaitTHU/unitx/blob/main/docs/units.md)
 - [Scalar numerical behavior](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md)
+- [Mathematical functions and time](https://github.com/DaitTHU/unitx/blob/main/docs/stdlib.md)
 - [NumPy support matrix and typing](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md)
 - [Migration from 0.3.0](https://github.com/DaitTHU/unitx/blob/main/docs/migration.md)
 - [Changelog](https://github.com/DaitTHU/unitx/blob/main/CHANGELOG.md)
@@ -274,7 +298,7 @@ Run the checks from the repository root:
 pytest -q
 ruff check .
 ruff format --check .
-python -m doctest README.md docs/units.md docs/scalars.md
+python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md docs/stdlib.md
 ```
 
 Pytest includes runtime tests, source doctests, and Pyright checks. CI covers

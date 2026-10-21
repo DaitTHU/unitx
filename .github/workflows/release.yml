@@ -54,7 +54,7 @@ jobs:
           python -m ruff check .
           python -m ruff format --check .
           python -m pytest -q
-          python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md
+          python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md docs/stdlib.md
 
       - name: Build wheel and source distribution
         run: python -m build

@@ -406,6 +406,11 @@ def _dispatch_ufunc(
             return NotImplemented
         a, b, unit = _align_operands(*inputs)
         return _wrap(ufunc(a, b, **kwargs), unit)
+    if ufunc in (np.hypot, np.arctan2):
+        a, b, unit = _align_operands(*inputs)
+        if unit.log_degree:
+            raise DimensionError('Convert logarithmic quantities to physical ratios first.')
+        return _wrap(ufunc(a, b, **kwargs), Unit('rad') if ufunc is np.arctan2 else unit)
     if ufunc in _COMPARISON_UFUNCS.values():
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
@@ -471,6 +476,10 @@ def _dispatch_ufunc(
         else:
             power = as_exponent(scalar) if type(scalar) in (int, float) else Fraction(str(scalar))
         return _wrap(ufunc(a, exponent, **kwargs), unit**power)
+    if ufunc in (np.arcsin, np.arccos, np.arctan):
+        if not unit.is_dimensionless() or unit.log_degree:
+            raise DimensionError('This function requires dimensionless input.')
+        return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
     if ufunc in (np.sin, np.cos, np.tan, np.exp, np.expm1, np.log, np.log2, np.log10, np.log1p):
         if not unit.is_dimensionless() or unit.log_degree:
             raise DimensionError('This function requires dimensionless input.')

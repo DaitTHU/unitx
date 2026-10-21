@@ -7,7 +7,7 @@ from unitx.exceptions import InexactFloatWarning
 from unitx.factor import Factor
 
 # Static-only fixtures run through Pyright in tests/test_typing.py.
-collect_ignore = ['tests/example_typing']
+collect_ignore = ['tests/example_typing', 'tests/numpy_typing']
 if find_spec('numpy') is None:
     collect_ignore.append('src/unitx/_numpy.py')
 

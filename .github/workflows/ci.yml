@@ -49,7 +49,7 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
-          python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md
+          python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md docs/stdlib.md
 
   numpy:
     name: NumPy ${{ matrix.numpy }} (Python ${{ matrix.python-version }})
@@ -75,4 +75,4 @@ jobs:
       - name: Run tests and typing
         run: |
           pytest -q
-          python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md
+          python -m doctest README.md docs/units.md docs/scalars.md docs/affine.md docs/stdlib.md

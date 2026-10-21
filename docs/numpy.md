@@ -83,6 +83,9 @@ methods, mixed array types, and keywords fail explicitly.
 | square, sqrt, cbrt, reciprocal | Exact unit exponents 2, 1/2, 1/3, -1 |
 | power, float_power / `**` | Dimensional bases require a finite real scalar exponent; dimensionless bases/exponents normalize their scales |
 | sin, cos, tan, exp, expm1, log, log2, log10, log1p | Require coherent dimensionless values; return dimensionless Quantity |
+| arcsin, arccos, arctan | Require coherent dimensionless values; return Quantity in rad |
+| hypot | Compatible input dimensions; align to the first Quantity's unit |
+| arctan2 | Compatible input dimensions; return Quantity in rad |
 | isfinite, isnan, isinf, signbit | Bare boolean results |
 | modf | Fractional and integral parts in the input unit |
 | frexp | Mantissa in the input unit; bare integer binary exponent |
