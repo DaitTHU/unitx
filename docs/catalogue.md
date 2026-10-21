@@ -10,9 +10,11 @@ True
 
 ```
 
-`unitx.si` is a module containing two read-only namespaces: lowercase `si`
-contains ready-to-use units and coordinate descriptors; uppercase `SI` contains
-physical-constant Quantities. Importing unitx initializes this catalogue.
+`unitx.si` provides read-only namespaces: lowercase `si` contains ready-to-use
+units and coordinate descriptors; uppercase `SI` contains physical-constant
+Quantities. `Particle` contains particle data, while `au`, `nu` and `Planck`
+contain physical unit scales expressed as SI Quantities.
+Importing unitx initializes this catalogue.
 
 ## Available groups
 
@@ -43,8 +45,8 @@ For the complete definitions see [unit source](../src/unitx/si/units.py) and
 
 `SI` includes the seven SI defining constants, plus constants such as hbar,
 G, mu0, epsilon0, me, mp, mn, alpha and the Wien displacement constants.
-Particle data are separately available from
-`from unitx.si.constants import Particle`.
+Particle data are available from `from unitx.si import Particle`; the existing
+`unitx.si.constants.Particle` import remains supported.
 
 Defining decimal values are stored using Decimal/int magnitudes. Measured
 constants carry the digits in the catalogue; Quantity does not attach an
@@ -58,6 +60,52 @@ evaluation. It supports exact cancellation in unit scales. It is distinct
 from predefined `SI.hbar`, whose numerical magnitude is expressed in ordinary
 J s units. See [symbolic factors](scalars.md#symbolic-factors-and-pi) and
 [exact extra scales](custom-units.md#exact-extra-scales).
+
+## Atomic, natural and Planck scales
+
+```pycon
+>>> from unitx.si import Particle, Planck, au, nu
+>>> Particle.me is SI.me
+True
+>>> au.length is SI.a0
+True
+>>> # A physical length equal to three Bohr radii:
+>>> length = 3 * au.length
+>>> float((length / au.length).value_in(''))
+3.0
+>>> nu.velocity is SI.c
+True
+>>> Planck.length.unit == si.m
+True
+
+```
+
+| Namespace | Convention | Representative scales |
+| --- | --- | --- |
+| `au` | Hartree atomic units: ħ = e = mₑ = 4πε₀ = 1 | `length` (Bohr radius), `energy` (Hartree), `time`, `charge` |
+| `nu` | Electron-mass natural units: c = ħ = mₑ = ε₀ = 1 | `length` (reduced electron Compton wavelength), `energy`, `charge = sqrt(ε₀ ħ c)` |
+| `Planck` | c = ħ = G = kB = 1 | `mass`, `length`, `time`, `energy`, `temperature` |
+
+All three expose `velocity`, `action`, `mass`, `energy`, `momentum`, `length`
+and `time`. `au` and `nu` also expose `permittivity`, `force`, `charge`,
+`current`, `charge_density`, `electric_potential`, `electric_field`,
+`electric_dipole_moment`, `electric_quadrupole_moment`,
+`electric_polarizability`, `magnetic_flux_density`, `magnetic_dipole_moment`
+and `magnetizability`. `au` and `Planck` expose `temperature`.
+
+The atomic magnetic dipole scale is **twice** the Bohr magneton. In `nu`,
+the elementary charge has numerical value sqrt(4πα); other natural-unit
+conventions need not use the electron mass or this charge normalization.
+`Planck` uses ħ rather than h and does not select a charge convention.
+
+These attributes are **Quantities**, not Unit objects accepted as `.to()`
+targets. Divide by a scale and use `.value_in('')` to obtain a dimensionless
+number, or multiply a number by a scale to construct a physical quantity.
+The namespaces do not activate cross-dimension conversion or register new
+parser spellings. In particular, `si.au` and `Unit('au')` still mean the
+astronomical unit; `au.length` is the atomic length scale.
+All derived scales inherit the catalogue's finite numerical precision and
+lack of uncertainty propagation.
 
 ## Spelling and scale conventions
 

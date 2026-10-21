@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.1] - 2026-10-22
+
+### Added
+
+- Public `unitx.si.au`, `nu` and `Planck` read-only namespaces of SI-valued
+  atomic, electron-mass natural, and Planck scales. These are physical
+  Quantities, not parser registrations or implicit conversion contexts.
+- Export the existing `Particle` namespace directly from `unitx.si`.
+
 ## [0.13.0] - 2026-10-21
 
 ### Added

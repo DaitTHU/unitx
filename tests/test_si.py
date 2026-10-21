@@ -15,8 +15,7 @@ import pytest
 from unitx.exceptions import UnitSymbolError
 from unitx.factor import pi
 from unitx.quantity import Quantity, quantity
-from unitx.si import SI, si
-from unitx.si.constants import Particle
+from unitx.si import SI, Particle, Planck, au, nu, si
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
 
@@ -192,7 +191,10 @@ def test_particle_helion_g_factor() -> None:
     assert float(Particle.gh.to(si.one).value) == pytest.approx(-4.2552506995, rel=1e-9)
 
 
-@pytest.mark.parametrize(('namespace', 'attribute'), [(si, 'm'), (SI, 'c'), (Particle, 'me')])
+@pytest.mark.parametrize(
+    ('namespace', 'attribute'),
+    [(si, 'm'), (SI, 'c'), (Particle, 'me'), (au, 'length'), (nu, 'charge'), (Planck, 'mass')],
+)
 def test_si_namespace_readonly(namespace, attribute: str) -> None:
     before = getattr(namespace, attribute)
     with pytest.raises(TypeError):
@@ -214,6 +216,12 @@ import importlib
 importlib.import_module({entry!r})
 from unitx import Unit
 from unitx.si import SI, si
+from unitx.si import Particle, Planck, au, nu
+from unitx.si.constants import Particle as OriginalParticle
+assert Particle is OriginalParticle
+assert au.length.unit == si.m
+assert nu.charge.unit == si.C
+assert Planck.mass.unit == si.kg
 assert Unit('N') == si.N
 assert Unit('astronomical unit') == si.au
 assert 1 * si.eV == SI.e * si.V
@@ -230,6 +238,57 @@ importlib.import_module('unitx.si')
         timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ('namespace', 'attribute', 'unit', 'value'),
+    [
+        (au, 'length', 'm', 5.29177210544e-11),
+        (au, 'energy', 'J', 4.35974472221e-18),
+        (au, 'time', 's', 2.41888432659e-17),
+        (au, 'electric_polarizability', 'C2*m2/J', 1.64877727212e-41),
+        (au, 'magnetic_dipole_moment', 'J/T', 1.85480201314e-23),
+        (nu, 'length', 'm', 3.8615926744e-13),
+        (nu, 'energy', 'J', 8.1871057880e-14),
+        (nu, 'charge', 'C', 5.2908176917e-19),
+        (Planck, 'mass', 'kg', 2.176434e-8),
+        (Planck, 'length', 'm', 1.616255e-35),
+        (Planck, 'time', 's', 5.391246e-44),
+        (Planck, 'temperature', 'K', 1.416784e32),
+    ],
+)
+def test_physical_unit_scales(namespace, attribute: str, unit: str, value: float) -> None:
+    scale = getattr(namespace, attribute)
+    assert type(scale.value) is Decimal
+    assert float(scale.value_in(unit)) == pytest.approx(value, rel=5e-7, abs=0)
+
+
+def test_scale_normalization_and_physical_conventions() -> None:
+    def coherent_value(q: Quantity) -> float:
+        return float(q.value_in(''))
+
+    assert coherent_value(au.magnetic_dipole_moment / SI.muB) == pytest.approx(2)
+    assert coherent_value(SI.c / au.velocity) == pytest.approx(1 / coherent_value(SI.alpha))
+    assert coherent_value(SI.e / nu.charge) ** 2 == pytest.approx(
+        4 * float(pi.value) * coherent_value(SI.alpha)
+    )
+    assert coherent_value(SI.lambdaC / nu.length) == pytest.approx(2 * float(pi.value))
+    assert coherent_value(SI.G * Planck.mass * Planck.time**2 / Planck.length**3) == (
+        pytest.approx(1)
+    )
+    assert coherent_value(SI.kB * Planck.temperature / Planck.energy) == pytest.approx(1)
+    assert coherent_value((3 * au.length) / au.length) == pytest.approx(3)
+
+
+def test_scale_namespaces_preserve_catalogue_identity() -> None:
+    from unitx.si import constants
+
+    for namespace in (Particle, au, nu, Planck):
+        assert getattr(constants, namespace.__name__) is namespace
+        assert namespace.__name__ in constants.__all__
+    # The atomic-unit namespace does not replace the astronomical unit.
+    assert Unit('au') == si.au
+    assert (1 * si.au).value_in(si.m) == 149597870700
 
 
 def test_quantity_decimal_representation() -> None:

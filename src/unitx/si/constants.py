@@ -6,8 +6,9 @@ from ..quantity import quantity
 from .bases import _SI
 from .units import si
 
-__all__ = ['SI', 'Particle']
+__all__ = ['SI', 'Particle', 'Planck', 'au', 'nu']
 
+_HALF = Decimal('0.5')
 _PI = Decimal('3.1415926535897932384626433832795028841971693993751')
 """the ratio of the circumference of a circle to its diameter"""
 _WIEN_W = Decimal('4.9651142317442763036987591313228939440555849867973')
@@ -172,3 +173,114 @@ class Particle(ConstNamespace):
     """helion magnetic moment"""
     gh: Final = 2 * muh / SI.muN
     """helion g-factor"""
+
+
+class au(ConstNamespace):
+    """Hartree atomic-unit scales expressed as SI Quantities.
+
+    Set ħ = e = mₑ = 4πε₀ = 1; the speed of light is then 1/α.
+    Attributes are physical scales, not registered Unit objects. Divide a
+    quantity by the corresponding scale and convert to '' to obtain its
+    numerical value in atomic units. This does not change conversion rules.
+
+    The magnetic dipole scale is e ħ / mₑ = 2 μB, not the Bohr magneton.
+    Precision and uncertainties follow the underlying SI constants.
+    """
+
+    # defined base
+
+    charge: Final = SI.e
+    action: Final = SI.hbar
+    mass: Final = SI.me
+    permittivity: Final = 4 * _PI * SI.epsilon0
+
+    # derived dynamics
+
+    length: Final = SI.a0  # Bohr radius
+    energy: Final = SI.Eh  # Hartree energy
+    time: Final = action / energy
+    force: Final = energy / length
+    velocity: Final = length / time
+    momentum: Final = mass * velocity
+    temperature: Final = energy / SI.kB
+
+    # derived electromagnetic
+
+    current: Final = (charge / time).to(si.A)
+    charge_density: Final = charge / length**3
+    electric_potential: Final = (energy / charge).to(si.V)
+    electric_field: Final = electric_potential / length
+    electric_dipole_moment: Final = charge * length
+    electric_quadrupole_moment: Final = charge * length**2
+    electric_polarizability: Final = electric_dipole_moment / electric_field
+    magnetic_flux_density: Final = (electric_field / velocity).to(si.T)
+    magnetic_dipole_moment: Final = (electric_dipole_moment * velocity).to(SI.muB.unit)
+    magnetizability: Final = magnetic_dipole_moment / magnetic_flux_density
+
+
+class nu(ConstNamespace):
+    """Electron-mass natural-unit scales expressed as SI Quantities.
+
+    Set c = ħ = mₑ = ε₀ = 1, with charge scale sqrt(ε₀ ħ c).
+    The numerical elementary charge is then sqrt(4πα). The length scale is
+    the reduced electron Compton wavelength, not the ordinary wavelength.
+
+    Attributes are physical scales, not registered Unit objects or an active
+    conversion context. Precision follows the underlying SI constants.
+    """
+
+    # defined base
+
+    velocity: Final = SI.c
+    action: Final = SI.hbar
+    mass: Final = SI.me
+    permittivity: Final = SI.epsilon0
+
+    # derived dynamics
+
+    energy: Final = (mass * velocity**2).to(si.J)
+    momentum: Final = mass * velocity
+    length: Final = (action / momentum).to(si.m)
+    time: Final = length / velocity
+    force: Final = (energy / length).to(si.N)
+
+    # derived electromagnetic
+
+    charge: Final = ((permittivity * action * velocity) ** _HALF).to(si.C)
+    current: Final = (charge / time).to(si.A)
+    charge_density: Final = charge / length**3
+    electric_potential: Final = (energy / charge).to(si.V)
+    electric_field: Final = electric_potential / length
+    electric_dipole_moment: Final = charge * length
+    electric_quadrupole_moment: Final = charge * length**2
+    electric_polarizability: Final = electric_dipole_moment / electric_field
+    magnetic_flux_density: Final = (electric_field / velocity).to(si.T)
+    magnetic_dipole_moment: Final = (electric_dipole_moment * velocity).to(SI.muB.unit)
+    magnetizability: Final = magnetic_dipole_moment / magnetic_flux_density
+
+
+class Planck(ConstNamespace):
+    """Planck mechanical and temperature scales expressed as SI Quantities.
+
+    Set c = ħ = G = kB = 1, using ħ rather than h. These scales do not
+    select an electromagnetic convention or define a Planck charge.
+
+    Attributes are physical scales, not registered Unit objects or an active
+    conversion context. Precision follows the underlying SI constants;
+    derived values do not carry an uncertainty model.
+    """
+
+    # defined base
+
+    velocity: Final = SI.c
+    action: Final = SI.hbar
+
+    # derived base
+
+    mass: Final = ((action * velocity / SI.G) ** _HALF).to(si.kg)
+    energy: Final = (mass * velocity**2).to(si.J)
+    momentum: Final = mass * velocity
+    length: Final = (action / momentum).to(si.m)
+    time: Final = (length / velocity).to(si.s)
+
+    temperature: Final = energy / SI.kB
