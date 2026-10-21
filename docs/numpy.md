@@ -1,5 +1,10 @@
 # NumPy support
 
+AffineQuantity points, constructed with `array @ unit` or the explicit constructor,
+have a separate operation matrix: mean/median preserve points,
+std returns differences, and var returns squared differences. Point sums and
+products are rejected. See [affine and logarithmic coordinates](affine.md).
+
 Install `unitx[numpy]` for NumPy >= 2.1. Core imports and Python scalar
 arithmetic do not import NumPy.
 

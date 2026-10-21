@@ -239,8 +239,10 @@ for syntax, exact-scale rendering, escaping, and array limitations.
 - Supported magnitudes are Python scalars and plain numeric NumPy
   arrays/scalars. Other array backends, ndarray subclasses, object arrays,
   and implicit list/tuple magnitudes are unsupported.
-- Conversion uses multiplication by a scale. Offset temperature scales such
-  as Celsius and Fahrenheit are unsupported.
+- Unit and Quantity always describe linear scales and differences, including
+  Celsius/Fahrenheit differences. Use `value @ unit` or `AffineQuantity(value, unit)`
+  for absolute temperature and logarithmic readings. AffineUnit descriptors,
+  including si.degC, supply a linear side for * and Quantity, and a coordinate for @. See [affine and logarithmic units](docs/affine.md).
 - Covered NumPy ufuncs, functions, and reductions support unit-aware `out`
   buffers. Writable ndarray Quantities also support indexed assignment and
   augmented arithmetic, keeping the destination array, dtype, and unit fixed.
@@ -254,7 +256,7 @@ for syntax, exact-scale rendering, escaping, and array limitations.
   so editor analysis remains responsive.
 
 The package root exports `Quantity`, `Unit`, `Dimension`, `DIMENSIONLESS`,
-`ONE`, `TEN`, and `PI`; `SI` and `si` are imported from `unitx.si`.
+`one`, `ten`, and `pi`; `SI` and `si` are imported from `unitx.si`.
 Other building blocks are available from their modules. Modules beginning
 with `_` are internal.
 

@@ -7,6 +7,7 @@ from typing import Any, assert_type
 from unitx._numerics import Number, Real, Scalar
 from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
+from unitx.si import si
 from unitx.unit import ScaledUnit, Unit
 from unitx.unitregistry import PrefixPolicy
 
@@ -121,15 +122,15 @@ def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
 
 def test_unit_define() -> None:
     policy: PrefixPolicy = ('rvpolicy',)
-    assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=policy), Unit)
+    assert_type(si.m.define('rvpolicy', 'review policy', prefixable=policy), Unit)
     single_policy: PrefixPolicy = 'rvpolicy'
-    assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=single_policy), Unit)
+    assert_type(si.m.define('rvpolicy', 'review policy', prefixable=single_policy), Unit)
     assert_type((pi * Unit('m')).define('rvpolicy', 'review policy', prefixable='rvpolicy'), Unit)
     assert_type(
         Quantity(2, 'm').define('rvpolicy', 'review policy', prefixable='review policy'), Unit
     )
     assert_type(
-        Unit('m').define(
+        si.m.define(
             'rvbound',
             'review bound',
             prefixable=('rvbound', 'review bound'),
@@ -144,9 +145,9 @@ def test_unit_define() -> None:
         Quantity(2, 'm').define('rvbound', 'review bound', prefixable=('review bound',)),
         Unit,
     )
-    assert_type(Unit('m').define('rvlen', name='reviewlength'), Unit)
-    assert_type(Unit('m').define('rvlen', 'reviewlength'), Unit)
-    assert_type(Unit('m').define('rvlen', 'reviewlength', 'reviewdistance', 'reviewspan'), Unit)
+    assert_type(si.m.define('rvlen', name='reviewlength'), Unit)
+    assert_type(si.m.define('rvlen', 'reviewlength'), Unit)
+    assert_type(si.m.define('rvlen', 'reviewlength', 'reviewdistance', 'reviewspan'), Unit)
     assert_type((pi * Unit('m')).define('rvpi', name='reviewpilength'), Unit)
     assert_type((pi * Unit('m')).define('rvpi', 'reviewpilength', 'reviewpispan'), Unit)
     assert_type((60 * Unit('s')).define('rvmin', name='reviewminute'), Unit)

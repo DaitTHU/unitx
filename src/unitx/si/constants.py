@@ -30,12 +30,8 @@ class SI(_SI):
     Ref: https://physics.nist.gov/cuu/Constants/
     """
 
-    # conventional reference values and derived constants
-
     hbar: Final = _SI.h / (2 * _PI)
     """reduced Planck constant, ħ: Final = h / 2π"""
-    T0: Final = quantity(273.15, si.K)
-    """standard temperature"""
 
     # universal
 
@@ -114,7 +110,7 @@ class SI(_SI):
     b_: Final = (_WIEN_F * _SI.c / c2).to('Hz/K')
     """Wien frequency displacement law constant"""
 
-    Vm: Final = (R * T0 / si.bar).to('m3/mol')
+    Vm: Final = (R * _SI.T0 / si.bar).to('m3/mol')
     """molar volume of ideal gas (273.15 K, 100 kPa)"""
     n0: Final = _SI.NA / Vm
     """Loschmidt constant (273.15 K, 100 kPa)"""

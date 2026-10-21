@@ -4,6 +4,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Self, cast, overload
 
+from ._immutable import _Immutable
 from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_object
 from ._numpy_typing import NumpyValue
 from .dimension import DIMENSIONLESS, Dimension
@@ -11,14 +12,23 @@ from .factor import Factor, SymbolicConstant, one
 from .monomial import Monomial
 from .singleunit import SingleUnit
 from .unitparser import UnitParser
-from .unitregistry import NO_PREFIX, PrefixPolicy, UnitDefinition, _register_unit
+from .unitregistry import (
+    NO_PREFIX,
+    PrefixPolicy,
+    UnitDefinition,
+    _register_unit,
+)
 
 if TYPE_CHECKING:
+    from .affinequantity import AffineQuantity
     from .quantity import Quantity
 
 
-class Unit:
+class Unit(_Immutable):
     """A physical unit represented by a formal product of single units.
+
+    Unit always represents a linear scale, including temperature differences
+    such as degC and K. Absolute readings use AffineQuantity.
 
     Accept a string in `UnitParser` syntax, such as `'kg m/s2'`,
     `'m/(s A)'`, or `'m^(1/2)'`. Registered symbols, singular English names,
@@ -96,11 +106,12 @@ class Unit:
     1/2 m
     """
 
-    __slots__ = ('_monomial', '_dimension', '_factor', '_symbol')
+    __slots__ = ('_monomial', '_dimension', '_factor', '_symbol', '_log_degree')
     _monomial: Monomial[SingleUnit]
     _symbol: str
     _factor: Factor
     _dimension: Dimension
+    _log_degree: Fraction
 
     def __new__(cls, symbol: str = '', /) -> Self:
         if not isinstance(symbol, str):
@@ -111,32 +122,40 @@ class Unit:
     def _from_monomial(cls, monomial: Monomial[SingleUnit], /) -> Self:
         """Direct constructor from Monomial without copy. Internal use only."""
         obj = object.__new__(cls)
-        obj._monomial = monomial
-        obj._symbol = str(monomial)
-        obj._factor = one
-        obj._dimension = DIMENSIONLESS
+        factor = one
+        log_degree = Fraction(0)
+        dimension = DIMENSIONLESS
         for unit, exponent in monomial.components():
-            obj._factor *= unit.factor**exponent
-            obj._dimension *= unit.dimension**exponent
+            factor *= unit.factor**exponent
+            dimension *= unit.dimension**exponent
+            log_degree += unit.log_degree * exponent
+        object.__setattr__(obj, '_monomial', monomial)
+        object.__setattr__(obj, '_symbol', str(monomial))
+        object.__setattr__(obj, '_factor', factor)
+        object.__setattr__(obj, '_dimension', dimension)
+        object.__setattr__(obj, '_log_degree', log_degree)
         return obj
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}({self.expression()!r})'
+
+    def __reduce__(self) -> tuple[object, tuple[object, ...]]:
+        return type(self), (self.expression(),)
+
+    def __copy__(self) -> Self:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, object]) -> Self:
+        return self
 
     def __str__(self) -> str:
         return self.symbol
 
     def __format__(self, format_spec: str) -> str:
         """Select a display format or apply Python string alignment to the unit."""
-        if format_spec == 'latex':
-            return self.to_latex()
-        if format_spec == 'html':
-            return self.to_html()
-        if format_spec == 'siunitx':
-            return self.to_siunitx()
-        if format_spec == 'text':
-            return str(self)
-        return format(str(self), format_spec)
+        from ._display import format_unit
+
+        return format_unit(self, format_spec)
 
     def to_latex(self, *, fraction: bool = True) -> str:
         """Return a LaTeX fragment with slash fractions or signed unit powers."""
@@ -150,11 +169,9 @@ class Unit:
         Simple ASCII symbols use native literal unit syntax. Extra scale or
         other symbols use escaped LaTeX with unit parsing explicitly disabled.
         """
-        from ._display import siunitx_unit_parts
+        from ._display import siunitx_unit
 
-        body, parsed = siunitx_unit_parts(self)
-        options = '' if parsed else '[parse-units=false]'
-        return rf'\unit{options}{{{body or "1"}}}'
+        return siunitx_unit(self)
 
     def to_html(self) -> str:
         """Return an escaped HTML fragment, independent of MathJax."""
@@ -172,6 +189,7 @@ class Unit:
         return hash(self._monomial)
 
     def __eq__(self, other: object) -> bool:
+
         if not isinstance(other, Unit):
             return NotImplemented
         return self._monomial == other._monomial
@@ -192,6 +210,7 @@ class Unit:
     def __mul__(self, other: Unit) -> Unit: ...
 
     def __mul__(self, other: object) -> Unit | Quantity[Magnitude]:
+
         from .quantity import Quantity
 
         if is_numpy_object(other):
@@ -226,6 +245,7 @@ class Unit:
     def __truediv__(self, other: Unit) -> Unit: ...
 
     def __truediv__(self, other: object) -> Unit | Quantity[Magnitude]:
+
         from .quantity import Quantity
 
         if is_numpy_object(other):
@@ -280,6 +300,12 @@ class Unit:
             return NotImplemented
         return Unit._from_monomial(self._monomial ** as_exponent(exponent))
 
+    def __rmatmul__[T: Magnitude](self, value: T, /) -> AffineQuantity[T]:
+        """Construct an absolute reading: value at this unit's coordinate."""
+        from .affinequantity import AffineQuantity
+
+        return AffineQuantity(value, self)
+
     def __array_ufunc__(
         self, ufunc: object, method: str, *inputs: object, **kwargs: object
     ) -> object:
@@ -294,13 +320,21 @@ class Unit:
 
     @property
     def factor(self) -> Factor:
-        """Return the exact multiplicative scale to the corresponding coherent SI unit."""
+        """Return the exact scale of a multiplicative unit.
+
+        Temperature spellings describe differences; no offset is included.
+        """
         return self._factor
 
     @property
     def dimension(self) -> Dimension:
         """Return the physical dimensions of the formal unit product."""
         return self._dimension
+
+    @property
+    def log_degree(self) -> Fraction:
+        """Degree of logarithmic differences in this formal product."""
+        return self._log_degree
 
     def is_dimensionless(self) -> bool:
         """Return whether all physical dimension exponents are zero, regardless of scale."""
@@ -366,6 +400,7 @@ class Unit:
             *name_aliases,
             factor=self.factor,
             dimension=self.dimension,
+            log_degree=self.log_degree,
             symbol_aliases=symbol_aliases,
             prefixable=prefixable,
         )
@@ -402,29 +437,33 @@ class ScaledUnit(Unit):
     _scale: Factor
 
     def __new__(cls, base: Unit | str, /, scale: SymbolicConstant | Factor) -> ScaledUnit:
-        if isinstance(base, str):
-            base = Unit(base)
-        elif not isinstance(base, Unit):
-            error_message = f'Base unit must be Unit or str, got {type(base).__name__}.'
+
+        resolved = Unit(base) if isinstance(base, str) else base
+        if not isinstance(resolved, Unit):
+            error_message = f'Base unit must be Unit or str, got {type(resolved).__name__}.'
             raise TypeError(error_message)
+        base = resolved
         if not isinstance(scale, (SymbolicConstant, Factor)):
             error_message = f'Scale must be SymbolicConstant or Factor, got {type(scale).__name__}.'
             raise TypeError(error_message)
         scale = scale if isinstance(scale, Factor) else Factor(scale)
         obj = object.__new__(cls)
-        obj._monomial = base._monomial
-        obj._symbol = base.symbol
-        obj._scale = base.scale * scale if isinstance(base, ScaledUnit) else scale
-        obj._factor = base.factor * scale
-        obj._dimension = base.dimension
+        object.__setattr__(obj, '_monomial', base._monomial)
+        object.__setattr__(obj, '_symbol', base.symbol)
+        object.__setattr__(
+            obj, '_scale', base.scale * scale if isinstance(base, ScaledUnit) else scale
+        )
+        object.__setattr__(obj, '_factor', base.factor * scale)
+        object.__setattr__(obj, '_dimension', base.dimension)
+        object.__setattr__(obj, '_log_degree', base.log_degree)
         return obj
 
     @classmethod
     def _from_monomial(cls, monomial: Monomial[SingleUnit], /, scale: Factor) -> ScaledUnit:
         """Direct constructor from Monomial without copy. Internal use only."""
         obj = super()._from_monomial(monomial)
-        obj._scale = scale
-        obj._factor *= scale
+        object.__setattr__(obj, '_scale', scale)
+        object.__setattr__(obj, '_factor', obj._factor * scale)
         return obj
 
     def __repr__(self) -> str:
@@ -448,6 +487,7 @@ class ScaledUnit(Unit):
         return hash((self._monomial, self.scale))
 
     def __eq__(self, other: object) -> bool:
+
         if not isinstance(other, Unit):
             return NotImplemented
         other_scale = other.scale if isinstance(other, ScaledUnit) else one
@@ -463,6 +503,7 @@ class ScaledUnit(Unit):
     def __mul__(self, other: Unit | SymbolicConstant | Factor) -> ScaledUnit: ...
 
     def __mul__(self, other: object) -> ScaledUnit | Quantity[Magnitude]:
+
         if is_numpy_object(other) or isinstance(other, Fractionable | SymbolicConstant | Factor):
             return super().__mul__(cast(Any, other))
         if not isinstance(other, Unit):
@@ -483,6 +524,7 @@ class ScaledUnit(Unit):
     def __truediv__(self, other: Unit | SymbolicConstant | Factor) -> ScaledUnit: ...
 
     def __truediv__(self, other: object) -> ScaledUnit | Quantity[Magnitude]:
+
         if is_numpy_object(other) or isinstance(other, Fractionable | SymbolicConstant | Factor):
             return super().__truediv__(cast(Any, other))
         if not isinstance(other, Unit):

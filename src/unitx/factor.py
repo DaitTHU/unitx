@@ -7,7 +7,7 @@ import warnings
 from collections.abc import Callable, Mapping
 from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
-from typing import Any, overload
+from typing import Any, Final, overload
 
 from ._immutable import _Immutable
 from ._numerics import (
@@ -31,7 +31,7 @@ except ModuleNotFoundError as exc:
         raise
     from ._numerics import factorint, isprime
 
-__all__ = ['one', 'pi', 'ten', 'two', 'Factor', 'SymbolicConstant']
+__all__ = ['ln10', 'one', 'pi', 'ten', 'two', 'Factor', 'SymbolicConstant']
 
 _NUMBER_RE = re.compile(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?')
 _INVALID_CHARS = re.compile(r'[\s' + re.escape('+-−*/×÷⋅·∗⁄∕^()[]{}=') + ']')
@@ -60,9 +60,10 @@ class SymbolicConstant(_Immutable):
     introduce aliases of the same constant. Equal float approximations alone
     do not establish equality or independence of mathematical constants.
 
-    Symbols must be nonempty names without whitespace, arithmetic operators,
-    or grouping delimiters. Numeric strings and nonprintable characters are
-    rejected.
+    Symbols must be nonempty names without whitespace or arithmetic operators.
+    Function-shaped labels such as 'ln(10)' are also accepted as literal names;
+    their text is not evaluated. Other grouping delimiters, numeric strings and
+    nonprintable characters are rejected.
 
     Ordering compares float approximations, not exact mathematical values.
     Equality compares symbolic identity: a constant can compare both <= and
@@ -84,7 +85,9 @@ class SymbolicConstant(_Immutable):
             raise ValueError('SymbolicConstant symbol cannot be numeric.')
         if not symbol.isprintable():
             raise ValueError('SymbolicConstant symbol must contain only printable characters.')
-        if _INVALID_CHARS.search(symbol) is not None:
+        if _INVALID_CHARS.search(symbol) is not None and not re.fullmatch(
+            r'[A-Za-z]+\([0-9]+(?:\.[0-9]+)?\)', symbol
+        ):
             raise ValueError('Invalid SymbolicConstant symbol: whitespace or operators/delimiters.')
         obj = super().__new__(cls)
         object.__setattr__(obj, '_symbol', symbol)
@@ -542,8 +545,10 @@ class Factor:
         return self.value * magnitude
 
 
-one = Factor(1)  # identity
-two = Factor(2)  # base 2, for binary scaling
-ten = Factor(10)  # base 10, for decimal scaling
-pi = SymbolicConstant('π', math.pi)
+one: Final = Factor(1)  # identity
+two: Final = Factor(2)  # base 2, for binary scaling
+ten: Final = Factor(10)  # base 10, for decimal scaling
+pi: Final = SymbolicConstant('π', math.pi)
 """The ratio of the circumference of a circle to its diameter."""
+ln10: Final = SymbolicConstant('ln(10)', math.log(10))
+"""The natural logarithm of 10."""

@@ -10,6 +10,7 @@ from numbers import Complex, Number, Real
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
+    from .affineunit import AffineUnit
     from .unit import Unit
 
 type Style = Literal['latex', 'html']
@@ -58,10 +59,32 @@ def product(components: list[tuple[str, Fraction]], style: Style, *, fraction: b
     return f'{top}/{bottom}'
 
 
-def unit_body(unit: Unit, style: Style, *, fraction: bool = True) -> str:
+def format_unit(unit: Unit | AffineUnit, format_spec: str) -> str:
+    """Select rich output or apply ordinary string formatting to a unit."""
+    if format_spec == 'latex':
+        return unit.to_latex()
+    if format_spec == 'html':
+        return unit.to_html()
+    if format_spec == 'siunitx':
+        return unit.to_siunitx()
+    if format_spec == 'text':
+        return str(unit)
+    return format(str(unit), format_spec)
+
+
+def siunitx_unit(unit: Unit | AffineUnit) -> str:
+    body, parsed = siunitx_unit_parts(unit)
+    options = '' if parsed else '[parse-units=false]'
+    return rf'\unit{options}{{{body or "1"}}}'
+
+
+def unit_body(unit: Unit | AffineUnit, style: Style, *, fraction: bool = True) -> str:
+    from .affineunit import AffineUnit
     from .factor import one
     from .unit import ScaledUnit
 
+    if isinstance(unit, AffineUnit):
+        return latex_text(unit.symbol) if style == 'latex' else escape(unit.symbol)
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
     body = product(components, style, fraction=fraction)
     if isinstance(unit, ScaledUnit) and unit.scale != one:
@@ -119,8 +142,9 @@ def rich_magnitude(value: object, text: str, spec: str, style: Style) -> str:
 
 
 def quantity_body(
-    value: object, unit: Unit, spec: str, style: Style, *, fraction: bool = True
+    value: object, unit: Unit | AffineUnit, spec: str, style: Style, *, fraction: bool = True
 ) -> str:
+    from .affineunit import AffineUnit
     from .factor import one
     from .unit import ScaledUnit
 
@@ -129,7 +153,12 @@ def quantity_body(
     magnitude = rich_magnitude(value, text, spec, style)
     if style == 'html':
         magnitude = f'<span style="white-space: pre-wrap">{magnitude}</span>'
-    if not unit._monomial.components() and (not isinstance(unit, ScaledUnit) or unit.scale == one):
+
+    if (
+        not isinstance(unit, AffineUnit)
+        and not unit._monomial.components()
+        and (not isinstance(unit, ScaledUnit) or unit.scale == one)
+    ):
         return magnitude
     body = unit_body(unit, style, fraction=fraction)
     if isinstance(unit, ScaledUnit) and unit.scale != one:
@@ -142,8 +171,12 @@ def html_span(body: str) -> str:
     return f'<span class="unitx">{body}</span>'
 
 
-def siunitx_unit_parts(unit: Unit) -> tuple[str, bool]:
+def siunitx_unit_parts(unit: Unit | AffineUnit) -> tuple[str, bool]:
     """Return a unit argument and whether siunitx should parse it."""
+    from .affineunit import AffineUnit
+
+    if isinstance(unit, AffineUnit):
+        return '{' + unit.to_latex() + '}', False
     from .factor import one
     from .unit import ScaledUnit
 
@@ -159,7 +192,7 @@ def siunitx_unit_parts(unit: Unit) -> tuple[str, bool]:
     return '{' + body + '}', False
 
 
-def siunitx_quantity(value: object, unit: Unit, spec: str) -> str:
+def siunitx_quantity(value: object, unit: Unit | AffineUnit, spec: str) -> str:
     from .factor import one
     from .unit import ScaledUnit
 
@@ -181,3 +214,50 @@ def siunitx_quantity(value: object, unit: Unit, spec: str) -> str:
     if not body:
         return rf'\num{option_text}{{{number}}}'
     return rf'\qty{option_text}{{{number}}}{{{body}}}'
+
+
+def text_quantity(value: object, unit: Unit | AffineUnit) -> str:
+    unit_text = str(unit)
+    if unit_text == '1':
+        return str(value)
+    if unit_text.startswith('1/'):
+        return f'{value}{unit_text[1:]}'
+    from ._unicode import DOT
+
+    separator = DOT if unit_text[0].isdecimal() else ' '
+    return f'{value}{separator}{unit_text}'
+
+
+def format_quantity(value: object, unit: Unit | AffineUnit, format_spec: str) -> str:
+    from .factor import one
+
+    if not format_spec:
+        return text_quantity(value, unit)
+    # A semicolon used as a Python fill character belongs to the numeric spec.
+    offset = 2 if len(format_spec) > 1 and format_spec[1] in '<>=^' else 0
+    split = format_spec.find(';', offset)
+    if split < 0:
+        numeric, style = format_spec, 'text'
+    else:
+        numeric, style = format_spec[:split], format_spec[split + 1 :]
+    if style == 'latex':
+        return quantity_body(value, unit, numeric, 'latex')
+    if style == 'html':
+        return html_span(quantity_body(value, unit, numeric, 'html'))
+    if style == 'siunitx':
+        return siunitx_quantity(value, unit, numeric)
+    if style != 'text':
+        raise ValueError(f'Unknown Quantity display option: {style!r}.')
+    if not numeric:
+        return text_quantity(value, unit)
+    text = format_magnitude(value, numeric)
+    unit_text = str(unit)
+    if unit_text == '1':
+        return text
+    from .unit import ScaledUnit
+
+    if isinstance(unit, ScaledUnit) and unit.scale != one:
+        return f'{text} ({unit_text})'
+    if unit_text.startswith('1/'):
+        return f'{text}{unit_text[1:]}'
+    return f'{text} {unit_text}'

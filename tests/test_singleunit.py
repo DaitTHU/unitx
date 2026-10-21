@@ -43,6 +43,8 @@ def test_single_unit_combinations() -> None:
     for prefix_definition in (NO_PREFIX, *PREFIX_DEFINITIONS.values()):
         prefix = prefix_definition.symbol
         for symbol, unit_definition in UNIT_DEFINITIONS.items():
+            if unit_definition.reference is not None:
+                continue
             if prefix and not unit_definition.allows_prefix(symbol):
                 continue
             unit = SingleUnit(prefix + symbol)

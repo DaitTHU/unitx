@@ -2,10 +2,49 @@
 
 ## Unreleased
 
+### Added
+
+- AffineUnit coordinates for Celsius, Fahrenheit, dBm, dBW and dBV, with
+  explicit point/difference arithmetic, conversions and NumPy statistics/writes.
+- Rankine and logarithmic difference units Np/B/dB; logarithmic degree tracking
+  for compound units and explicit power/amplitude ratio conversion.
+- The symbolic natural logarithm of ten, `ln10`.
+
 ### Changed
 
-- Public factor constants use lowercase `one`, `two`, `ten`, and `pi`;
+- Public factor constants use lowercase `one`, `two`, `ten`, `pi`, and `ln10`;
   uppercase names are removed. Update imports and references accordingly.
+- Unit and ScaledUnit now enforce immutable attributes, including deletion;
+  copying and pickle reconstruction preserve unit identity and exact scales.
+- Unit(text) always returns a linear Unit, including degC/degF and the difference
+  scales of dBm/dBW/dBV. Quantity.unit is Unit; ordinary Quantity conversion
+  never applies an origin or changes into an affine object.
+- Independent AffineQuantity represents absolute points, including zero-origin
+  K/W/V coordinates. Use value @ unit or AffineQuantity(value, unit). Point
+  conversion preserves point identity; to_quantity(unit) explicitly evaluates
+  an ordinary physical Quantity. Point subtraction returns a Quantity difference.
+- AffineUnit descriptors (including si.degC) project to a linear Unit for
+  multiplication, division, powers, Quantity construction and linear conversion;
+  @ and AffineQuantity use their complete coordinate. Registered projections
+  preserve the spelling; anonymous descriptors use delta_unit.
+- AffineUnit(reference, at=0, delta_unit=None, kind=None) defines a coordinate
+  from a known correspondence; its origin is normalized immediately. Registered
+  spellings supply both linear difference metadata and an absolute coordinate.
+  AffineUnit has no multiplicative factor and does not accept string construction.
+- Exact unit ratios cancel before affine origin evaluation, avoiding precision
+  loss from unnecessary SI floating intermediates. Decimal point differences
+  combine alignment and subtraction before rounding. AffineQuantity.isclose
+  defaults to zero relative tolerance and accepts a Quantity difference tolerance.
+- Linear scalar point comparisons retain symbolic unit factors instead of
+  deciding equality from floating conversions. Finite `math.pi` is a rational
+  approximation and does not equal symbolic pi; zero-tolerance isclose follows
+  the same rule. Unsupported symbolic sums require an explicit conversion or
+  a nonzero difference tolerance.
+- Keep shared numerical scaling in the conversion layer, with point arithmetic,
+  comparison and tolerance rules in AffineQuantity.
+- Add explicit Unicode unit aliases without compatibility normalization;
+  aliases preserve canonical unit identity, prefix policies and coordinate metadata.
+- Disable SI prefixes on the built-in atmosphere unit `atm`.
 
 ## [0.11.0] - 2026-10-21
 

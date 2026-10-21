@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from fractions import Fraction
+
 from ._immutable import _Immutable
 from .dimension import Dimension
 from .factor import Factor
@@ -172,6 +174,10 @@ class SingleUnit(_Immutable):
     def factor(self) -> Factor:
         """Scale from this unit to its coherent SI unit, including the prefix."""
         return self.prefix_factor * self.unprefixed_factor
+
+    @property
+    def log_degree(self) -> Fraction:
+        return self._unit.log_degree
 
     @property
     def dimension(self) -> Dimension:

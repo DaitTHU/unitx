@@ -371,7 +371,11 @@ def test_unit_define_registry_stability() -> None:
         for name, symbol in UNIT_NAME_TO_SYMBOL.items():
             if UNIT_DEFINITIONS[symbol].allows_prefix(name):
                 texts.update(prefix + name for prefix in PREFIX_NAME_TO_SYMBOL)
-        units = {text: SingleUnit(text) for text in texts}
+        from unitx.unitregistry import _resolve_unit
+
+        units = {
+            text: SingleUnit(text) for text in texts if _resolve_unit(text)[1].reference is None
+        }
         return {
             text: (unit, unit.name, unit.factor, unit.dimension) for text, unit in units.items()
         }

@@ -7,14 +7,17 @@ with True, disables them with False, or enables only the listed spellings.
 
 from __future__ import annotations
 
+import math
 import re
+from decimal import Decimal
+from fractions import Fraction
 from itertools import chain
 
 from ._immutable import _Immutable
 from ._unicode import SUPERSCRIPTS
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitRegistryError, UnitSymbolError
-from .factor import Factor, one, ten
+from .factor import Factor, ln10, one, ten
 
 __all__ = ['PrefixPolicy']
 
@@ -119,15 +122,35 @@ assert PREFIX_SYMBOL_ALIAS_TO_SYMBOL[chr(0x3BC)] == chr(0xB5)
 
 
 class UnitDefinition(_Immutable):
-    """Immutable unit metadata and spelling policies, distinct from a formal Unit."""
+    """Immutable identity, spelling and conversion metadata.
 
-    __slots__ = ('symbols', 'names', 'factor', 'dimension', 'prefixable')
+    factor, dimension and log_degree always describe the linear difference unit.
+    An optional (value, unit-expression) reference at reading zero adds an
+    affine coordinate to the same spelling; its physical dimension follows the reference.
+    The registry stores primitive immutable data without importing Quantity.
+    """
+
+    __slots__ = (
+        'symbols',
+        'names',
+        'factor',
+        'dimension',
+        'prefixable',
+        'log_degree',
+        'reference',
+        'delta',
+        'kind',
+    )
 
     symbols: tuple[str, ...]
     names: tuple[str, ...]
     factor: Factor
     dimension: Dimension
     prefixable: bool | tuple[str, ...]
+    log_degree: Fraction
+    reference: tuple[int | float | Fraction | Decimal, str] | None
+    delta: str | None
+    kind: str | None
 
     def __init__(
         self,
@@ -138,7 +161,40 @@ class UnitDefinition(_Immutable):
         dimension: Dimension,
         symbol_aliases: str | tuple[str, ...] = (),
         prefixable: PrefixPolicy = True,
+        logarithmic: bool = False,
+        log_degree: Fraction = Fraction(0),
+        reference: tuple[int | float | Fraction | Decimal, str] | None = None,
+        delta: str | None = None,
+        kind: str | None = None,
     ) -> None:
+        if reference is None:
+            if delta is not None or kind is not None:
+                raise ValueError('Coordinate delta/kind require a physical reference.')
+        else:
+            if not isinstance(reference, tuple) or len(reference) != 2:
+                raise TypeError('Reference must be an immutable (value, unit expression) pair.')
+            value, unit_expression = reference
+            if isinstance(value, bool) or not isinstance(value, (int, float, Fraction, Decimal)):
+                raise TypeError('Reference magnitude must be a real Python scalar.')
+            if not isinstance(unit_expression, str) or not isinstance(delta, str):
+                raise TypeError('Reference and delta unit expressions must be strings.')
+            if kind not in (None, 'power', 'amplitude'):
+                raise ValueError('Unknown logarithmic convention.')
+            finite = (
+                value.is_finite()
+                if isinstance(value, Decimal)
+                else (math.isfinite(value) if isinstance(value, float) else True)
+            )
+            if not finite or kind is not None and value <= 0:
+                raise ValueError('Reference must be finite and logarithmic references positive.')
+            if prefixable is not False:
+                raise ValueError('Affine coordinates must disable prefixes.')
+        object.__setattr__(self, 'reference', reference)
+        object.__setattr__(self, 'delta', delta)
+        object.__setattr__(self, 'kind', kind)
+        if type(logarithmic) is not bool:
+            raise TypeError('logarithmic must be bool.')
+        object.__setattr__(self, 'log_degree', Fraction(1) if logarithmic else log_degree)
         if isinstance(symbol_aliases, str):
             symbol_aliases = (symbol_aliases,)
         object.__setattr__(self, 'symbols', (symbol, *symbol_aliases))
@@ -167,9 +223,11 @@ _UNIT_ENTRIES: tuple[UnitDefinition, ...] = (
     UnitDefinition('m', 'metre', 'meter', factor=one, dimension=Dimension(L=1)),
     UnitDefinition('g', 'gram', factor=ten**-3, dimension=Dimension(M=1)),
     UnitDefinition('A', 'ampere', factor=one, dimension=Dimension(I=1)),
-    UnitDefinition('K', 'kelvin', factor=one, dimension=Dimension(Theta=1)),
-    UnitDefinition('mol', 'mole', factor=one, dimension=Dimension(N=1)),
-    UnitDefinition('cd', 'candela', factor=one, dimension=Dimension(J=1)),
+    UnitDefinition('K', 'kelvin', factor=one, dimension=Dimension(Theta=1), symbol_aliases='K'),
+    UnitDefinition('mol', 'mole', factor=one, dimension=Dimension(N=1), symbol_aliases='㏖'),
+    UnitDefinition('cd', 'candela', factor=one, dimension=Dimension(J=1), symbol_aliases='㏅'),
+    UnitDefinition('Np', 'neper', factor=one, dimension=DIMENSIONLESS, logarithmic=True),
+    UnitDefinition('B', 'bel', factor=ln10 / 2, dimension=DIMENSIONLESS, logarithmic=True),
 )
 
 UNIT_DEFINITIONS: dict[str, UnitDefinition] = {

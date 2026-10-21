@@ -29,15 +29,15 @@ class _si(ConstNamespace):
 
     # SI derived unit
 
-    rad: Final = one.define('rad', name='radian')
+    rad: Final = one.define('rad', name='radian', symbol_aliases='㎭')
     """radian, plane angle"""
-    sr: Final = one.define('sr', name='steradian')
+    sr: Final = one.define('sr', name='steradian', symbol_aliases='㏛')
     """steradian, solid angle"""
-    Hz: Final = (s**-1).define('Hz', name='hertz')
+    Hz: Final = (s**-1).define('Hz', name='hertz', symbol_aliases='㎐')
     """hertz, frequency"""
     N: Final = (kg * m / s**2).define('N', name='newton')
     """newton, force/weight"""
-    Pa: Final = (N / m**2).define('Pa', name='pascal')
+    Pa: Final = (N / m**2).define('Pa', name='pascal', symbol_aliases='㎩')
     """pascal, pressure/stress"""
     J: Final = (N * m).define('J', name='joule')
     """joule, energy/work/heat"""
@@ -49,25 +49,25 @@ class _si(ConstNamespace):
     """volt, electric potential/voltage/emf"""
     F: Final = (C / V).define('F', name='farad')
     """farad, capacitance"""
-    ohm: Final = (V / A).define('Ω', name='ohm')
+    ohm: Final = (V / A).define('Ω', name='ohm', symbol_aliases='Ω')
     """ohm, resistance/impedance/reactance"""
     S: Final = (A / V).define('S', name='siemens')
     """siemens, electrical conductance"""
-    Wb: Final = (V * s).define('Wb', name='weber')
+    Wb: Final = (V * s).define('Wb', name='weber', symbol_aliases='㏝')
     """weber, magnetic flux"""
     T: Final = (Wb / m**2).define('T', name='tesla')
     """tesla, magnetic flux density"""
     H: Final = (Wb / A).define('H', name='henry')
     """henry, inductance"""
-    lm: Final = (cd * sr).define('lm', name='lumen')
+    lm: Final = (cd * sr).define('lm', name='lumen', symbol_aliases='㏐')
     """lumen, luminous flux"""
-    lx: Final = (lm / m**2).define('lx', name='lux')
+    lx: Final = (lm / m**2).define('lx', name='lux', symbol_aliases='㏓')
     """lux, illuminance"""
-    Bq: Final = (s**-1).define('Bq', name='becquerel')
+    Bq: Final = (s**-1).define('Bq', name='becquerel', symbol_aliases='㏃')
     """becquerel, activity referred to a radionuclide"""
-    Gy: Final = (J / kg).define('Gy', name='gray')
+    Gy: Final = (J / kg).define('Gy', name='gray', symbol_aliases='㏉')
     """gray, absorbed dose"""
-    Sv: Final = (J / kg).define('Sv', name='sievert')
+    Sv: Final = (J / kg).define('Sv', name='sievert', symbol_aliases='㏜')
     """sievert, equivalent dose"""
     kat: Final = (mol / s).define('kat', name='katal')
     """katal, catalytic activity"""
@@ -91,3 +91,5 @@ class _SI(ConstNamespace):
 
     g: Final = quantity(9.80665, _si.m / _si.s**2)  # defined here for si.kgf
     """standard acceleration of gravity"""
+    T0: Final = quantity(273.15, _si.K)  # defined here for si.degC
+    """standard temperature"""

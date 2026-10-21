@@ -1,7 +1,9 @@
 from collections.abc import Iterator
 from decimal import Decimal
+from fractions import Fraction
 from typing import Final
 
+from ..affineunit import AffineUnit
 from ..factor import pi, ten
 from ..unit import Unit
 from .bases import _SI, _si
@@ -137,10 +139,10 @@ class si(_si):
     """revoltions per minute, 60 rpm = 1 Hz, rotational speed"""
     # length/area/volume related
     au: Final = (149_597_870_700 * _si.m).define(
-        'au', name='astronomical unit', symbol_aliases='AU'
+        'au', name='astronomical unit', symbol_aliases=('AU', '㍳')
     )
     """astronomical unit, length"""
-    pc: Final = (au / arcsec).define('pc', name='parsec')
+    pc: Final = (au / arcsec).define('pc', name='parsec', symbol_aliases='㍶')
     """parsec, length"""
     kpc, Mpc, Gpc, Tpc = _prefixed_units('pc', 'kMGT')
     """parsec, length"""
@@ -156,11 +158,11 @@ class si(_si):
     """
     a: Final = (100 * _si.m**2).define('a', name='are', prefixable=False)
     """are, 1 a = 100 m², land area"""
-    ha: Final = (100 * a).define('ha', name='hectare', prefixable=False)
+    ha: Final = (100 * a).define('ha', name='hectare', symbol_aliases='㏊', prefixable=False)
     """hectare, 1 ha = 100 a = 10000 m², land area"""
     b: Final = (_si.m**2 / ten**28).define('b', name='barn')
     """barn, 1 b = 10⁻²⁸ m², effective cross sections."""
-    L: Final = (dm**3).define('L', 'litre', 'liter', symbol_aliases='l')
+    L: Final = (dm**3).define('L', 'litre', 'liter', symbol_aliases=('l', 'ℓ'))
     """litre/liter, 1 L = 1 dm³, volume"""
     fL, pL, nL, uL, mL, cL, dL, kL, ML = _prefixed_units('L', 'fpnumcdkM')
     """litre/liter, 1 L = 1 dm³, volume"""
@@ -180,18 +182,18 @@ class si(_si):
     """speed of light in vacuum, 299_792_458 m/s"""
     Gal: Final = (cm / _si.s**2).define('Gal', 'gal', 'galileo')
     """gal, acceleration"""
-    knot: Final = (nmile / h).define('kn', 'knot', symbol_aliases='kt')
+    knot: Final = (nmile / h).define('kn', 'knot', symbol_aliases=('kt', '㏏'))
     """knot, speed in marine and aerial navigation"""
     # dynamic related
     gf: Final = (_SI.g * g).define('gf', 'gram-force', 'gram force')
     """gram-force, 1 gf = 1 g * 9.80665 m/s², force"""
     kgf: Final = Unit('kgf')
     """kilogram-force, 1 kgf = 1 kg * 9.80665 m/s², force"""
-    bar: Final = (ten**5 * _si.Pa).define('bar', name='bar')
+    bar: Final = (ten**5 * _si.Pa).define('bar', name='bar', symbol_aliases='㍴')
     """bar, standard-state pressure"""
     ubar, mbar = _prefixed_units('bar', 'um')
     """bar, standard-state pressure"""
-    atm: Final = (101_325 * _si.Pa).define('atm', name='atmosphere')
+    atm: Final = (101_325 * _si.Pa).define('atm', name='atmosphere', prefixable=False)
     """standard atmosphere"""
     mHg: Final = (1000 * (atm / 760)).define('mHg', name='metre of mercury')
     """metre of mercury, 0.760 mHg = 1 atm, pressure"""
@@ -209,7 +211,7 @@ class si(_si):
     """electron volt, energy"""
     ueV, meV, keV, MeV, GeV, TeV, PeV, EeV = _prefixed_units('eV', 'umkMGTPE')
     """electron volt, energy"""
-    cal: Final = (4184 * mJ).define('cal', name='calorie')
+    cal: Final = (4184 * mJ).define('cal', name='calorie', symbol_aliases='㎈')
     """calorie, energy"""
     kcal: Final = Unit('kcal')
     """kilocalorie, energy"""
@@ -228,6 +230,34 @@ class si(_si):
     """ampere-hour, electric charge"""
     mho: Final = _si.S.define('mho', name='mho', symbol_aliases='℧')
     """mho, electrical conductance"""
+    # temperature
+    degC: Final = AffineUnit(_SI.T0).define(
+        '°C', 'degree Celsius', 'celsius', symbol_aliases=('degC', '℃')
+    )
+    """degree Celsius: difference 1 °C = 1 K; point 0 °C = 273.15 K"""
+    degR: Final = (Fraction(5, 9) * _si.K).define(
+        '°R', 'degree Rankine', 'rankine', symbol_aliases='degR', prefixable=False
+    )
+    """degree Rankine, 0 °R = 0 K, temperature"""
+    degF: Final = AffineUnit(0 @ degC, at=32, delta_unit=degR).define(
+        '°F', 'degree Fahrenheit', 'fahrenheit', symbol_aliases=('degF', '℉')
+    )
+    """degree Fahrenheit: difference 1 °F = 5/9 K; point 32 °F = 0 °C"""
     # others
     nt: Final = (_si.cd / _si.m**2).define('nt', name='nit')
     """nit, luminance"""
+    # Logarithmic units
+    Np: Final = Unit('Np')
+    """neper, logarithmic unit for ratios"""
+    B: Final = Unit('B')
+    """bel, logarithmic unit for ratios"""
+    dB: Final = Unit('dB')
+    """decibel, logarithmic unit for ratios"""
+    dBm: Final = AffineUnit(1 * mW, delta_unit=dB, kind='power').define('dBm', 'decibel-milliwatt')
+    """decibel-milliwatt, 0 dBm = 1 mW, logarithmic unit for power ratios"""
+    dBW: Final = AffineUnit(1 * _si.W, delta_unit=dB, kind='power').define('dBW', 'decibel-watt')
+    """decibel-watt, 0 dBW = 1 W, logarithmic unit for power ratios"""
+    dBV: Final = AffineUnit(1 * _si.V, delta_unit=dB, kind='amplitude').define(
+        'dBV', 'decibel-volt'
+    )
+    """decibel-volt, 0 dBV = 1 V, logarithmic unit for amplitude ratios"""

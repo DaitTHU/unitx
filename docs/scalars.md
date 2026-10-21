@@ -68,6 +68,28 @@ Exact unit algebra and numerical magnitude evaluation have different rules:
   Finite rational coefficients stay exact; residual irrational unit factors
   are approximated. With both tolerances zero, `isclose()` uses exact equality.
 
+For example, `Quantity(180, 'deg') != Quantity(math.pi, 'rad')`. This is
+because **`math.pi` is a finite float and therefore a rational number**, not
+the mathematical constant pi. The radian factor is exactly 1; the degree
+factor retains the symbolic expression pi/180. The symbol `unitx.factor.pi`
+represents mathematical pi, although its `.value` currently stores the same
+float approximation as `math.pi`. That approximation supports numerical
+evaluation; it does not replace the symbolic factor in exact equality.
+This distinction does not promise arbitrary-precision numerical evaluation.
+
+```pycon
+>>> import math
+>>> from unitx.factor import pi
+>>> from unitx.si import si
+>>> Quantity(180, 'deg') == Quantity(math.pi, 'rad')
+False
+>>> Quantity(180, 'deg') == Quantity(1, pi * si.rad)
+True
+>>> Quantity(180, 'deg').isclose(Quantity(math.pi, 'rad'))
+True
+
+```
+
 ```pycon
 >>> from decimal import Decimal, localcontext
 >>> from fractions import Fraction

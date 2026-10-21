@@ -25,7 +25,11 @@ kilo alias `K` is no longer accepted, so unregistered spellings such as `Km`
 and `Kg` raise `UnitSymbolError`. Micro accepts canonical `µ`, Unicode `μ`,
 and keyboard-friendly ASCII `u` without warnings.
 
-`Quantity(value, unit)` accepts a unit expression or an existing `Unit` object.
+`Quantity(value, unit)` accepts a linear unit expression, an existing Unit, or
+an AffineUnit descriptor projected to its linear side. Quantity.unit is always Unit.
+`Unit(text)` always returns Unit, including `Unit('degC')` for Celsius differences.
+Absolute readings use `AffineQuantity(value, unit)` or `value @ unit`; see
+[affine and logarithmic coordinates](affine.md) for their separate point rules.
 `value * unit` constructs a quantity, and `value / unit` constructs a quantity
 with the reciprocal unit. Construction preserves the original magnitude and
 its type.
@@ -90,6 +94,86 @@ magnitude paired with `.unit`, including its exact scale. Use
 conversion involving an irrational factor evaluates it approximately.
 String output combines the scale and formal units into one product, with
 grouped denominator factors and multiplication dots between adjacent numbers.
+
+## Unicode unit characters
+
+Unicode includes dedicated unit characters in
+[Letterlike Symbols](https://www.unicode.org/charts/PDF/U2100.pdf) and
+[CJK Compatibility](https://www.unicode.org/charts/PDF/U3300.pdf).
+The following characters are accepted as symbol aliases for existing units;
+they preserve canonical unit identity, hashes and output spellings.
+Load the catalogue with `from unitx.si import si` (also loaded by `unitx`).
+Use strings such as `Unit('㍴')`; these aliases do not add Python attributes to `si`.
+
+| Character | Code point | Canonical spelling / namespace |
+| --- | --- | --- |
+| ℃ | U+2103 | °C / si.degC |
+| ℉ | U+2109 | °F / si.degF |
+| ℓ | U+2113 | L / si.L |
+| Ω | U+2126 | Ω / si.ohm |
+| K | U+212A | K / si.K |
+| Å | U+212B | Å / si.angstrom (already supported) |
+| ℧ | U+2127 | mho / si.mho (already supported) |
+| ㍳ | U+3373 | au / si.au |
+| ㍴ | U+3374 | bar / si.bar |
+| ㍶ | U+3376 | pc / si.pc |
+| ㎈ | U+3388 | cal / si.cal |
+| ㎐ | U+3390 | Hz / si.Hz |
+| ㎩ | U+33A9 | Pa / si.Pa |
+| ㎭ | U+33AD | rad / si.rad |
+| ㏃ | U+33C3 | Bq / si.Bq |
+| ㏅ | U+33C5 | cd / si.cd |
+| ㏉ | U+33C9 | Gy / si.Gy |
+| ㏊ | U+33CA | ha / si.ha |
+| ㏏ | U+33CF | kn / si.knot |
+| ㏐ | U+33D0 | lm / si.lm |
+| ㏓ | U+33D3 | lx / si.lx |
+| ㏖ | U+33D6 | mol / si.mol |
+| ㏛ | U+33DB | sr / si.sr |
+| ㏜ | U+33DC | Sv / si.Sv |
+| ㏝ | U+33DD | Wb / si.Wb |
+
+Aliases follow each unit's existing prefix policy: `m㍴`, `kΩ` and `mℓ`
+are accepted, while temperature coordinates disable prefixes.
+`Unit('℃')` denotes a temperature difference, and
+`AffineQuantity(0, '℃')` denotes a Celsius point, following the same rules as
+`degC`. The characters do not change point/difference semantics.
+
+```pycon
+>>> Unit('㍴') == si.bar
+True
+>>> Unit('㎩') == si.Pa
+True
+>>> Unit('kΩ') == si.kohm
+True
+>>> from unitx import AffineQuantity
+>>> AffineQuantity(32, '℉') == AffineQuantity(0, '℃')
+True
+
+```
+
+Other Unicode characters already contain prefixes or compound expressions:
+
+| Characters | Corresponding unit expressions (not character aliases) |
+| --- | --- |
+| ㍱, ㎪, ㎫, ㎬ | hPa, kPa, MPa, GPa |
+| ㎏, ㎎, ㎍ | kg, mg, ug |
+| ㎞, ㎝, ㎜, ㎛, ㎚ | km, cm, mm, um, nm |
+| ㎡, ㎢, ㎠, ㎟ | m², km², cm², mm² |
+| ㎥, ㎦, ㎤, ㎣ | m³, km³, cm³, mm³ |
+| ㎧, ㎨, ㎮, ㎯ | m/s, m/s², rad/s, rad/s² |
+| ㎑, ㎒, ㎓, ㎔ | kHz, MHz, GHz, THz |
+| ㏀, ㏁, ㏈ | kΩ, MΩ, dB |
+| ㎉, ㎖, ㎕ | kcal, mL, uL |
+| ㏞, ㏟ | V/m, A/m |
+
+These characters are listed for reference and are not currently accepted as
+aliases. Registering `㎏` as an alias of `g`, for example, would assign the
+wrong scale; defining another unit for it would lose the formal identity of
+`kg`. The parser does not apply blanket Unicode compatibility normalization.
+The block also contains byte, horsepower, inch, pH, mathematical operators,
+and Japanese phonetic unit forms; their presence in Unicode does not imply
+support in this catalogue. For portable input, use ordinary unit expressions.
 
 ## Conversion and arithmetic
 
