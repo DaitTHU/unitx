@@ -1,9 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.0] - 2026-10-21
 
 ### Changed
 
+- Share attribute assignment/deletion protection across immutable algebra and
+  unit objects while preserving their slot-based instance layout.
 - SingleUnit now holds shared immutable prefix and unit definitions. Metadata and
   spelling selection use these references directly; canonical identity, prefix
   permissions, and text-based reconstruction retain their existing behavior.
@@ -18,6 +20,9 @@
   precede required keyword-only scale factors and dimensions.
 - Iterate prefix spellings lazily instead of constructing a combined tuple for
   each lookup.
+
+### Removed
+
 - Remove the uppercase `K` alias for kilo. Use `k` for kilo and `K` for kelvin;
   `Km` and `Kg` now fail unless
   explicitly registered. Micro aliases `u` and `μ` remain supported.
