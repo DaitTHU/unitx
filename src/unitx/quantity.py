@@ -23,7 +23,7 @@ from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
 from ._unicode import DOT
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
-from .factor import ONE, Factor, SymbolicConstant
+from .factor import Factor, SymbolicConstant, one
 from .unit import Unit
 from .unitregistry import PrefixPolicy
 
@@ -50,14 +50,14 @@ def _scale_value(value: Magnitude, factor: Factor) -> Magnitude:
 
         return cast(Magnitude, scale_magnitude(value, factor))
     value = cast(Scalar, value)
-    if factor == ONE:
+    if factor == one:
         return value
     if isinstance(value, Decimal):
         if not value.is_finite() or value.is_zero():
             return value * 1
         rational, irrational = factor.decompose()
         scaled = Fraction(value) * rational
-        if irrational != ONE:
+        if irrational != one:
             scaled *= Fraction(Decimal(str(irrational.value)))
         # Round the final value once, avoiding intermediate Decimal range loss.
         return Decimal(scaled.numerator) / Decimal(scaled.denominator)
@@ -201,7 +201,7 @@ class Quantity(Generic[T]):
             return text
         from .unit import ScaledUnit
 
-        if isinstance(self.unit, ScaledUnit) and self.unit.scale != ONE:
+        if isinstance(self.unit, ScaledUnit) and self.unit.scale != one:
             return f'{text} ({unit})'
         if unit.startswith('1/'):
             return f'{text}{unit[1:]}'
@@ -348,12 +348,12 @@ class Quantity(Generic[T]):
                 value = Fraction(value)
             except (ValueError, OverflowError):
                 # Positive unit scales do not change infinities or NaNs.
-                return value, ONE
+                return value, one
         rational, irrational = self.unit.factor.decompose(rationalize_denominator=True)
         if rational != 1:
             value = value * cast(Scalar, as_int_if_integral(rational))
-        if irrational != ONE and value == 0:
-            irrational = ONE
+        if irrational != one and value == 0:
+            irrational = one
         return cast(Scalar, value), irrational
 
     def _equality_parts(self) -> tuple[Scalar, Scalar, Factor]:
@@ -361,7 +361,7 @@ class Quantity(Generic[T]):
             value = self.value
             real, real_factor = Quantity(value.real, self.unit)._comparison_pair()
             imag, imag_factor = Quantity(value.imag, self.unit)._comparison_pair()
-            factor = real_factor if real_factor != ONE else imag_factor
+            factor = real_factor if real_factor != one else imag_factor
             return real, imag, factor
         value, factor = self._comparison_pair()
         return value, 0, factor
@@ -432,7 +432,7 @@ class Quantity(Generic[T]):
             math.isnan(self.value.real) or math.isnan(self.value.imag)
         ):
             # Native complex NaN hashes depend on the original complex object.
-            value_hash, factor = native_hash, ONE
+            value_hash, factor = native_hash, one
         else:
             real, imag, factor = self._equality_parts()
             value_hash = hash(real)
@@ -444,7 +444,7 @@ class Quantity(Generic[T]):
                 value_hash = (value_hash + modulus // 2) % modulus - modulus // 2
                 if value_hash == -1:
                     value_hash = -2
-        if factor == ONE:
+        if factor == one:
             return value_hash if self.is_dimensionless() else hash((value_hash, self.dimension))
         return hash((value_hash, factor, self.dimension))
 
@@ -473,7 +473,7 @@ class Quantity(Generic[T]):
         value, irrational = self._comparison_pair()
         other_value, other_irrational = other._comparison_pair()
         ratio = irrational / other_irrational
-        if ratio != ONE:
+        if ratio != one:
             if isinstance(value, Fraction) and isinstance(other_value, Fraction):
                 if value != 0 and other_value != 0:
                     value *= Fraction(ratio.value)

@@ -5,7 +5,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
 
@@ -58,7 +58,7 @@ def test_dimensionless_and_scale():
         r'\qty[parse-numbers=false,parse-units=false]{\frac{2}{3}}'
         r'{\left({\text{2}/\text{3}\,\text{m}}\right)}'
     )
-    assert Quantity(4, ScaledUnit('', PI)).to_siunitx() == (
+    assert Quantity(4, ScaledUnit('', pi)).to_siunitx() == (
         r'\qty[parse-units=false]{4}{\left({\text{π}}\right)}'
     )
     assert unit.scale == Factor(Fraction(2, 3))

@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from decimal import Decimal
 from typing import Final
 
-from ..factor import PI, TEN
+from ..factor import pi, ten
 from ..unit import Unit
 from .bases import _SI, _si
 
@@ -93,7 +93,7 @@ class si(_si):
     # other common units
 
     # dimensionless
-    deg: Final = (PI / 180 * _si.rad).define(
+    deg: Final = (pi / 180 * _si.rad).define(
         '°', name='degree', symbol_aliases='deg', prefixable=False
     )
     """degree, plane angle"""
@@ -148,7 +148,7 @@ class si(_si):
     """light year, length"""
     nmile: Final = (1852 * _si.m).define('nmi', 'nautical mile', symbol_aliases='NM')
     """nautical mile, length in marine and aerial navigation"""
-    angstrom: Final = (_si.m / TEN**10).define(
+    angstrom: Final = (_si.m / ten**10).define(
         'Å', 'ångström', 'angstrom', symbol_aliases=('Å', 'Å')
     )  # symbol: chr(0xC5), chr(0x212B), 'A'+chr(0x30A)
     """ångström, 1 Å = 10⁻¹⁰ m,
@@ -158,7 +158,7 @@ class si(_si):
     """are, 1 a = 100 m², land area"""
     ha: Final = (100 * a).define('ha', name='hectare', prefixable=False)
     """hectare, 1 ha = 100 a = 10000 m², land area"""
-    b: Final = (_si.m**2 / TEN**28).define('b', name='barn')
+    b: Final = (_si.m**2 / ten**28).define('b', name='barn')
     """barn, 1 b = 10⁻²⁸ m², effective cross sections."""
     L: Final = (dm**3).define('L', 'litre', 'liter', symbol_aliases='l')
     """litre/liter, 1 L = 1 dm³, volume"""
@@ -187,7 +187,7 @@ class si(_si):
     """gram-force, 1 gf = 1 g * 9.80665 m/s², force"""
     kgf: Final = Unit('kgf')
     """kilogram-force, 1 kgf = 1 kg * 9.80665 m/s², force"""
-    bar: Final = (TEN**5 * _si.Pa).define('bar', name='bar')
+    bar: Final = (ten**5 * _si.Pa).define('bar', name='bar')
     """bar, standard-state pressure"""
     ubar, mbar = _prefixed_units('bar', 'um')
     """bar, standard-state pressure"""

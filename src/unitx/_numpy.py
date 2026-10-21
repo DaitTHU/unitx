@@ -18,7 +18,7 @@ import numpy as np  # pyright: ignore[reportMissingImports]
 
 from ._numerics import as_exponent
 from .exceptions import DimensionError
-from .factor import ONE, Factor
+from .factor import Factor, one
 from .quantity import Quantity
 from .unit import Unit
 
@@ -63,12 +63,12 @@ def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
     if not _is_supported_operand(value):
         raise TypeError('NumPy operations require numeric arrays or supported numeric scalars.')
     value = _numeric_value(value)
-    if factor == ONE:
+    if factor == one:
         return value
     rational, irrational = factor.decompose()
     multiplier = (
         (rational.numerator if rational.denominator == 1 else float(rational))
-        if irrational == ONE
+        if irrational == one
         else float(factor.value)
     )
     # Do not pass a Fraction to NumPy (it would create object dtype).
@@ -279,7 +279,7 @@ def _stage_output(
         kinds = 'b' if np.asarray(result).dtype.kind == 'b' else 'iu'
         if type(target) is not np.ndarray or target.dtype.kind not in kinds:
             raise TypeError('Unitless out requires a plain ndarray with the matching result kind.')
-        factor = ONE
+        factor = one
         buffer = target
     if not buffer.flags.writeable:
         raise ValueError('out buffer is read-only.')
@@ -363,7 +363,7 @@ def _dispatch_ufunc(
             raise DimensionError('Cannot compare quantities with different dimensions.')
         # A fixed canonical domain makes mixed scalar/array comparison symmetric.
         ratio = u.factor / v.factor
-        if ratio == ONE:
+        if ratio == one:
             return ufunc(a, b, **kwargs)
         return ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs)
     if ufunc in (np.multiply, np.divide, np.true_divide, np.matmul):
@@ -408,7 +408,7 @@ def _dispatch_ufunc(
         scalar = exponent.item() if isinstance(exponent, (np.ndarray, np.generic)) else exponent
         raw_exponent = inputs[1].value if isinstance(inputs[1], Quantity) else inputs[1]
         rational, irrational = exponent_unit.factor.decompose()
-        if isinstance(raw_exponent, (Fraction, Decimal)) and irrational == ONE:
+        if isinstance(raw_exponent, (Fraction, Decimal)) and irrational == one:
             power = Fraction(raw_exponent) * rational
         else:
             power = as_exponent(scalar) if type(scalar) in (int, float) else Fraction(str(scalar))

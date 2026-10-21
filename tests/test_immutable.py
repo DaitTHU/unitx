@@ -3,7 +3,7 @@
 import pytest
 
 from unitx.dimension import Dimension
-from unitx.factor import PI
+from unitx.factor import pi
 from unitx.monomial import Monomial
 from unitx.singleunit import SingleUnit
 from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
@@ -14,7 +14,7 @@ from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
     [
         Monomial({'x': 1}),
         Dimension(L=1),
-        PI,
+        pi,
         SingleUnit('km'),
         NO_PREFIX,
         PREFIX_DEFINITIONS['k'],

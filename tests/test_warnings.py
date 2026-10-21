@@ -18,7 +18,7 @@ from unitx.exceptions import (
     UnitSymbolError,
     UnitSyntaxError,
 )
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 from unitx.monomial import Monomial
 from unitx.singleunit import SingleUnit
 from unitx.unitparser import UnitParser
@@ -62,23 +62,23 @@ _INCOMPLETE = (IncompleteFactorWarning,)
         ('factor *= 2.54', _INEXACT, None),
         ('factor /= 2.54', _INEXACT, None),
         ('factor **= 2.54', (), None),
-        ('PI * 2.54', _INEXACT, None),
-        ('2.54 * PI', _INEXACT, None),
-        ('PI / 2.54', _INEXACT, None),
-        ('2.54 / PI', _INEXACT, None),
-        ('PI ** 2.54', (), None),
-        ('PI *= 2.54', _INEXACT, None),
-        ('PI /= 2.54', _INEXACT, None),
-        ('PI **= 2.54', (), None),
+        ('pi * 2.54', _INEXACT, None),
+        ('2.54 * pi', _INEXACT, None),
+        ('pi / 2.54', _INEXACT, None),
+        ('2.54 / pi', _INEXACT, None),
+        ('pi ** 2.54', (), None),
+        ('pi *= 2.54', _INEXACT, None),
+        ('pi /= 2.54', _INEXACT, None),
+        ('pi **= 2.54', (), None),
         # Conversion can warn before positivity or division checks raise.
         ('Factor(-2.54)', _INEXACT, ValueError),
         ('Factor(1e-10)', _INEXACT, ValueError),
         ('factor * 1e-10', _INEXACT, ValueError),
         ('factor / 1e-10', _INEXACT, ZeroDivisionError),
         ('1e-10 / factor', _INEXACT, ValueError),
-        ('PI * 1e-10', _INEXACT, ValueError),
-        ('PI / 1e-10', _INEXACT, ZeroDivisionError),
-        ('1e-10 / PI', _INEXACT, ValueError),
+        ('pi * 1e-10', _INEXACT, ValueError),
+        ('pi / 1e-10', _INEXACT, ZeroDivisionError),
+        ('1e-10 / pi', _INEXACT, ValueError),
         # Built-in factoring, including recursive powers and both rational parts.
         ('factorint(143, limit=5)', _INCOMPLETE, None),
         ('factorint(143**9, limit=5)', _INCOMPLETE, None),
@@ -97,12 +97,12 @@ _INCOMPLETE = (IncompleteFactorWarning,)
         ('n / factor', _INCOMPLETE, None),
         ('factor *= n', _INCOMPLETE, None),
         ('factor /= n', _INCOMPLETE, None),
-        ('PI * n', _INCOMPLETE, None),
-        ('n * PI', _INCOMPLETE, None),
-        ('PI / n', _INCOMPLETE, None),
-        ('n / PI', _INCOMPLETE, None),
-        ('PI *= n', _INCOMPLETE, None),
-        ('PI /= n', _INCOMPLETE, None),
+        ('pi * n', _INCOMPLETE, None),
+        ('n * pi', _INCOMPLETE, None),
+        ('pi / n', _INCOMPLETE, None),
+        ('n / pi', _INCOMPLETE, None),
+        ('pi *= n', _INCOMPLETE, None),
+        ('pi /= n', _INCOMPLETE, None),
         # The first warning can be correctly attributed while a later one is not.
         ('Factor.from_dict({2**89 - 1: 2.54})', _INCOMPLETE, None),
         ('Factor.from_dict({marked_n: 2.54})', _INCOMPLETE, None),
@@ -120,7 +120,7 @@ _INCOMPLETE = (IncompleteFactorWarning,)
         ("Monomial({'x': 0.5})", (), None),
         ('Dimension(L=0.5)', (), None),
         ('factor * 0.5', (), None),
-        ('PI ** 0.5', (), None),
+        ('pi ** 0.5', (), None),
     ],
 )
 def test_unitx_warning_user_location(
@@ -141,7 +141,7 @@ def test_unitx_warning_user_location(
         'factorint': numerics_module.factorint,
         'isprime': numerics_module.isprime,
         'Factor': Factor,
-        'PI': PI,
+        'pi': pi,
         'Monomial': Monomial,
         'Dimension': Dimension,
         'SingleUnit': SingleUnit,

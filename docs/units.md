@@ -70,13 +70,13 @@ operands continue to act on the magnitude: `q * 2` and `q * Factor(2)` represent
 equal physical quantities but can have different `.value` and `.unit` pairs.
 
 ```pycon
->>> from unitx import PI
->>> hbar = SI.h / (2 * PI)
+>>> from unitx import pi
+>>> hbar = SI.h / (2 * pi)
 >>> print(hbar)
 6.62607015E-34 J⋅s/(2⋅π)
 >>> hbar.value == SI.h.value
 True
->>> hbar * (2 * PI) == SI.h
+>>> hbar * (2 * pi) == SI.h
 True
 >>> round(float(hbar.to('J*s').value) / 1e-34, 8)
 1.05457182
@@ -181,9 +181,9 @@ register a new unit and return it:
 >>> minute = (60 * Unit('s')).define('demoMin', 'demo minute', prefixable=False)
 >>> Quantity(2, minute).to('s').value
 120
->>> from unitx.factor import PI
->>> degree = ((PI / 180) * Unit()).define('demoDeg', name='demo degree', prefixable=False)
->>> degree.factor == PI / 180
+>>> from unitx.factor import pi
+>>> degree = ((pi / 180) * Unit()).define('demoDeg', name='demo degree', prefixable=False)
+>>> degree.factor == pi / 180
 True
 >>> Quantity(1, 'kN').to(newton).value
 1000
@@ -299,7 +299,7 @@ unit identity; only the spelling `Da` accepts prefixes, such as `kDa`.
 `tonne`; the ambiguous spelling `ton` is not registered.
 
 `si.rpm` represents rotational frequency: `60 * si.rpm` converts to `si.Hz`
-with value 1. For angular velocity, multiply that frequency by `2 * PI` and
+with value 1. For angular velocity, multiply that frequency by `2 * pi` and
 convert to `si.rad / si.s`; directly converting frequency to `rad/s` does
 not insert the physical factor of 2π. `si.c` is a speed unit equal to the
 speed of light, while `SI.c` is the corresponding physical quantity.

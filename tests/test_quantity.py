@@ -19,7 +19,7 @@ import pytest
 
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import DimensionError, InexactFloatWarning, UnitSymbolError
-from unitx.factor import ONE, PI, Factor
+from unitx.factor import Factor, one, pi
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
 
@@ -71,13 +71,13 @@ def test_quantity_str(unit: str, expected: str) -> None:
         (Factor(2) * Unit(), '3⋅2'),
         (Factor(2) / Unit('s'), '3⋅2/s'),
         (Factor(60) * Unit('s'), '3⋅60⋅s'),
-        (Unit('J*s') / (2 * PI), '3 J⋅s/(2⋅π)'),
-        (Unit('1/s') / (2 * PI), '3/(2⋅π⋅s)'),
-        (Unit() / PI, '3/π'),
-        (PI * Unit('s'), '3 π⋅s'),
+        (Unit('J*s') / (2 * pi), '3 J⋅s/(2⋅π)'),
+        (Unit('1/s') / (2 * pi), '3/(2⋅π⋅s)'),
+        (Unit() / pi, '3/π'),
+        (pi * Unit('s'), '3 π⋅s'),
         (Factor(12) * Unit('s'), '3⋅12⋅s'),
-        (ScaledUnit(Unit(), ONE), '3'),
-        (ScaledUnit(Unit('1/s'), ONE), '3/s'),
+        (ScaledUnit(Unit(), one), '3'),
+        (ScaledUnit(Unit('1/s'), one), '3/s'),
     ],
 )
 def test_quantity_scaled_str(unit: ScaledUnit, expected: str) -> None:
@@ -88,8 +88,8 @@ def test_quantity_scaled_str(unit: ScaledUnit, expected: str) -> None:
 
 
 @pytest.mark.parametrize('value', [0, -2, 2**60 + 1, 0.1, Fraction(3, 7), Decimal('1.2345'), 2j])
-@pytest.mark.parametrize('unit', [Unit('cm'), ScaledUnit('cm', PI), Unit('km/m')])
-@pytest.mark.parametrize('factor', [ONE, Factor(2), PI, 1 / (2 * PI), Factor(2) ** Fraction(1, 2)])
+@pytest.mark.parametrize('unit', [Unit('cm'), ScaledUnit('cm', pi), Unit('km/m')])
+@pytest.mark.parametrize('factor', [one, Factor(2), pi, 1 / (2 * pi), Factor(2) ** Fraction(1, 2)])
 def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
     quantity = Quantity(value, unit)
     before = (repr(quantity), hash(quantity))
@@ -111,9 +111,9 @@ def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
 
 
 @pytest.mark.parametrize('value', [2, Fraction(3, 7), Decimal('1.2345'), 2j])
-@pytest.mark.parametrize('factor', [Factor(2), PI])
+@pytest.mark.parametrize('factor', [Factor(2), pi])
 def test_quantity_factor_reciprocal(value, factor) -> None:
-    quantity = Quantity(value, ScaledUnit('cm', PI))
+    quantity = Quantity(value, ScaledUnit('cm', pi))
     result = factor / quantity
     reciprocal = 1 / quantity
     assert result.value == reciprocal.value
@@ -150,7 +150,7 @@ def test_quantity_scaled_operations() -> None:
 
 
 def test_quantity_scaled_copy() -> None:
-    unit = ScaledUnit('cm', scale=PI / 180)
+    unit = ScaledUnit('cm', scale=pi / 180)
     quantity = Quantity(Decimal('1.25'), unit)
     for rebuilt in (copy(quantity), deepcopy(quantity), pickle.loads(pickle.dumps(quantity))):
         assert rebuilt == quantity
@@ -188,7 +188,7 @@ def test_quantity_repr_roundtrip(unit: str) -> None:
         (Quantity(1, 'm'), ScaledUnit('cm', Factor(2)), 50, int),
         (Quantity(2j, 'cm'), 'm', 0.02j, complex),
         (Quantity(1, 'mm^(1/2)'), 'm^(1/2)', math.sqrt(0.001), float),
-        (Quantity(1, PI * Unit('m')), 'm', math.pi, float),
+        (Quantity(1, pi * Unit('m')), 'm', math.pi, float),
     ],
 )
 def test_quantity_value_in(
@@ -311,7 +311,7 @@ def test_quantity_float_equality() -> None:
         (Quantity(-1, 'm'), Quantity(-100 - 1e-8, 'cm'), True),
         (Quantity(0, 'm'), Quantity(1e-20, 'cm'), False),
         (Quantity(1, 'km/m'), Quantity(1000, ''), True),
-        (Quantity(1, PI * Unit('m')), Quantity(math.pi, 'm'), True),
+        (Quantity(1, pi * Unit('m')), Quantity(math.pi, 'm'), True),
         (Quantity(1000, 'mm^(1/2)'), Quantity(1, 'km^(1/2)'), True),
         (Quantity(math.inf, 'm'), Quantity(math.inf, 'cm'), True),
         (Quantity(-math.inf, 'm'), Quantity(-math.inf, 'cm'), True),
@@ -383,7 +383,7 @@ def test_quantity_isclose_exact() -> None:
     assert left.isclose(right)
     assert not left.isclose(right, rel_tol=0)
     assert not right.isclose(left, rel_tol=0)
-    large_scale = PI**10000 * Unit('m')
+    large_scale = pi**10000 * Unit('m')
     assert Quantity(1, large_scale).isclose(Quantity(1, large_scale), rel_tol=0)
     assert not Quantity(1, large_scale).isclose(Quantity(2, large_scale), rel_tol=0)
 
@@ -817,7 +817,7 @@ def test_quantity_decimal_special(value: Decimal) -> None:
 
 
 def test_quantity_decimal_irrational() -> None:
-    quantity = Quantity(Decimal(1), PI * Unit('m'))
+    quantity = Quantity(Decimal(1), pi * Unit('m'))
     result = quantity.to('m')
     assert type(result.value) is Decimal
     assert result.value == Decimal(str(math.pi))
@@ -948,11 +948,11 @@ def test_quantity_comparison_special(op, value: Decimal, trapped: bool) -> None:
             expected = op(value, Decimal(0))
         except InvalidOperation:
             with pytest.raises(InvalidOperation):
-                op(Quantity(value, PI * Unit('m')), Quantity(Decimal(0), 'm'))
+                op(Quantity(value, pi * Unit('m')), Quantity(Decimal(0), 'm'))
         else:
             flags = context.flags.copy()
             context.clear_flags()
-            result = op(Quantity(value, PI * Unit('m')), Quantity(Decimal(0), 'm'))
+            result = op(Quantity(value, pi * Unit('m')), Quantity(Decimal(0), 'm'))
             assert result is expected
             assert dict(context.flags) == flags
 
@@ -975,7 +975,7 @@ def test_quantity_complex_real(unit: str, value: float) -> None:
         (Quantity(1 + 2j, 'm'), Quantity(100 + 200j, 'cm')),
         (Quantity(1 + 2j, 'km/m'), 1000 + 2000j),
         (Quantity(complex(math.inf, 1), 'm'), Quantity(complex(math.inf, 100), 'cm')),
-        (Quantity(complex(0, math.inf), PI * Unit('m')), Quantity(complex(0, math.inf), 'm')),
+        (Quantity(complex(0, math.inf), pi * Unit('m')), Quantity(complex(0, math.inf), 'm')),
     ],
 )
 def test_quantity_complex_hash(left: Quantity, right) -> None:
@@ -1002,11 +1002,11 @@ def test_quantity_complex_invalid_order(op) -> None:
 
 
 def test_quantity_irrational_range() -> None:
-    large = Quantity(10**400, PI * Unit('m'))
+    large = Quantity(10**400, pi * Unit('m'))
     assert large < Quantity(4 * 10**400, 'm')
     assert large > Quantity(3 * 10**400, 'm')
-    assert Quantity(0, 'm') < Quantity(1, PI**10000 * Unit('m'))
-    assert Quantity(-1, PI**10000 * Unit('m')) < Quantity(0, 'm')
+    assert Quantity(0, 'm') < Quantity(1, pi**10000 * Unit('m'))
+    assert Quantity(-1, pi**10000 * Unit('m')) < Quantity(0, 'm')
 
 
 class _ComparisonMagnitude(_OrderedMagnitude):
@@ -1123,7 +1123,7 @@ def test_quantity_comparison_precision() -> None:
         (0.1 + 0.2j, _ComplexMagnitude),
     ],
 )
-@pytest.mark.parametrize('unit', [Unit('m'), Unit('cm'), Unit('km/m'), PI * Unit('m')])
+@pytest.mark.parametrize('unit', [Unit('m'), Unit('cm'), Unit('km/m'), pi * Unit('m')])
 def test_quantity_subclass_hash(value, subclass, unit: Unit) -> None:
     plain, derived = Quantity(value, unit), Quantity(subclass(value), unit)
     assert plain == derived

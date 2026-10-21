@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Self, cast, overload
 from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_object
 from ._numpy_typing import NumpyValue
 from .dimension import DIMENSIONLESS, Dimension
-from .factor import ONE, Factor, SymbolicConstant
+from .factor import Factor, SymbolicConstant, one
 from .monomial import Monomial
 from .singleunit import SingleUnit
 from .unitparser import UnitParser
@@ -113,7 +113,7 @@ class Unit:
         obj = object.__new__(cls)
         obj._monomial = monomial
         obj._symbol = str(monomial)
-        obj._factor = ONE
+        obj._factor = one
         obj._dimension = DIMENSIONLESS
         for unit, exponent in monomial.components():
             obj._factor *= unit.factor**exponent
@@ -434,7 +434,7 @@ class ScaledUnit(Unit):
         return type(self), (self.expression(), self.scale)
 
     def __str__(self) -> str:
-        if self.scale == ONE:
+        if self.scale == one:
             return self.symbol
         components: dict[SingleUnit | int | str, Fraction] = dict(
             self.scale._display_monomial().components()
@@ -443,14 +443,14 @@ class ScaledUnit(Unit):
         return str(Monomial(components))
 
     def __hash__(self) -> int:
-        if self.scale == ONE:
+        if self.scale == one:
             return super().__hash__()
         return hash((self._monomial, self.scale))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Unit):
             return NotImplemented
-        other_scale = other.scale if isinstance(other, ScaledUnit) else ONE
+        other_scale = other.scale if isinstance(other, ScaledUnit) else one
         return self._monomial == other._monomial and self.scale == other_scale
 
     @overload
@@ -514,7 +514,7 @@ class ScaledUnit(Unit):
         self, other: Unit | Magnitude | SymbolicConstant | Factor
     ) -> Quantity[Magnitude] | ScaledUnit:
         if isinstance(other, Unit):
-            other_scale = other.scale if isinstance(other, ScaledUnit) else ONE
+            other_scale = other.scale if isinstance(other, ScaledUnit) else one
             return ScaledUnit._from_monomial(
                 other._monomial / self._monomial, other_scale / self.scale
             )

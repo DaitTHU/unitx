@@ -14,7 +14,7 @@ from ._immutable import _Immutable
 from ._unicode import SUPERSCRIPTS
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitRegistryError, UnitSymbolError
-from .factor import ONE, TEN, Factor
+from .factor import Factor, one, ten
 
 __all__ = ['PrefixPolicy']
 
@@ -59,36 +59,36 @@ class PrefixDefinition(_Immutable):
         return self.names[0]
 
 
-NO_PREFIX = PrefixDefinition('', '', factor=ONE)
+NO_PREFIX = PrefixDefinition('', '', factor=one)
 """Identity prefix for unprefixed units."""
 
 _PREFIX_ENTRIES: tuple[PrefixDefinition, ...] = (
     # Decimal multiples.
-    PrefixDefinition('Q', 'quetta', factor=TEN**30),
-    PrefixDefinition('R', 'ronna', factor=TEN**27),
-    PrefixDefinition('Y', 'yotta', factor=TEN**24),
-    PrefixDefinition('Z', 'zetta', factor=TEN**21),
-    PrefixDefinition('E', 'exa', factor=TEN**18),
-    PrefixDefinition('P', 'peta', factor=TEN**15),
-    PrefixDefinition('T', 'tera', factor=TEN**12),
-    PrefixDefinition('G', 'giga', factor=TEN**9),
-    PrefixDefinition('M', 'mega', factor=TEN**6),
-    PrefixDefinition('k', 'kilo', factor=TEN**3),
-    PrefixDefinition('h', 'hecto', factor=TEN**2),
-    PrefixDefinition('da', 'deca', factor=TEN**1),
+    PrefixDefinition('Q', 'quetta', factor=ten**30),
+    PrefixDefinition('R', 'ronna', factor=ten**27),
+    PrefixDefinition('Y', 'yotta', factor=ten**24),
+    PrefixDefinition('Z', 'zetta', factor=ten**21),
+    PrefixDefinition('E', 'exa', factor=ten**18),
+    PrefixDefinition('P', 'peta', factor=ten**15),
+    PrefixDefinition('T', 'tera', factor=ten**12),
+    PrefixDefinition('G', 'giga', factor=ten**9),
+    PrefixDefinition('M', 'mega', factor=ten**6),
+    PrefixDefinition('k', 'kilo', factor=ten**3),
+    PrefixDefinition('h', 'hecto', factor=ten**2),
+    PrefixDefinition('da', 'deca', factor=ten**1),
     # Decimal submultiples.
-    PrefixDefinition('d', 'deci', factor=TEN**-1),
-    PrefixDefinition('c', 'centi', factor=TEN**-2),
-    PrefixDefinition('m', 'milli', factor=TEN**-3),
-    PrefixDefinition('µ', 'micro', factor=TEN**-6, symbol_aliases=('μ', 'u')),
-    PrefixDefinition('n', 'nano', factor=TEN**-9),
-    PrefixDefinition('p', 'pico', factor=TEN**-12),
-    PrefixDefinition('f', 'femto', factor=TEN**-15),
-    PrefixDefinition('a', 'atto', factor=TEN**-18),
-    PrefixDefinition('z', 'zepto', factor=TEN**-21),
-    PrefixDefinition('y', 'yocto', factor=TEN**-24),
-    PrefixDefinition('r', 'ronto', factor=TEN**-27),
-    PrefixDefinition('q', 'quecto', factor=TEN**-30),
+    PrefixDefinition('d', 'deci', factor=ten**-1),
+    PrefixDefinition('c', 'centi', factor=ten**-2),
+    PrefixDefinition('m', 'milli', factor=ten**-3),
+    PrefixDefinition('µ', 'micro', factor=ten**-6, symbol_aliases=('μ', 'u')),
+    PrefixDefinition('n', 'nano', factor=ten**-9),
+    PrefixDefinition('p', 'pico', factor=ten**-12),
+    PrefixDefinition('f', 'femto', factor=ten**-15),
+    PrefixDefinition('a', 'atto', factor=ten**-18),
+    PrefixDefinition('z', 'zepto', factor=ten**-21),
+    PrefixDefinition('y', 'yocto', factor=ten**-24),
+    PrefixDefinition('r', 'ronto', factor=ten**-27),
+    PrefixDefinition('q', 'quecto', factor=ten**-30),
 )
 
 PREFIX_DEFINITIONS: dict[str, PrefixDefinition] = {
@@ -162,14 +162,14 @@ class UnitDefinition(_Immutable):
 
 
 _UNIT_ENTRIES: tuple[UnitDefinition, ...] = (
-    UnitDefinition('', '', factor=ONE, dimension=DIMENSIONLESS, prefixable=False),
-    UnitDefinition('s', 'second', factor=ONE, dimension=Dimension(T=1)),
-    UnitDefinition('m', 'metre', 'meter', factor=ONE, dimension=Dimension(L=1)),
-    UnitDefinition('g', 'gram', factor=TEN**-3, dimension=Dimension(M=1)),
-    UnitDefinition('A', 'ampere', factor=ONE, dimension=Dimension(I=1)),
-    UnitDefinition('K', 'kelvin', factor=ONE, dimension=Dimension(Theta=1)),
-    UnitDefinition('mol', 'mole', factor=ONE, dimension=Dimension(N=1)),
-    UnitDefinition('cd', 'candela', factor=ONE, dimension=Dimension(J=1)),
+    UnitDefinition('', '', factor=one, dimension=DIMENSIONLESS, prefixable=False),
+    UnitDefinition('s', 'second', factor=one, dimension=Dimension(T=1)),
+    UnitDefinition('m', 'metre', 'meter', factor=one, dimension=Dimension(L=1)),
+    UnitDefinition('g', 'gram', factor=ten**-3, dimension=Dimension(M=1)),
+    UnitDefinition('A', 'ampere', factor=one, dimension=Dimension(I=1)),
+    UnitDefinition('K', 'kelvin', factor=one, dimension=Dimension(Theta=1)),
+    UnitDefinition('mol', 'mole', factor=one, dimension=Dimension(N=1)),
+    UnitDefinition('cd', 'candela', factor=one, dimension=Dimension(J=1)),
 )
 
 UNIT_DEFINITIONS: dict[str, UnitDefinition] = {

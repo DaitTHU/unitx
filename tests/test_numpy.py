@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from unitx.exceptions import DimensionError
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
 
@@ -121,9 +121,9 @@ def test_scaling_identity_rational_irrational_dtype_and_storage():
     assert not np.shares_memory(q.value_in('km'), a)
     for dtype in (np.float32, np.float64, np.longdouble, np.complex64):
         value = a.astype(dtype)
-        converted = Quantity(value, PI * Unit('m')).value_in('m')
-        np.testing.assert_allclose(converted, np.multiply(value, float(PI)))
-        assert converted.dtype == np.multiply(value, float(PI)).dtype
+        converted = Quantity(value, pi * Unit('m')).value_in('m')
+        np.testing.assert_allclose(converted, np.multiply(value, float(pi)))
+        assert converted.dtype == np.multiply(value, float(pi)).dtype
     np.testing.assert_array_equal(a, np.arange(4))
     with pytest.raises(DimensionError):
         q.to('s')
@@ -133,7 +133,7 @@ def test_scaling_identity_rational_irrational_dtype_and_storage():
 
 def test_exact_scale_stays_in_unit_algebra():
     q = Quantity(np.arange(3), 'cm')
-    for result in (q * Factor(2), Factor(2) * q, q / PI):
+    for result in (q * Factor(2), Factor(2) * q, q / pi):
         assert result.value is q.value
         assert isinstance(result.unit, ScaledUnit)
     assert_quantity((q * Factor(2)).to('m'), [0, 0.02, 0.04], 'm')
@@ -560,9 +560,9 @@ def test_ufunc_out_shared_storage():
 def test_ufunc_out_strided_buffer():
     storage = np.full((2, 6), -123.0)
     target = Quantity(storage[:, ::2], 'm')
-    q = Quantity(np.arange(6.0).reshape(2, 3), PI * Unit('m'))
+    q = Quantity(np.arange(6.0).reshape(2, 3), pi * Unit('m'))
     assert np.positive(q, out=target) is target
-    np.testing.assert_allclose(target.value, q.value * float(PI))
+    np.testing.assert_allclose(target.value, q.value * float(pi))
     np.testing.assert_array_equal(storage[:, 1::2], np.full((2, 3), -123.0))
     readonly = Quantity(np.arange(6.0).reshape(2, 3), 'm')
     readonly.value.flags.writeable = False

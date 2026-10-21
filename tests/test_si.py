@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from unitx.exceptions import UnitSymbolError
-from unitx.factor import PI
+from unitx.factor import pi
 from unitx.quantity import Quantity, quantity
 from unitx.si import SI, si
 from unitx.si.constants import Particle
@@ -108,9 +108,9 @@ def test_si_electronvolt() -> None:
 
 
 def test_si_angles() -> None:
-    assert si.deg.factor == PI / 180
-    assert si.arcmin.factor == PI / 10800
-    assert si.arcsec.factor == PI / 648000
+    assert si.deg.factor == pi / 180
+    assert si.arcmin.factor == pi / 10800
+    assert si.arcsec.factor == pi / 648000
     assert (1 * si.deg).to(si.arcsec).value == 3600
     assert si.pc.factor == si.au.factor / si.arcsec.factor
 

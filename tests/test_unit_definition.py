@@ -12,7 +12,7 @@ from unitx.exceptions import (
     UnitRegistryError,
     UnitSymbolError,
 )
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 from unitx.monomial import Monomial
 from unitx.quantity import Quantity
 from unitx.singleunit import SingleUnit
@@ -299,10 +299,10 @@ def test_unit_define_invalid_multiword_prefix(unit_registry) -> None:
 
 
 def test_scaled_unit_define_exact() -> None:
-    source = (PI / 180) * Unit('m')
+    source = (pi / 180) * Unit('m')
     unit = source.define('rvangle', name='reviewangle', prefixable=False)
     assert type(unit) is Unit
-    assert unit.factor == PI / 180
+    assert unit.factor == pi / 180
     assert unit.dimension == Dimension(L=1)
     assert (Quantity(1, unit) / Quantity(1, source)).to('').value == 1
     rooted = (Factor(2) * Unit('m')) ** Fraction(1, 2)

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Public factor constants use lowercase `one`, `two`, `ten`, and `pi`;
+  uppercase names are removed. Update imports and references accordingly.
+
 ## [0.11.0] - 2026-10-21
 
 ### Changed

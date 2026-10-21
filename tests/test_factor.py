@@ -14,7 +14,7 @@ import unitx._numerics as numerics_module
 import unitx.factor as factor_module
 from unitx._numerics import Fractionable, UnfactoredInteger
 from unitx.exceptions import IncompleteFactorWarning, InexactFloatWarning
-from unitx.factor import ONE, PI, TEN, TWO, Factor, SymbolicConstant
+from unitx.factor import Factor, SymbolicConstant, one, pi, ten, two
 
 
 @pytest.fixture
@@ -83,14 +83,14 @@ def test_symbolic_constant_invalid_values(value: float) -> None:
 def test_symbolic_constant_hash() -> None:
     same_pi = SymbolicConstant('π', math.pi)
     other_constant = SymbolicConstant('e', math.e)
-    assert PI == same_pi
-    assert hash(PI) == hash(same_pi)
-    assert {PI: 'pi'}[same_pi] == 'pi'
-    assert len({PI, same_pi, other_constant}) == 2
-    assert PI != other_constant
-    assert PI != math.pi
-    assert math.pi != PI
-    assert math.pi not in {PI: 'pi'}
+    assert pi == same_pi
+    assert hash(pi) == hash(same_pi)
+    assert {pi: 'pi'}[same_pi] == 'pi'
+    assert len({pi, same_pi, other_constant}) == 2
+    assert pi != other_constant
+    assert pi != math.pi
+    assert math.pi != pi
+    assert math.pi not in {pi: 'pi'}
     assert other_constant != math.e
 
 
@@ -106,8 +106,8 @@ def test_symbolic_constant_immutable(attribute: str) -> None:
         delattr(constant, attribute)
     assert hash(constant) == original_hash
     assert lookup[constant] == 'unchanged'
-    assert factor.value == (factor * ONE).value == math.e
-    assert factor / constant == ONE
+    assert factor.value == (factor * one).value == math.e
+    assert factor / constant == one
 
 
 def test_symbolic_constant_copy_and_pickle() -> None:
@@ -130,23 +130,23 @@ def test_symbolic_constant_merge() -> None:
     assert hash(first) == hash(second)
     assert (first * second).format() == 'e²'
     assert (first * second).format(compact=False) == 'e²'
-    assert first / second == ONE
+    assert first / second == one
 
 
 def test_symbolic_constant_operations() -> None:
-    assert str(2 * PI) == str(PI * 2) == '2⋅π'
-    assert str(2 / PI) == '2/π'
-    assert str(PI**2) == str(PI * PI) == 'π²'
-    assert 3 < PI < 4
-    assert math.pi <= PI <= math.pi
-    assert PI > SymbolicConstant('e', math.e)
-    assert Decimal(3) < PI < Decimal(4)
-    assert 3 < PI < Fraction(22, 7)
-    assert PI**0 == 1
-    assert PI**-1 == 1 / PI
-    assert PI == Factor(PI) == PI
-    assert (PI ** Fraction(1, 3)) ** 3 == PI
-    assert Factor(PI) * PI == PI * Factor(PI) == PI * PI == PI**2
+    assert str(2 * pi) == str(pi * 2) == '2⋅π'
+    assert str(2 / pi) == '2/π'
+    assert str(pi**2) == str(pi * pi) == 'π²'
+    assert 3 < pi < 4
+    assert math.pi <= pi <= math.pi
+    assert pi > SymbolicConstant('e', math.e)
+    assert Decimal(3) < pi < Decimal(4)
+    assert 3 < pi < Fraction(22, 7)
+    assert pi**0 == 1
+    assert pi**-1 == 1 / pi
+    assert pi == Factor(pi) == pi
+    assert (pi ** Fraction(1, 3)) ** 3 == pi
+    assert Factor(pi) * pi == pi * Factor(pi) == pi * pi == pi**2
 
 
 @pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
@@ -154,13 +154,13 @@ def test_symbolic_constant_decimal_operations(
     operation: Callable[[object, object], object],
 ) -> None:
     decimal = Decimal('0.1')
-    assert operation(PI, decimal) == operation(Factor(PI), Fraction(1, 10))
-    assert operation(decimal, PI) == operation(Fraction(1, 10), Factor(PI))
+    assert operation(pi, decimal) == operation(Factor(pi), Fraction(1, 10))
+    assert operation(decimal, pi) == operation(Fraction(1, 10), Factor(pi))
 
 
 @pytest.mark.parametrize('exponent', [Decimal('0.5'), Decimal('-2'), Decimal(0)])
 def test_symbolic_constant_decimal_powers(exponent: Decimal) -> None:
-    assert PI**exponent == Factor(PI) ** Fraction(exponent)
+    assert pi**exponent == Factor(pi) ** Fraction(exponent)
 
 
 # Factor construction
@@ -173,7 +173,7 @@ def test_factor_creation() -> None:
     assert factor.value == Fraction(127, 50)
 
 
-@pytest.mark.parametrize('base', [TWO, PI])
+@pytest.mark.parametrize('base', [two, pi])
 def test_factor_float_powers(base: Factor | SymbolicConstant) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter('error', InexactFloatWarning)
@@ -211,15 +211,15 @@ def test_factor_invalid_infinity(value: float | Decimal) -> None:
 def test_factor_from_dict() -> None:
     from types import MappingProxyType
 
-    components = MappingProxyType({2: -1, 3: Fraction(1, 2), PI: 0})
+    components = MappingProxyType({2: -1, 3: Fraction(1, 2), pi: 0})
     factor = Factor.from_dict(components)
     assert factor == Factor(3) ** Fraction(1, 2) / 2
     assert str(factor) == '3¹ᐟ²/2'
-    assert Factor.from_dict({2: 0}) == ONE
+    assert Factor.from_dict({2: 0}) == one
     with warnings.catch_warnings():
         warnings.simplefilter('error', InexactFloatWarning)
         converted = Factor.from_dict({2: 2.54})
-    assert converted == TWO ** Fraction(127, 50)
+    assert converted == two ** Fraction(127, 50)
     reciprocal = Factor(Fraction(1, 2))
     assert eval(repr(reciprocal)) == reciprocal
 
@@ -262,15 +262,15 @@ def test_factor_operations() -> None:
     assert Factor(12) * Factor(7) == Factor(12 * 7)
     assert str(Factor(12) / 10) == '6/5'
     assert str(10 / Factor(12)) == '5/6'
-    assert str(TWO * 3) == str(3 * TWO) == '6'
-    assert str(TEN**0) == '1'
-    assert str(TEN**1) == '10'
-    assert str(TEN**2) == '100'
+    assert str(two * 3) == str(3 * two) == '6'
+    assert str(ten**0) == '1'
+    assert str(ten**1) == '10'
+    assert str(ten**2) == '100'
     assert str(Factor(12) ** Fraction(1, 2)) == '2⋅3¹ᐟ²'
     assert str(Factor(12) / Factor(12)) == '1'
     root = Factor(12) ** Fraction(1, 2)
     assert root * root == Factor(12)
-    assert root / root == ONE
+    assert root / root == one
     assert root**2 == Factor(12)
 
 
@@ -288,14 +288,14 @@ def test_factor_numeric_operations(operand: Fractionable) -> None:
 @pytest.mark.parametrize('zero', [0, 0.0, Fraction(0), Decimal(0)])
 def test_factor_division_by_zero(zero: Fractionable) -> None:
     with pytest.raises(ZeroDivisionError):
-        TWO / zero  # pyright: ignore[reportUnusedExpression]
+        two / zero  # pyright: ignore[reportUnusedExpression]
     with pytest.raises(ZeroDivisionError):
-        operator.truediv(PI, zero)
+        operator.truediv(pi, zero)
 
 
 @pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
 @pytest.mark.parametrize('operand', [-1, Fraction(-1, 2), Decimal('-0.5')])
-@pytest.mark.parametrize('base', [TWO, PI])
+@pytest.mark.parametrize('base', [two, pi])
 def test_factor_invalid_negative_factors(
     operation: Callable[[object, object], object],
     operand: int | Fraction | Decimal,
@@ -315,7 +315,7 @@ def test_symbolic_constant_invalid_zero(
     operation: Callable[[object, object], object], reverse: bool
 ) -> None:
     with pytest.raises(ValueError, match='Factor must be positive'):
-        operation(0, PI) if reverse else operation(PI, 0)
+        operation(0, pi) if reverse else operation(pi, 0)
 
 
 @pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
@@ -323,7 +323,7 @@ def test_factor_invalid_operands(
     operation: Callable[[object, object], object],
 ) -> None:
     with pytest.raises(TypeError):
-        operation(TWO, 'x')
+        operation(two, 'x')
 
 
 @pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
@@ -357,13 +357,13 @@ def test_factor_numeric_powers(base: int, exponent: Fractionable, expected: int 
 @pytest.mark.parametrize('exponent', [True, False, 'x'])
 def test_factor_invalid_exponents(exponent: bool | str) -> None:
     with pytest.raises(TypeError, match=f'Cannot convert {type(exponent).__name__} to Fraction'):
-        TWO**exponent  # pyright: ignore[reportOperatorIssue, reportUnusedExpression]
+        two**exponent  # pyright: ignore[reportOperatorIssue, reportUnusedExpression]
 
 
-@pytest.mark.parametrize('factor', [PI**1000, TWO ** Fraction(-2201, 2)])
+@pytest.mark.parametrize('factor', [pi**1000, two ** Fraction(-2201, 2)])
 def test_factor_division_extreme_cancellation(factor: Factor) -> None:
-    assert factor / factor == ONE
-    assert (1 / factor) * factor == ONE
+    assert factor / factor == one
+    assert (1 / factor) * factor == one
 
 
 def test_factor_extreme_rationals() -> None:
@@ -374,7 +374,7 @@ def test_factor_extreme_rationals() -> None:
     tiny = Fraction(1, 10**400)
     assert Factor(tiny) == tiny
     assert Factor(tiny) != 0
-    assert (ONE / Factor(tiny)).value == 10**400
+    assert (one / Factor(tiny)).value == 10**400
     factor = Factor(10**400)
     assert type(factor.value) is int
     assert factor.value == 10**400
@@ -382,10 +382,10 @@ def test_factor_extreme_rationals() -> None:
 
 
 def test_factor_exact_equality() -> None:
-    root = TWO ** Fraction(1, 2)
+    root = two ** Fraction(1, 2)
     assert root != math.sqrt(2)
     assert root != Fraction.from_float(math.sqrt(2))
-    assert Factor(PI) != math.pi
+    assert Factor(pi) != math.pi
     assert Factor(Decimal('0.1')) != 0.1
     assert Factor(Decimal('0.1')) == Decimal('0.1')
     # Equality can reject inconsistent definitions without combining them.
@@ -394,20 +394,20 @@ def test_factor_exact_equality() -> None:
 
 @pytest.mark.parametrize('number', [2, 2.0, Fraction(2), Decimal(2)])
 def test_factor_numeric_equality(number: Fractionable) -> None:
-    assert TWO == number
-    assert number == TWO
+    assert two == number
+    assert number == two
 
 
 @pytest.mark.parametrize(
     ('factor', 'number'),
     [
-        (PI**1000, 2),
-        (PI**-1000, 0),
-        (TWO ** Fraction(-2201, 2), 1),
-        (Factor(PI), -1),
-        (Factor(PI), Decimal(0)),
-        (Factor(PI), float('inf')),
-        (Factor(PI), float('nan')),
+        (pi**1000, 2),
+        (pi**-1000, 0),
+        (two ** Fraction(-2201, 2), 1),
+        (Factor(pi), -1),
+        (Factor(pi), Decimal(0)),
+        (Factor(pi), float('inf')),
+        (Factor(pi), float('nan')),
     ],
 )
 def test_factor_equality_without_evaluation(
@@ -424,16 +424,16 @@ def test_factor_equality_without_evaluation(
 @pytest.mark.parametrize(
     ('factor', 'number'),
     [
-        (ONE, 1),
-        (ONE, True),
-        (TWO, 2.0),
-        (TWO / 8, Fraction(1, 4)),
+        (one, 1),
+        (one, True),
+        (two, 2.0),
+        (two / 8, Fraction(1, 4)),
         (Factor(Fraction(1, 3)), Fraction(1, 3)),
         (Factor(Decimal('0.1')), Decimal('0.1')),
-        ((TWO ** Fraction(1, 2)) ** 2, 2),
-        (PI / PI, 1),
-        pytest.param(TWO**10000, 2**10000, id='large-integer'),
-        pytest.param(TEN**-400, Fraction(1, 10**400), id='tiny-rational'),
+        ((two ** Fraction(1, 2)) ** 2, 2),
+        (pi / pi, 1),
+        pytest.param(two**10000, 2**10000, id='large-integer'),
+        pytest.param(ten**-400, Fraction(1, 10**400), id='tiny-rational'),
     ],
 )
 def test_factor_hash_numeric(factor: Factor, number: Fractionable) -> None:
@@ -445,7 +445,7 @@ def test_factor_hash_numeric(factor: Factor, number: Fractionable) -> None:
 
 
 @pytest.mark.parametrize(
-    'factor', [Factor(PI), PI**1, (PI ** Fraction(1, 3)) ** 3, (TWO * PI) / TWO]
+    'factor', [Factor(pi), pi**1, (pi ** Fraction(1, 3)) ** 3, (two * pi) / two]
 )
 def test_factor_hash_symbolic(factor: Factor) -> None:
     constant = SymbolicConstant('π', math.pi)
@@ -460,8 +460,8 @@ def test_factor_hash_symbolic(factor: Factor) -> None:
     'components',
     [
         {2: Fraction(1, 2), 3: Fraction(-1, 3)},
-        {PI: Fraction(-2, 3), 2: 2, 3: Fraction(1, 2)},
-        {PI: 1, 3: 2},
+        {pi: Fraction(-2, 3), 2: 2, 3: Fraction(1, 2)},
+        {pi: 1, 3: 2},
     ],
 )
 def test_factor_hash_structural(components: dict[int | SymbolicConstant, int | Fraction]) -> None:
@@ -473,17 +473,17 @@ def test_factor_hash_structural(components: dict[int | SymbolicConstant, int | F
     assert len({first, second}) == 1
 
 
-@pytest.mark.parametrize('factor', [Factor(PI), PI**1000, PI**-1000, TWO ** Fraction(-2201, 2)])
+@pytest.mark.parametrize('factor', [Factor(pi), pi**1000, pi**-1000, two ** Fraction(-2201, 2)])
 def test_factor_hash_without_evaluation(factor: Factor, monkeypatch: pytest.MonkeyPatch) -> None:
     def unexpected_evaluation(self: Factor) -> NoReturn:
         pytest.fail('Hashing must not evaluate a floating-point approximation.')
 
     monkeypatch.setattr(Factor, 'value', property(unexpected_evaluation))
-    assert hash(factor) == hash(factor * ONE)
-    assert {factor: 'value'}[factor * ONE] == 'value'
+    assert hash(factor) == hash(factor * one)
+    assert {factor: 'value'}[factor * one] == 'value'
 
 
-@pytest.mark.parametrize('factor', [TWO * 3, TWO / 3, TWO ** Fraction(1, 2) * PI])
+@pytest.mark.parametrize('factor', [two * 3, two / 3, two ** Fraction(1, 2) * pi])
 def test_factor_hash_preserves_state(factor: Factor) -> None:
     original_hash = hash(factor)
     original_repr = repr(factor)
@@ -492,7 +492,7 @@ def test_factor_hash_preserves_state(factor: Factor) -> None:
     assert hash(factor) == original_hash
     assert repr(factor) == original_repr
     assert factor.value is value
-    assert lookup[factor * ONE] == 'unchanged'
+    assert lookup[factor * one] == 'unchanged'
 
 
 # Classification and decomposition
@@ -501,17 +501,17 @@ def test_factor_hash_preserves_state(factor: Factor) -> None:
 @pytest.mark.parametrize(
     ('factor', 'expected'),
     [
-        (ONE, (True, True)),
+        (one, (True, True)),
         (Factor(12), (True, True)),
         (Factor(Fraction(1, 3)), (False, True)),
-        (TWO ** Fraction(1, 2), (False, False)),
-        (Factor(PI), (False, False)),
-        (PI**1000, (False, False)),
-        (PI**-1000, (False, False)),
-        (TWO**100000, (True, True)),
-        (TWO ** Fraction(-2201, 2), (False, False)),
+        (two ** Fraction(1, 2), (False, False)),
+        (Factor(pi), (False, False)),
+        (pi**1000, (False, False)),
+        (pi**-1000, (False, False)),
+        (two**100000, (True, True)),
+        (two ** Fraction(-2201, 2), (False, False)),
         ((Factor(12) ** Fraction(1, 2)) ** 2, (True, True)),
-        (PI / PI, (True, True)),
+        (pi / pi, (True, True)),
     ],
 )
 def test_factor_numeric_classification(
@@ -546,13 +546,13 @@ def test_factor_subclass_classification() -> None:
 @pytest.mark.parametrize(
     ('factor', 'rationalize', 'expected_rational', 'expected_irrational'),
     [
-        (Factor(12), False, 12, ONE),
-        (2 * PI, False, 2, Factor(PI)),
-        (TWO ** Fraction(-2, 3), True, Fraction(1, 2), TWO ** Fraction(1, 3)),
-        (TWO ** Fraction(3, 2), False, 2, TWO ** Fraction(1, 2)),
-        (TWO ** Fraction(3, 2), True, 2, TWO ** Fraction(1, 2)),
-        (TWO ** Fraction(-3, 2), False, Fraction(1, 2), TWO ** Fraction(-1, 2)),
-        (TWO ** Fraction(-3, 2), True, Fraction(1, 4), TWO ** Fraction(1, 2)),
+        (Factor(12), False, 12, one),
+        (2 * pi, False, 2, Factor(pi)),
+        (two ** Fraction(-2, 3), True, Fraction(1, 2), two ** Fraction(1, 3)),
+        (two ** Fraction(3, 2), False, 2, two ** Fraction(1, 2)),
+        (two ** Fraction(3, 2), True, 2, two ** Fraction(1, 2)),
+        (two ** Fraction(-3, 2), False, Fraction(1, 2), two ** Fraction(-1, 2)),
+        (two ** Fraction(-3, 2), True, Fraction(1, 4), two ** Fraction(1, 2)),
     ],
 )
 def test_factor_decompose(
@@ -572,11 +572,11 @@ def test_factor_decompose(
     [
         Factor(12),
         Factor(Fraction(3, 2)),
-        Factor(PI),
+        Factor(pi),
         Factor.from_dict({2: Fraction(-3, 2)}),
-        TWO * PI,
-        TWO / Factor(3),
-        TWO ** Fraction(-3, 2),
+        two * pi,
+        two / Factor(3),
+        two ** Fraction(-3, 2),
     ],
 )
 def test_factor_decompose_cache(factor: Factor, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -593,27 +593,27 @@ def test_factor_decompose_cache(factor: Factor, monkeypatch: pytest.MonkeyPatch)
 
 @pytest.mark.parametrize('rationalize_first', [False, True])
 def test_factor_decompose_modes(rationalize_first: bool) -> None:
-    factor = TWO ** Fraction(-3, 2)
+    factor = two ** Fraction(-3, 2)
     factor.decompose(rationalize_denominator=rationalize_first)
     rationalized = factor.decompose(rationalize_denominator=True)
     for _ in range(2):
-        assert factor.decompose() == (Fraction(1, 2), TWO ** Fraction(-1, 2))
+        assert factor.decompose() == (Fraction(1, 2), two ** Fraction(-1, 2))
         assert factor.decompose(rationalize_denominator=True) is rationalized
-    assert rationalized == (Fraction(1, 4), TWO ** Fraction(1, 2))
+    assert rationalized == (Fraction(1, 4), two ** Fraction(1, 2))
 
 
 def test_factor_decompose_overflow() -> None:
-    factor = PI**10000 * TWO ** Fraction(-3, 2)
+    factor = pi**10000 * two ** Fraction(-3, 2)
     rationalized = factor.decompose(rationalize_denominator=True)
-    assert rationalized == (Fraction(1, 4), PI**10000 * TWO ** Fraction(1, 2))
+    assert rationalized == (Fraction(1, 4), pi**10000 * two ** Fraction(1, 2))
     with pytest.raises(OverflowError, match='Factor value is too large for a float'):
         factor.value
     assert factor.decompose(rationalize_denominator=True) is rationalized
 
 
 def test_factor_decompose_preserves_state() -> None:
-    factor = PI * TWO ** Fraction(-3, 2)
-    equivalent = Factor.from_dict({PI: 1, 2: Fraction(-3, 2)})
+    factor = pi * two ** Fraction(-3, 2)
+    equivalent = Factor.from_dict({pi: 1, 2: Fraction(-3, 2)})
     before = (repr(factor), hash(factor), factor.is_rational(), factor.is_integer())
     value = factor.value
     lookup = {factor: 'found'}
@@ -623,7 +623,7 @@ def test_factor_decompose_preserves_state() -> None:
     assert factor == equivalent
     assert lookup[equivalent] == 'found'
     assert len({factor, equivalent}) == 1
-    for result in (factor * TWO, factor / TWO, factor**2):
+    for result in (factor * two, factor / two, factor**2):
         rational, irrational = result.decompose(rationalize_denominator=True)
         assert Factor(rational) * irrational == result
 
@@ -633,16 +633,16 @@ def test_factor_decompose_round_trip(warm_cache: bool) -> None:
     import pickle
     from copy import copy, deepcopy
 
-    factor = PI * TWO ** Fraction(-3, 2)
+    factor = pi * two ** Fraction(-3, 2)
     if warm_cache:
         factor.decompose(rationalize_denominator=True)
     for rebuilt in (copy(factor), deepcopy(factor), pickle.loads(pickle.dumps(factor))):
         assert rebuilt == factor
         assert hash(rebuilt) == hash(factor)
         assert repr(rebuilt) == repr(factor)
-        assert rebuilt.decompose() == (Fraction(1, 2), PI * TWO ** Fraction(-1, 2))
+        assert rebuilt.decompose() == (Fraction(1, 2), pi * two ** Fraction(-1, 2))
         rationalized = rebuilt.decompose(rationalize_denominator=True)
-        assert rationalized == (Fraction(1, 4), PI * TWO ** Fraction(1, 2))
+        assert rationalized == (Fraction(1, 4), pi * two ** Fraction(1, 2))
         assert rebuilt.decompose(rationalize_denominator=True) is rationalized
 
 
@@ -660,7 +660,7 @@ def test_factor_decompose_round_trip(warm_cache: bool) -> None:
         (Fraction(1, 3), Fraction(1, 3), Fraction),
         (Decimal('0.0254'), Fraction(127, 5000), Fraction),
         (Decimal('1e-12'), Fraction(1, 10**12), Fraction),
-        (PI, math.pi, float),
+        (pi, math.pi, float),
     ],
 )
 def test_factor_value_exact_types(
@@ -687,7 +687,7 @@ def test_factor_value_exact_types(
     ],
 )
 def test_factor_value_balanced_product(twos: int, pis: int, es: int) -> None:
-    factor = TWO**twos * PI**pis * SymbolicConstant('e', math.e) ** es
+    factor = two**twos * pi**pis * SymbolicConstant('e', math.e) ** es
     with localcontext() as context:
         context.prec = 60
         expected = float(
@@ -701,16 +701,16 @@ def test_factor_value_balanced_product(twos: int, pis: int, es: int) -> None:
 
 def test_factor_value_float_limits() -> None:
     with pytest.raises(OverflowError):
-        (PI**1000).value
-    assert (PI**-1000).value == 0.0
+        (pi**1000).value
+    assert (pi**-1000).value == 0.0
 
 
 @pytest.mark.parametrize('exponent', [Decimal('3.2305925317824'), Decimal('3.23059253178236')])
 def test_factor_value_maximum_boundary(exponent: Decimal) -> None:
-    factor = PI**622 / TWO**exponent
+    factor = pi**622 / two**exponent
     with localcontext() as context:
         context.prec = 100
-        expected = float(Decimal.from_float(PI.value) ** 622 / Decimal(2) ** exponent)
+        expected = float(Decimal.from_float(pi.value) ** 622 / Decimal(2) ** exponent)
     assert math.isfinite(expected)
     with localcontext() as context:
         context.prec = 2
@@ -727,10 +727,10 @@ def test_factor_value_overflow_boundary() -> None:
     exponent = Decimal('3.2305925317822')
     with localcontext() as context:
         context.prec = 100
-        expected = float(Decimal.from_float(PI.value) ** 622 / Decimal(2) ** exponent)
+        expected = float(Decimal.from_float(pi.value) ** 622 / Decimal(2) ** exponent)
     assert math.isinf(expected)
     with pytest.raises(OverflowError, match='Factor value is too large for a float'):
-        (PI**622 / TWO**exponent).value
+        (pi**622 / two**exponent).value
 
 
 @pytest.mark.parametrize(
@@ -738,10 +738,10 @@ def test_factor_value_overflow_boundary() -> None:
     [(Decimal('2102.2305925317822'), math.ulp(0.0)), (Decimal('2102.2305925317824'), 0.0)],
 )
 def test_factor_value_underflow_boundary(exponent: Decimal, expected: float) -> None:
-    factor = PI**622 / TWO**exponent
+    factor = pi**622 / two**exponent
     with localcontext() as context:
         context.prec = 100
-        reference = float(Decimal.from_float(PI.value) ** 622 / Decimal(2) ** exponent)
+        reference = float(Decimal.from_float(pi.value) ** 622 / Decimal(2) ** exponent)
     assert reference == expected
     with localcontext() as context:
         context.prec = 2
@@ -753,7 +753,7 @@ def test_factor_value_underflow_boundary(exponent: Decimal, expected: float) -> 
 
 
 def test_factor_value_subnormal_result() -> None:
-    factor = PI**1000 * TWO**-2725
+    factor = pi**1000 * two**-2725
     with localcontext() as context:
         context.prec = 60
         expected = float(Decimal.from_float(math.pi) ** 1000 / Decimal(2) ** 2725)
@@ -764,10 +764,10 @@ def test_factor_value_subnormal_result() -> None:
 @pytest.mark.parametrize(
     ('factor', 'expected', 'expected_type'),
     [
-        (TWO * Factor(3), 6, int),
-        (ONE / Factor(3), Fraction(1, 3), Fraction),
-        (TWO ** Fraction(1, 2), math.sqrt(2), float),
-        (PI**-1000, 0.0, float),
+        (two * Factor(3), 6, int),
+        (one / Factor(3), Fraction(1, 3), Fraction),
+        (two ** Fraction(1, 2), math.sqrt(2), float),
+        (pi**-1000, 0.0, float),
     ],
 )
 def test_factor_value_cache(
@@ -804,14 +804,14 @@ def test_factor_conversion_round_trip() -> None:
 @pytest.mark.parametrize(
     ('factor', 'magnitude', 'expected'),
     [
-        (TWO, Decimal('1.5'), 3),
-        (ONE / 3, Decimal('1.5'), Fraction(1, 2)),
-        (ONE / 3, Decimal('-1.5'), Fraction(-1, 2)),
-        (ONE / 3, Decimal(0), 0),
-        (ONE / 3, Decimal('1e400'), Fraction(10**400, 3)),
-        (Factor(PI), Decimal('1.5'), math.pi * 1.5),
-        (Factor(PI), Decimal('-1.5'), -math.pi * 1.5),
-        (Factor(PI), Decimal(0), 0.0),
+        (two, Decimal('1.5'), 3),
+        (one / 3, Decimal('1.5'), Fraction(1, 2)),
+        (one / 3, Decimal('-1.5'), Fraction(-1, 2)),
+        (one / 3, Decimal(0), 0),
+        (one / 3, Decimal('1e400'), Fraction(10**400, 3)),
+        (Factor(pi), Decimal('1.5'), math.pi * 1.5),
+        (Factor(pi), Decimal('-1.5'), -math.pi * 1.5),
+        (Factor(pi), Decimal(0), 0.0),
     ],
 )
 def test_factor_decimal_scaling(
@@ -829,7 +829,7 @@ def test_factor_decimal_scaling(
     [(200, Decimal('1e-400'), math.pi * 1e-200), (-200, Decimal('1e400'), math.pi * 1e200)],
 )
 def test_factor_decimal_extremes(exponent: int, magnitude: Decimal, expected: float) -> None:
-    factor = PI * TEN**exponent
+    factor = pi * ten**exponent
     with localcontext() as context:
         context.prec = 2
         result = factor(magnitude)
@@ -873,7 +873,7 @@ def test_factor_format_forms() -> None:
     ],
 )
 def test_factor_format_merged_roots(exponent: Fraction, expected: str) -> None:
-    factor = (TWO**exponent) * (Factor(3) ** exponent)
+    factor = (two**exponent) * (Factor(3) ** exponent)
     original = repr(factor)
     assert factor.format(compact=True) == expected
     assert str(factor) == expected
@@ -885,7 +885,7 @@ def test_factor_format_mixed_roots() -> None:
     factor = Factor.from_dict(
         {
             2: Fraction(1, 2),
-            PI: Fraction(1, 2),
+            pi: Fraction(1, 2),
             5: Fraction(1, 3),
             3: Fraction(1, 2),
             7: Fraction(1, 3),
@@ -918,7 +918,7 @@ def test_factor_format_coefficients(base: int, exponent: Fraction, expected: str
     'exponent', [Fraction(10**20 + 1, 3), Fraction(-(10**20) - 1, 7), Fraction(1, 1000001)]
 )
 def test_factor_repr_round_trip(exponent: Fraction) -> None:
-    factor = TWO**exponent
+    factor = two**exponent
     with warnings.catch_warnings():
         warnings.simplefilter('error', InexactFloatWarning)
         rebuilt = eval(repr(factor))
@@ -936,8 +936,8 @@ def test_factor_sympy_factorization() -> None:
         factor = Factor(p * q)
         reciprocal = Factor(Fraction(1, p * q))
     assert factor.format(compact=False) == f'{p}⋅{q}'
-    assert factor / Factor(p) / Factor(q) == ONE
-    assert reciprocal == ONE / Factor(p) / Factor(q)
+    assert factor / Factor(p) / Factor(q) == one
+    assert reciprocal == one / Factor(p) / Factor(q)
 
 
 def test_factor_sympy_primality() -> None:
@@ -978,7 +978,7 @@ def test_factor_fallback_unresolved_warning(value: int | Fraction) -> None:
 
 
 @pytest.mark.usefixtures('fallback_backend')
-@pytest.mark.parametrize('base', [TWO, PI])
+@pytest.mark.parametrize('base', [two, pi])
 @pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
 @pytest.mark.parametrize('reverse', [False, True])
 def test_factor_fallback_arithmetic(
@@ -1057,9 +1057,9 @@ def test_factor_fallback_structural_comparison(
     with warnings.catch_warnings():
         warnings.simplefilter('error', IncompleteFactorWarning)
         assert combined != split
-        assert combined / split != ONE
-        assert split / combined != ONE
-        assert combined / combined == ONE
+        assert combined / split != one
+        assert split / combined != one
+        assert combined / combined == one
     assert float(combined / split) == pytest.approx(1)
     assert combined.is_rational() == (exponent == 1)
 

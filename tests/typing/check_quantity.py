@@ -5,7 +5,7 @@ from fractions import Fraction
 from typing import Any, assert_type
 
 from unitx._numerics import Number, Real, Scalar
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.unit import ScaledUnit, Unit
 from unitx.unitregistry import PrefixPolicy
@@ -69,9 +69,9 @@ def test_scaled_unit_construction() -> None:
     unit = Unit('m')
     scaled = Factor(2) * unit
     assert_type(scaled, ScaledUnit)
-    assert_type(PI * unit, ScaledUnit)
+    assert_type(pi * unit, ScaledUnit)
     assert_type(Factor(2) / unit, ScaledUnit)
-    assert_type(PI / scaled, ScaledUnit)
+    assert_type(pi / scaled, ScaledUnit)
     assert_type(3 * scaled, Quantity[int])
     assert_type(Fraction(3) / scaled, Quantity[Fraction])
     assert_type(scaled * unit, ScaledUnit)
@@ -91,7 +91,7 @@ def test_scaled_unit_construction() -> None:
 
 
 def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
-    for value in (Factor(2), PI):
+    for value in (Factor(2), pi):
         assert_type(unit * value, ScaledUnit)
         assert_type(unit / value, ScaledUnit)
         assert_type(scaled * value, ScaledUnit)
@@ -112,7 +112,7 @@ def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
     assert_type(3 * (unit * 2), Quantity[int])
     assert_type(Fraction(3) * (unit / 2), Quantity[Real])
     assert_type(Factor(2) * unit, ScaledUnit)
-    assert_type(PI * scaled, ScaledUnit)
+    assert_type(pi * scaled, ScaledUnit)
     assert_type(unit * Quantity(2, 's'), Quantity[int])
     assert_type(scaled * Quantity(2, 's'), Quantity[int])
     assert_type(unit / Quantity(2, 's'), Quantity[float])
@@ -124,7 +124,7 @@ def test_unit_define() -> None:
     assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=policy), Unit)
     single_policy: PrefixPolicy = 'rvpolicy'
     assert_type(Unit('m').define('rvpolicy', 'review policy', prefixable=single_policy), Unit)
-    assert_type((PI * Unit('m')).define('rvpolicy', 'review policy', prefixable='rvpolicy'), Unit)
+    assert_type((pi * Unit('m')).define('rvpolicy', 'review policy', prefixable='rvpolicy'), Unit)
     assert_type(
         Quantity(2, 'm').define('rvpolicy', 'review policy', prefixable='review policy'), Unit
     )
@@ -137,7 +137,7 @@ def test_unit_define() -> None:
         Unit,
     )
     assert_type(
-        (PI * Unit('m')).define('rvbound', 'review bound', prefixable=()),
+        (pi * Unit('m')).define('rvbound', 'review bound', prefixable=()),
         Unit,
     )
     assert_type(
@@ -147,8 +147,8 @@ def test_unit_define() -> None:
     assert_type(Unit('m').define('rvlen', name='reviewlength'), Unit)
     assert_type(Unit('m').define('rvlen', 'reviewlength'), Unit)
     assert_type(Unit('m').define('rvlen', 'reviewlength', 'reviewdistance', 'reviewspan'), Unit)
-    assert_type((PI * Unit('m')).define('rvpi', name='reviewpilength'), Unit)
-    assert_type((PI * Unit('m')).define('rvpi', 'reviewpilength', 'reviewpispan'), Unit)
+    assert_type((pi * Unit('m')).define('rvpi', name='reviewpilength'), Unit)
+    assert_type((pi * Unit('m')).define('rvpi', 'reviewpilength', 'reviewpispan'), Unit)
     assert_type((60 * Unit('s')).define('rvmin', name='reviewminute'), Unit)
     assert_type((60 * Unit('s')).define('rvmin', 'reviewminute', 'reviewduration'), Unit)
     assert_type(Quantity(Decimal('0.3048'), 'm').define('rvft', name='reviewfoot'), Unit)
@@ -187,14 +187,14 @@ def test_quantity_unit_operations[T: Scalar](value: T) -> Quantity[T]:
 
 def test_quantity_factor_operations[T: Scalar](value: T) -> Quantity[T]:
     quantity = Quantity(value, 'm')
-    for factor in (Factor(2), PI):
+    for factor in (Factor(2), pi):
         assert_type(quantity * factor, Quantity[T])
         assert_type(factor * quantity, Quantity[T])
         assert_type(quantity / factor, Quantity[T])
         assert_type(factor / quantity, Quantity[Scalar])
         assert_type(Factor(2) / Quantity(2, 's'), Quantity[float])
-        assert_type(PI / Quantity(Decimal(2), 's'), Quantity[Decimal])
-    assert_type(Quantity(Decimal(2), 's') / (2 * PI), Quantity[Decimal])
+        assert_type(pi / Quantity(Decimal(2), 's'), Quantity[Decimal])
+    assert_type(Quantity(Decimal(2), 's') / (2 * pi), Quantity[Decimal])
     return quantity
 
 

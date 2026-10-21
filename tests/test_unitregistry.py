@@ -8,7 +8,7 @@ import pytest
 
 from unitx.dimension import Dimension
 from unitx.exceptions import UnitRegistryError, UnitSymbolError
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.singleunit import SingleUnit
 from unitx.unit import ScaledUnit, Unit
@@ -36,7 +36,7 @@ def unit_registry():
         table.update(snapshot)
 
 
-@pytest.mark.parametrize('source', [Unit('m'), PI * Unit('m'), Quantity(Fraction(3, 7), 'm')])
+@pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
 def test_unit_define_binding_policy(source) -> None:
     unit = source.define(
         'rvbind',
@@ -145,7 +145,7 @@ def test_unit_define_duplicate_spellings() -> None:
         Unit('millireview policy')
 
 
-@pytest.mark.parametrize('source', [Unit('m'), PI * Unit('m'), Quantity(Fraction(3, 7), 'm')])
+@pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
 @pytest.mark.parametrize('spelling', ['rvselect', 'rvselected', 'review selected', 'review alias'])
 def test_unit_define_string_policy(source, spelling: str) -> None:
     unit = source.define(

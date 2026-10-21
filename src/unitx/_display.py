@@ -59,12 +59,12 @@ def product(components: list[tuple[str, Fraction]], style: Style, *, fraction: b
 
 
 def unit_body(unit: Unit, style: Style, *, fraction: bool = True) -> str:
-    from .factor import ONE
+    from .factor import one
     from .unit import ScaledUnit
 
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
     body = product(components, style, fraction=fraction)
-    if isinstance(unit, ScaledUnit) and unit.scale != ONE:
+    if isinstance(unit, ScaledUnit) and unit.scale != one:
         scale = product(
             [(str(base), exp) for base, exp in unit.scale._display_monomial().components()],
             style,
@@ -121,7 +121,7 @@ def rich_magnitude(value: object, text: str, spec: str, style: Style) -> str:
 def quantity_body(
     value: object, unit: Unit, spec: str, style: Style, *, fraction: bool = True
 ) -> str:
-    from .factor import ONE
+    from .factor import one
     from .unit import ScaledUnit
 
     # Delegate formatting without coercing Decimal, Fraction, arrays or custom scalars.
@@ -129,10 +129,10 @@ def quantity_body(
     magnitude = rich_magnitude(value, text, spec, style)
     if style == 'html':
         magnitude = f'<span style="white-space: pre-wrap">{magnitude}</span>'
-    if not unit._monomial.components() and (not isinstance(unit, ScaledUnit) or unit.scale == ONE):
+    if not unit._monomial.components() and (not isinstance(unit, ScaledUnit) or unit.scale == one):
         return magnitude
     body = unit_body(unit, style, fraction=fraction)
-    if isinstance(unit, ScaledUnit) and unit.scale != ONE:
+    if isinstance(unit, ScaledUnit) and unit.scale != one:
         body = rf'\left({body}\right)' if style == 'latex' else f'({body})'
     separator = r'\,' if style == 'latex' else '&thinsp;'
     return magnitude + separator + body
@@ -144,10 +144,10 @@ def html_span(body: str) -> str:
 
 def siunitx_unit_parts(unit: Unit) -> tuple[str, bool]:
     """Return a unit argument and whether siunitx should parse it."""
-    from .factor import ONE
+    from .factor import one
     from .unit import ScaledUnit
 
-    scaled = isinstance(unit, ScaledUnit) and unit.scale != ONE
+    scaled = isinstance(unit, ScaledUnit) and unit.scale != one
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
     # Literal siunitx syntax uses dots as products and signed exact powers.
     # Other spellings remain literal TeX text, not invented control sequences.
@@ -160,7 +160,7 @@ def siunitx_unit_parts(unit: Unit) -> tuple[str, bool]:
 
 
 def siunitx_quantity(value: object, unit: Unit, spec: str) -> str:
-    from .factor import ONE
+    from .factor import one
     from .unit import ScaledUnit
 
     text = format_magnitude(value, spec)
@@ -175,7 +175,7 @@ def siunitx_quantity(value: object, unit: Unit, spec: str) -> str:
     body, parsed = siunitx_unit_parts(unit)
     if not parsed:
         options.append('parse-units=false')
-    if isinstance(unit, ScaledUnit) and unit.scale != ONE:
+    if isinstance(unit, ScaledUnit) and unit.scale != one:
         body = rf'\left({body}\right)'
     option_text = '[' + ','.join(options) + ']' if options else ''
     if not body:

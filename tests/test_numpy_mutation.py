@@ -10,7 +10,7 @@ import pytest
 
 from unitx import Quantity, Unit
 from unitx.exceptions import DimensionError
-from unitx.factor import PI, Factor
+from unitx.factor import Factor, pi
 
 np = pytest.importorskip('numpy')
 
@@ -51,7 +51,7 @@ def test_assignment_indexing(key):
     assert q.value is a and q.unit is unit and q.dtype == np.dtype('f8')
 
 
-@pytest.mark.parametrize('unit', [Unit('m'), Factor(2) * Unit('m'), PI * Unit('m')])
+@pytest.mark.parametrize('unit', [Unit('m'), Factor(2) * Unit('m'), pi * Unit('m')])
 @pytest.mark.parametrize('raw', [3, Fraction(3), Decimal('3'), np.float32(3), np.array(3.0)])
 def test_assignment_unit_conversion(unit, raw):
     q = Quantity(np.zeros(3), unit)
@@ -185,8 +185,8 @@ def test_inplace_dimensionless_power_and_scaled_unit():
     assert operator.ipow(q, 2) is q
     assert q.unit is unit
     np.testing.assert_allclose(q.value, [2000, 8000])
-    q = Quantity(np.ones(2), PI * Unit('m'))
-    assert operator.imul(q, PI) is q
+    q = Quantity(np.ones(2), pi * Unit('m'))
+    assert operator.imul(q, pi) is q
     np.testing.assert_allclose(q.value, np.pi)
 
 

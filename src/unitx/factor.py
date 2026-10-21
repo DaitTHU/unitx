@@ -31,7 +31,7 @@ except ModuleNotFoundError as exc:
         raise
     from ._numerics import factorint, isprime
 
-__all__ = ['ONE', 'PI', 'TEN', 'TWO', 'Factor', 'SymbolicConstant']
+__all__ = ['one', 'pi', 'ten', 'two', 'Factor', 'SymbolicConstant']
 
 _NUMBER_RE = re.compile(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?')
 _INVALID_CHARS = re.compile(r'[\s' + re.escape('+-−*/×÷⋅·∗⁄∕^()[]{}=') + ']')
@@ -44,7 +44,7 @@ class SymbolicConstant(_Immutable):
     A new symbol must denote a positive mathematical constant that cannot be
     expressed as a finite product of prime integers and previously defined
     SymbolicConstants, all raised to rational exponents. Use Factor for numbers
-    already expressible in that form: 2, sqrt(2), and products such as 2 * PI
+    already expressible in that form: 2, sqrt(2), and products such as 2 * pi
     must not be introduced as new symbolic constants.
 
     This mathematical construction contract is the caller's responsibility.
@@ -542,8 +542,8 @@ class Factor:
         return self.value * magnitude
 
 
-ONE = Factor(1)  # identity
-TWO = Factor(2)  # base 2, for binary scaling
-TEN = Factor(10)  # base 10, for decimal scaling
-PI = SymbolicConstant('π', math.pi)
+one = Factor(1)  # identity
+two = Factor(2)  # base 2, for binary scaling
+ten = Factor(10)  # base 10, for decimal scaling
+pi = SymbolicConstant('π', math.pi)
 """The ratio of the circumference of a circle to its diameter."""
