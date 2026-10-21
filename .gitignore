@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Local design discussion, not public documentation
+/docs/design-affine-log.md
+
 # PyBuilder
 .pybuilder/
 target/

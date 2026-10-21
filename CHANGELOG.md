@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1] - 2026-10-21
+
+### Fixed
+
+- Exclude the internal affine/logarithmic design discussion from the repository
+  and source distributions. Public API documentation remains in docs/affine.md.
+
 ## [0.12.0] - 2026-10-21
 
 ### Added
