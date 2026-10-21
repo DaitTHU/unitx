@@ -18,6 +18,9 @@
   precede required keyword-only scale factors and dimensions.
 - Iterate prefix spellings lazily instead of constructing a combined tuple for
   each lookup.
+- Remove the uppercase `K` alias for kilo. Use `k` for kilo and `K` for kelvin;
+  `Km` and `Kg` now fail unless
+  explicitly registered. Micro aliases `u` and `μ` remain supported.
 
 ## [0.10.1] - 2026-10-21
 

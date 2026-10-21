@@ -8,18 +8,12 @@ with True, disables them with False, or enables only the listed spellings.
 from __future__ import annotations
 
 import re
-import warnings
 from itertools import chain
 
 from ._immutable import _Immutable
 from ._unicode import SUPERSCRIPTS
 from .dimension import DIMENSIONLESS, Dimension
-from .exceptions import (
-    _WARNING_SKIP_PREFIXES,
-    UnitRegistryError,
-    UnitSymbolError,
-    UnitSymbolWarning,
-)
+from .exceptions import UnitRegistryError, UnitSymbolError
 from .factor import ONE, TEN, Factor
 
 __all__ = ['PrefixPolicy']
@@ -79,7 +73,7 @@ _PREFIX_ENTRIES: tuple[PrefixDefinition, ...] = (
     PrefixDefinition('T', 'tera', factor=TEN**12),
     PrefixDefinition('G', 'giga', factor=TEN**9),
     PrefixDefinition('M', 'mega', factor=TEN**6),
-    PrefixDefinition('k', 'kilo', factor=TEN**3, symbol_aliases=('K',)),
+    PrefixDefinition('k', 'kilo', factor=TEN**3),
     PrefixDefinition('h', 'hecto', factor=TEN**2),
     PrefixDefinition('da', 'deca', factor=TEN**1),
     # Decimal submultiples.
@@ -221,7 +215,7 @@ def _resolve_unit_name(text: str) -> tuple[PrefixDefinition, UnitDefinition]:
     raise UnitSymbolError(f'{text!r} is not a valid unit symbol.')
 
 
-def _resolve_unit(text: str, *, warn: bool = True) -> tuple[PrefixDefinition, UnitDefinition]:
+def _resolve_unit(text: str) -> tuple[PrefixDefinition, UnitDefinition]:
     """Resolve shared definitions; complete symbols precede one prefix split."""
     unitdef = UNIT_DEFINITIONS.get(text)
     if unitdef is not None:
@@ -237,18 +231,6 @@ def _resolve_unit(text: str, *, warn: bool = True) -> tuple[PrefixDefinition, Un
         unit = text[prefix_len:]
         unitdef = UNIT_DEFINITIONS.get(UNIT_SYMBOL_ALIAS_TO_SYMBOL.get(unit, unit))
         if unitdef is not None and unitdef.allows_prefix(unit):
-            if warn and prefix in PREFIX_SYMBOL_ALIAS_TO_SYMBOL and prefix in UNIT_DEFINITIONS:
-                from .singleunit import SingleUnit
-
-                resolved = SingleUnit._from_definitions(prefixdef, unitdef)
-                preferred, name = resolved.symbol, resolved.name
-                warnings.warn(
-                    f'{text!r} is interpreted as {preferred!r} ({name}). '
-                    f'Use {preferred!r} for {name}, or {prefix + " " + unit!r} '
-                    f'for {UNIT_DEFINITIONS[prefix].name} {unitdef.name}.',
-                    UnitSymbolWarning,
-                    skip_file_prefixes=_WARNING_SKIP_PREFIXES,
-                )
             return prefixdef, unitdef
     return _resolve_unit_name(text)
 
@@ -311,7 +293,7 @@ def _register_unit(definition: UnitDefinition, /) -> None:
             error_message = f'Unit text {text!r} has conflicting prefix meanings.'
             raise UnitRegistryError(error_message)
         try:
-            _resolve_unit(text, warn=False)
+            _resolve_unit(text)
         except UnitSymbolError:
             pass
         else:
@@ -320,7 +302,7 @@ def _register_unit(definition: UnitDefinition, /) -> None:
         if ' ' in text:
             try:
                 for word in text.split(' '):
-                    _resolve_unit(word, warn=False)
+                    _resolve_unit(word)
             except UnitSymbolError:
                 continue
             error_message = f'Unit text {text!r} already parses as a unit product.'

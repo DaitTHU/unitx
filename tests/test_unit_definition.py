@@ -11,7 +11,6 @@ from unitx.exceptions import (
     InexactFloatWarning,
     UnitRegistryError,
     UnitSymbolError,
-    UnitSymbolWarning,
 )
 from unitx.factor import PI, Factor
 from unitx.monomial import Monomial
@@ -112,13 +111,11 @@ def test_unit_define_primary_name(name_aliases: tuple[str, ...]) -> None:
         assert SingleUnit(unit.name) == unit
 
 
-def test_unit_define_prefix_warning() -> None:
+def test_unit_define_invalid_kilo() -> None:
     Unit('m').define('rvlen', name='reviewlength')
-    with pytest.warns(UnitSymbolWarning, match=r"'krvlen' \(kiloreviewlength\)") as recorded:
-        unit = SingleUnit('Krvlen')
-    assert unit.name == 'kiloreviewlength'
-    assert unit == SingleUnit('krvlen')
-    assert 'kelvin reviewlength' in str(recorded[0].message)
+    with pytest.raises(UnitSymbolError):
+        SingleUnit('Krvlen')
+    assert SingleUnit('krvlen').name == 'kiloreviewlength'
 
 
 @pytest.mark.parametrize('symbol', ["rv'length", 'rv"length', r'rv\time'])
@@ -261,7 +258,7 @@ def test_unit_parser_invalid_multiword_factor(text: str) -> None:
         Unit(text)
 
 
-@pytest.mark.parametrize('name', ['m s', 'metre second', 'kilometre second', 'Km s'])
+@pytest.mark.parametrize('name', ['m s', 'metre second', 'kilometre second', 'km s'])
 @pytest.mark.parametrize('use_alias', [False, True])
 def test_unit_define_invalid_product(name: str, use_alias: bool, unit_registry) -> None:
     with warnings.catch_warnings():
@@ -374,9 +371,7 @@ def test_unit_define_registry_stability() -> None:
         for name, symbol in UNIT_NAME_TO_SYMBOL.items():
             if UNIT_DEFINITIONS[symbol].allows_prefix(name):
                 texts.update(prefix + name for prefix in PREFIX_NAME_TO_SYMBOL)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UnitSymbolWarning)
-            units = {text: SingleUnit(text) for text in texts}
+        units = {text: SingleUnit(text) for text in texts}
         return {
             text: (unit, unit.name, unit.factor, unit.dimension) for text, unit in units.items()
         }
@@ -404,7 +399,7 @@ def test_unit_define_registry_stability() -> None:
         UNIT_NAME_TO_SYMBOL.copy(),
         UNIT_SYMBOL_ALIAS_TO_SYMBOL.copy(),
     )
-    for text in ('metre', 'Krvlenalias', 'kiloreviewlengthalias', 'rvmin'):
+    for text in ('metre', 'krvlenalias', 'kiloreviewlengthalias', 'rvmin'):
         with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
             Unit('kg').define(text, name='reviewmass')
         assert resolutions() == before
@@ -507,7 +502,7 @@ def test_unit_define_invalid_prefixable() -> None:
         Unit('m').define('rvlen', name='reviewlength', prefixable=1)  # pyright: ignore[reportArgumentType]
 
 
-@pytest.mark.parametrize('symbol', ['m', 'metre', 'meter', 'cm', 'kilometre', 'Km'])
+@pytest.mark.parametrize('symbol', ['m', 'metre', 'meter', 'cm', 'kilometre', 'km'])
 def test_unit_define_invalid_conflict(symbol: str) -> None:
     before = Unit('metre'), Unit('cm')
     with warnings.catch_warnings():

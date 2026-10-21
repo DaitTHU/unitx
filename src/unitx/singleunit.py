@@ -21,8 +21,8 @@ class SingleUnit(_Immutable):
 
     Accept a registered symbol or singular English name, optionally with one
     SI prefix: `'m'`, `'metre'`, `'km'`, and `'kilometre'`. Inputs are
-    case-sensitive. Micro aliases normalize to 'µ'; the uppercase kilo alias
-    'K' remains accepted with UnitSymbolWarning.
+    case-sensitive. Micro prefix aliases `'u'` and `'μ'` normalize to
+    `'µ'`; kilo uses lowercase `'k'`, while `'K'` denotes kelvin.
     The empty string represents a dimensionless unit.
 
     Registered names may contain words separated by single ASCII spaces,

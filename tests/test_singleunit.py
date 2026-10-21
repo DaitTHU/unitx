@@ -6,7 +6,7 @@ from fractions import Fraction
 import pytest
 
 from unitx.dimension import DIMENSIONLESS, Dimension
-from unitx.exceptions import UnitSymbolError, UnitSymbolWarning
+from unitx.exceptions import UnitSymbolError
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
 from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
@@ -91,68 +91,12 @@ def test_single_unit_name_alias(prefix: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ('text', 'symbol', 'name', 'dimension', 'factor'),
-    [
-        ('Ks', 'ks', 'kilosecond', Dimension(T=1), 1000),
-        ('Km', 'km', 'kilometre', Dimension(L=1), 1000),
-        ('Kg', 'kg', 'kilogram', Dimension(M=1), 1),
-        ('KA', 'kA', 'kiloampere', Dimension(I=1), 1000),
-        ('KK', 'kK', 'kilokelvin', Dimension(Theta=1), 1000),
-        ('Kmol', 'kmol', 'kilomole', Dimension(N=1), 1000),
-        ('Kcd', 'kcd', 'kilocandela', Dimension(J=1), 1000),
-    ],
-)
-def test_single_unit_symbol_warning(
-    text: str, symbol: str, name: str, dimension: Dimension, factor: int | Fraction
-) -> None:
-    with pytest.warns(UnitSymbolWarning) as recorded:
-        unit = SingleUnit(text)
-    assert len(recorded) == 1
-    assert recorded[0].category is UnitSymbolWarning
-    message = str(recorded[0].message)
-    assert repr(text) in message
-    assert repr(symbol) in message
-    assert name in message
-    canonical = SingleUnit(symbol)
-    assert unit == canonical
-    assert hash(unit) == hash(canonical)
-    assert unit.symbol == symbol
-    assert unit.name == name
-    assert unit.dimension == dimension
-    assert unit.factor.value == factor
-    assert type(unit.factor.value) is type(factor)
-
-
-@pytest.mark.parametrize(
     'text', ['', 'K', 'kelvin', 'kK', 'km', 'ms', 'Ms', 'um', 'us', 'µm', 'μm']
 )
 def test_single_unit_no_warning(text: str) -> None:
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter('always')
         SingleUnit(text)
-    assert not recorded
-
-
-def test_single_unit_warning_error() -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter('error', UnitSymbolWarning)
-        with pytest.raises(UnitSymbolWarning, match="'Km'.*'km'"):
-            SingleUnit('Km')
-        assert SingleUnit('km') == SingleUnit('kilometer')
-
-
-def test_single_unit_warning_roundtrip() -> None:
-    with pytest.warns(UnitSymbolWarning):
-        unit = SingleUnit('Km')
-    with warnings.catch_warnings(record=True) as recorded:
-        warnings.simplefilter('always')
-        assert str(unit) == 'km'
-        assert unit.factor.value == 1000
-        assert unit.dimension == Dimension(L=1)
-        assert SingleUnit(unit.symbol) == SingleUnit(unit.name) == unit
-        assert eval(repr(unit)) == unit
-        assert pickle.loads(pickle.dumps(unit)) == unit
-        assert unit.without_prefix() == SingleUnit('m')
     assert not recorded
 
 
@@ -293,6 +237,13 @@ def test_single_unit_invalid_type(value: object) -> None:
         'kmetre',
         'kilom',
         'kilokilogram',
+        'Ks',
+        'Km',
+        'Kg',
+        'KA',
+        'KK',
+        'Kmol',
+        'Kcd',
         'Kunknown',
         'Kmeter',
         'Km/s',

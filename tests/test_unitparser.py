@@ -6,7 +6,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx.exceptions import UnitSymbolError, UnitSymbolWarning, UnitSyntaxError
+from unitx.exceptions import UnitSymbolError, UnitSyntaxError
 from unitx.monomial import Monomial
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
@@ -286,19 +286,12 @@ def test_unit_parser_cancellation(text: str) -> None:
 
 
 @pytest.mark.parametrize('symbol', ['s', 'm', 'g', 'A', 'K', 'mol', 'cd'])
-def test_unit_parser_symbol_warning(symbol: str) -> None:
-    canonical, alternative = f'k{symbol}', f'K {symbol}'
-    with pytest.warns(UnitSymbolWarning) as recorded:
-        result = UnitParser(f'K{symbol}').parse()
-    assert len(recorded) == 1
-    message = str(recorded[0].message)
-    assert repr(canonical) in message
-    assert repr(alternative) in message
-    with warnings.catch_warnings():
-        warnings.simplefilter('error')
-        assert UnitParser(canonical).parse() == result
-        expected = Monomial({SingleUnit('K'): 1}) * Monomial({SingleUnit(symbol): 1})
-        assert UnitParser(alternative).parse() == expected
+def test_unit_parser_invalid_kilo(symbol: str) -> None:
+    with pytest.raises(UnitSymbolError):
+        UnitParser('K' + symbol).parse()
+    assert UnitParser('k' + symbol).parse() == Monomial({SingleUnit('k' + symbol): 1})
+    expected = Monomial({SingleUnit('K'): 1}) * Monomial({SingleUnit(symbol): 1})
+    assert UnitParser('K ' + symbol).parse() == expected
 
 
 @pytest.mark.parametrize('text', ['', ' \n ', 'm', 'm/s2', 'm/m', '(kg m/s2)^(1/3)'])
@@ -309,30 +302,6 @@ def test_unit_parser_cached_result(text: str) -> None:
     for _ in range(3):
         assert parser.parse() is result
     assert (dict(result.components()), hash(result)) == before
-
-
-def test_unit_parser_cached_warning() -> None:
-    parser = UnitParser('Km')
-    with pytest.warns(UnitSymbolWarning) as recorded:
-        result = parser.parse()
-    assert len(recorded) == 1
-    with warnings.catch_warnings():
-        warnings.simplefilter('error')
-        assert parser.parse() is result
-
-
-def test_unit_parser_warning_retry() -> None:
-    parser = UnitParser('Km/s')
-    with warnings.catch_warnings():
-        warnings.simplefilter('error', UnitSymbolWarning)
-        with pytest.raises(UnitSymbolWarning, match="'Km'.*'km'"):
-            parser.parse()
-    with pytest.warns(UnitSymbolWarning):
-        result = parser.parse()
-    assert result == Monomial({SingleUnit('km'): 1, SingleUnit('s'): -1})
-    with warnings.catch_warnings():
-        warnings.simplefilter('error')
-        assert parser.parse() is result
 
 
 @pytest.mark.parametrize('text', ['m/', 'm*', '(m/)'])

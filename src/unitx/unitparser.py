@@ -208,13 +208,6 @@ class UnitParser:
             If a unit symbol or name cannot be resolved by ``SingleUnit`` while
             parsing the expression.
 
-        Warns
-        -----
-        UnitSymbolWarning
-            If resolving a unit uses a potentially misleading prefix alias.
-            Warnings can occur before a later syntax error is detected, and
-            normal Python warning filters apply.
-
         Notes
         -----
         A failed attempt leaves no cached result. A later call starts from the

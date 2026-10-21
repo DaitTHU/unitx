@@ -19,6 +19,12 @@ True
 
 ```
 
+Unit spellings are case-sensitive: `k` is the kilo prefix and `K` is kelvin.
+`km` means kilometre; `K m` means kelvin times metre. The former uppercase
+kilo alias `K` is no longer accepted, so unregistered spellings such as `Km`
+and `Kg` raise `UnitSymbolError`. Micro accepts canonical `µ`, Unicode `μ`,
+and keyboard-friendly ASCII `u` without warnings.
+
 `Quantity(value, unit)` accepts a unit expression or an existing `Unit` object.
 `value * unit` constructs a quantity, and `value / unit` constructs a quantity
 with the reciprocal unit. Construction preserves the original magnitude and

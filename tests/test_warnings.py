@@ -16,7 +16,6 @@ from unitx.exceptions import (
     IncompleteFactorWarning,
     InexactFloatWarning,
     UnitSymbolError,
-    UnitSymbolWarning,
     UnitSyntaxError,
 )
 from unitx.factor import PI, Factor
@@ -26,27 +25,18 @@ from unitx.unitparser import UnitParser
 
 _INEXACT = (InexactFloatWarning,)
 _INCOMPLETE = (IncompleteFactorWarning,)
-_SYMBOL = (UnitSymbolWarning,)
 
 
 @pytest.mark.parametrize(
     ('operation', 'expected', 'error'),
     [
-        # Ambiguous aliases warn at the user's call site, including repeated parses.
-        ("SingleUnit('Km')", _SYMBOL, None),
-        ("SingleUnit('Kg')", _SYMBOL, None),
-        ("SingleUnit('KK')", _SYMBOL, None),
-        ("(SingleUnit('Km'), SingleUnit('Km'))", _SYMBOL * 2, None),
-        ("SingleUnit('Kunknown')", (), UnitSymbolError),
-        ("SingleUnit('K⋅m')", (), UnitSymbolError),
-        ("UnitParser('Km').parse()", _SYMBOL, None),
-        ("UnitParser('(Kg / s)2').parse()", _SYMBOL, None),
-        ("UnitParser('Km Kg Km').parse()", _SYMBOL * 3, None),
-        ("(UnitParser('Km').parse(), UnitParser('Km').parse())", _SYMBOL * 2, None),
-        ("(parser := UnitParser('Km'), parser.parse(), parser.parse())", _SYMBOL, None),
+        # Valid spellings and invalid prefixes never emit numeric warnings.
+        ("SingleUnit('um')", (), None),
+        ("SingleUnit('μm')", (), None),
+        ("SingleUnit('Km')", (), UnitSymbolError),
+        ("UnitParser('Km/s').parse()", (), UnitSymbolError),
         ("UnitParser('K m').parse()", (), None),
-        ("UnitParser('(Km / s)^(1/3)').parse()", _SYMBOL, None),
-        ("UnitParser('Km 2').parse()", _SYMBOL, UnitSyntaxError),
+        ("UnitParser('m 2').parse()", (), UnitSyntaxError),
         ("UnitParser('m 1/s').parse()", (), None),
         ("UnitParser('m^0.1').parse()", (), None),
         # Numeric scales warn on rationalization; formal exponents use decimal text.

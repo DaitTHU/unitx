@@ -331,6 +331,19 @@ def test_unit_definition_aliases(aliases: str | tuple[str, ...], expected: tuple
     assert definition.symbols == ('rvunit', *expected)
 
 
+@pytest.mark.parametrize('symbol', ['Km', 'Kg', 'Krvlen'])
+def test_unit_define_uppercase_symbol(symbol: str) -> None:
+    # These spellings no longer have a built-in prefix meaning.
+    with pytest.raises(UnitSymbolError):
+        SingleUnit(symbol)
+    custom = Unit('s').define(symbol, 'review uppercase', prefixable=False)
+    assert Unit(symbol) == custom
+    assert custom.dimension == Unit('s').dimension
+    assert SingleUnit(symbol).prefix_symbol == ''
+    assert Unit('km') == Unit('kilometre')
+    assert Unit('K m') == Unit('K') * Unit('m')
+
+
 @pytest.mark.parametrize(
     ('text', 'prefix', 'symbol'),
     [
