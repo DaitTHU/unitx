@@ -45,6 +45,9 @@ numpy = ['numpy>=2.1']
 
 [project.urls]
 Homepage = 'https://github.com/DaitTHU/unitx'
+Documentation = 'https://github.com/DaitTHU/unitx/blob/main/docs/README.md'
+Source = 'https://github.com/DaitTHU/unitx'
+Changelog = 'https://github.com/DaitTHU/unitx/blob/main/CHANGELOG.md'
 Issues = 'https://github.com/DaitTHU/unitx/issues'
 
 [tool.hatch.build.targets.wheel]
