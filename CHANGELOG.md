@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.13.0] - 2026-10-21
 
 ### Added
 
@@ -11,6 +11,14 @@
   Scalar duration adapters provide sleep and exact timedelta import, with
   nearest-microsecond, ties-to-even export.
 - NumPy arcsin/arccos/arctan, hypot and arctan2 dispatch, including unit-aware outputs.
+
+### Changed
+
+- Rewrite the README around scalar formulas, points/differences, math/time and
+  NumPy examples. Add a documentation index and focused catalogue, custom-unit,
+  typing and contributing guides; move version history out of the NumPy reference.
+- Rename the math/time guide to `docs/stdlib.md` (Standard-library enhancements).
+  CI and release validation now execute all public Markdown doctests.
 
 ## [0.12.1] - 2026-10-21
 

@@ -4,7 +4,7 @@ build-backend = 'hatchling.build'
 
 [project]
 name = 'unitx'
-version = '0.12.1'
+version = '0.13.0'
 description = 'A modern, intuitive unit library, with exact unit algebra, expressive type hints, and NumPy integration.'
 readme = 'README.md'
 requires-python = '>=3.12'
