@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-10-22
+
+### Added
+
+- `unitx.serialization.to_dict()` / `from_dict()` exchange scalar Quantities,
+  affine points and their units as versioned JSON-compatible records. Preserve
+  int/float/Fraction/Decimal magnitudes, exact extra scales, formal unit identity
+  and coordinate references; validate existing registry meanings without
+  registering units. NumPy, complex magnitudes and subclasses are not supported.
+- Add `SerializationError` for invalid records and failed restoration, and an
+  independent `VersionError` for unsupported explicit versions. Both derive
+  from `UnitxError` and `ValueError`; decoding preserves underlying causes.
+
 ## [0.13.2] - 2026-10-22
 
 ### Added
