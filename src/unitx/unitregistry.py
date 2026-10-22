@@ -1,8 +1,13 @@
 """Unit definitions, spelling resolution, and process-local registration.
 
-``PrefixPolicy`` is a bool or tuple of registered unit spellings. The
-``prefixable`` keyword on Unit.define() enables all prefixes for every spelling
+`PrefixPolicy` is a bool, spelling string, or tuple of registered unit spellings.
+The `prefixable` keyword on Unit.define() enables all prefixes for every spelling
 with True, disables them with False, or enables only the listed spellings.
+
+Registration and spelling resolution share process-wide indexes without locking.
+Register units during single-threaded initialization; concurrent registration or
+resolution during registration is unsupported. Validation failure leaves indexes
+unchanged, but updates are not atomic for concurrent readers.
 """
 
 from __future__ import annotations
@@ -294,7 +299,7 @@ def _resolve_unit(text: str) -> tuple[PrefixDefinition, UnitDefinition]:
 
 
 def _register_unit(definition: UnitDefinition, /) -> None:
-    """Validate every binding and generated spelling before updating indexes."""
+    """Validate all spellings before updating shared indexes, without locking."""
     symbol, *symbol_aliases = definition.symbols
     if not isinstance(definition.prefixable, (bool, tuple)):
         wrong_type = type(definition.prefixable).__name__

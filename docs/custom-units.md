@@ -131,7 +131,18 @@ The registry and spelling rules live in `unitx.unitregistry`; parsing expression
 does not change unit definitions. A parser instance caches only a successful
 result; failed parses may be retried after a definition is added. Registration
 preserves existing valid spellings and validates before updating its indexes.
-Concurrent registry writes and isolated registry contexts are not supported.
+The registry is shared by all users of unitx in the current process; a Python
+attribute namespace does not create an isolated registry. Conflicting names or
+symbols raise `UnitRegistryError` rather than replace an existing definition.
+
+Registration is not thread-safe: validation and updates to the spelling indexes
+are not protected by a shared lock. Neither concurrent registration nor parsing
+while another thread registers a unit is supported. Register custom units during
+single-threaded initialization, before starting worker threads. Applications
+that register later must synchronize both registration and all registry reads.
+Validation failure leaves the indexes unchanged; this guarantee does not imply
+an atomic transaction for concurrent readers. Independent registry contexts
+are not provided.
 
 Quantity definitions require positive finite `int`, `Fraction`, `Decimal`, or
 `float` magnitudes. Prefer `Fraction` or `Decimal` for exact scales. Floats use

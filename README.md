@@ -74,7 +74,12 @@ Use `.isclose()` for approximate comparisons.
 Use `@` for an absolute coordinate reading and `*` for a linear difference:
 
 ```pycon
->>> room = 20 @ si.degC
+>>> difference = 20 * si.degC  # A temperature difference of 20 degrees
+>>> room = 20 @ si.degC  # A reading of 20 degrees Celsius
+>>> difference.value_in(si.K)
+20
+>>> room.value_in(si.K)
+Fraction(5863, 20)
 >>> print(room.to(si.degF))
 68 °F
 >>> print(room + 5 * si.K)
@@ -87,6 +92,9 @@ True
 ```
 
 Points are `AffineQuantity` objects; differences are `Quantity` objects.
+Multiplying by `si.degC` constructs a difference; use `@` or the explicit
+`AffineQuantity(20, si.degC)` constructor for an absolute reading.
+Adding two points raises `TypeError`; subtract them to obtain a difference.
 Use `.to_quantity()` to turn a point into an ordinary physical quantity for
 further arithmetic. Read the [point and difference guide](https://github.com/DaitTHU/unitx/blob/main/docs/affine.md)
 for temperature, dBm/dBW/dBV, and logarithmic ratio rules.
@@ -109,8 +117,13 @@ True
 ```
 
 `unitx.math` checks units for roots, trigonometry, exponentials, logarithms,
-`hypot`, and `atan2`. `unitx.time` returns integer nanosecond clock readings
-and adapts durations to `sleep` and `datetime.timedelta`.
+`hypot`, and `atan2`. `unitx.time` returns `AffineQuantity[int]` clock readings
+in nanoseconds; subtract readings from the same clock to obtain a Quantity
+duration. It also adapts durations to `sleep` and `datetime.timedelta`, and
+converts aware `datetime` objects to and from Unix time points with
+`time.from_datetime()` / `time.to_datetime()`.
+Readings do not carry clock, process, or thread identities; mixing clock
+contexts is not detected.
 See [standard-library enhancements](https://github.com/DaitTHU/unitx/blob/main/docs/stdlib.md)
 for the supported functions, numerical backends, and clock semantics.
 
@@ -136,6 +149,19 @@ units. Comparisons return boolean masks. Supported reductions, integration,
 gradients, and output buffers follow the [NumPy support matrix](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md).
 Array assignment and augmented arithmetic preserve the destination unit and dtype.
 
+Exact unit algebra preserves the scale `1/100` for centimetres to metres.
+Applying that scale to a numerical array follows NumPy's dtype, rounding, and
+overflow rules; it does not turn the array into exact rational numbers:
+
+```python
+from fractions import Fraction
+
+exact = Quantity(1, 'cm').value_in('m')
+approximate = Quantity(np.array([1.0]), 'cm').value_in('m')
+assert exact == Fraction(1, 100)
+assert Fraction(float(approximate[0])) != exact  # Binary float approximates 1/100
+```
+
 Use `.value` or `.value_in(unit)` at plotting and external-library boundaries.
 `np.asarray(quantity)` and `np.array(quantity)` raise TypeError to prevent
 implicit unit removal. NumPy's type stubs do not describe every wrapped
@@ -143,10 +169,40 @@ operation; see the [typing guide](https://github.com/DaitTHU/unitx/blob/main/doc
 
 The [physics notebooks](https://github.com/DaitTHU/unitx/blob/main/examples/README.md)
 cover blackbody radiation, damped motion, wave-packet spreading, attenuation,
-and measurement uncertainty. For example, Planck spectra combine physical
-constants, broadcasting, and spectral-density conversion:
+and measurement uncertainty.
 
-![Blackbody spectral radiance](https://raw.githubusercontent.com/DaitTHU/unitx/main/docs/images/blackbody.png)
+## Blackbody radiation
+
+Install plotting support with `pip install 'unitx[numpy]' matplotlib`, then run
+this complete example. Planck's formula keeps units and constants throughout;
+NumPy broadcasts the wavelength column against three temperatures. Convert the
+spectral radiance to a readable display unit before plotting:
+
+```python
+import numpy as np
+from matplotlib import pyplot as plt
+
+from unitx.si import SI, si
+
+wavelength = np.linspace(0.01, 3, 100)[:, None] * si.um
+temperature = np.array([3000, 4000, 5000]) * si.K
+exponent = SI.h * SI.c / (wavelength * SI.kB * temperature)
+radiance = 2 * SI.h * SI.c**2 / (wavelength**5 * np.expm1(exponent))
+radiance = radiance.to('kW/sr/m2/nm')
+
+fig, ax = plt.subplots(figsize=(7, 4), layout='constrained')
+ax.plot(wavelength.value, radiance.value)
+ax.set(
+    xlabel=f'Wavelength [{wavelength.unit}]',
+    ylabel=f'Spectral radiance [{radiance.unit}]',
+    title='Blackbody radiation',
+)
+ax.legend([f'T = {value}' for value in temperature], framealpha=1)
+ax.grid(True, alpha=0.25)
+plt.show()
+```
+
+![Blackbody spectral radiance at 3000, 4000 and 5000 K](https://raw.githubusercontent.com/DaitTHU/unitx/main/docs/images/blackbody.svg)
 
 ## Read more
 
