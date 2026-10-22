@@ -185,7 +185,7 @@ from matplotlib import pyplot as plt
 from unitx.si import SI, si
 
 wavelength = np.linspace(0.01, 3, 100)[:, None] * si.um
-temperature = np.array([3000, 4000, 5000]) * si.K
+temperature = np.asarray([3000, 4000, 5000]) * si.K
 exponent = SI.h * SI.c / (wavelength * SI.kB * temperature)
 radiance = 2 * SI.h * SI.c**2 / (wavelength**5 * np.expm1(exponent))
 radiance = radiance.to('kW/sr/m2/nm')
