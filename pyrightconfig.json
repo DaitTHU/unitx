@@ -3,6 +3,7 @@
     "src/unitx/_display.py",
     "src/unitx/math.py",
     "src/unitx/time.py",
+    "src/unitx/serialization.py",
     "src/unitx/affineunit.py",
     "src/unitx/affinequantity.py",
     "src/unitx/_conversion.py",
@@ -18,6 +19,7 @@
     "tests/typing"
   ],
   "strict": [
+    "src/unitx/serialization.py",
     "src/unitx/quantity.py",
     "tests/typing",
     "tests/numpy_typing",

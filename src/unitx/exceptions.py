@@ -7,12 +7,14 @@ __all__ = [
     'DimensionError',
     'IncompleteFactorWarning',
     'InexactFloatWarning',
+    'SerializationError',
     'UnitRegistryError',
     'UnitSymbolError',
     'UnitSymbolWarning',
     'UnitSyntaxError',
     'UnitxError',
     'UnitxWarning',
+    'VersionError',
 ]
 
 
@@ -34,6 +36,14 @@ class DimensionError(UnitxError):
 
 class UnitRegistryError(UnitxError):
     """Exception raised for errors in the unit registry."""
+
+
+class SerializationError(UnitxError, ValueError):
+    """A serialized record has an invalid format or cannot be restored."""
+
+
+class VersionError(UnitxError, ValueError):
+    """An explicitly specified version is unsupported by the operation."""
 
 
 # Python 3.12 warnings.warn() new API

@@ -26,6 +26,11 @@ for its array overloads. `unitx.time` clocks return `AffineQuantity[int]`;
 duration adapters use ordinary Quantity objects. `time.from_datetime()` returns
 `AffineQuantity[int]`; `time.to_datetime()` returns an aware datetime.
 
+`unitx.serialization.from_dict()` returns a union of the supported unit and
+scalar quantity classes. Use `isinstance` to narrow it. The magnitude type is
+`int | float | Fraction | Decimal`; the input record determines its runtime type.
+See [scalar data exchange](serialization.md).
+
 A signature such as `Quantity[float]` does not require metres rather than
 seconds. An `Annotated` label alone does not teach a type checker dimensional
 algebra. unitx does not currently supply dimension-parameterized quantities

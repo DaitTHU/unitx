@@ -16,6 +16,7 @@ reading about an older version.
 | Call unit-aware mathematical functions or read a clock | [Standard-library enhancements](stdlib.md) |
 | Calculate with arrays, masks, reductions and output buffers | [NumPy support](numpy.md) |
 | Format text or export LaTeX, HTML and siunitx | [Display and formatting](display.md) |
+| Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
 | Understand annotations and NumPy inference limits | [Typing](typing.md) |
 | Update code written for an earlier release | [Migration notes](migration.md) |
 | Run scientific examples | [Physics notebooks](../examples/README.md) |
