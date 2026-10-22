@@ -22,7 +22,9 @@ Constructing a Quantity or changing its unit product without numerical
 arithmetic preserves T. Conversion and arithmetic can change the result type;
 annotations use the corresponding result domain. `unitx.math` returns
 `Quantity[float]` for supported Python real scalars and `Quantity[Array]`
-for its array overloads. `unitx.time` clocks return `Quantity[int]`.
+for its array overloads. `unitx.time` clocks return `AffineQuantity[int]`;
+duration adapters use ordinary Quantity objects. `time.from_datetime()` returns
+`AffineQuantity[int]`; `time.to_datetime()` returns an aware datetime.
 
 A signature such as `Quantity[float]` does not require metres rather than
 seconds. An `Annotated` label alone does not teach a type checker dimensional

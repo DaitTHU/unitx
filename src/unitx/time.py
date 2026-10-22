@@ -1,19 +1,22 @@
-"""Nanosecond clocks and explicit adapters for scalar durations.
+"""Nanosecond clock points and explicit datetime/duration adapters.
 
-Clock readings are ordinary Quantities, without an epoch or clock tag. Only
-subtract readings from the same clock. Nanosecond storage does not imply
-nanosecond clock resolution; standard-library platform limitations apply.
+Clock readings are AffineQuantity points; their differences are Quantity
+durations. Points do not carry a clock, epoch label, process or thread tag: only
+subtract or compare readings from the same clock context. Nanosecond storage
+does not imply nanosecond clock resolution; platform limitations apply.
 """
 
 from __future__ import annotations
 
 import math
 import time as _time
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from decimal import Decimal
 from fractions import Fraction
 
-from ._numerics import Fractionable, is_numpy_object
+from ._numerics import Fractionable, Magnitude, is_numpy_object
+from .affinequantity import AffineQuantity
+from .exceptions import DimensionError
 from .quantity import Quantity
 from .si import si
 
@@ -26,38 +29,42 @@ __all__ = [
     'sleep',
     'from_timedelta',
     'to_timedelta',
+    'from_datetime',
+    'to_datetime',
 ]
 
+_UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
-def time() -> Quantity[int]:
+
+def time() -> AffineQuantity[int]:
     """Return Unix time in integer nanoseconds, using time.time_ns().
 
     This wall clock can move backwards when the system clock is adjusted.
     """
-    return Quantity(_time.time_ns(), si.ns)
+    return AffineQuantity(_time.time_ns(), si.ns)
 
 
-def monotonic() -> Quantity[int]:
+def monotonic() -> AffineQuantity[int]:
     """Return a monotonic reading in integer nanoseconds; its origin is undefined."""
-    return Quantity(_time.monotonic_ns(), si.ns)
+    return AffineQuantity(_time.monotonic_ns(), si.ns)
 
 
-def perf_counter() -> Quantity[int]:
+def perf_counter() -> AffineQuantity[int]:
     """Return the performance counter in integer nanoseconds, including sleep."""
-    return Quantity(_time.perf_counter_ns(), si.ns)
+    return AffineQuantity(_time.perf_counter_ns(), si.ns)
 
 
-def process_time() -> Quantity[int]:
+def process_time() -> AffineQuantity[int]:
     """Return process CPU time in integer nanoseconds, excluding sleep."""
-    return Quantity(_time.process_time_ns(), si.ns)
+    return AffineQuantity(_time.process_time_ns(), si.ns)
 
 
-def thread_time() -> Quantity[int]:
+def thread_time() -> AffineQuantity[int]:
     """Return thread CPU time in integer nanoseconds, where the platform supports it."""
-    return Quantity(_time.thread_time_ns(), si.ns)
+    return AffineQuantity(_time.thread_time_ns(), si.ns)
 
 
-def _seconds(duration: Quantity[Fractionable]) -> Fraction:
+def _seconds(duration: Quantity[Magnitude]) -> Fraction:
     if not isinstance(duration, Quantity):
         raise TypeError('Expected a scalar duration Quantity.')
     value = duration.value
@@ -102,3 +109,40 @@ def to_timedelta(duration: Quantity[Fractionable], /) -> timedelta:
     durations are supported; values outside timedelta's range raise OverflowError.
     """
     return timedelta(microseconds=round(_seconds(duration) * 1_000_000))
+
+
+def from_datetime(instant: datetime, /) -> AffineQuantity[int]:
+    """Convert an aware datetime to exact integer nanoseconds since the Unix epoch.
+
+    Naive datetimes are rejected. UTC conversion follows the supplied timezone,
+    including its fold handling. The UTC instant must fit datetime's range.
+    """
+    if not isinstance(instant, datetime):
+        raise TypeError('Expected an aware datetime.datetime.')
+    if instant.utcoffset() is None:
+        raise ValueError('Datetime must be timezone-aware.')
+    duration = instant.astimezone(timezone.utc) - _UNIX_EPOCH
+    return AffineQuantity(from_timedelta(duration).value * 1000, si.ns)
+
+
+def to_datetime(instant: AffineQuantity[Fractionable], /, *, tz: tzinfo = timezone.utc) -> datetime:
+    """Interpret a linear time point relative to the Unix epoch and export datetime.
+
+    The coordinate's physical reference is interpreted as a Unix time offset;
+    custom known epochs are supported. Unknown-origin and CPU clock readings
+    must not be passed here: clock provenance is not checked.
+    Round once to microseconds, ties to even, then convert from UTC to tz.
+    UTC and target-local datetimes must both fit datetime's range.
+    """
+    if not isinstance(instant, AffineQuantity):
+        raise TypeError('Expected a scalar AffineQuantity time point.')
+    if not isinstance(tz, tzinfo):
+        raise TypeError('tz must be a datetime.tzinfo instance.')
+    if instant.unit.kind is not None:
+        raise DimensionError('Datetime requires a linear time coordinate.')
+    # Rationalize the stored reading before scaling, and include the origin
+    # before the single final rounding. Neither operation uses Decimal context.
+    seconds = _seconds(Quantity(instant.value, instant.unit.delta_unit))
+    seconds += _seconds(instant.unit.origin)
+    utc = _UNIX_EPOCH + timedelta(microseconds=round(seconds * 1_000_000))
+    return utc.astimezone(tz)

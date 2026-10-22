@@ -1,5 +1,20 @@
 # Migration notes
 
+## Upgrading to 0.13.2: clock readings are points
+
+The five `unitx.time` clock functions now return `AffineQuantity[int]` instead
+of `Quantity[int]`, still storing integer nanoseconds. Subtract two readings
+from the same clock to get a duration Quantity. Adding two readings and
+multiplying a reading are rejected. `.unit` is now an AffineUnit;
+`.unit.delta_unit` gives the linear ns unit. Use `.value_in('s')` for a numeric
+timestamp in seconds. `sleep()`, `from_timedelta()` and `to_timedelta()` keep
+their duration contracts. `from_datetime()` imports an aware datetime as an
+integer ns Unix point; `to_datetime()` exports a Unix-referenced time point as
+an aware datetime (UTC by default). Existing AffineUnit references support
+custom known epochs. Naive datetimes are rejected, and export rounds to
+microseconds with ties to even. Clock identity and epoch labels remain outside
+the model, so mixing different clocks is still not detected.
+
 ## Upgrading to 0.13.0
 
 The release adds `unitx.math` and `unitx.time` without changing ordinary

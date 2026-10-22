@@ -9,7 +9,7 @@ Both work without NumPy installed.
 | Module | Use |
 | --- | --- |
 | `unitx.math` | Unit-aware real mathematical functions with scalar and optional NumPy backends |
-| `unitx.time` | Integer ns clocks, scalar sleep and timedelta conversion |
+| `unitx.time` | Integer ns clocks, scalar sleep, timedelta and aware datetime conversion |
 
 These are explicit adapters, not complete replacements for Python's modules.
 For numerical precision see [scalar behavior](scalars.md); for annotations
@@ -85,8 +85,8 @@ static analysis, use `np.asarray(result.value)`.
 from unitx import time
 from unitx.si import si
 
-stamp = time.time()  # Quantity[int], ns since the Unix epoch
-start = time.perf_counter()  # Quantity[int], ns from an undefined origin
+stamp = time.time()  # AffineQuantity[int], ns since the Unix epoch
+start = time.perf_counter()  # AffineQuantity[int], ns from an undefined origin
 # ... work ...
 elapsed = time.perf_counter() - start
 print(elapsed.to(si.ms))
@@ -108,11 +108,68 @@ unit is part of the result. Platform availability and actual clock resolution
 follow the standard library: nanosecond storage does not promise nanosecond
 measurement accuracy.
 
-Readings are ordinary Quantities. They do not encode a clock identity, epoch,
-timezone, or distinction between a time point and a duration. Subtract readings
-from the same clock to obtain a meaningful elapsed time. Mixing clocks is not
-detected. `time()` provides a timestamp; the other clocks cannot be interpreted
-as Unix timestamps. Use `monotonic` or `perf_counter` for elapsed wall time.
+Readings are AffineQuantity points. Subtracting two readings returns a Quantity
+duration; adding or subtracting a duration shifts a point. Adding two points or
+multiplying a point is rejected, as is passing a point to `sleep()` or
+`to_timedelta()`. `.to('s')` changes the reading's scale and preserves its point
+class. `.value_in('s')` explicitly extracts the numeric reading in seconds.
+
+Points do not carry a clock identity, epoch label, timezone, process or thread tag.
+Only compare or subtract readings from the same clock context (and the same
+process or thread for CPU clocks). Mixing contexts is not detected. The ns/s
+coordinate describes a scale relative to each clock's own origin, not a
+conversion between clocks. `time()` provides a Unix timestamp; the other
+clocks cannot be interpreted as Unix timestamps. Use `monotonic` or
+`perf_counter` for elapsed wall time.
+
+## Datetimes and known epochs
+
+`from_datetime(instant)` accepts an aware datetime and returns an
+`AffineQuantity[int]` in ns since 1970-01-01 00:00:00 UTC, matching `time()`.
+It converts to UTC and combines integer days, seconds and microseconds; it
+does not pass through a float timestamp. Naive datetimes, including a tzinfo
+whose `utcoffset()` returns None, raise ValueError. The UTC instant must fit
+datetime's year 1–9999 range.
+
+`to_datetime(point, *, tz=timezone.utc)` interprets a linear time coordinate's
+physical reference as a Unix offset. It includes the coordinate origin,
+rounds once to the nearest microsecond with ties to even, then converts from
+UTC to the requested tzinfo. None is rejected rather than selecting the
+machine's local zone. The UTC and target-local results must fit datetime's
+range; otherwise conversion raises OverflowError. Rational coefficients and
+finite Decimal readings remain exact until final rounding, independently of
+the Decimal context. Irrational coefficients can require approximation.
+
+```pycon
+>>> from datetime import datetime, timezone
+>>> from unitx import AffineUnit
+>>> epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+>>> time.from_datetime(epoch).value
+0
+>>> time.to_datetime(time.from_datetime(epoch)) == epoch
+True
+>>> epoch_2000 = datetime(2000, 1, 1, tzinfo=timezone.utc)
+>>> seconds_since_2000 = AffineUnit(time.from_datetime(epoch_2000), delta_unit='s')
+>>> time.from_datetime(epoch_2000).value_in(seconds_since_2000)
+Fraction(0, 1)
+>>> time.to_datetime(60 @ seconds_since_2000).isoformat()
+'2000-01-01T00:01:00+00:00'
+>>> (60 @ seconds_since_2000).value_in('s')
+Fraction(946684860, 1)
+
+```
+
+Known epochs use ordinary AffineUnit references; no registration is required.
+For these coordinates, the zero-origin 's'/'ns' coordinates mean Unix time.
+Do not pass monotonic, performance-counter or CPU readings to `to_datetime()`:
+they do not have a known Unix reference, and this adapter cannot detect their
+provenance. Explicit custom coordinates likewise require the caller to supply
+the correct Unix reference.
+
+Timezone offsets and DST folds follow datetime/tzinfo behavior. An aware
+datetime round trip preserves its instant and microseconds, but the point does
+not store its timezone; pass the desired timezone on export. Neither adapter
+adds leap-second handling, calendar arithmetic, or a timezone database.
 
 ## Duration adapters
 
@@ -154,6 +211,6 @@ conversion, or leap-second handling.
 
 The backends follow the Python documentation for [math](https://docs.python.org/3/library/math.html),
 [time](https://docs.python.org/3/library/time.html), and
-[timedelta](https://docs.python.org/3/library/datetime.html#timedelta-objects).
+[datetime and timedelta](https://docs.python.org/3/library/datetime.html).
 
 [Documentation index](README.md) · [NumPy support](numpy.md)
