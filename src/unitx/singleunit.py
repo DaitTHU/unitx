@@ -11,6 +11,7 @@ from .unitregistry import (
     UnitDefinition,
     _format_prefixed_name,
     _resolve_unit,
+    _resolve_unit_name,
 )
 
 __all__ = ['SingleUnit']
@@ -28,12 +29,12 @@ class SingleUnit(_Immutable):
     The empty string represents a dimensionless unit.
 
     Registered names may contain words separated by single ASCII spaces,
-    as in ``astronomical unit``, or hyphens as in ``pascal-second``.
+    as in `astronomical unit`, or hyphens as in `pascal-second`.
     Prefix names attach directly to the first word, as in
-    ``kiloastronomical unit``. Names are matched exactly.
+    `kiloastronomical unit`. Names are matched exactly.
     Prefix permissions are checked on the spelling used, before alias
-    normalization. ``symbol`` prefers a permitted symbol, then a name;
-    ``name`` prefers a permitted name, then a symbol. This keeps reconstruction
+    normalization. `symbol` prefers a permitted symbol, then a name;
+    `name` prefers a permitted name, then a symbol. This keeps reconstruction
     valid even when only names or only symbol aliases accept a given prefix.
 
     The built-in unit table contains s, m, g, A, K, mol, and cd; Unit.define()
@@ -69,6 +70,25 @@ class SingleUnit(_Immutable):
             error_message = f'Unit symbol or name must be str, got {type(text).__name__}.'
             raise TypeError(error_message)
         prefix, unit = _resolve_unit(text)
+        return cls._from_definitions(prefix, unit)
+
+    @classmethod
+    def from_name(cls, name: str, /) -> SingleUnit:
+        """Construct from a registered name or name alias, optionally prefixed.
+
+        Match names exactly, with the same spelling-specific prefix permissions
+        as the ordinary constructor. Symbols, expressions, and the empty string
+        raise UnitSymbolError; non-string inputs raise TypeError.
+
+        >>> SingleUnit.from_name('kilometre') == SingleUnit('km')
+        True
+        >>> SingleUnit.from_name('meter') == SingleUnit('m')
+        True
+        """
+        if not isinstance(name, str):
+            error_message = f'Unit name must be str, got {type(name).__name__}.'
+            raise TypeError(error_message)
+        prefix, unit = _resolve_unit_name(name)
         return cls._from_definitions(prefix, unit)
 
     @classmethod

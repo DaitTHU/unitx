@@ -284,3 +284,38 @@ def test_single_unit_distinct_identity() -> None:
     assert lookup[SingleUnit('hertz')] == 'frequency'
     assert lookup[SingleUnit('becquerel')] == 'activity'
     assert len({hertz, becquerel, SingleUnit('hertz')}) == 2
+
+
+@pytest.mark.parametrize(
+    ('name', 'symbol'),
+    [
+        ('metre', 'm'),
+        ('meter', 'm'),
+        ('kilometer', 'km'),
+        ('astronomical unit', 'au'),
+        ('kilohm', 'kΩ'),
+        ('kiloohm', 'kΩ'),
+        ('milliarcsecond', 'marcsec'),
+    ],
+)
+def test_single_unit_from_name(name: str, symbol: str) -> None:
+    unit = SingleUnit.from_name(name)
+    expected = SingleUnit(symbol)
+    assert unit == expected
+    assert hash(unit) == hash(expected)
+    assert unit.factor == expected.factor
+    assert unit.dimension == expected.dimension
+
+
+@pytest.mark.parametrize(
+    'name', ['', 'm', 'km', 'um', 'K', 'm/s', 'Metre', ' metre', 'kilodalton', 'unknown']
+)
+def test_single_unit_invalid_name(name: str) -> None:
+    with pytest.raises(UnitSymbolError):
+        SingleUnit.from_name(name)
+
+
+@pytest.mark.parametrize('name', [None, True, 1, [], b'metre'])
+def test_single_unit_invalid_name_type(name: object) -> None:
+    with pytest.raises(TypeError, match='Unit name must be str'):
+        SingleUnit.from_name(name)  # pyright: ignore[reportArgumentType]

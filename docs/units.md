@@ -22,6 +22,12 @@ True
 
 ```
 
+`SingleUnit(text)` resolves one symbol or name without parsing an expression.
+Use `SingleUnit.from_name(name)` to accept only registered names and name aliases,
+including permitted prefixes. Names are matched exactly; `from_name('kilometre')`
+accepts the name, while `from_name('km')` raises `UnitSymbolError`.
+Import `SingleUnit` from `unitx.singleunit`.
+
 Unit spellings are case-sensitive: `k` is the kilo prefix and `K` is kelvin.
 `km` means kilometre; `K m` means kelvin times metre. The former uppercase
 kilo alias `K` is no longer accepted, so unregistered spellings such as `Km`

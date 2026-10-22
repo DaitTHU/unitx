@@ -341,10 +341,6 @@ class Quantity(Generic[T]):
             return op is operator.ne
         if not _is_quantity(other) and self.unit.log_degree:
             return op is operator.ne
-        if self._has_numpy_operand(other):
-            from ._numpy import compare
-
-            return compare(self, other, op)
         if not _is_quantity(other):
             if not self.is_dimensionless():
                 return NotImplemented

@@ -10,7 +10,7 @@ from ._unicode import SUP_TO_DIGIT, SUPERSCRIPTS
 from .exceptions import UnitSymbolError, UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit
-from .unitregistry import _UNIT_SYMBOL_PATTERN, _resolve_unit_name
+from .unitregistry import _UNIT_SYMBOL_PATTERN
 
 _PATTERNS = {
     'POW': r'\*\*|\^',
@@ -28,6 +28,7 @@ _PATTERNS = {
 }
 
 _TOKEN_RE = re.compile('|'.join(f'(?P<{kind}>{pattern})' for kind, pattern in _PATTERNS.items()))
+_INTEGER_RE = re.compile(r'[+-]?[0-9]+')
 
 
 class Token:
@@ -36,15 +37,15 @@ class Token:
     Parameters
     ----------
     kind : str or None
-        Name of the matched regular expression group. ``None`` represents a
+        Name of the matched regular expression group. `None` represents a
         match without a named group.
     value : str
-        Matched text, or a description for a sentinel such as ``EOF``.
+        Matched text, or a description for a sentinel such as `EOF`.
 
     Notes
     -----
     Equality compares both kind and value. Unit symbol validation belongs to
-    ``SingleUnit`` and occurs during parsing, rather than token construction.
+    `SingleUnit` and occurs during parsing, rather than token construction.
     """
 
     __slots__ = ('kind', 'value')
@@ -77,7 +78,7 @@ class UnitParser:
     """Parse a physical unit expression into an immutable formal product.
 
     Support multiplication, division, rational powers, and parentheses.
-    Unit symbols, names, prefixes, and aliases are resolved by ``SingleUnit``.
+    Unit symbols, names, prefixes, and aliases are resolved by `SingleUnit`.
     Exponents remain exact fractions, including those written as decimals.
 
     Parameters
@@ -88,8 +89,8 @@ class UnitParser:
 
     Notes
     -----
-    Parsing occurs on the first call to ``parse()``. Successful results are
-    cached, and later calls return the same ``Monomial[SingleUnit]`` object.
+    Parsing occurs on the first call to `parse()`. Successful results are
+    cached, and later calls return the same `Monomial[SingleUnit]` object.
     Failed attempts are not cached; a later call parses the original text again.
 
     The grammar for a nonempty expression is::
@@ -102,54 +103,55 @@ class UnitParser:
         exponent_value := NUM | ("+(" | "-(" | "(") fraction ")"
         fraction       := NUM ("/" NUM)?
 
-    ``UNIT`` is a nonempty token delimited by whitespace, decimal digits, or
+    `UNIT` is a nonempty token delimited by whitespace, decimal digits, or
     grammar operators. It must resolve to a registered symbol or singular
     English name, optionally prefixed. Inputs are case-sensitive, with aliases
-    handled by ``SingleUnit``. Adjacent letters form one token: ``ms`` denotes a
-    millisecond, while ``m s`` denotes metre times second.
+    handled by `SingleUnit`. Adjacent letters form one token: `ms` denotes a
+    millisecond, while `m s` denotes metre times second.
 
     A registered multiword or hyphenated name, optionally prefixed, is
     recognized before parsing a product when it occupies the entire input.
     Whitespace between its words is normalized to a single space. Inside
-    expressions, use ``[name]`` to make a name one factor, for example
-    ``[astronomical unit] / s``, or use its symbol. NAME_REF tokens resolve
+    expressions, use `[name]` to make a name one factor, for example
+    `[astronomical unit] / s`, or use its symbol. NAME_REF tokens resolve
     only registered names and name aliases, never symbols or expressions.
     Prefix names belong inside the brackets and obey that spelling's policy.
     Empty, nested, and unclosed references are invalid. Quotes retain their
     existing unit-symbol meaning; there are no string escapes or interpolation.
 
     Adjacent Unicode superscripts denote exact integer powers, for example
-    ``m²``, ``s⁻¹²``, and ``[metre]⁺²``. Only an optional leading sign followed
+    `m²`, `s⁻¹²`, and `[metre]⁺²`. Only an optional leading sign followed
     by superscript digits is accepted. Superscripts cannot follow whitespace,
-    ``^``, or another exponent; fractional powers use the ASCII grammar below.
+    `^`, or another exponent; fractional powers use the ASCII grammar below.
     Brackets and these superscript characters are reserved, including when
     registering custom unit symbols and names.
 
-    ``NUM`` is an optionally signed integer or decimal. Decimals require digits
-    on both sides of the decimal point. Only the literal ``1`` is permitted as a
+    `NUM` is an optionally signed integer or decimal. Decimals require digits
+    on both sides of the decimal point. Only the literal `1` is permitted as a
     base; other numbers are valid only as exponents or parts of an exponent.
 
     Whitespace, including newlines and Unicode spaces, separates tokens.
     Implicit multiplication applies when the next token is a unit, name
-    reference, number, or opening parenthesis, as in ``kg m``, ``m[second]``,
-    ``m 1/s``, or ``m(s)``. An adjacent
-    number takes precedence as an exponent: ``m2`` means ``m^2``, while ``m 2``
-    attempts to multiply by the invalid numeric base ``2``.
+    reference, number, or opening parenthesis, as in `kg m`, `m[second]`,
+    `m 1/s`, or `m(s)`. An adjacent
+    number takes precedence as an exponent: `m2` means `m^2`, while `m 2`
+    attempts to multiply by the invalid numeric base `2`.
 
-    Exponents written as ratios require parentheses, as in ``m^(1/2)`` or
-    ``s^-(2/3)``. An outer sign must immediately precede the opening parenthesis;
+    Exponents written as ratios require parentheses, as in `m^(1/2)` or
+    `s^-(2/3)`. An outer sign must immediately precede the opening parenthesis;
     whitespace is allowed around the numbers and slash inside the parentheses.
+    Both parts may be decimals: `m^(1.5/0.5)` is exactly `m^3`.
 
     Explicit multiplication, implicit multiplication, and division have equal
-    precedence and associate left to right. Thus ``m / s A`` means ``(m / s) * A``;
-    use ``m / (s A)`` to put both units in the denominator.
+    precedence and associate left to right. Thus `m / s A` means `(m / s) * A`;
+    use `m / (s A)` to put both units in the denominator.
 
     A leading slash accepts exactly one factor and must occupy the entire
-    expression. ``/s`` is equivalent to ``1/s``, and ``/(m s)`` takes the
-    reciprocal of a grouped product. Use ``1/m s`` for a product starting with a
-    reciprocal. Inside parentheses, reciprocals must also be written with ``1/``.
+    expression. `/s` is equivalent to `1/s`, and `/(m s)` takes the
+    reciprocal of a grouped product. Use `1/m s` for a product starting with a
+    reciprocal. Inside parentheses, reciprocals must also be written with `1/`.
 
-    The result preserves canonical unit identity: ``m`` and ``mm`` remain
+    The result preserves canonical unit identity: `m` and `mm` remain
     distinct bases. Parsing does not perform magnitude or dimension conversion.
 
     Examples
@@ -198,18 +200,20 @@ class UnitParser:
         Raises
         ------
         TypeError
-            If ``expression`` is not a string.
+            If `expression` is not a string.
         UnitSyntaxError
             If the expression has invalid syntax, a numeric base other than
-            the literal ``1``, or a fraction exponent with a zero denominator.
+            the literal `1`, or a fraction exponent with a zero denominator.
             Extra valid factors after a leading reciprocal receive a dedicated
             diagnostic; other invalid suffixes report the first remaining token.
         UnitSymbolError
-            If a unit symbol or name cannot be resolved by ``SingleUnit`` while
+            If a unit symbol or name cannot be resolved by `SingleUnit` while
             parsing the expression.
 
         Notes
         -----
+        expression := (registered_name | product | "/" factor) EOF
+
         A failed attempt leaves no cached result. A later call starts from the
         original expression, even if failure occurred during suffix diagnosis.
         """
@@ -217,42 +221,62 @@ class UnitParser:
             return self._result
         if not isinstance(self._expression, str):
             raise TypeError('Unit expression must be str.')
+
+        # Resolve a complete registered name before interpreting its words as factors.
+        result = self._try_parse_name()
+        if result is not None:
+            self._result = result
+            return result
+
         self._tokens = map(Token.from_match, _TOKEN_RE.finditer(self._expression))
-        name = ' '.join(self._expression.split())
-        if ' ' in name or '-' in name:
-            try:
-                prefix, definition = _resolve_unit_name(name)
-            except UnitSymbolError:
-                pass
-            else:
-                unit = SingleUnit._from_definitions(prefix, definition)
-                self._tokens = iter(())
-                self.next_token()
-                self._result = Monomial({unit: 1})
-                return self._result
         self.next_token()
         if self.current_nonempty_token is EOF:
-            self._result = Monomial()
-            return self._result
-        result = 1 / self._parse_factor() if self.match('DIV') else self._parse_product()
-        if self.current_nonempty_token is not EOF:
-            token = self.token
-            if self.match('MUL') or self.match('DIV'):
-                pass
-            if self.current_nonempty_token.kind in ('UNIT', 'NAME_REF', 'NUM', 'LPAREN'):
-                try:
-                    factor = self._parse_factor()
-                except (UnitSyntaxError, UnitSymbolError):
-                    factor = None
-                if factor is not None:
-                    error_message = (
-                        "Leading '/' accepts only one factor. Use '1/' for multiple factors."
-                    )
-                    raise UnitSyntaxError(error_message)
-            error_message = f'Unparsed redundant suffix {token.value!r}.'
-            raise UnitSyntaxError(error_message)
+            result = Monomial()
+        elif self.match('DIV'):
+            result = 1 / self._parse_factor()
+        else:
+            result = self._parse_product()
+
+        self._expect_end()
         self._result = result
         return result
+
+    def _try_parse_name(self) -> Monomial[SingleUnit] | None:
+        """Try a complete multiword or hyphenated registered name before tokenization."""
+        name = ' '.join(self._expression.split())
+        if ' ' not in name and '-' not in name:
+            return None
+        try:
+            unit = SingleUnit.from_name(name)
+        except UnitSymbolError:
+            return None
+        self._tokens = iter(())
+        self.next_token()
+        return Monomial({unit: 1})
+
+    def _expect_end(self) -> None:
+        """Require EOF, diagnosing extra factors after a leading reciprocal.
+
+        A complete extra factor receives the dedicated leading-slash diagnostic.
+        An invalid or incomplete factor reports the original suffix instead.
+        """
+        if self.current_nonempty_token is EOF:
+            return
+        token = self.token
+        if self.match('MUL') or self.match('DIV'):
+            pass
+        try:
+            self._parse_factor()
+        except (UnitSyntaxError, UnitSymbolError):
+            pass
+        else:
+            error_message = (
+                "Leading '/' followed by more than one factor is ambiguous. "
+                "Use '1/(multiple_factors)' instead."
+            )
+            raise UnitSyntaxError(error_message)
+        error_message = f'Unparsed redundant suffix {token.value!r}.'
+        raise UnitSyntaxError(error_message)
 
     @property
     def token(self) -> Token:
@@ -260,7 +284,7 @@ class UnitParser:
         return self._token
 
     def next_token(self) -> None:
-        """Advance to the next raw token, or remain at ``EOF`` after exhaustion."""
+        """Advance to the next raw token, or remain at `EOF` after exhaustion."""
         self._token = next(self._tokens, EOF)
 
     @property
@@ -271,9 +295,9 @@ class UnitParser:
         return self.token
 
     def match(self, kind: str, *, skip_space: bool = True) -> Token | None:
-        """Consume a token of ``kind``, or return ``None`` if it does not match.
+        """Consume a token of `kind`, or return `None` if it does not match.
 
-        With ``skip_space=True``, leading whitespace is consumed even on a
+        With `skip_space=True`, leading whitespace is consumed even on a
         mismatch. Set it to false to require the current raw token, preserving
         adjacency when parsing implicit exponents and outer signs.
         """
@@ -286,8 +310,10 @@ class UnitParser:
     def _parse_product(self) -> Monomial[SingleUnit]:
         """Parse factors joined by explicit or implicit multiplication or division.
 
+        product := factor (("*" | "/" | implicit_mul) factor)*
+
         Operators associate left to right. A numeric token also starts an
-        implicit factor; ``_parse_base()`` validates that it is the literal ``1``.
+        implicit factor; `_parse_base()` validates that it is the literal `1`.
         """
         result = self._parse_factor()
         while True:
@@ -304,14 +330,18 @@ class UnitParser:
     def _parse_factor(self) -> Monomial[SingleUnit]:
         """Parse a base followed by at most one rational exponent.
 
-        An implicit numeric exponent must be adjacent to the base. Explicit
-        ``^`` and ``**`` operators permit intervening whitespace.
+        factor   := base exponent?
+        exponent := adjacent_NUM | adjacent_SUPERSCRIPT | ("**" | "^") exponent_value
+
+        An implicit numeric or superscript exponent must be adjacent to the base. Explicit
+        `^` and `**` operators permit intervening whitespace.
         """
         base = self._parse_base()
         if token := self.match('SUPERSCRIPT', skip_space=False):
             exponent = token.value.translate(SUP_TO_DIGIT)
-            if re.fullmatch(r'[+-]?[0-9]+', exponent) is None:
-                raise UnitSyntaxError(f'Invalid superscript exponent {token.value!r}.')
+            if _INTEGER_RE.fullmatch(exponent) is None:
+                error_message = f'Invalid superscript exponent {token.value!r}.'
+                raise UnitSyntaxError(error_message)
             return base ** Fraction(exponent)
         if token := self.match('NUM', skip_space=False):
             return base ** Fraction(token.value)
@@ -320,15 +350,18 @@ class UnitParser:
         return base
 
     def _parse_base(self) -> Monomial[SingleUnit]:
-        """Parse a registered unit, the literal identity, or a grouped product."""
+        """Parse a registered unit, the literal identity, or a grouped product.
+
+        base := UNIT | NAME_REF | "1" | "(" product ")"
+        """
         if token := self.match('UNIT'):
             return Monomial({SingleUnit(token.value): 1})
         elif token := self.match('NAME_REF'):
             name = ' '.join(token.value[1:-1].split())
             if not name:
-                raise UnitSyntaxError('Unit name reference must not be empty.')
-            prefix, definition = _resolve_unit_name(name)
-            return Monomial({SingleUnit._from_definitions(prefix, definition): 1})
+                error_message = 'Unit name reference must not be empty.'
+                raise UnitSyntaxError(error_message)
+            return Monomial({SingleUnit.from_name(name): 1})
         elif token := self.match('NUM'):
             if token.value != '1':
                 error_message = f'Invalid number {token.value!r} as a base.'
@@ -345,6 +378,8 @@ class UnitParser:
 
     def _parse_exponent_value(self) -> Fraction:
         """Parse an exact number or parenthesized fraction with an optional outer sign.
+
+        exponent_value := NUM | ("+(" | "-(" | "(") fraction ")"
 
         An outer sign must be adjacent to the opening parenthesis. Signs on the
         numerator and denominator are part of their numeric tokens.
@@ -370,8 +405,12 @@ class UnitParser:
     def _parse_fraction(self) -> Fraction:
         """Parse a number or ratio of two numbers, preserving exact rational values.
 
-        A missing numerator or denominator raises ``UnitSyntaxError``. A zero
-        denominator is converted from ``ZeroDivisionError`` to ``UnitSyntaxError``.
+        fraction := NUM ("/" NUM)?
+
+        NUM permits signed integers and decimals in both positions; for example,
+        1.5/0.5 is exactly 3. The superscript integer restriction does not apply.
+        A missing numerator or denominator raises `UnitSyntaxError`. A zero
+        denominator is converted from `ZeroDivisionError` to `UnitSyntaxError`.
         The caller consumes the closing parenthesis.
         """
         if not (numerator := self.match('NUM')):

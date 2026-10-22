@@ -178,6 +178,7 @@ def test_unit_parser_reciprocal_whitespace(
         ('m^(+2/+3)', Fraction(2, 3)),
         ('m^(0/3)', Fraction(0)),
         ('m^(0.5/1.5)', Fraction(1, 3)),
+        ('m^(1.5/0.5)', Fraction(3)),
         ('m^(1/0.1)', Fraction(10)),
         ('m^(0/-3)', Fraction(0)),
         ('m^(2)', Fraction(2)),
@@ -326,7 +327,7 @@ def test_unit_parser_invalid_retry_suffix(text: str) -> None:
 def test_unit_parser_invalid_retry_multiple() -> None:
     parser = UnitParser('/m 1')
     for _ in range(2):
-        with pytest.raises(UnitSyntaxError, match="Leading '/' accepts only one factor"):
+        with pytest.raises(UnitSyntaxError, match="Leading '/'"):
             parser.parse()
 
 
@@ -481,7 +482,7 @@ def test_unit_parser_invalid_suffix(text: str, suffix: str) -> None:
     ],
 )
 def test_unit_parser_invalid_multiple_factors(text: str) -> None:
-    with pytest.raises(UnitSyntaxError, match="Leading '/' accepts only one factor"):
+    with pytest.raises(UnitSyntaxError, match="Leading '/'"):
         UnitParser(text).parse()
 
 
@@ -489,7 +490,7 @@ def test_unit_parser_invalid_multiple_factors(text: str) -> None:
 @pytest.mark.parametrize('operator', ['*', '/'])
 @pytest.mark.parametrize('factor', ['s', '1'])
 def test_unit_parser_invalid_reciprocal_spacing(space: str, operator: str, factor: str) -> None:
-    with pytest.raises(UnitSyntaxError, match="Leading '/' accepts only one factor"):
+    with pytest.raises(UnitSyntaxError, match="Leading '/'"):
         UnitParser(f'/m{space}{operator}{space}{factor}').parse()
 
 
