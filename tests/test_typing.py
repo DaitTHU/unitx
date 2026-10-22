@@ -62,6 +62,31 @@ def test_numpy_example_type_hints(tmp_path: Path) -> None:
     _check_type_hints(str(tmp_path))
 
 
+def test_arrhenius_fit_type_hints(tmp_path: Path) -> None:
+    if find_spec('numpy') is None or find_spec('matplotlib') is None:
+        pytest.skip('NumPy and Matplotlib are optional')
+    example = Path(__file__).resolve().parents[1] / 'examples' / 'arrhenius_fit.ipynb'
+    # Check the actual notebook's inferred members. Basic checking alone allows
+    # Any/Unknown to hide lost Quantity wrappers and subplot completion.
+    assertions = """
+from typing import assert_type
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from unitx import Unit
+
+assert_type(curve_temperature.unit, Unit)
+assert_type(curve_temperature.value.dtype, np.dtype[np.float64])
+assert_type(activation_energy.unit, Unit)
+assert_type(predicted_rate.unit, Unit)
+assert_type(fig, Figure)
+assert_type(ax, Axes)
+"""
+    (tmp_path / f'{example.stem}.py').write_text(
+        notebook_source(example) + assertions, encoding='utf-8'
+    )
+    _check_type_hints(str(tmp_path))
+
+
 def test_asarray_type_hints() -> None:
     if find_spec('numpy') is None:
         pytest.skip('NumPy is optional')

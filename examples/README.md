@@ -1,4 +1,4 @@
-# Physics notebooks
+# Scientific examples
 
 These notebooks use unitx for dimensional calculations and NumPy for numerical
 work. Each contains a model, assumptions, plots, and numerical checks. The
@@ -11,6 +11,7 @@ material parameters and measurement draws are illustrative, not experimental dat
 | [Gaussian wave packet](gaussian_wavepacket.ipynb) | Free electron propagation and uncertainty | Probability-density units, quantum constants, unit-aware integration |
 | [Optical attenuation](optical_attenuation.ipynb) | Transmission through absorbing layers | prod/multiply.reduce, input masks, Quantity initial, fixed-unit out |
 | [Pendulum uncertainty](pendulum_uncertainty.ipynb) | Correlated input uncertainties and Monte Carlo propagation | Mean/std/var units, mixed measurement units, explicit quantiles |
+| [Arrhenius fit](arrhenius_fit.ipynb) | Estimate activation energy from synthetic reaction rates | Absolute temperatures, regression boundary, parameter units and model-based standard errors |
 
 ## Run
 
@@ -22,8 +23,8 @@ python -m pip install -e '.[numpy]' matplotlib jupyterlab
 jupyter lab examples/
 ```
 
-Open a notebook and run all cells from the beginning. These notebooks require
-unitx 0.8.4 or newer for product reductions and unit-aware integration.
+Open a notebook and run all cells from the beginning. Use the current checkout
+so that all demonstrated APIs are available.
 The examples do not download datasets or write files. Keep physical quantities in calculations;
 plot their `.value` and derive labels from their `.unit`. Convert only to choose
 a useful display scale or to align units at a numerical boundary. Quantiles use

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add an Arrhenius fitting notebook with absolute temperatures, activation-energy
+  estimates and standard errors, a fitted curve and first-order rate predictions.
+
 ## [0.13.3] - 2026-10-22
 
 ### Added

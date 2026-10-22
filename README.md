@@ -167,9 +167,9 @@ Use `.value` or `.value_in(unit)` at plotting and external-library boundaries.
 implicit unit removal. NumPy's type stubs do not describe every wrapped
 operation; see the [typing guide](https://github.com/DaitTHU/unitx/blob/main/docs/typing.md).
 
-The [physics notebooks](https://github.com/DaitTHU/unitx/blob/main/examples/README.md)
-cover blackbody radiation, damped motion, wave-packet spreading, attenuation,
-and measurement uncertainty.
+The [scientific examples](https://github.com/DaitTHU/unitx/blob/main/examples/README.md)
+cover reaction-rate fitting, blackbody radiation, damped motion, wave-packet
+spreading, attenuation, and measurement uncertainty.
 
 ## Blackbody radiation
 

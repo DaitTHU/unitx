@@ -19,7 +19,7 @@ reading about an older version.
 | Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
 | Understand annotations and NumPy inference limits | [Typing](typing.md) |
 | Update code written for an earlier release | [Migration notes](migration.md) |
-| Run scientific examples | [Physics notebooks](../examples/README.md) |
+| Run scientific examples | [Scientific examples](../examples/README.md) |
 | Test or contribute a change | [Contributing](../CONTRIBUTING.md) |
 
 For a first read, follow units and quantities, then the catalogue. Read the
