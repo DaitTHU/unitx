@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.13.2] - 2026-10-22
+
+### Added
+
+- `unitx.time.from_datetime()` and `to_datetime()` explicitly convert aware
+  datetimes and Unix-referenced affine time points, including custom known
+  epoch coordinates. Import preserves integer ns; export rounds once to
+  microseconds with ties to even and defaults to UTC.
+- `SingleUnit.from_name(name)` constructs a single unit from a registered name
+  or name alias, including permitted prefixes, without accepting symbol spellings.
+
+### Changed
+
+- Clock functions in `unitx.time` return `AffineQuantity[int]` points in ns.
+  Point subtraction returns a duration Quantity; point addition and
+  multiplicative point arithmetic are rejected. Duration adapters are unchanged.
+  Clock domains remain untagged; only compare/subtract readings from the same context.
+- Clarify process-wide registration and unsupported concurrent registry access.
+- Expand the README with a runnable blackbody example and a theme-aware SVG plot.
+
+### Internal
+
+- Route name-only parsing through `SingleUnit.from_name()`, clarify recursive-descent
+  grammar, and remove a duplicate NumPy comparison branch.
+
 ## [0.13.1] - 2026-10-22
 
 ### Added
