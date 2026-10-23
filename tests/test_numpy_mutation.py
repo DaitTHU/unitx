@@ -179,7 +179,7 @@ def test_inplace_fixed_destination(operation, rhs, expected):
     np.testing.assert_allclose(a, expected)
 
 
-def test_inplace_dimensionless_power_and_scaled_unit():
+def test_inplace_dimensionless_power_and_unit_scale():
     unit = Factor(2) * Unit('km/m')
     q = Quantity(np.array([1.0, 2.0]), unit)
     assert operator.ipow(q, 2) is q

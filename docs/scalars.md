@@ -76,7 +76,7 @@ Fraction(1001, 1)
 ```
 
 `.value` always means the magnitude in the stored unit, including an extra
-ScaledUnit multiplier. Plain numbers used with dimensionless quantities are
+Unit multiplier. Plain numbers used with dimensionless quantities are
 coherent, unscaled values; they do not inherit the quantity's stored scale.
 
 ## Exponents

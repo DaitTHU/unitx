@@ -7,6 +7,7 @@ from typing import Literal
 from ._immutable import _Immutable
 from ._numerics import Fractionable, as_exponent, as_int_if_integral
 from ._unicode import superscript
+from .monomial import Monomial
 
 __all__ = ['DIMENSIONLESS', 'Dimension']
 
@@ -16,7 +17,7 @@ _LEN = len(_SYMBOLS)
 
 
 class Dimension(_Immutable):
-    """Immutable physical dimensions represented by seven rational exponents.
+    """Immutable algebraic dimensions with a seven-axis physical projection.
 
     - `T`: time
     - `L`: length
@@ -47,8 +48,8 @@ class Dimension(_Immutable):
 
     """
 
-    __slots__ = ('_exponents',)
-    _exponents: tuple[Fraction, ...]  # Exponents for (T, L, M, I, Θ, N, J)
+    __slots__ = ('_monomial',)
+    _monomial: Monomial[str]
 
     def __new__(
         cls,
@@ -60,46 +61,59 @@ class Dimension(_Immutable):
         N: Fractionable = 0,
         J: Fractionable = 0,
     ) -> Dimension:
-        exponents = tuple(as_exponent(exp) for exp in (T, L, M, I, Theta, N, J))
-        if not any(exponents):
+        return cls._from_monomial(Monomial(dict(zip(_ASCII_SYMBOLS, (T, L, M, I, Theta, N, J)))))
+
+    @classmethod
+    def _from_monomial(cls, monomial: Monomial[str], /) -> Dimension:
+        if not monomial.components():
             return DIMENSIONLESS
         obj = object.__new__(cls)
-        object.__setattr__(obj, '_exponents', exponents)
+        object.__setattr__(obj, '_monomial', monomial)
         return obj
 
     @classmethod
     def _from_iter(cls, exponents: Iterable[Fraction], /) -> Dimension:
-        """Construct from an iterable of exponents. Internal use only."""
+        """Construct the seven-axis physical projection. Internal use only."""
         exponents = tuple(exponents)
         assert len(exponents) == _LEN, f'Expected {_LEN} exponents, got {len(exponents)}.'
         assert all(type(exp) is Fraction for exp in exponents), 'All exponents must be Fraction.'
-        if not any(exponents):
-            return DIMENSIONLESS
-        obj = object.__new__(cls)
-        object.__setattr__(obj, '_exponents', exponents)
-        return obj
+        return cls._from_monomial(Monomial(dict(zip(_ASCII_SYMBOLS, exponents))))
+
+    @classmethod
+    def _with_log(cls, physical: Dimension, exponent: Fractionable = 1) -> Dimension:
+        """Attach the internal logarithmic axis at a model/serialization boundary."""
+        return cls._from_monomial(physical._monomial * Monomial({'_log': exponent}))
+
+    @property
+    def physical(self) -> Dimension:
+        """Project onto the seven physical axes, ignoring internal algebraic axes."""
+        if self._monomial.exponent_of('_log') == 0:
+            return self
+        return self._from_iter(self.as_tuple())
 
     def __repr__(self) -> str:
         arguments = ', '.join(
             f'{sym}={as_int_if_integral(exp)!r}'
-            for sym, exp in zip(_ASCII_SYMBOLS, self._exponents)
+            for sym, exp in zip(_ASCII_SYMBOLS, self.as_tuple())
             if exp
         )
-        return f'{type(self).__name__}({arguments})'
+        physical = f'{type(self).__name__}({arguments})'
+        exponent = self._monomial.exponent_of('_log')
+        return f'Dimension._with_log({physical}, {exponent!r})' if exponent else physical
 
     def __str__(self) -> str:
         formatted_expression = ''.join(
-            sym + superscript(exp) for sym, exp in zip(_SYMBOLS, self._exponents) if exp
+            sym + superscript(exp) for sym, exp in zip(_SYMBOLS, self.as_tuple()) if exp
         )
         return formatted_expression or '1'
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Dimension):
             return NotImplemented
-        return self._exponents == other._exponents
+        return self._monomial == other._monomial
 
     def __hash__(self) -> int:
-        return hash(self._exponents)
+        return hash(self._monomial)
 
     def __copy__(self) -> Dimension:
         return self  # Dimensions are immutable
@@ -107,65 +121,67 @@ class Dimension(_Immutable):
     def __deepcopy__(self, memo: dict[int, object]) -> Dimension:
         return self
 
-    def __reduce__(self) -> tuple[type[Dimension], tuple[Fraction, ...]]:
-        return type(self), self._exponents
+    def __reduce__(self) -> tuple[object, tuple[Monomial[str]]]:
+        return type(self)._from_monomial, (self._monomial,)
 
     def __mul__(self, other: Dimension) -> Dimension:
         if not isinstance(other, Dimension):
             return NotImplemented
-        return self._from_iter(a + b for a, b in zip(self._exponents, other._exponents))
+        return self._from_monomial(self._monomial * other._monomial)
 
     def __truediv__(self, other: Dimension) -> Dimension:
         if not isinstance(other, Dimension):
             return NotImplemented
-        return self._from_iter(a - b for a, b in zip(self._exponents, other._exponents))
+        return self._from_monomial(self._monomial / other._monomial)
 
     def __pow__(self, power: Fractionable) -> Dimension:
-        power_as_fraction = as_exponent(power)
-        return self._from_iter(exp * power_as_fraction for exp in self._exponents)
+        return self._from_monomial(self._monomial ** as_exponent(power))
 
     def __rtruediv__(self, other: Literal[1]) -> Dimension:
         if type(other) is int and other == 1:
-            return self._from_iter(-exp for exp in self._exponents)
+            return self._from_monomial(1 / self._monomial)
         return NotImplemented
 
     @property
     def T(self) -> Fraction:
-        return self._exponents[0]
+        return self._monomial.exponent_of('T')
 
     @property
     def L(self) -> Fraction:
-        return self._exponents[1]
+        return self._monomial.exponent_of('L')
 
     @property
     def M(self) -> Fraction:
-        return self._exponents[2]
+        return self._monomial.exponent_of('M')
 
     @property
     def I(self) -> Fraction:  # noqa: E743
-        return self._exponents[3]
+        return self._monomial.exponent_of('I')
 
     @property
     def Θ(self) -> Fraction:
-        return self._exponents[4]
+        return self._monomial.exponent_of('Theta')
 
     @property
     def N(self) -> Fraction:
-        return self._exponents[5]
+        return self._monomial.exponent_of('N')
 
     @property
     def J(self) -> Fraction:
-        return self._exponents[6]
+        return self._monomial.exponent_of('J')
 
     Theta = Θ  # Alias for Θ
     time, length, mass, current, temperature, amount, luminous = T, L, M, I, Θ, N, J
 
     def as_tuple(self) -> tuple[Fraction, ...]:
-        return self._exponents
+        return tuple(self._monomial.exponent_of(axis) for axis in _ASCII_SYMBOLS)
 
     def as_dict(self) -> dict[str, Fraction]:
-        return {sym: exp for sym, exp in zip(_ASCII_SYMBOLS, self._exponents) if exp}
+        return {sym: exp for sym, exp in zip(_ASCII_SYMBOLS, self.as_tuple()) if exp}
 
 
 DIMENSIONLESS = object.__new__(Dimension)
-object.__setattr__(DIMENSIONLESS, '_exponents', (Fraction(0),) * _LEN)
+object.__setattr__(DIMENSIONLESS, '_monomial', Monomial())
+
+
+_LOG_DIMENSION = Dimension._with_log(DIMENSIONLESS)

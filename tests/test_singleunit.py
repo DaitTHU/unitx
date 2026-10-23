@@ -5,11 +5,12 @@ from fractions import Fraction
 
 import pytest
 
+from unitx._prefixes import NO_PREFIX, PREFIX_DEFINITIONS
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import UnitSymbolError
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
-from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
+from unitx.unitregistry import default_registry
 
 
 @pytest.mark.parametrize(
@@ -42,9 +43,7 @@ def test_single_unit_creation(text: str, prefix: str, unit: str) -> None:
 def test_single_unit_combinations() -> None:
     for prefix_definition in (NO_PREFIX, *PREFIX_DEFINITIONS.values()):
         prefix = prefix_definition.symbol
-        for symbol, unit_definition in UNIT_DEFINITIONS.items():
-            if unit_definition.reference is not None:
-                continue
+        for symbol, unit_definition in default_registry._bindings.definitions.items():
             if prefix and not unit_definition.allows_prefix(symbol):
                 continue
             unit = SingleUnit(prefix + symbol)
@@ -214,7 +213,7 @@ def test_single_unit_pickle(symbol: str, protocol: int) -> None:
     assert restored.dimension == unit.dimension
     assert {unit: 'unchanged'}[restored] == 'unchanged'
     with pytest.raises(AttributeError, match='SingleUnit objects are immutable'):
-        restored._unit = UNIT_DEFINITIONS['s']
+        restored._unit = default_registry._bindings.definitions['s']
 
 
 @pytest.mark.parametrize('value', [None, True, 1, 1.0, b'm', [], {}])

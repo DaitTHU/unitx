@@ -14,7 +14,6 @@ from unitx.si import si
     ('alias', 'canonical'),
     [
         ('℃', 'degC'),
-        ('℉', 'degF'),
         ('K', 'K'),
         ('Ω', 'Ω'),
         ('ℓ', 'L'),
@@ -55,5 +54,5 @@ def test_unit_unicode_prefix(alias: str, canonical: str) -> None:
 
 def test_affine_quantity_unicode_coordinate() -> None:
     assert AffineQuantity(0, '℃').value_in('K') == Fraction(5463, 20)
-    assert AffineQuantity(32, '℉') == AffineQuantity(0, '℃')
+    assert AffineQuantity(32, si.parse('℉')) == AffineQuantity(0, '℃')
     assert AffineQuantity(273, 'K') == AffineQuantity(273, 'K')

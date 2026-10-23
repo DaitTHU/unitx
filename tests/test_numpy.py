@@ -12,7 +12,7 @@ import pytest
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
 
 from ._notebooks import notebook_source
 
@@ -135,7 +135,7 @@ def test_exact_scale_stays_in_unit_algebra():
     q = Quantity(np.arange(3), 'cm')
     for result in (q * Factor(2), Factor(2) * q, q / pi):
         assert result.value is q.value
-        assert isinstance(result.unit, ScaledUnit)
+        assert isinstance(result.unit, Unit)
     assert_quantity((q * Factor(2)).to('m'), [0, 0.02, 0.04], 'm')
     assert (q * Factor(2)).unit.scale == Factor(2)
 

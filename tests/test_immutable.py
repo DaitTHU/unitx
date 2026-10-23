@@ -5,20 +5,21 @@ import pickle
 
 import pytest
 
+from unitx._prefixes import NO_PREFIX, PREFIX_DEFINITIONS
 from unitx.dimension import Dimension
 from unitx.factor import Factor, pi
 from unitx.monomial import Monomial
 from unitx.si import si
 from unitx.singleunit import SingleUnit
-from unitx.unit import ScaledUnit, Unit
-from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
+from unitx.unit import Unit
+from unitx.unitregistry import default_registry
 
 
 @pytest.mark.parametrize(
     'value',
     [
         Unit('m'),
-        ScaledUnit('m', Factor(2)),
+        Unit('m', scale=Factor(2)),
         si.degC,
         Monomial({'x': 1}),
         Dimension(L=1),
@@ -26,25 +27,22 @@ from unitx.unitregistry import NO_PREFIX, PREFIX_DEFINITIONS, UNIT_DEFINITIONS
         SingleUnit('km'),
         NO_PREFIX,
         PREFIX_DEFINITIONS['k'],
-        UNIT_DEFINITIONS['m'],
+        default_registry._bindings.definitions['m'],
     ],
 )
 def test_immutable_slots(value: object) -> None:
     assert not hasattr(value, '__dict__')
 
 
-@pytest.mark.parametrize('unit', [Unit('m/s'), ScaledUnit('m/s', Factor(2)), si.degC])
+@pytest.mark.parametrize('unit', [Unit('m/s'), Unit('m/s', scale=Factor(2)), si.degC])
 def test_unit_immutable_state(unit):
     mapping = {unit: 'value'}
     for name in (
-        '_factor',
-        '_dimension',
-        '_symbol',
+        '_conversion',
         '_monomial',
-        '_log_degree',
         '_scale',
         '_origin',
-        '_kind',
+        '_logarithm',
         '_delta_unit',
         '_definition',
     ):

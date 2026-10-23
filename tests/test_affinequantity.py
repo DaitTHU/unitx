@@ -8,22 +8,21 @@ from fractions import Fraction
 
 import pytest
 
-from unitx import AffineQuantity, AffineUnit, Quantity, Unit
+from unitx import AffineQuantity, AffineUnit, LogQuantity, Quantity, Unit
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
 from unitx.si import si
-from unitx.unit import ScaledUnit
 
 
 def test_unit_linear_temperature():
     assert type(Unit('degC')) is Unit
     assert Unit('degC').factor == Unit('K').factor
     assert Quantity(1, 'K').to('degC') == Quantity(1, 'degC')
-    assert Quantity(9, 'degF').to('degC') == Quantity(5, 'K')
+    assert Quantity(9, si.degF).to('degC') == Quantity(5, 'K')
     assert Unit('degC/degC') == Unit()
     assert Unit('degC**0') == Unit()
     assert Quantity(1, 'degC/m').to('K/m').value == 1
-    assert isinstance(ScaledUnit('degC', Factor(2)), Unit)
+    assert isinstance(Unit('degC', scale=Factor(2)), Unit)
 
 
 def test_affine_quantity_zero_origin():
@@ -70,9 +69,9 @@ def test_affine_quantity_physical_exit():
     assert physical == Quantity(Fraction(5463, 20), 'K')
     assert type(point.to('K')) is AffineQuantity
     assert physical * 2 == Quantity(Fraction(5463, 10), 'K')
-    assert AffineQuantity(30, 'dBm').to('W').value == 1
-    assert AffineQuantity(1, 'W').to('dBm').value == 30
-    assert AffineQuantity(0, 'dBm').to_quantity('mW') == Quantity(1, 'mW')
+    assert LogQuantity(30, 'dBm').to_quantity('W').value == 1
+    assert LogQuantity.from_quantity(Quantity(1, 'W'), 'dBm').value == 30
+    assert LogQuantity(0, 'dBm').to_quantity('mW') == Quantity(1, 'mW')
     with pytest.raises(TypeError):
         point.to_quantity('dB')
 
@@ -104,7 +103,7 @@ def test_affine_quantity_decimal_cancellation(precision):
     with localcontext() as ctx:
         ctx.prec = precision
         difference = AffineQuantity(Decimal('1000'), 'degC') - AffineQuantity(
-            Decimal('1831.982'), 'degF'
+            Decimal('1831.982'), si.degF
         )
         assert difference.value == Decimal('0.01')
         assert isinstance(difference.value, Decimal)
@@ -112,9 +111,10 @@ def test_affine_quantity_decimal_cancellation(precision):
         assert shifted.value == Decimal('0.01')
 
 
-@pytest.mark.parametrize('unit', ['K', 'degC', 'degF', 'dBm'])
+@pytest.mark.parametrize('unit', ['K', 'degC', si.degF, 'dBm'])
 def test_affine_quantity_reconstruction(unit):
-    point = AffineQuantity(Decimal('20'), unit)
+    quantity_type = LogQuantity if unit == 'dBm' else AffineQuantity
+    point = quantity_type(Decimal('20'), unit)
     assert not isinstance(point, Quantity)
     assert not issubclass(AffineQuantity, Quantity)
     assert eval(repr(point)) == point
@@ -198,7 +198,7 @@ def test_affine_unit_linear_projection():
     assert descriptor / si.m == linear / si.m
     assert si.m / descriptor == si.m / linear
     assert descriptor**2 == linear**2
-    assert descriptor * si.degF == linear * Unit('degF')
+    assert descriptor * si.degF == linear * Quantity(1, si.degF).unit
     assert (Quantity(2, 'm') * descriptor).unit == si.m * linear
     assert (descriptor * Quantity(2, 'm')).unit == linear * si.m
     assert (Quantity(2, 'm') / descriptor).unit == si.m / linear

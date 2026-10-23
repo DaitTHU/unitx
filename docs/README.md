@@ -9,10 +9,12 @@ reading about an older version.
 | Task | Guide |
 | --- | --- |
 | Construct, combine, convert or compare quantities | [Units and quantities](units.md) |
-| Find units, constants, prefixes and Unicode spellings | [Catalogue](catalogue.md) |
-| Define an exact scale or register a new unit | [Custom units](custom-units.md) |
+| Choose and parse a unit catalogue | [Unit catalogues](catalogues/README.md) |
+| Find SI units, constants, prefixes and Unicode spellings | [SI reference](catalogues/si.md) |
+| Define an exact scale or register a new unit | [Custom units and registries](custom-units.md) |
 | Understand Fraction, Decimal, float and exact equality | [Scalar numerical behavior](scalars.md) |
-| Work with absolute temperatures or logarithmic readings | [Points and differences](affine.md) |
+| Work with absolute temperatures | [Points and differences](affine.md) |
+| Work with logarithmic differences and readings | [Logarithmic quantities](logarithmic.md) |
 | Call unit-aware mathematical functions or read a clock | [Standard-library enhancements](stdlib.md) |
 | Calculate with arrays, masks, reductions and output buffers | [NumPy support](numpy.md) |
 | Format text or export LaTeX, HTML and siunitx | [Display and formatting](display.md) |
@@ -21,6 +23,7 @@ reading about an older version.
 | Update code written for an earlier release | [Migration notes](migration.md) |
 | Run scientific examples | [Scientific examples](../examples/README.md) |
 | Test or contribute a change | [Contributing](../CONTRIBUTING.md) |
+| Understand model and implementation boundaries | [Architecture](architecture.md) |
 
 For a first read, follow units and quantities, then the catalogue. Read the
 scalar numerical guide before relying on concrete result types or exact
@@ -30,23 +33,24 @@ comparisons. Array users should also read NumPy's storage and conversion rules.
 
 | Object | Represents | Example |
 | --- | --- | --- |
-| `Unit` | A formal multiplicative unit | `si.m`, `Unit('kg m/s2')` |
-| `ScaledUnit` | A unit product with an additional exact scale | `si.m * Factor(2)` |
+| `Unit` | A formal unit product with an optional exact scale | `si.m`, `Unit('m', scale=Factor(2))` |
 | `Quantity[T]` | A magnitude of type T paired with a linear unit | `3 * si.m`, `5 * si.K` |
-| `AffineUnit` | A coordinate origin and difference scale | `si.degC`, `si.dBm` |
-| `AffineQuantity[T]` | An absolute reading in a coordinate | `20 @ si.degC`, `30 @ si.dBm` |
+| `AffineUnit` | A linear coordinate origin and difference scale | `si.degC` |
+| `LogUnit` | A logarithmic physical reference, scale and convention | `si.dBm` |
+| `AffineQuantity[T]` | A reading in a linear affine coordinate | `20 @ si.degC` |
+| `LogQuantity[T]` | A reading in a logarithmic coordinate | `30 @ si.dBm` |
 
 Formal unit identity, physical dimension and conversion scale are distinct.
 For example, metres and centimetres are different Unit objects, while
 `1 * si.m == 100 * si.cm`. Points retain their class after conversion, even
-to a zero-origin coordinate such as K or W.
+to a zero-origin coordinate such as K.
 
 ## Imports and boundaries
 
 The package root exports `Quantity`, `AffineQuantity`, `Unit`, `AffineUnit`,
-`Dimension`, `DIMENSIONLESS`, `one`, `ten`, `pi`, and the `si`, `math`, and
-`time` modules. Import the unit and constant namespaces with
-`from unitx.si import si, SI`. `Factor`, `ScaledUnit` and other building blocks
+`LogUnit`, `LogQuantity`, `Dimension`, `DIMENSIONLESS`, `UnitCatalog`, `Registry`, `one`, `ten`, `pi`, the `si`,
+`math` and `time` modules. Import the unit and constant namespaces with
+`from unitx.si import si, SI`. `Factor` and other building blocks
 remain available from their own modules; names beginning with `_` are internal.
 
 Unit algebra is exact within its documented symbolic/factorization model.

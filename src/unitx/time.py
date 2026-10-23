@@ -16,7 +16,6 @@ from fractions import Fraction
 
 from ._numerics import Fractionable, Magnitude, is_numpy_object
 from .affinequantity import AffineQuantity
-from .exceptions import DimensionError
 from .quantity import Quantity
 from .si import si
 
@@ -138,8 +137,6 @@ def to_datetime(instant: AffineQuantity[Fractionable], /, *, tz: tzinfo = timezo
         raise TypeError('Expected a scalar AffineQuantity time point.')
     if not isinstance(tz, tzinfo):
         raise TypeError('tz must be a datetime.tzinfo instance.')
-    if instant.unit.kind is not None:
-        raise DimensionError('Datetime requires a linear time coordinate.')
     # Rationalize the stored reading before scaling, and include the origin
     # before the single final rounding. Neither operation uses Decimal context.
     seconds = _seconds(Quantity(instant.value, instant.unit.delta_unit))

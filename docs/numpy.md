@@ -24,7 +24,9 @@ subclasses, and other backends are unsupported. Boolean arrays are accepted
 as masks and returned by predicates. Construct ndarrays explicitly: list/tuple
 magnitudes and implicit Fraction/Decimal object arrays are rejected.
 
-AffineQuantity points use a separate [operation matrix](affine.md#comparison-tolerances-and-arrays).
+AffineQuantity points and LogQuantity readings share point storage rules; see
+[affine operations](affine.md#comparison-tolerances-and-arrays) and
+[logarithmic statistics](logarithmic.md#comparison-and-arrays).
 Mean/median preserve points, std returns differences, var returns squared
 differences, and point sums/products are rejected.
 
@@ -242,7 +244,7 @@ input and spacings. Each spacing is a scalar step or one-dimensional coordinate
 array; bare inputs and spacings are dimensionless. A single scalar step applies
 to every selected axis. Otherwise supply one spacing per selected axis, in
 the order given by axis. Each component has unit `f.unit / spacing.unit`,
-including exact ScaledUnit factors. No spacing means dimensionless unit steps.
+including exact Unit factors. No spacing means dimensionless unit steps.
 The kernels use stored numerical coordinates; no implicit SI conversion is
 needed because each result retains the corresponding unit ratio.
 
@@ -268,7 +270,7 @@ assert np.trapezoid(velocity, time).isclose(distance[-1] - distance[0])
 
 ## Masked sums and statistics
 
-`np.sum(q)` and `np.add.reduce(q)` preserve q's unit, including ScaledUnit and
+`np.sum(q)` and `np.add.reduce(q)` preserve q's unit, including Unit and
 scaled dimensionless units. Their default axes are all axes and axis 0,
 respectively. Both accept `initial`, a numeric scalar or scalar Quantity,
 including NumPy scalars and zero-dimensional arrays. A Quantity initial must
@@ -392,7 +394,7 @@ slices are handled through temporaries; a mask sharing output storage is copied.
 
 The natural result dimension must match the target dimension. For example,
 multiplying lengths can write to an area target, but cannot write back to a
-length target. `ScaledUnit` factors participate in the conversion. Every numeric
+length target. `Unit` factors participate in the conversion. Every numeric
 result, including a coherent or scaled dimensionless result, requires a Quantity
 target; writing it to a bare ndarray would discard its unit. Boolean predicates
 and comparisons instead accept only a bare boolean ndarray output.
@@ -437,7 +439,7 @@ return types; these runtime calls may require a local type-checker suppression.
 `np.modf(q)` returns `(fractional, integral)`, both Quantities with q's unit.
 `np.frexp(q)` returns `(mantissa, exponent)`, with q's unit on the mantissa and
 a bare integer ndarray or NumPy scalar for the binary exponent. These functions
-decompose **stored coordinates**, including for ScaledUnit and scaled
+decompose **stored coordinates**, including for Unit and scaled
 dimensionless inputs: convert q to the desired unit before decomposing it.
 Changing the input unit can change both numerical outputs. There is no implicit
 conversion to coherent dimensionless values. Thus `fractional + integral`

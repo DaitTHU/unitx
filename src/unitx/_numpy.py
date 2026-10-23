@@ -16,12 +16,16 @@ from typing import Any, Literal, cast
 
 import numpy as np  # pyright: ignore[reportMissingImports]
 
-from ._conversion import compatible, convert, linear_unit
+from ._conversion import compatible
+from ._coordinates import _Coordinate
+from ._coordinates import convert_point as convert
 from ._numerics import as_exponent
+from ._operands import _Point, linear_unit
 from .affinequantity import AffineQuantity
-from .affineunit import AffineUnit
+from .dimension import DIMENSIONLESS
 from .exceptions import DimensionError
 from .factor import Factor, one
+from .logquantity import LogQuantity
 from .quantity import Quantity
 from .unit import Unit
 
@@ -37,8 +41,8 @@ _COMPARISON_UFUNCS = {
 }
 
 
-def _wrap(value: Any, unit: Unit | AffineUnit) -> Any:
-    return AffineQuantity(value, unit) if isinstance(unit, AffineUnit) else Quantity(value, unit)
+def _wrap(value: Any, unit: Unit | _Coordinate) -> Any:
+    return unit.__rmatmul__(value) if isinstance(unit, _Coordinate) else Quantity(value, unit)
 
 
 def _is_numpy_magnitude(value: Any) -> bool:
@@ -55,7 +59,7 @@ def validate_magnitude(value: Any) -> None:
 
 
 def _is_supported_operand(value: Any) -> bool:
-    if isinstance(value, (Quantity, AffineQuantity)):
+    if isinstance(value, (Quantity, _Point)):
         value = value.value
     return type(value) in (int, float, complex, Decimal, Fraction) or _is_numpy_magnitude(value)
 
@@ -82,10 +86,10 @@ def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
     return np.multiply(value, multiplier, where=where, out=None)
 
 
-def _operand_parts(value: Any) -> tuple[Any, Unit | AffineUnit]:
-    if isinstance(value, (Quantity, AffineQuantity)):
+def _operand_parts(value: Any) -> tuple[Any, Unit | _Coordinate]:
+    if isinstance(value, (Quantity, _Point)):
         return _numeric_value(value.value), value.unit
-    if isinstance(value, (Unit, AffineUnit)):
+    if isinstance(value, (Unit, _Coordinate)):
         return 1, value
     return _numeric_value(value), Unit()
 
@@ -100,12 +104,12 @@ def _linear_parts(value: Any) -> tuple[Any, Unit]:
 def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
     a, u = _linear_parts(left)
     b, v = _linear_parts(right)
-    if isinstance(u, AffineUnit) or isinstance(v, AffineUnit):
+    if isinstance(u, _Coordinate) or isinstance(v, _Coordinate):
         raise TypeError('Use point/difference arithmetic for affine coordinates.')
     if not compatible(u, v):
         raise DimensionError('Cannot operate on incompatible dimensions or logarithmic degrees.')
     # Addition retains the first Quantity's unit, even with a bare left input.
-    target = u if isinstance(left, (Quantity, AffineQuantity)) else v
+    target = u if isinstance(left, (Quantity, _Point)) else v
     return (
         scale_magnitude(a, u.factor / target.factor),
         scale_magnitude(b, v.factor / target.factor),
@@ -143,7 +147,7 @@ def _snapshot_index(key: Any) -> Any:
     return operator.index(key)
 
 
-def assign_item(target: Quantity[Any] | AffineQuantity[Any], key: Any, value: Any) -> None:
+def assign_item(target: Quantity[Any] | _Point[Any], key: Any, value: Any) -> None:
     """Convert and stage selected values before modifying caller storage."""
     buffer = target.value
     if type(buffer) is not np.ndarray:
@@ -156,7 +160,7 @@ def assign_item(target: Quantity[Any] | AffineQuantity[Any], key: Any, value: An
     if unit.dimension != target.dimension:
         raise DimensionError('Assigned value has an incompatible dimension.')
     key = _snapshot_index(key)
-    if isinstance(unit, AffineUnit) != isinstance(target.unit, AffineUnit):
+    if isinstance(unit, _Coordinate) != isinstance(target.unit, _Coordinate):
         raise DimensionError(
             'Assignment requires matching point/difference semantics; convert explicitly.'
         )
@@ -169,9 +173,7 @@ def assign_item(target: Quantity[Any] | AffineQuantity[Any], key: Any, value: An
     buffer[key] = staged
 
 
-def write_inplace(
-    target: Quantity[Any] | AffineQuantity[Any], result: Quantity[Any] | AffineQuantity[Any]
-) -> Any:
+def write_inplace(target: Quantity[Any] | _Point[Any], result: Quantity[Any] | _Point[Any]) -> Any:
     # NumPy scalars stay immutable and follow ordinary result/rebinding rules.
     if type(target.value) is not np.ndarray:
         return result
@@ -198,7 +200,7 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         ):
             if type(target) is not np.ndarray or target.dtype.kind != 'b':
                 return NotImplemented
-        elif not isinstance(target, (Quantity, AffineQuantity)):
+        elif not isinstance(target, (Quantity, _Point)):
             return NotImplemented
         options = {k: v for k, v in kwargs.items() if k != 'out'}
         result = _dispatch_ufunc(ufunc, method, inputs, options)
@@ -224,16 +226,14 @@ def _dispatch_multi_output(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str
         if ufunc is np.frexp and index == 1:
             if type(target) is not np.ndarray or target.dtype.kind not in 'iu':
                 return NotImplemented
-        elif not isinstance(target, (Quantity, AffineQuantity)):
+        elif not isinstance(target, (Quantity, _Point)):
             return NotImplemented
     options = {k: v for k, v in kwargs.items() if k != 'out'}
     result = _dispatch_ufunc(ufunc, '__call__', inputs, options)
     if result is NotImplemented:
         return NotImplemented
     buffers = [
-        x.value if isinstance(x, (Quantity, AffineQuantity)) else x
-        for x in outputs
-        if x is not None
+        x.value if isinstance(x, (Quantity, _Point)) else x for x in outputs if x is not None
     ]
     if any(type(buffer) is not np.ndarray for buffer in buffers):
         raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
@@ -251,10 +251,10 @@ def _dispatch_multi_output(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str
     returned = []
     staged = []
     for value, target in zip(result, outputs):
-        raw = value.value if isinstance(value, (Quantity, AffineQuantity)) else value
+        raw = value.value if isinstance(value, (Quantity, _Point)) else value
         if np.shape(raw) != shape:
             raw = np.broadcast_to(raw, shape).copy()
-            value = _wrap(raw, value.unit) if isinstance(value, (Quantity, AffineQuantity)) else raw
+            value = _wrap(raw, value.unit) if isinstance(value, (Quantity, _Point)) else raw
         if target is not None:
             staged.append(
                 _stage_output(
@@ -294,23 +294,20 @@ def _stage_output(
     casting: Any = 'same_kind',
     broadcast: bool = False,
 ) -> tuple[Any, Any, Any]:
-    if isinstance(result, (Quantity, AffineQuantity)):
-        if (
-            not isinstance(target, (Quantity, AffineQuantity))
-            or type(target.value) is not np.ndarray
-        ):
+    if isinstance(result, (Quantity, _Point)):
+        if not isinstance(target, (Quantity, _Point)) or type(target.value) is not np.ndarray:
             raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
         if result.dimension != target.dimension:
             raise DimensionError('out has an incompatible dimension.')
-        if isinstance(result.unit, AffineUnit) != isinstance(target.unit, AffineUnit):
+        if isinstance(result.unit, _Coordinate) != isinstance(target.unit, _Coordinate):
             raise DimensionError('out must preserve point/difference semantics.')
         if (
-            not isinstance(result.unit, AffineUnit)
-            and not isinstance(target.unit, AffineUnit)
+            not isinstance(result.unit, _Coordinate)
+            and not isinstance(target.unit, _Coordinate)
             and not compatible(result.unit, target.unit)
         ):
             raise DimensionError('out has an incompatible logarithmic degree.')
-        if isinstance(result.unit, AffineUnit):
+        if isinstance(result.unit, _Coordinate):
             factor = one
         else:
             assert isinstance(target.unit, Unit)
@@ -324,11 +321,11 @@ def _stage_output(
         buffer = target
     if not buffer.flags.writeable:
         raise ValueError('out buffer is read-only.')
-    value = result.value if isinstance(result, (Quantity, AffineQuantity)) else result
+    value = result.value if isinstance(result, (Quantity, _Point)) else result
     if not broadcast and np.shape(value) != buffer.shape:
         raise ValueError('out must have exactly the result shape.')
-    if isinstance(result, (Quantity, AffineQuantity)):
-        if isinstance(result.unit, AffineUnit):
+    if isinstance(result, (Quantity, _Point)):
+        if isinstance(result.unit, _Coordinate):
             if where is not True:
                 value = np.where(where, value, 0)
             value = convert(value, result.unit, cast(Any, target).unit)
@@ -358,22 +355,26 @@ def _stage_output(
 def _dispatch_ufunc(
     ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    if not all(isinstance(x, (Unit, AffineUnit)) or _is_supported_operand(x) for x in inputs):
+    if not all(isinstance(x, (Unit, _Coordinate)) or _is_supported_operand(x) for x in inputs):
         return NotImplemented
     if any(x is not None for x in kwargs.get('out', ())):
         return NotImplemented
     kwargs = {k: v for k, v in kwargs.items() if k != 'out'}
-    if ufunc is np.matmul and method == '__call__' and isinstance(inputs[1], (Unit, AffineUnit)):
-        if isinstance(inputs[0], (Quantity, AffineQuantity, Unit, AffineUnit)):
+    if ufunc is np.matmul and method == '__call__' and isinstance(inputs[1], (Unit, _Coordinate)):
+        if isinstance(inputs[0], (Quantity, _Point, Unit, _Coordinate)):
             raise TypeError('Only a bare numeric magnitude can construct a point with @.')
         if kwargs:
             return NotImplemented
-        return AffineQuantity(inputs[0], inputs[1])
-    inputs = tuple(linear_unit(x) if isinstance(x, AffineUnit) else x for x in inputs)
-    if any(isinstance(x, AffineQuantity) for x in inputs):
+        return (
+            inputs[1].__rmatmul__(inputs[0])
+            if isinstance(inputs[1], _Coordinate)
+            else AffineQuantity(inputs[0], inputs[1])
+        )
+    inputs = tuple(linear_unit(x) if isinstance(x, _Coordinate) else x for x in inputs)
+    if any(isinstance(x, _Point) for x in inputs):
         return _affine_ufunc(ufunc, method, inputs, kwargs)
     if method == 'reduce' and ufunc in (np.add, np.multiply):
-        if not isinstance(inputs[0], (Quantity, AffineQuantity)) or kwargs.keys() - {
+        if not isinstance(inputs[0], (Quantity, _Point)) or kwargs.keys() - {
             'axis',
             'dtype',
             'keepdims',
@@ -408,7 +409,7 @@ def _dispatch_ufunc(
         return _wrap(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.hypot, np.arctan2):
         a, b, unit = _align_operands(*inputs)
-        if unit.log_degree:
+        if unit.dimension != unit.dimension.physical:
             raise DimensionError('Convert logarithmic quantities to physical ratios first.')
         return _wrap(ufunc(a, b, **kwargs), Unit('rad') if ufunc is np.arctan2 else unit)
     if ufunc in _COMPARISON_UFUNCS.values():
@@ -457,19 +458,17 @@ def _dispatch_ufunc(
         return _wrap(ufunc(a, **kwargs), unit**power)
     if ufunc in (np.power, np.float_power):
         exponent, exponent_unit = _linear_parts(inputs[1])
-        if not exponent_unit.is_dimensionless() or exponent_unit.log_degree:
+        if exponent_unit.dimension != DIMENSIONLESS:
             raise DimensionError('Exponents must be dimensionless.')
         exponent = scale_magnitude(exponent, exponent_unit.factor)
         if np.iscomplexobj(exponent) or not np.all(np.isfinite(exponent)):
             raise TypeError('Exponents must be finite real values.')
-        if unit.is_dimensionless() and not unit.log_degree:
+        if unit.dimension == DIMENSIONLESS:
             return _wrap(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), Unit())
         if np.ndim(exponent) != 0:
             raise TypeError('Dimensional powers require one scalar exponent.')
         scalar = exponent.item() if isinstance(exponent, (np.ndarray, np.generic)) else exponent
-        raw_exponent = (
-            inputs[1].value if isinstance(inputs[1], (Quantity, AffineQuantity)) else inputs[1]
-        )
+        raw_exponent = inputs[1].value if isinstance(inputs[1], (Quantity, _Point)) else inputs[1]
         rational, irrational = exponent_unit.factor.decompose()
         if isinstance(raw_exponent, (Fraction, Decimal)) and irrational == one:
             power = Fraction(raw_exponent) * rational
@@ -477,11 +476,11 @@ def _dispatch_ufunc(
             power = as_exponent(scalar) if type(scalar) in (int, float) else Fraction(str(scalar))
         return _wrap(ufunc(a, exponent, **kwargs), unit**power)
     if ufunc in (np.arcsin, np.arccos, np.arctan):
-        if not unit.is_dimensionless() or unit.log_degree:
+        if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
     if ufunc in (np.sin, np.cos, np.tan, np.exp, np.expm1, np.log, np.log2, np.log10, np.log1p):
-        if not unit.is_dimensionless() or unit.log_degree:
+        if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit())
     return NotImplemented
@@ -505,13 +504,13 @@ def _convert_tolerance(value: Any, unit: Unit, name: str) -> Any:
         raise ValueError(f'{name} must be finite and nonnegative.')
     # Bare zero absolute tolerance is meaningful in any dimension.
     if (
-        isinstance(source, AffineUnit)
-        or isinstance(unit, AffineUnit)
+        isinstance(source, _Coordinate)
+        or isinstance(unit, _Coordinate)
         or not compatible(source, unit)
     ):
         if (
             name == 'abs_tol'
-            and not isinstance(value, (Quantity, AffineQuantity))
+            and not isinstance(value, (Quantity, _Point))
             and np.all(np.equal(raw, 0))
         ):
             return raw
@@ -528,10 +527,9 @@ def isclose(
     if not _is_supported_operand(left) or not _is_supported_operand(right):
         raise TypeError('isclose requires supported numeric magnitudes.')
     if any(
-        isinstance(x, (Quantity, AffineQuantity)) and isinstance(x.unit, AffineUnit)
-        for x in (left, right)
+        isinstance(x, (Quantity, _Point)) and isinstance(x.unit, _Coordinate) for x in (left, right)
     ):
-        from .affinequantity import _isclose
+        from ._points import _isclose
 
         return _isclose(left, right, rel_tol, abs_tol, equal_nan=equal_nan)
     if symmetric:
@@ -569,13 +567,9 @@ def isclose(
 def dispatch_function(
     func: Any, types: tuple[type, ...], args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    if any(t not in (Quantity, AffineQuantity, np.ndarray) for t in types):
+    if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
-    if (
-        args
-        and isinstance(args[0], (Quantity, AffineQuantity))
-        and isinstance(args[0].unit, AffineUnit)
-    ):
+    if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
         if func not in (
             np.isclose,
             np.allclose,
@@ -605,7 +599,7 @@ def dispatch_function(
         return _gradient(*args, **kwargs)
     if (
         not args
-        or not isinstance(args[0], (Quantity, AffineQuantity))
+        or not isinstance(args[0], (Quantity, _Point))
         or not _is_supported_operand(args[0])
     ):
         return NotImplemented
@@ -649,7 +643,7 @@ def _join_arrays(
     arrays = tuple(arrays)
     if not arrays or not all(_is_supported_operand(x) for x in arrays):
         return NotImplemented
-    first = next((x for x in arrays if isinstance(x, (Quantity, AffineQuantity))), None)
+    first = next((x for x in arrays if isinstance(x, (Quantity, _Point))), None)
     if first is None:
         return NotImplemented
     values = []
@@ -657,7 +651,7 @@ def _join_arrays(
         raw, unit = _operand_parts(x)
         if unit.dimension != first.dimension:
             raise DimensionError('All concatenated inputs must have compatible dimensions.')
-        if isinstance(unit, AffineUnit) != isinstance(first.unit, AffineUnit):
+        if isinstance(unit, _Coordinate) != isinstance(first.unit, _Coordinate):
             raise DimensionError('Concatenation requires matching point/difference semantics.')
         values.append(_numeric_value(convert(raw, unit, first.unit)))
     if dtype is not None and np.dtype(dtype).kind not in 'iufc':
@@ -692,7 +686,7 @@ def _trapezoid(y: Any, x: Any = None, dx: Any = 1.0, axis: int = -1) -> Any:
             return NotImplemented
         coordinates, coordinate_unit = _operand_parts(x)
         result = np.trapezoid(value, x=coordinates, axis=axis)
-    if isinstance(unit, AffineUnit) or isinstance(coordinate_unit, AffineUnit):
+    if isinstance(unit, _Coordinate) or isinstance(coordinate_unit, _Coordinate):
         raise TypeError('Integration requires explicit physical units for affine coordinates.')
     return _wrap(result, unit * coordinate_unit)
 
@@ -790,7 +784,7 @@ def _sum(
         if not compatible(initial_unit, unit):
             # Bare zero is the additive identity in any dimension. A Quantity
             # zero still has its declared dimension and must be compatible.
-            if isinstance(initial, (Quantity, AffineQuantity)) or initial != 0:
+            if isinstance(initial, (Quantity, _Point)) or initial != 0:
                 raise DimensionError('initial has an incompatible dimension.')
         else:
             initial_value = scale_magnitude(initial_value, initial_unit.factor / unit.factor)
@@ -826,13 +820,13 @@ def _prod(
     value, unit = _linear_parts(q)
     mask = np.broadcast_to(where, np.shape(value))
     # Different counts still have one coherent unit for dimensionless inputs.
-    if unit.is_dimensionless() and not unit.log_degree:
+    if unit.dimension == DIMENSIONLESS:
         value = scale_magnitude(value, unit.factor, where=mask)
         unit = Unit()
     result = np.multiply.reduce(
         value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where
     )
-    if not unit.is_dimensionless() or unit.log_degree:
+    if unit.dimension != DIMENSIONLESS:
         shape = np.shape(value)
         axes = range(len(shape)) if axis is None else axis if isinstance(axis, tuple) else (axis,)
         # NumPy has already validated axes, including its scalar 0/-1 special case.
@@ -866,7 +860,7 @@ def _std_var(
 ) -> Any:
     _validate_dtype(dtype)
     _validate_where({'where': where})
-    delta = q.unit.delta_unit if isinstance(q.unit, AffineUnit) else q.unit
+    delta = q.unit.delta_unit if isinstance(q.unit, _Coordinate) else q.unit
     unit = delta**2 if func is np.var else delta
     result = _wrap(
         func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims, where=where), unit
@@ -882,12 +876,8 @@ def _validate_dtype(dtype: Any) -> None:
 def power(q: Any, exponent: Any) -> Any:
     if isinstance(exponent, (Fraction, Decimal)):
         exact = as_exponent(exponent)
-        unit = Unit() if q.is_dimensionless() and not q.unit.log_degree else q.unit**exact
-        value = (
-            scale_magnitude(q.value, q.unit.factor)
-            if q.is_dimensionless() and not q.unit.log_degree
-            else q.value
-        )
+        unit = Unit() if q.dimension == DIMENSIONLESS else q.unit**exact
+        value = scale_magnitude(q.value, q.unit.factor) if q.dimension == DIMENSIONLESS else q.value
         return _wrap(np.power(value, float(exponent)), unit)
     return apply_ufunc('power', q, exponent)
 
@@ -944,7 +934,7 @@ def affine_close_magnitude(
 
 
 def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
-    from .affinequantity import _addition_parts, _compare
+    from ._points import _addition_parts, _compare
 
     if method != '__call__':
         raise TypeError('Affine points cannot be accumulated or reduced with arithmetic ufuncs.')
@@ -955,13 +945,13 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
         raise TypeError('Affine operations require real numeric output.')
     if 'where' in kwargs:
         kwargs = {**kwargs, 'out': (None,) * ufunc.nout}
-    if any(isinstance(x, (AffineUnit, Unit)) for x in inputs):
+    if any(isinstance(x, (_Coordinate, Unit)) for x in inputs):
         raise TypeError('Affine unit objects cannot participate in this ufunc.')
     if 'where' in kwargs:
         mask = kwargs['where']
         inputs = tuple(
             _wrap(np.where(mask, x.value, 0), x.unit)
-            if isinstance(x, (Quantity, AffineQuantity))
+            if isinstance(x, (Quantity, _Point))
             else np.where(mask, x, 0)
             for x in inputs
         )
@@ -971,9 +961,9 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
     if ufunc in _COMPARISON_UFUNCS.values():
         op = next(op for op, func in _COMPARISON_UFUNCS.items() if func is ufunc)
         left, right = inputs
-        if not isinstance(left, (Quantity, AffineQuantity)):
+        if not isinstance(left, (Quantity, _Point)):
             left = _wrap(left, Unit())
-        if not isinstance(left, AffineQuantity) and isinstance(right, AffineQuantity):
+        if not isinstance(left, _Point) and isinstance(right, _Point):
             reverse = {
                 operator.eq: operator.eq,
                 operator.ne: operator.ne,
@@ -993,8 +983,7 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
         return ufunc(q.value, **kwargs)
     if ufunc in (np.minimum, np.maximum):
         if not all(
-            isinstance(x, (Quantity, AffineQuantity)) and isinstance(x.unit, AffineUnit)
-            for x in inputs
+            isinstance(x, (Quantity, _Point)) and isinstance(x.unit, _Coordinate) for x in inputs
         ):
             raise TypeError('Selection requires compatible affine points.')
         a, b = inputs
@@ -1015,9 +1004,9 @@ def _extremum(
     _validate_where({'where': where})
     kwargs = dict(axis=axis, keepdims=keepdims, where=where)
     if initial is not _UNSET:
-        if not isinstance(initial, (Quantity, AffineQuantity)):
+        if not isinstance(initial, (Quantity, _Point)):
             raise TypeError('initial must carry the result coordinate/unit.')
-        if isinstance(initial.unit, AffineUnit) != isinstance(q.unit, AffineUnit):
+        if isinstance(initial.unit, _Coordinate) != isinstance(q.unit, _Coordinate):
             raise DimensionError('initial must have matching point/difference semantics.')
         kwargs['initial'] = convert(initial.value, initial.unit, q.unit)
     return _write_output(_wrap(func(q.value, **kwargs), q.unit), out)

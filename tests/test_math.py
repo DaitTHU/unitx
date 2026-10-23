@@ -9,7 +9,7 @@ import pytest
 from unitx import AffineQuantity, Quantity, math, pi
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
 
 
 def test_math_root_units():
@@ -20,7 +20,7 @@ def test_math_root_units():
     assert math.cbrt(Quantity(-8, 'm3')) == Quantity(-2, 'm')
     assert math.sqrt(Quantity(4, 'm')).unit ** 2 == Unit('m')
     assert math.cbrt(Quantity(8, 'm')).unit ** 3 == Unit('m')
-    assert math.sqrt(Quantity(4, ScaledUnit('m2', Factor(9)))).value_in('m') == 6
+    assert math.sqrt(Quantity(4, Unit('m2', scale=Factor(9)))).value_in('m') == 6
 
 
 @pytest.mark.parametrize(

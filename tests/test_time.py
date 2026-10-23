@@ -4,10 +4,10 @@ from fractions import Fraction
 
 import pytest
 
-from unitx import AffineQuantity, AffineUnit, Quantity, time
+from unitx import AffineQuantity, AffineUnit, LogUnit, Quantity, time
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_to_timedelta_decimal_context():
         assert time.to_timedelta(Quantity(Decimal('1.2345675'), 's')) == timedelta(
             microseconds=1234568
         )
-    unit = ScaledUnit('s', Factor(Fraction(1, 3)))
+    unit = Unit('s', scale=Factor(Fraction(1, 3)))
     assert time.to_timedelta(Quantity(3, unit)) == timedelta(seconds=1)
     assert time.to_timedelta(Quantity(Fraction(1, 3), 'min')) == timedelta(seconds=20)
 
@@ -225,8 +225,8 @@ def test_datetime_invalid_input():
         time.to_datetime(AffineQuantity(0, 's'), tz=None)
     with pytest.raises(DimensionError):
         time.to_datetime(AffineQuantity(1, 'm'))
-    logarithmic = AffineUnit(Quantity(1, 's'), delta_unit='dB', kind='power')
-    with pytest.raises(DimensionError, match='linear time'):
+    logarithmic = LogUnit(Quantity(1, 's'), delta_unit='dB', kind='power')
+    with pytest.raises(TypeError, match='AffineQuantity time point'):
         time.to_datetime(0 @ logarithmic)
 
 

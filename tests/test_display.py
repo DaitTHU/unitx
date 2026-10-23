@@ -8,11 +8,10 @@ from fractions import Fraction
 
 import pytest
 
-from unitx.affinequantity import AffineQuantity
+from unitx import AffineQuantity, AffineUnit
 from unitx.factor import Factor
 from unitx.quantity import Quantity
-from unitx.si import si
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
 
 
 def test_structural_unit_rendering():
@@ -24,7 +23,7 @@ def test_structural_unit_rendering():
     assert Unit().to_latex() == '1'
 
 
-@pytest.mark.parametrize('unit', [Unit(), Unit('m/s^2'), ScaledUnit('m', Factor(Fraction(2, 3)))])
+@pytest.mark.parametrize('unit', [Unit(), Unit('m/s^2'), Unit('m', scale=Factor(Fraction(2, 3)))])
 def test_notebook_protocol(unit):
     for obj in (unit, Quantity(Fraction(2, 3), unit)):
         assert obj._repr_latex_() == '$' + obj.to_latex() + '$'
@@ -34,28 +33,28 @@ def test_notebook_protocol(unit):
         assert repr(restored) == repr(obj)
 
 
-def test_scaled_unit_keeps_exact_scale():
-    unit = ScaledUnit('m', Factor(Fraction(2, 3)))
+def test_unit_scale_keeps_exact_scale():
+    unit = Unit('m', scale=Factor(Fraction(2, 3)))
     assert unit.to_latex() == r'\text{2}/\text{3}\,\text{m}'
     assert Quantity(4, unit).to_latex() == (r'\text{4}\,\left(\text{2}/\text{3}\,\text{m}\right)')
     assert Quantity(4, unit).to_html() == (
         '<span class="unitx"><span style="white-space: pre-wrap">4</span>'
         '&thinsp;(2/3&thinsp;m)</span>'
     )
-    assert ScaledUnit('', Factor(2)).to_latex() == r'\text{2}'
-    assert Quantity(4, ScaledUnit('', Factor(2))).to_latex() == (r'\text{4}\,\left(\text{2}\right)')
-    assert ScaledUnit('m', Factor(1)).to_latex() == Unit('m').to_latex()
-    assert ScaledUnit('m', Factor(2) ** Fraction(1, 2)).to_latex() == (r'\text{2}^{1/2}\,\text{m}')
+    assert Unit('', scale=Factor(2)).to_latex() == r'\text{2}'
+    assert Quantity(4, Unit('', scale=Factor(2))).to_latex() == (r'\text{4}\,\left(\text{2}\right)')
+    assert Unit('m', scale=Factor(1)).to_latex() == Unit('m').to_latex()
+    assert Unit('m', scale=Factor(2) ** Fraction(1, 2)).to_latex() == (r'\text{2}^{1/2}\,\text{m}')
 
 
 @pytest.mark.parametrize(
     'unit',
     [
         Unit(),
-        ScaledUnit('m', scale=Factor(2)),
-        ScaledUnit('m', scale=Factor(Fraction(2, 3))),
-        ScaledUnit('', scale=Factor(2)),
-        ScaledUnit('s^(-1/2)', scale=Factor(2) ** Fraction(1, 3)),
+        Unit('m', scale=Factor(2)),
+        Unit('m', scale=Factor(Fraction(2, 3))),
+        Unit('', scale=Factor(2)),
+        Unit('s^(-1/2)', scale=Factor(2) ** Fraction(1, 3)),
     ],
 )
 def test_affine_quantity_zero_origin_display(unit):
@@ -79,11 +78,13 @@ def test_affine_quantity_zero_origin_display(unit):
     assert point.unit.delta_unit is unit
 
 
-@pytest.mark.parametrize('coordinate', [si.K, si.degC, si.dBm])
-def test_affine_quantity_named_zero_origin_display(coordinate):
+def test_affine_quantity_named_zero_origin_display():
+    unit = Unit('m', scale=Factor(2))
+    coordinate = AffineUnit(0 * unit).define('displaySpan')
     point = 3 @ coordinate
-    assert str(point) == f'3 {coordinate.symbol}'
-    assert point.to_latex() == r'\text{3}\,' + coordinate.to_latex()
+    assert str(point) == '3 displaySpan'
+    assert point.to_latex() == r'\text{3}\,\text{displaySpan}'
+    assert point.to_quantity('m').value == 6
 
 
 @pytest.mark.parametrize('spec', ['', '.2f', '>12.3e', ';text', '.1f;latex', '.1f;html'])
@@ -189,7 +190,7 @@ def test_custom_magnitude_formatting_and_escaping():
 
 
 def test_complex_grouping_and_scale_immutability():
-    q = Quantity(1 + 2j, ScaledUnit('m/s', Factor(Fraction(2, 3))))
+    q = Quantity(1 + 2j, Unit('m/s', scale=Factor(Fraction(2, 3))))
     original = repr(q)
     assert format(q, '.1f').startswith('(1.0+2.0j) ')
     assert '(1.0+2.0j)' in q.to_latex('.1f')
@@ -201,7 +202,7 @@ def test_complex_grouping_and_scale_immutability():
 def test_ipython_mime_dispatch_when_available():
     ipython = pytest.importorskip('IPython.core.formatters')
     formatter = ipython.DisplayFormatter()
-    for obj in (Unit('m/s'), ScaledUnit('m', Factor(2)), Quantity(Fraction(2, 3), 'm')):
+    for obj in (Unit('m/s'), Unit('m', scale=Factor(2)), Quantity(Fraction(2, 3), 'm')):
         data, _ = formatter.format(obj)
         assert data['text/latex'] == obj._repr_latex_()
         assert data['text/html'] == obj._repr_html_()
@@ -235,13 +236,13 @@ def test_complex_native_parentheses_and_alignment(spec, expected):
 
 
 def test_registered_symbol_escaping():
-    from unitx.unitregistry import (
-        UNIT_DEFINITIONS,
-        UNIT_NAME_TO_SYMBOL,
-        UNIT_SYMBOL_ALIAS_TO_SYMBOL,
-    )
+    from unitx.unitregistry import default_registry
 
-    tables = UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL
+    tables = (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    )
     snapshots = [table.copy() for table in tables]
     try:
         unit = Unit('m').define('disp<&_$', 'display literal unit', prefixable=False)
@@ -310,7 +311,7 @@ def test_unit_format_selection_and_alignment():
 
 
 def test_inline_fractional_powers_and_extra_scale():
-    unit = ScaledUnit('m^(1/3)/s', Factor(Fraction(2, 3)))
+    unit = Unit('m^(1/3)/s', scale=Factor(Fraction(2, 3)))
     expected = r'\text{2}\,\text{3}^{-1}\,\text{m}^{1/3}\,\text{s}^{-1}'
     assert unit.to_latex(fraction=False) == expected
     q = Quantity(Fraction(2, 3), unit)
@@ -353,7 +354,7 @@ def test_numpy_scalars_and_arrays_have_distinct_rich_boundaries():
     assert q.value is data
 
 
-@pytest.mark.parametrize('unit', [Unit(), ScaledUnit('', Factor(1))])
+@pytest.mark.parametrize('unit', [Unit(), Unit('', scale=Factor(1))])
 def test_identity_unit_is_omitted_in_all_quantity_representations(unit):
     q = Quantity(4, unit)
     assert q.to_latex() == r'\text{4}'

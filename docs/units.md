@@ -35,9 +35,10 @@ and `Kg` raise `UnitSymbolError`. Micro accepts canonical `µ`, Unicode `μ`,
 and keyboard-friendly ASCII `u` without warnings.
 
 `Quantity(value, unit)` accepts a linear unit expression, an existing Unit, or
-an AffineUnit descriptor projected to its linear side. Quantity.unit is always Unit.
+an AffineUnit or LogUnit descriptor projected to its linear side. Quantity.unit is always Unit.
 `Unit(text)` always returns Unit, including `Unit('degC')` for Celsius differences.
-Absolute readings use `AffineQuantity(value, unit)` or `value @ unit`; see
+Absolute readings use AffineQuantity for linear coordinates and LogQuantity for
+logarithmic coordinates, or `value @ coordinate`; see
 [affine and logarithmic coordinates](affine.md) for their separate point rules.
 `value * unit` constructs a quantity, and `value / unit` constructs a quantity
 with the reciprocal unit. Construction preserves the original magnitude and
@@ -49,7 +50,7 @@ Multiplication is symmetric: `unit * value` and `value * unit` both construct
 `Fraction` reciprocal, so `degree / 60` loses no precision. Float divisors use
 native floating-point division without Factor's denominator limit. Booleans
 are not accepted as right-hand numeric operands. A `Factor` or
-`SymbolicConstant` on either side of a unit instead produces a `ScaledUnit`.
+`SymbolicConstant` on either side of a unit instead produces a `Unit`.
 
 ```pycon
 >>> from unitx.factor import Factor
@@ -71,7 +72,7 @@ Fraction(1, 1)
 
 ```
 
-Multiplying a `ScaledUnit` by an ordinary number also constructs a quantity,
+Multiplying a scaled `Unit` by an ordinary number also constructs a quantity,
 keeping the exact scale in its unit and preserving the supplied magnitude.
 Combining a Unit with a Quantity continues to return a Quantity.
 
@@ -96,7 +97,7 @@ True
 
 ```
 
-The local `hbar` above retains the exact scale, whereas predefined `SI.hbar`
+The local `hbar` above retains the exact scale in its Unit, whereas predefined `SI.hbar`
 provides its numerical value in ordinary `J*s` units. `.value` is always the
 magnitude paired with `.unit`, including its exact scale. Use
 `.to('J*s').value` to evaluate the local expression in joule seconds;
@@ -109,7 +110,8 @@ grouped denominator factors and multiplication dots between adjacent numbers.
 
 Use `.to()` to obtain a new quantity in a unit with the same physical dimensions,
 or `.value_in(unit)` to obtain only its numerical value. The target unit is
-required and accepts a string or `Unit`, including `ScaledUnit`.
+required and accepts a string or `Unit`, including a scale specified with
+`Unit(text, scale=Factor(...))`.
 `.value_in(unit)` returns the same value and concrete type as `.to(unit).value`,
 without constructing a temporary quantity. Both follow the conversion rules
 below. A conversion with scale one preserves the original magnitude; Decimal
@@ -232,8 +234,18 @@ spelling-specific prefix policies, validation and process-local reconstruction.
 
 ## Unicode unit characters
 
-See the [catalogue's Unicode table](catalogue.md#unicode-unit-characters) for
+See the [catalogue's Unicode table](catalogues/si.md#unicode-unit-characters) for
 accepted aliases and the distinction between an alias and a compound symbol.
 
 [Documentation index](README.md) · [Scalar numerical behavior](scalars.md) ·
 [Points and differences](affine.md)
+
+
+## Complete compatibility and physical dimensions
+
+`unit.dimension` is the complete algebraic signature used by conversion,
+arithmetic, comparison and hashing. `unit.dimension.physical` projects onto the
+seven physical axes. Named exponents and Dimension tuple/dictionary/text views
+also describe only those seven axes. `unit.is_dimensionless()` is a physical
+question, so dB is physically dimensionless while remaining algebraically
+incompatible with an ordinary ratio. See [logarithmic quantities](logarithmic.md).

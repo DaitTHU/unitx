@@ -6,29 +6,25 @@ from fractions import Fraction
 
 import pytest
 
+from unitx._prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PrefixDefinition
 from unitx.dimension import Dimension
 from unitx.exceptions import UnitRegistryError, UnitSymbolError
 from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.singleunit import SingleUnit
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
+from unitx.unitdefinition import UnitDefinition
 from unitx.unitparser import UnitParser
-from unitx.unitregistry import (
-    NO_PREFIX,
-    PREFIX_DEFINITIONS,
-    UNIT_DEFINITIONS,
-    UNIT_NAME_TO_SYMBOL,
-    UNIT_SYMBOL_ALIAS_TO_SYMBOL,
-    PrefixDefinition,
-    UnitDefinition,
-    _resolve_unit,
-    _resolve_unit_name,
-)
+from unitx.unitregistry import default_registry
 
 
 @pytest.fixture(autouse=True)
 def unit_registry():
-    tables = UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL
+    tables = (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    )
     snapshots = tuple(table.copy() for table in tables)
     yield snapshots
     for table, snapshot in zip(tables, snapshots):
@@ -38,7 +34,8 @@ def unit_registry():
 
 @pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
 def test_unit_define_binding_policy(source) -> None:
-    unit = source.define(
+    unit = default_registry.define(
+        source,
         'rvbind',
         'review binding',
         'review distance',
@@ -64,7 +61,8 @@ def test_unit_define_binding_policy(source) -> None:
 
 @pytest.mark.parametrize('prefix', ['µ', 'μ', 'u'])
 def test_unit_define_prefix_alias(prefix: str) -> None:
-    unit = Unit('m').define(
+    unit = default_registry.define(
+        Unit('m'),
         'rvselect',
         'review selected',
         prefixable=('rvselect', 'review selected'),
@@ -80,7 +78,8 @@ def test_unit_define_prefix_alias(prefix: str) -> None:
 
 @pytest.mark.parametrize('name', ['review name-only', 'reviewnameonly'])
 def test_single_unit_name_fallback(name: str) -> None:
-    Unit('m').define(
+    default_registry.define(
+        Unit('m'),
         'rvnameonly',
         name,
         prefixable=(name,),
@@ -91,7 +90,7 @@ def test_single_unit_name_fallback(name: str) -> None:
     assert unit.expression() == '[kilo' + name + ']'
     assert Unit('s') / unit**2 == Unit('s / [' + single.name + ']**2')
     for value in (single, unit, Factor(7) * unit, Quantity(Fraction(3, 2), unit)):
-        assert eval(repr(value), globals() | {'ScaledUnit': ScaledUnit}) == value
+        assert eval(repr(value), globals() | {'Unit': Unit}) == value
         assert copy.copy(value) == copy.deepcopy(value) == value
         restored = pickle.loads(pickle.dumps(value))
         assert restored == value
@@ -102,7 +101,9 @@ def test_single_unit_name_fallback(name: str) -> None:
 
 
 def test_single_unit_symbol_fallback() -> None:
-    Unit('s').define('rvonlysymbol', 'review symbol', prefixable=('rvonlysymbol',))
+    default_registry.define(
+        Unit('s'), 'rvonlysymbol', 'review symbol', prefixable=('rvonlysymbol',)
+    )
     single = SingleUnit('krvonlysymbol')
     assert single.name == single.symbol == 'krvonlysymbol'
     assert SingleUnit(single.name) == single
@@ -113,7 +114,8 @@ def test_single_unit_symbol_fallback() -> None:
 
 @pytest.mark.parametrize('allowed', ['rvallowed', 'review permitted'])
 def test_single_unit_empty_aliases(allowed: str) -> None:
-    Unit('m').define(
+    default_registry.define(
+        Unit('m'),
         'rvempty',
         'review empty',
         '',
@@ -131,7 +133,7 @@ def test_single_unit_empty_aliases(allowed: str) -> None:
 
 @pytest.mark.parametrize('policy', [False, ()])
 def test_unit_define_prefix_disabled(policy) -> None:
-    unit = Unit('m').define('rvpolicy', 'review policy', prefixable=policy)
+    unit = default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable=policy)
     assert Unit('rvpolicy') == Unit('review policy') == unit
     for text in ('mrvpolicy', 'millireview policy'):
         with pytest.raises(UnitSymbolError):
@@ -139,7 +141,9 @@ def test_unit_define_prefix_disabled(policy) -> None:
 
 
 def test_unit_define_duplicate_spellings() -> None:
-    Unit('m').define('rvpolicy', 'review policy', prefixable=('rvpolicy', 'rvpolicy'))
+    default_registry.define(
+        Unit('m'), 'rvpolicy', 'review policy', prefixable=('rvpolicy', 'rvpolicy')
+    )
     assert Unit('mrvpolicy').factor == Factor(Fraction(1, 1000))
     with pytest.raises(UnitSymbolError):
         Unit('millireview policy')
@@ -148,7 +152,8 @@ def test_unit_define_duplicate_spellings() -> None:
 @pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
 @pytest.mark.parametrize('spelling', ['rvselect', 'rvselected', 'review selected', 'review alias'])
 def test_unit_define_string_policy(source, spelling: str) -> None:
-    unit = source.define(
+    unit = default_registry.define(
+        source,
         'rvselect',
         'review selected',
         'review alias',
@@ -166,67 +171,101 @@ def test_unit_define_string_policy(source, spelling: str) -> None:
                 Unit(prefixed)
 
 
-@pytest.mark.parametrize('policy', [None, [], ['rvpolicy'], {}, {'rvpolicy': True}, 1])
+@pytest.mark.parametrize('policy', [[], ['rvpolicy'], {}, {'rvpolicy': True}, 1])
 def test_unit_define_invalid_policy(policy, unit_registry) -> None:
     with pytest.raises(TypeError, match='Prefixable must be bool, str or tuple of spellings'):
-        Unit('m').define('rvpolicy', 'review policy', prefixable=policy)
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
+        default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable=policy)
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == unit_registry
 
 
 @pytest.mark.parametrize('text', [1, None, True, ('rvpolicy',)])
 def test_unit_define_invalid_policy_type(text, unit_registry) -> None:
     with pytest.raises(TypeError, match='Prefixable spellings must be str'):
-        Unit('m').define('rvpolicy', 'review policy', prefixable=('rvpolicy', text))
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
+        default_registry.define(
+            Unit('m'), 'rvpolicy', 'review policy', prefixable=('rvpolicy', text)
+        )
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == unit_registry
 
 
 @pytest.mark.parametrize('text', ['unknown', '', 'mrvpolicy', 'm', 'µ'])
 @pytest.mark.parametrize('as_tuple', [False, True])
 def test_unit_define_invalid_policy_spelling(text: str, as_tuple: bool, unit_registry) -> None:
     with pytest.raises(ValueError, match='is not a registered spelling'):
-        Unit('m').define(
-            'rvpolicy', 'review policy', prefixable=('rvpolicy', text) if as_tuple else text
+        default_registry.define(
+            Unit('m'),
+            'rvpolicy',
+            'review policy',
+            prefixable=('rvpolicy', text) if as_tuple else text,
         )
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == unit_registry
 
 
 @pytest.mark.parametrize('first', [True, False])
 def test_unit_define_policy_conflict(first: bool) -> None:
     if first:
-        Unit('m').define('rvconf', 'review collision', prefixable=('rvconf',))
+        default_registry.define(Unit('m'), 'rvconf', 'review collision', prefixable=('rvconf',))
         before = tuple(
             table.copy()
-            for table in (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL)
+            for table in (
+                default_registry._bindings.definitions,
+                default_registry._bindings.names,
+                default_registry._bindings.aliases,
+            )
         )
         with pytest.raises(UnitRegistryError):
-            Unit('s').define('mrvconf', 'review occupied', prefixable=False)
+            default_registry.define(Unit('s'), 'mrvconf', 'review occupied', prefixable=False)
     else:
-        Unit('s').define('mrvconf', 'review occupied', prefixable=False)
+        default_registry.define(Unit('s'), 'mrvconf', 'review occupied', prefixable=False)
         before = tuple(
             table.copy()
-            for table in (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL)
+            for table in (
+                default_registry._bindings.definitions,
+                default_registry._bindings.names,
+                default_registry._bindings.aliases,
+            )
         )
         with pytest.raises(UnitRegistryError):
-            Unit('m').define('rvconf', 'review collision', prefixable=('rvconf',))
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == before
+            default_registry.define(Unit('m'), 'rvconf', 'review collision', prefixable=('rvconf',))
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == before
 
 
 @pytest.mark.parametrize('text', ['rv[unit', 'rv]unit', '[rvunit]', 'rv²', 'rv⁻¹'])
 @pytest.mark.parametrize('kind', ['symbol', 'name', 'symbol_alias', 'name_alias'])
 def test_unit_define_invalid_reserved(text: str, kind: str, unit_registry) -> None:
     with pytest.raises(ValueError):
-        Unit('m').define(
+        default_registry.define(
+            Unit('m'),
             text if kind == 'symbol' else 'rvreserved',
             text if kind == 'name' else 'review reserved',
             *(text,) if kind == 'name_alias' else (),
             symbol_aliases=text if kind == 'symbol_alias' else (),
         )
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == unit_registry
 
 
 @pytest.mark.parametrize('name', ['review-name', 'review-name measure', 'review-name-measure'])
 def test_unit_define_hyphenated_name(name: str) -> None:
-    unit = Unit('m').define('rvhyphen', name, 'review alternative-name')
+    unit = default_registry.define(Unit('m'), 'rvhyphen', name, 'review alternative-name')
     assert SingleUnit(name).symbol == 'rvhyphen'
     assert Unit(name) == unit
     assert Unit('[review alternative-name]') == unit
@@ -242,15 +281,19 @@ def test_unit_define_hyphenated_name(name: str) -> None:
 )
 def test_unit_define_invalid_hyphen(name: str, unit_registry) -> None:
     with pytest.raises(ValueError):
-        Unit('m').define('rvhyphen', name)
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
+        default_registry.define(Unit('m'), 'rvhyphen', name)
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == unit_registry
 
 
 def test_unit_parser_reference_retry() -> None:
     parser = UnitParser('[review pending] / s')
     with pytest.raises(UnitSymbolError):
         parser.parse()
-    unit = Unit('m').define('rvpending', 'review pending')
+    unit = default_registry.define(Unit('m'), 'rvpending', 'review pending')
     result = parser.parse()
     assert result is parser.parse()
     assert result == UnitParser('rvpending/s').parse()
@@ -265,7 +308,7 @@ def test_unit_parser_reference_retry() -> None:
             for field in ('symbol', 'symbol_aliases', 'names', 'factor')
         ),
         *(
-            (UNIT_DEFINITIONS['m'], field)
+            (default_registry._bindings.definitions['m'], field)
             for field in ('symbols', 'names', 'factor', 'dimension', 'prefixable')
         ),
     ],
@@ -282,13 +325,13 @@ def test_unit_definition_immutable(definition, attribute: str) -> None:
 
 
 def test_single_unit_registration_stability() -> None:
-    Unit('m').define('rvstable', 'review stable', prefixable='review stable')
+    default_registry.define(Unit('m'), 'rvstable', 'review stable', prefixable='review stable')
     single = SingleUnit('kiloreview stable')
     lookup = {single: 'original'}
     before = single.symbol, single.name, single.factor, single.dimension, hash(single)
-    Unit('s').define('rvadditional', 'review additional')
+    default_registry.define(Unit('s'), 'rvadditional', 'review additional')
     with pytest.raises(UnitRegistryError):
-        Unit('s').define('rvstable', 'review replacement')
+        default_registry.define(Unit('s'), 'rvstable', 'review replacement')
     assert (single.symbol, single.name, single.factor, single.dimension, hash(single)) == before
     assert lookup[SingleUnit(single.symbol)] == 'original'
     assert pickle.loads(pickle.dumps(single)) == single
@@ -331,12 +374,52 @@ def test_unit_definition_aliases(aliases: str | tuple[str, ...], expected: tuple
     assert definition.symbols == ('rvunit', *expected)
 
 
+def test_unit_definition_defaults() -> None:
+    first, second = UnitDefinition('span'), UnitDefinition('span')
+    assert first.symbol == first.name == 'span'
+    assert first.factor == Factor(1)
+    assert first.dimension == Dimension()
+    assert first.dimension == first.dimension.physical
+    assert not hasattr(first, 'coordinate')
+    assert first != second and len({first, second}) == 2
+
+
+@pytest.mark.parametrize('symbol', ['', 'bad token', 'm2', 'm/s'])
+def test_unit_definition_invalid_symbol(symbol: str) -> None:
+    with pytest.raises(ValueError, match='Unit symbol must be a single printable unit token'):
+        UnitDefinition(symbol)
+
+
+@pytest.mark.parametrize('factor', [None, 0, 2.0, '2'])
+def test_unit_definition_invalid_factor(factor) -> None:
+    with pytest.raises(TypeError, match='Unit definition factor must be a Factor'):
+        UnitDefinition('span', factor=factor)
+
+
+@pytest.mark.parametrize('dimension', [None, 'L', (1,)])
+def test_unit_definition_invalid_dimension(dimension) -> None:
+    with pytest.raises(TypeError, match='Unit definition dimension must be a Dimension'):
+        UnitDefinition('span', dimension=dimension)
+
+
+def test_unit_definition_invalid_prefix_conflict() -> None:
+    with pytest.raises(UnitRegistryError, match='conflicting prefix meanings'):
+        UnitDefinition('span', symbol_aliases='kspan')
+
+
+def test_unit_definition_independent_spellings() -> None:
+    first = UnitDefinition('m', dimension=Dimension(T=1))
+    second = UnitDefinition('m', dimension=Dimension(L=1))
+    assert first is not second and first.dimension != second.dimension
+    assert Unit('m').dimension == Dimension(L=1)
+
+
 @pytest.mark.parametrize('symbol', ['Km', 'Kg', 'Krvlen'])
 def test_unit_define_uppercase_symbol(symbol: str) -> None:
     # These spellings no longer have a built-in prefix meaning.
     with pytest.raises(UnitSymbolError):
         SingleUnit(symbol)
-    custom = Unit('s').define(symbol, 'review uppercase', prefixable=False)
+    custom = default_registry.define(Unit('s'), symbol, 'review uppercase', prefixable=False)
     assert Unit(symbol) == custom
     assert custom.dimension == Unit('s').dimension
     assert SingleUnit(symbol).prefix_symbol == ''
@@ -362,9 +445,9 @@ def test_unit_define_uppercase_symbol(symbol: str) -> None:
     ],
 )
 def test_unit_resolver_definitions(text: str, prefix: str, symbol: str) -> None:
-    resolved_prefix, resolved_unit = _resolve_unit(text)
+    resolved_prefix, resolved_unit = default_registry._resolve(text)
     assert resolved_prefix is (PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX)
-    assert resolved_unit is UNIT_DEFINITIONS[symbol]
+    assert resolved_unit is default_registry._bindings.definitions[symbol]
 
 
 @pytest.mark.parametrize(
@@ -379,32 +462,37 @@ def test_unit_resolver_definitions(text: str, prefix: str, symbol: str) -> None:
     ],
 )
 def test_unit_name_definitions(text: str, prefix: str, symbol: str) -> None:
-    resolved_prefix, resolved_unit = _resolve_unit_name(text)
+    resolved_prefix, resolved_unit = default_registry._resolve_name(text)
     assert resolved_prefix is (PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX)
-    assert resolved_unit is UNIT_DEFINITIONS[symbol]
+    assert resolved_unit is default_registry._bindings.definitions[symbol]
 
 
 def test_unit_resolver_permissions() -> None:
-    Unit('m').define(
+    default_registry.define(
+        Unit('m'),
         'rvrecord',
         'review record',
         'review permitted',
         symbol_aliases='rvallowed',
         prefixable=('rvallowed', 'review permitted'),
     )
-    prefix, definition = _resolve_unit('urvallowed')
-    name_prefix, name_definition = _resolve_unit_name('microreview permitted')
+    prefix, definition = default_registry._resolve('urvallowed')
+    name_prefix, name_definition = default_registry._resolve_name('microreview permitted')
     assert prefix is name_prefix is PREFIX_DEFINITIONS['µ']
-    assert definition is name_definition is UNIT_DEFINITIONS['rvrecord']
+    assert definition is name_definition is default_registry._bindings.definitions['rvrecord']
     for text in ('urvrecord', 'microreview record'):
         with pytest.raises(UnitSymbolError):
-            _resolve_unit(text)
+            default_registry._resolve(text)
     with pytest.raises(UnitSymbolError):
-        _resolve_unit_name('urvallowed')
+        default_registry._resolve_name('urvallowed')
 
 
 @pytest.mark.parametrize('spelling', ['megaohm', 'megohm', 'kiloohm', 'kilohm'])
 def test_unit_define_invalid_contraction(spelling: str, unit_registry) -> None:
     with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
-        Unit('m').define(spelling, 'review reserved')
-    assert (UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL) == unit_registry
+        default_registry.define(Unit('m'), spelling, 'review reserved')
+    assert (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    ) == unit_registry

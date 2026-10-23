@@ -110,7 +110,8 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     q.__array_ufunc__(np.modf, '__call__', q, out=(widened, None))
     exponents = np.empty(a.shape, dtype=np.int32)
     q.__array_ufunc__(np.frexp, '__call__', q, out=(widened, exponents))
-    assert_type(exponents, npt.NDArray[np.int32])
+    # NumPy versions infer different shape parameters for this plain output array.
+    assert_type(exponents.dtype, np.dtype[np.int32])
     q.__array_function__(np.cumsum, (Quantity,), (q,), {'out': widened})
     scalar_target = Quantity(np.empty(()), 'cm')
     q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))

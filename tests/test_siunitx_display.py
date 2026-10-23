@@ -7,7 +7,7 @@ import pytest
 
 from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
 
 
 @pytest.mark.parametrize(
@@ -48,8 +48,8 @@ def test_dimensionless_and_scale():
     assert Quantity(2, '').to_siunitx() == r'\num{2}'
     assert Quantity(Fraction(2, 3), '').to_siunitx() == (r'\num[parse-numbers=false]{\frac{2}{3}}')
     assert Quantity(2, 'km/m').to_siunitx() == r'\qty{2}{km.m^{-1}}'
-    assert ScaledUnit('m', Factor(1)).to_siunitx() == r'\unit{m}'
-    unit = ScaledUnit('m', Factor(Fraction(2, 3)))
+    assert Unit('m', scale=Factor(1)).to_siunitx() == r'\unit{m}'
+    unit = Unit('m', scale=Factor(Fraction(2, 3)))
     assert unit.to_siunitx() == r'\unit[parse-units=false]{{\text{2}/\text{3}\,\text{m}}}'
     assert Quantity(4, unit).to_siunitx() == (
         r'\qty[parse-units=false]{4}{\left({\text{2}/\text{3}\,\text{m}}\right)}'
@@ -58,7 +58,7 @@ def test_dimensionless_and_scale():
         r'\qty[parse-numbers=false,parse-units=false]{\frac{2}{3}}'
         r'{\left({\text{2}/\text{3}\,\text{m}}\right)}'
     )
-    assert Quantity(4, ScaledUnit('', pi)).to_siunitx() == (
+    assert Quantity(4, Unit('', scale=pi)).to_siunitx() == (
         r'\qty[parse-units=false]{4}{\left({\text{π}}\right)}'
     )
     assert unit.scale == Factor(Fraction(2, 3))
@@ -76,13 +76,13 @@ def test_exact_decimal_and_errors():
 
 
 def test_custom_unit_and_number_escaping():
-    from unitx.unitregistry import (
-        UNIT_DEFINITIONS,
-        UNIT_NAME_TO_SYMBOL,
-        UNIT_SYMBOL_ALIAS_TO_SYMBOL,
-    )
+    from unitx.unitregistry import default_registry
 
-    tables = UNIT_DEFINITIONS, UNIT_NAME_TO_SYMBOL, UNIT_SYMBOL_ALIAS_TO_SYMBOL
+    tables = (
+        default_registry._bindings.definitions,
+        default_registry._bindings.names,
+        default_registry._bindings.aliases,
+    )
     snapshots = [table.copy() for table in tables]
     try:
         unit = Unit('m').define('sifmt_$', 'siunitx display token', prefixable=False)
@@ -135,9 +135,9 @@ def test_generated_ascii_output_compiles_when_tex_available(tmp_path):
         Quantity(1 + 2j, 'm'),
         Quantity(float('inf'), 'm'),
         Quantity(2, ''),
-        Quantity(Fraction(2, 3), ScaledUnit('m', Factor(Fraction(2, 3)))),
-        ScaledUnit('m/(s A)', Factor(Fraction(2, 3))),
-        Quantity(4, ScaledUnit('m/(s A)', Factor(Fraction(2, 3)))),
+        Quantity(Fraction(2, 3), Unit('m', scale=Factor(Fraction(2, 3)))),
+        Unit('m/(s A)', scale=Factor(Fraction(2, 3))),
+        Quantity(4, Unit('m/(s A)', scale=Factor(Fraction(2, 3)))),
     ]
     source = (
         r'\documentclass{article}\usepackage{amsmath,siunitx}\begin{document}'

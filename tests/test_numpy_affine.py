@@ -2,6 +2,7 @@
 
 import pytest
 
+from unitx import LogQuantity
 from unitx.affinequantity import AffineQuantity
 from unitx.exceptions import DimensionError
 from unitx.quantity import Quantity
@@ -29,25 +30,25 @@ def test_array_construction_and_views():
 
 
 def test_array_conversion_and_statistics():
-    q = AffineQuantity(np.array([0.0, 20.0, 30.0]), 'dBm')
-    np.testing.assert_allclose(q.value_in('W'), [0.001, 0.1, 1])
-    assert np.mean(q).unit == AffineQuantity(0, 'dBm').unit
-    assert np.median(q).unit == AffineQuantity(0, 'dBm').unit
+    q = LogQuantity(np.array([0.0, 20.0, 30.0]), 'dBm')
+    np.testing.assert_allclose(q.to_quantity('W').value, [0.001, 0.1, 1])
+    assert np.mean(q).unit == LogQuantity(0, 'dBm').unit
+    assert np.median(q).unit == LogQuantity(0, 'dBm').unit
     assert np.std(q).unit == si.dB
     assert np.var(q).unit == Unit('dB**2')
     np.testing.assert_allclose(np.std(q).value, np.std(q.value))
     t = AffineQuantity(np.array([0.0, 100.0]), 'degC')
-    np.testing.assert_allclose(t.value_in('degF'), [32, 212])
+    np.testing.assert_allclose(t.value_in(si.degF), [32, 212])
     assert np.std(t).unit == si.K
     assert np.var(t).unit == Unit('K**2')
-    joined = np.concatenate([t, AffineQuantity(np.array([32.0]), 'degF')])
+    joined = np.concatenate([t, AffineQuantity(np.array([32.0]), si.degF)])
     np.testing.assert_allclose(joined.value, [0, 100, 0])
 
 
 def test_numpy_add_sub_and_comparison():
-    q = AffineQuantity(np.array([0.0, 20.0]), 'dBm')
+    q = LogQuantity(np.array([0.0, 20.0]), 'dBm')
     np.testing.assert_allclose((q + 10 * si.dB).value, [10, 30])
-    result = q - AffineQuantity(np.array([-30.0, -10.0]), 'dBW')
+    result = q - LogQuantity(np.array([-30.0, -10.0]), 'dBW')
     assert result.unit == si.dB
     np.testing.assert_allclose(result.value, [0, 0])
     np.testing.assert_array_equal(q == Quantity(np.array([0.001, 0.1]), 'W'), [False, False])
@@ -84,7 +85,7 @@ def test_staged_write_and_fixed_point_unit():
     out = np.add(q, Quantity(1, 'K'), out=q)
     assert out is q and q.value is a
     np.testing.assert_array_equal(a, [1, 101])
-    q[:] = AffineQuantity(np.array([32.0, 212.0]), 'degF')
+    q[:] = AffineQuantity(np.array([32.0, 212.0]), si.degF)
     np.testing.assert_allclose(a, [0, 100])
     before = a.copy()
     for op in (
@@ -125,26 +126,26 @@ def test_inplace_and_logarithmic_degree():
 
 def test_masked_scaling_does_not_evaluate_inactive_coordinates():
     q = AffineQuantity(np.array([0.0, 1e308]), 'degC')
-    right = AffineQuantity(np.array([32.0, 1e308]), 'degF')
-    target = AffineQuantity(np.array([7.0, 8.0]), 'degF')
+    right = AffineQuantity(np.array([32.0, 1e308]), si.degF)
+    target = AffineQuantity(np.array([7.0, 8.0]), si.degF)
     with np.errstate(over='raise', invalid='raise'):
-        np.subtract(right, q, where=np.array([True, False]), out=Quantity(np.zeros(2), 'degR'))
+        np.subtract(right, q, where=np.array([True, False]), out=Quantity(np.zeros(2), si.degR))
         np.add(q, Quantity(np.array([1.0, 1e308]), 'K'), where=np.array([True, False]), out=target)
     np.testing.assert_allclose(target.value, [33.8, 8.0])
 
 
 def test_predicates_comparison_masks_and_extrema():
-    q = AffineQuantity(np.array([0.0, 20.0]), 'dBm')
-    assert np.min(q).unit == AffineQuantity(0, 'dBm').unit
+    q = LogQuantity(np.array([0.0, 20.0]), 'dBm')
+    assert np.min(q).unit == LogQuantity(0, 'dBm').unit
     assert np.max(q).value == 20
-    assert np.min(q, initial=AffineQuantity(-1, 'dBm')).value == -1
+    assert np.min(q, initial=LogQuantity(-1, 'dBm')).value == -1
     np.testing.assert_array_equal(Quantity(np.array([0.0, 1.0]), 'dB') == 0, [False, False])
     out = np.array([False, False])
     np.equal(q, q, out=out, where=np.array([True, False]))
     np.testing.assert_array_equal(out, [True, False])
     readonly = q.value.copy()
     readonly.flags.writeable = False
-    point = AffineQuantity(readonly, 'dBm')
+    point = LogQuantity(readonly, 'dBm')
     assert point.to('dBm').value is readonly
     assert np.isfinite(point).all()
     with pytest.raises(ValueError):
@@ -188,8 +189,8 @@ def test_array_at_matrix_separation():
     assert type(point) is AffineQuantity
     assert type(delta) is Quantity
     assert point.value is values and delta.value is values
-    np.testing.assert_array_equal(point.value_in('degF'), [32, 212])
-    np.testing.assert_array_equal(delta.value_in('degF'), [0, 180])
+    np.testing.assert_array_equal(point.value_in(si.degF), [32, 212])
+    np.testing.assert_array_equal(delta.value_in(si.degF), [0, 180])
     left = Quantity(np.eye(2), 'm')
     right = Quantity(np.eye(2), 's')
     matrix = left @ right
@@ -210,11 +211,11 @@ def test_array_at_magnitude_identity(value):
 
 def test_array_at_output_semantics():
     values = np.array([0.0, 100.0])
-    target = AffineQuantity(np.zeros(2), 'degF')
+    target = AffineQuantity(np.zeros(2), si.degF)
     result = np.matmul(values, si.degC, out=target)
     assert result is target
     np.testing.assert_array_equal(target.value, [32, 212])
-    delta_target = Quantity(np.zeros(2), 'degF')
+    delta_target = Quantity(np.zeros(2), si.degF)
     with pytest.raises(DimensionError):
         np.matmul(values, si.degC, out=delta_target)
     np.testing.assert_array_equal(delta_target.value, [0, 0])

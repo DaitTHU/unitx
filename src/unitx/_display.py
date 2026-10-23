@@ -10,7 +10,7 @@ from numbers import Complex, Number, Real
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from .affineunit import AffineUnit
+    from ._coordinates import _Coordinate
     from .unit import Unit
 
 type Style = Literal['latex', 'html']
@@ -18,14 +18,14 @@ type Style = Literal['latex', 'html']
 _DECIMAL_NUMBER = re.compile(r'([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(?:[eE]([+-]?[0-9]+))?')
 
 
-def _display_unit(unit: Unit | AffineUnit) -> Unit | AffineUnit:
+def _display_unit(unit: Unit | _Coordinate) -> Unit | _Coordinate:
     """Render an unnamed zero-origin linear coordinate through its complete Unit."""
-    from .affineunit import AffineUnit
+    from ._coordinates import _Coordinate
 
     if (
-        isinstance(unit, AffineUnit)
+        isinstance(unit, _Coordinate)
         and unit._definition is None
-        and unit.kind is None
+        and unit._kind() is None
         and unit.origin.value == 0
         and unit.origin.unit == unit.delta_unit
     ):
@@ -74,7 +74,7 @@ def product(components: list[tuple[str, Fraction]], style: Style, *, fraction: b
     return f'{top}/{bottom}'
 
 
-def format_unit(unit: Unit | AffineUnit, format_spec: str) -> str:
+def format_unit(unit: Unit | _Coordinate, format_spec: str) -> str:
     """Select rich output or apply ordinary string formatting to a unit."""
     if format_spec == 'latex':
         return unit.to_latex()
@@ -87,23 +87,22 @@ def format_unit(unit: Unit | AffineUnit, format_spec: str) -> str:
     return format(str(unit), format_spec)
 
 
-def siunitx_unit(unit: Unit | AffineUnit) -> str:
+def siunitx_unit(unit: Unit | _Coordinate) -> str:
     body, parsed = siunitx_unit_parts(unit)
     options = '' if parsed else '[parse-units=false]'
     return rf'\unit{options}{{{body or "1"}}}'
 
 
-def unit_body(unit: Unit | AffineUnit, style: Style, *, fraction: bool = True) -> str:
-    from .affineunit import AffineUnit
+def unit_body(unit: Unit | _Coordinate, style: Style, *, fraction: bool = True) -> str:
+    from ._coordinates import _Coordinate
     from .factor import one
-    from .unit import ScaledUnit
 
     unit = _display_unit(unit)
-    if isinstance(unit, AffineUnit):
+    if isinstance(unit, _Coordinate):
         return latex_text(unit.symbol) if style == 'latex' else escape(unit.symbol)
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
     body = product(components, style, fraction=fraction)
-    if isinstance(unit, ScaledUnit) and unit.scale != one:
+    if unit.scale != one:
         scale = product(
             [(str(base), exp) for base, exp in unit.scale._display_monomial().components()],
             style,
@@ -158,11 +157,10 @@ def rich_magnitude(value: object, text: str, spec: str, style: Style) -> str:
 
 
 def quantity_body(
-    value: object, unit: Unit | AffineUnit, spec: str, style: Style, *, fraction: bool = True
+    value: object, unit: Unit | _Coordinate, spec: str, style: Style, *, fraction: bool = True
 ) -> str:
-    from .affineunit import AffineUnit
+    from ._coordinates import _Coordinate
     from .factor import one
-    from .unit import ScaledUnit
 
     unit = _display_unit(unit)
     # Delegate formatting without coercing Decimal, Fraction, arrays or custom scalars.
@@ -171,14 +169,10 @@ def quantity_body(
     if style == 'html':
         magnitude = f'<span style="white-space: pre-wrap">{magnitude}</span>'
 
-    if (
-        not isinstance(unit, AffineUnit)
-        and not unit._monomial.components()
-        and (not isinstance(unit, ScaledUnit) or unit.scale == one)
-    ):
+    if not isinstance(unit, _Coordinate) and not unit._monomial.components() and unit.scale == one:
         return magnitude
     body = unit_body(unit, style, fraction=fraction)
-    if isinstance(unit, ScaledUnit) and unit.scale != one:
+    if not isinstance(unit, _Coordinate) and unit.scale != one:
         body = rf'\left({body}\right)' if style == 'latex' else f'({body})'
     separator = r'\,' if style == 'latex' else '&thinsp;'
     return magnitude + separator + body
@@ -188,17 +182,16 @@ def html_span(body: str) -> str:
     return f'<span class="unitx">{body}</span>'
 
 
-def siunitx_unit_parts(unit: Unit | AffineUnit) -> tuple[str, bool]:
+def siunitx_unit_parts(unit: Unit | _Coordinate) -> tuple[str, bool]:
     """Return a unit argument and whether siunitx should parse it."""
-    from .affineunit import AffineUnit
+    from ._coordinates import _Coordinate
 
     unit = _display_unit(unit)
-    if isinstance(unit, AffineUnit):
+    if isinstance(unit, _Coordinate):
         return '{' + unit.to_latex() + '}', False
     from .factor import one
-    from .unit import ScaledUnit
 
-    scaled = isinstance(unit, ScaledUnit) and unit.scale != one
+    scaled = unit.scale != one
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
     # Literal siunitx syntax uses dots as products and signed exact powers.
     # Other spellings remain literal TeX text, not invented control sequences.
@@ -210,9 +203,9 @@ def siunitx_unit_parts(unit: Unit | AffineUnit) -> tuple[str, bool]:
     return '{' + body + '}', False
 
 
-def siunitx_quantity(value: object, unit: Unit | AffineUnit, spec: str) -> str:
+def siunitx_quantity(value: object, unit: Unit | _Coordinate, spec: str) -> str:
+    from ._coordinates import _Coordinate
     from .factor import one
-    from .unit import ScaledUnit
 
     unit = _display_unit(unit)
     text = format_magnitude(value, spec)
@@ -227,7 +220,7 @@ def siunitx_quantity(value: object, unit: Unit | AffineUnit, spec: str) -> str:
     body, parsed = siunitx_unit_parts(unit)
     if not parsed:
         options.append('parse-units=false')
-    if isinstance(unit, ScaledUnit) and unit.scale != one:
+    if not isinstance(unit, _Coordinate) and unit.scale != one:
         body = rf'\left({body}\right)'
     option_text = '[' + ','.join(options) + ']' if options else ''
     if not body:
@@ -235,7 +228,7 @@ def siunitx_quantity(value: object, unit: Unit | AffineUnit, spec: str) -> str:
     return rf'\qty{option_text}{{{number}}}{{{body}}}'
 
 
-def text_quantity(value: object, unit: Unit | AffineUnit) -> str:
+def text_quantity(value: object, unit: Unit | _Coordinate) -> str:
     unit = _display_unit(unit)
     unit_text = str(unit)
     if unit_text == '1':
@@ -248,7 +241,7 @@ def text_quantity(value: object, unit: Unit | AffineUnit) -> str:
     return f'{value}{separator}{unit_text}'
 
 
-def format_quantity(value: object, unit: Unit | AffineUnit, format_spec: str) -> str:
+def format_quantity(value: object, unit: Unit | _Coordinate, format_spec: str) -> str:
     from .factor import one
 
     unit = _display_unit(unit)
@@ -268,16 +261,17 @@ def format_quantity(value: object, unit: Unit | AffineUnit, format_spec: str) ->
     if style == 'siunitx':
         return siunitx_quantity(value, unit, numeric)
     if style != 'text':
-        raise ValueError(f'Unknown Quantity display option: {style!r}.')
+        error_message = f'Unknown Quantity display option: {style!r}.'
+        raise ValueError(error_message)
     if not numeric:
         return text_quantity(value, unit)
     text = format_magnitude(value, numeric)
     unit_text = str(unit)
     if unit_text == '1':
         return text
-    from .unit import ScaledUnit
+    from ._coordinates import _Coordinate
 
-    if isinstance(unit, ScaledUnit) and unit.scale != one:
+    if not isinstance(unit, _Coordinate) and unit.scale != one:
         return f'{text} ({unit_text})'
     if unit_text.startswith('1/'):
         return f'{text}{unit_text[1:]}'

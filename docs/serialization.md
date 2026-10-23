@@ -22,8 +22,8 @@ True
 
 ```
 
-The module supports `Unit`, `ScaledUnit`, `AffineUnit`, scalar `Quantity` and
-scalar `AffineQuantity`. Import the two functions from `unitx.serialization`;
+The module supports `Unit`, `AffineUnit`, `LogUnit`, scalar `Quantity`,
+`AffineQuantity` and `LogQuantity`. Import the two functions from `unitx.serialization`;
 they are not package-root exports. No optional dependency is required.
 
 ## Stored numbers
@@ -55,24 +55,28 @@ still apply.
 
 The format preserves the formal product, including prefixes and rational
 exponents. Equal physical scale does not merge distinct units such as Hz and
-Bq, and `km/m` retains its nontrivial dimensionless scale. A ScaledUnit stores
-its additional Factor separately, including when that Factor is one:
+Bq, and `km/m` retains its nontrivial dimensionless scale. Every Unit record
+stores its exact scale separately from its formal product, including when that
+scale is one:
 
 ```pycon
 >>> from unitx import pi
->>> from unitx.unit import ScaledUnit
->>> scaled = ScaledUnit('m', pi ** Fraction(1, 3))
+>>> from unitx.unit import Unit
+>>> scaled = Unit('m', scale=pi ** Fraction(1, 3))
 >>> rebuilt = from_dict(json.loads(json.dumps(to_dict(scaled))))
->>> type(rebuilt) is ScaledUnit and rebuilt.scale == scaled.scale
+>>> type(rebuilt) is Unit and rebuilt.scale == scaled.scale
 True
 >>> rebuilt**3 == scaled**3
 True
 
 ```
 
-An AffineUnit stores its physical origin, difference unit and logarithmic kind.
-Registered coordinates also retain their canonical registered symbol;
-anonymous coordinates remain anonymous. Points stay AffineQuantity objects:
+An AffineUnit stores its linear physical origin and difference unit. A LogUnit
+stores a positive physical reference, its defining reading `at`, logarithmic
+difference unit and convention. Logarithmic exchange retains this anchor without
+evaluating a zero-reading reference.
+Registered coordinates also retain their canonical symbol and stable definition ID;
+anonymous coordinates remain anonymous. Points retain their concrete AffineQuantity or LogQuantity family:
 
 ```pycon
 >>> point = AffineQuantity(Decimal('20.00'), 'degC')
@@ -94,17 +98,23 @@ hashability rules are unchanged.
 
 ## Registry requirements
 
-Import resolves spellings against the receiving process's existing registry.
-Register custom units explicitly during application initialization before
-decoding records that refer to them. Unknown spellings raise SerializationError
+Import resolves spellings against the default environment, or the explicit
+`Registry` supplied as `from_dict(record, registry=receiver)`. Both formal
+definition IDs and physical metadata must match. Share catalogue definitions
+with `Registry([foot, si.s])`. Custom definitions intended for exchange
+belong in module-level UnitCatalog declarations; import the same catalogue in
+the receiving process and include the required objects. Their persistence locators
+are derived automatically. Repeating `.define()` in an ordinary block creates a
+new identity and does not recreate a saved definition. Unknown spellings raise SerializationError
 with the original UnitSymbolError retained as `__cause__`.
 Decoding never registers or replaces definitions, and neither function changes
 the input object or record.
 
-A linear unit record contains its canonical formal identity and its combined
+A linear unit record contains its canonical symbols, stable definition IDs and its combined
 dimension, SI Factor and logarithmic degree. Import checks these against the
-resolved unit. A registered coordinate must also match the saved physical
-origin, its formal reference and difference units, and logarithmic kind.
+resolved unit. A registered coordinate must also match its saved affine origin
+or logarithmic reference anchor, formal reference and difference units, and
+logarithmic kind.
 Conflicts raise SerializationError rather than silently changing the result.
 
 These checks describe the resulting unit, not a complete registry snapshot.
@@ -115,20 +125,39 @@ compare exact formal state: a changed symbolic approximation or a different
 unresolved-integer decomposition can cause rejection even if physical values
 are approximately equal. No floating-point tolerance is used to infer equality.
 
-## Version 1 record format
+For catalogue quantities, select the required definitions explicitly:
 
-Only the outermost object has `"version": 1`; every object record has a `type`.
+```pycon
+>>> from unitx import Registry
+>>> from unitx.si import si
+>>> foot = (Decimal('0.3048') * si.m).define('ft')
+>>> from unitx.si import si
+>>> receiver = Registry([foot, si.s])
+>>> original = 3 * receiver.parse('ft/s')
+>>> from_dict(to_dict(original), registry=receiver) == original
+True
+
+```
+
+The receiver must have compatible bindings for every term. A product containing
+two independent definitions with the same spelling cannot be represented by one
+receiving spelling environment. Pickle can preserve such a product by ID.
+
+## Version 2 record format
+
+Only the outermost object has `"version": 2`; every object record has a `type`.
 For example, an integer length is represented as:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "type": "quantity",
   "value": {"type": "int", "value": "3"},
   "unit": {
     "type": "unit",
     "expression": "m",
-    "identity": [["", "m", "1", "1"]],
+    "scale": [],
+    "identity": [["", "m", {"module": "unitx.unitregistry", "catalogue": "", "symbol": "m"}, "1", "1"]],
     "dimension": [["0", "1"], ["1", "1"], ["0", "1"], ["0", "1"], ["0", "1"], ["0", "1"], ["0", "1"]],
     "factor": [],
     "log_degree": ["0", "1"]
@@ -140,15 +169,23 @@ The object records have these exact fields:
 
 | `type` | Fields in addition to `type` |
 | --- | --- |
-| `quantity`, `affine_quantity` | `value` scalar record, `unit` linear/affine unit record respectively |
-| `unit` | `expression`, `identity`, `dimension`, `factor`, `log_degree` |
-| `scaled_unit` | The unit fields plus `scale`, a Factor component list |
-| `affine_unit` | `origin` linear Quantity record, `delta_unit` linear unit record, `kind` null/`power`/`amplitude`, `symbol` canonical registered string or null |
+| `quantity`, `affine_quantity`, `log_quantity` | `value` scalar record and matching linear/affine/logarithmic `unit` record |
+| `unit` | `expression`, `scale`, `identity`, `dimension`, `factor`, `log_degree` |
+| `affine_unit` | `origin` linear Quantity record, `delta_unit` linear unit record, `kind` null, `symbol` canonical registered string or null, `definition_id` stable ID or null |
+| `log_unit` | `reference` linear Quantity record, `at` scalar record, `delta_unit` linear unit record, `kind` `power`/`amplitude`, `symbol` canonical registered string or null, `definition_id` stable ID or null |
 
-`identity` is a sorted list of `[prefix_symbol, unprefixed_symbol, numerator,
-denominator]` terms; the last two strings encode the nonzero exponent.
+`identity` is a sorted list of `[prefix_symbol, unprefixed_symbol, definition_id,
+numerator, denominator]` terms; the last two strings encode the nonzero exponent.
+Definition IDs are structured records: `{"module": ..., "catalogue": ..., "symbol": ...}`
+for published definitions, or `{"uuid": "<integer>"}` for process-local definitions.
+UUIDs remain typed handles internally; the integer string is their transport form.
+No module/class/symbol information is encoded in a string or split during lookup.
+Built-in root definitions use module `unitx.unitregistry` and an empty catalogue.
+
 `dimension` lists seven rational pairs in T, L, M, I, Theta, N, J order.
-`log_degree` is another rational pair.
+`log_degree` is another rational pair in the existing version 2 wire format.
+It is derived from Dimension at encoding and folded back into the complete
+Dimension on validation; it is not a separate runtime state or public attribute.
 
 Factor component lists preserve the formal integer/symbolic bases and rational
 exponents. The empty list represents one. Each component has an `exponent`
@@ -173,6 +210,24 @@ class imports, JSON encoder subclasses, file I/O or configurable codec registry
 are involved. Applications parsing external input should apply their own size
 and resource limits.
 
+Python pickle is a separate mechanism with its own reconstruction rules. Current
+unitx pickles retain definition IDs, but pickle payloads produced by older unitx
+formats are not supported. Use this versioned JSON format for data exchange.
+
+## Migrating version 1 records
+
+The writer emits version 2 and the reader requires it. Version 1 identified
+units by symbols, so it cannot prove that same-named
+private definitions share identity. Reading it raises VersionError. Decode old records with unitx 0.13.3 to recover their measurements. Rebuild
+them using explicitly verified current definitions, then encode with the current
+implementation. Do not merely change the version number: linear terms
+need stable IDs and coordinate records need a `definition_id` field.
+
+For private definitions, place reusable declarations in a module-level UnitCatalog
+and import that catalogue in the receiving process. Independently repeating
+`.define()` creates a new UUID and does not recreate a saved definition. There is no automatic
+registration or migration of untrusted definitions.
+
 ## Errors
 
 Import the error classes from `unitx.exceptions`. The public boundaries are:
@@ -194,12 +249,12 @@ for different recovery actions, or catch UnitxError for both:
 ```pycon
 >>> from unitx.exceptions import SerializationError, UnitxError, VersionError
 >>> try:
-...     from_dict({'version': 2})
+...     from_dict({'version': 1})
 ... except VersionError:
 ...     print('Unsupported record version')
 Unsupported record version
 >>> try:
-...     from_dict({'version': 1, 'type': 'unknown'})
+...     from_dict({'version': 2, 'type': 'unknown'})
 ... except SerializationError:
 ...     print('Invalid record')
 Invalid record

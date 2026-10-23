@@ -56,7 +56,7 @@ def _as_quantity(x: _Input) -> Quantity[Magnitude]:
             raise TypeError('unitx.math requires real numeric inputs.')
     elif isinstance(value, bool) or not isinstance(value, Fractionable):
         raise TypeError('unitx.math requires real numeric inputs.')
-    if q.unit.log_degree:
+    if q.dimension != q.dimension.physical:
         raise DimensionError('Convert logarithmic quantities to physical ratios first.')
     return q
 

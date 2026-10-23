@@ -1,7 +1,7 @@
 # Type hints
 
 unitx ships inline annotations and `py.typed`. The parameter in `Quantity[T]`
-or `AffineQuantity[T]` describes the magnitude type, not a physical dimension.
+or `AffineQuantity[T]` / `LogQuantity[T]` describes the magnitude type, not a physical dimension.
 Units and compatible dimensions are validated at runtime.
 
 ## Scalar construction and arithmetic

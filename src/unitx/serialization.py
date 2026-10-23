@@ -2,7 +2,7 @@
 
 Use `to_dict` and `from_dict` around the standard library's JSON
 functions. Decoding resolves existing units without registering definitions.
-See `docs/serialization.md` for the version 1 format and its boundaries.
+See `docs/serialization.md` for the version 2 format and its boundaries.
 """
 
 from __future__ import annotations
@@ -14,26 +14,45 @@ from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 from typing import cast
 
+from ._coordinates import as_coordinate
 from ._numerics import Fractionable, Magnitude, UnfactoredInteger
+from ._reconstruction import DefinitionId, _definition_id, _matches_id
 from .affinequantity import AffineQuantity
-from .affineunit import AffineUnit, _as_affine_unit
+from .affineunit import AffineUnit
+from .dimension import Dimension
 from .exceptions import SerializationError, UnitxError, VersionError
 from .factor import Factor, SymbolicConstant
+from .logquantity import LogQuantity
+from .logunit import LogUnit
 from .quantity import Quantity
-from .unit import ScaledUnit, Unit
+from .unit import Unit
+from .unitregistry import Registry
 
 __all__ = ['from_dict', 'to_dict']
 
-type _Object = Unit | AffineUnit | Quantity[Fractionable] | AffineQuantity[Fractionable]
+type _Object = (
+    Unit
+    | AffineUnit
+    | LogUnit
+    | Quantity[Fractionable]
+    | AffineQuantity[Fractionable]
+    | LogQuantity[Fractionable]
+)
 
 
 def to_dict(
-    value: Unit | AffineUnit | Quantity[Magnitude] | AffineQuantity[Magnitude], /
+    value: Unit
+    | AffineUnit
+    | LogUnit
+    | Quantity[Magnitude]
+    | AffineQuantity[Magnitude]
+    | LogQuantity[Magnitude],
+    /,
 ) -> dict[str, object]:
-    """Return a new version 1 record, suitable for `json.dumps(..., allow_nan=False)`.
+    """Return a new version 2 record, suitable for `json.dumps(..., allow_nan=False)`.
 
-    Support exact Unit, ScaledUnit, AffineUnit, Quantity and AffineQuantity
-    classes. Magnitudes must be exact int, float, Fraction or Decimal classes;
+    Support exact Unit, AffineUnit, LogUnit, Quantity, AffineQuantity and LogQuantity classes.
+    Magnitudes must be exact int, float, Fraction or Decimal classes;
     booleans, subclasses, complex numbers and NumPy objects are unsupported.
     No conversion or global registration is performed.
 
@@ -42,16 +61,18 @@ def to_dict(
     >>> from_dict(json.loads(json.dumps(to_dict(q)))) == q
     True
     """
-    return {'version': 1, **_encode(value)}
+    return {'version': 2, **_encode(value)}
 
 
-def from_dict(data: object, /) -> _Object:
-    """Restore a version 1 record using existing unit definitions.
+def from_dict(data: object, /, *, registry: Registry | None = None) -> _Object:
+    """Restore a version 2 record using existing unit definitions.
 
     Non-dict input raises TypeError. An unsupported integer format version
     raises VersionError. Missing or malformed fields and failed restoration
     raise SerializationError. Underlying parsing, numeric and coordinate
     errors are retained as `__cause__`.
+    Resolve in the explicit `registry` or the default environment, checking
+    stable definition IDs and physical metadata. Version 1 is unsupported.
     Never evaluate Python text, import named classes, or register units.
     """
     if type(data) is not dict:
@@ -62,11 +83,12 @@ def from_dict(data: object, /) -> _Object:
     if type(version) is not int:
         error_message = 'Serialized record requires an integer format version.'
         raise SerializationError(error_message)
-    if version != 1:
-        error_message = f'Unsupported serialization format version {version}; expected 1.'
+    if version != 2:
+        error_message = f'Unsupported serialization format version {version}; expected 2.'
         raise VersionError(error_message)
     try:
-        return _decode({key: value for key, value in record.items() if key != 'version'})
+        payload = {key: value for key, value in record.items() if key != 'version'}
+        return _decode(payload, registry)
     except (SerializationError, VersionError):
         raise
     except (TypeError, ValueError, OverflowError, UnitxError) as error:
@@ -217,64 +239,109 @@ def _factor(data: object) -> Factor:
 
 def _unit_data(unit: Unit) -> dict[str, object]:
     record: dict[str, object] = {
-        'type': 'scaled_unit' if type(unit) is ScaledUnit else 'unit',
+        'type': 'unit',
         'expression': unit.expression(),
+        'scale': _factor_data(unit.scale),
         'identity': _unit_identity(unit),
         'dimension': [_fraction_data(exp) for exp in unit.dimension.as_tuple()],
         'factor': _factor_data(unit.factor),
-        'log_degree': _fraction_data(unit.log_degree),
+        'log_degree': _fraction_data(unit.dimension._monomial.exponent_of('_log')),
     }
-    if type(unit) is ScaledUnit:
-        record['scale'] = _factor_data(unit.scale)
     return record
 
 
-def _unit_identity(unit: Unit) -> list[list[str]]:
+def _id_data(identity: DefinitionId) -> dict[str, object]:
+    if isinstance(identity, int):
+        return {'uuid': str(identity)}
+    module, catalogue, symbol = identity
+    return {'module': module, 'catalogue': catalogue, 'symbol': symbol}
+
+
+def _id(data: object) -> DefinitionId:
+    record = _record(data)
+    if record.keys() == {'uuid'}:
+        value = _integer(record['uuid'])
+        if 0 <= value < 2**128:
+            return value
+        error_message = 'Expected a 128-bit UUID integer.'
+        raise SerializationError(error_message)
+    _record(record, {'module', 'catalogue', 'symbol'})
+    return _text(record['module']), _text(record['catalogue']), _text(record['symbol'])
+
+
+def _unit_identity(unit: Unit) -> list[list[object]]:
     return sorted(
-        [base.prefix_symbol, base.unprefixed_symbol, *_fraction_data(exponent)]
-        for base, exponent in unit._monomial.components()
+        (
+            [
+                base.prefix_symbol,
+                base.unprefixed_symbol,
+                _id_data(_definition_id(base._unit)),
+                *_fraction_data(exponent),
+            ]
+            for base, exponent in unit._monomial.components()
+        ),
+        key=lambda term: (term[0], term[1]),
     )
 
 
-def _identity(data: object) -> list[list[str]]:
-    terms: list[list[str]] = []
-    identities: set[tuple[str, str]] = set()
+def _identity(data: object) -> list[tuple[str, str, DefinitionId, Fraction]]:
+    terms: list[tuple[str, str, DefinitionId, Fraction]] = []
+    identities: set[tuple[str, DefinitionId]] = set()
     for item in _list(data):
         term = _list(item)
-        if len(term) != 4:
-            error_message = 'Expected [prefix, symbol, numerator, denominator] terms.'
+        if len(term) != 5:
+            error_message = (
+                'Expected [prefix, symbol, definition ID, numerator, denominator] terms.'
+            )
             raise SerializationError(error_message)
         prefix, symbol = _text(term[0]), _text(term[1])
-        exponent = _fraction(term[2:])
-        if not exponent or (prefix, symbol) in identities:
+        definition_id = _id(term[2])
+        exponent = _fraction(term[3:])
+        if not exponent or (prefix, definition_id) in identities:
             error_message = 'Unit identity requires unique terms and nonzero exponents.'
             raise SerializationError(error_message)
-        identities.add((prefix, symbol))
-        terms.append([prefix, symbol, *_fraction_data(exponent)])
-    return sorted(terms)
+        identities.add((prefix, definition_id))
+        terms.append((prefix, symbol, definition_id, exponent))
+    return sorted(terms, key=lambda term: (term[0], term[1]))
 
 
-def _unit(data: object) -> Unit:
+def _matches_identity(unit: Unit, data: object) -> bool:
+    saved = _identity(data)
+    actual = sorted(
+        unit._monomial.components(),
+        key=lambda term: (term[0].prefix_symbol, term[0].unprefixed_symbol),
+    )
+    return len(saved) == len(actual) and all(
+        prefix == base.prefix_symbol
+        and symbol == base.unprefixed_symbol
+        and exponent == actual_exponent
+        and _matches_id(base._unit, identity)
+        for (prefix, symbol, identity, exponent), (base, actual_exponent) in zip(saved, actual)
+    )
+
+
+def _unit(data: object, registry: Registry | None = None) -> Unit:
     record = _record(data)
     kind = _text(record.get('type'))
-    keys = {'type', 'expression', 'identity', 'dimension', 'factor', 'log_degree'}
-    if kind == 'scaled_unit':
-        keys.add('scale')
-    elif kind != 'unit':
+    keys = {'type', 'expression', 'scale', 'identity', 'dimension', 'factor', 'log_degree'}
+    if kind != 'unit':
         error_message = 'Expected a linear unit record.'
         raise SerializationError(error_message)
     _record(record, keys)
-    unit = Unit(_text(record['expression']))
-    if kind == 'scaled_unit':
-        unit = ScaledUnit(unit, _factor(record['scale']))
+    expression = _text(record['expression'])
+    unit = Unit(expression) if registry is None else registry.parse(expression)
+    unit = Unit(unit, scale=_factor(record['scale']))
     dimension = _list(record['dimension'])
     if len(dimension) != 7:
         error_message = 'Expected seven dimension exponents.'
         raise SerializationError(error_message)
     if (
-        _identity(record['identity']) != _unit_identity(unit)
-        or tuple(_fraction(exp) for exp in dimension) != unit.dimension.as_tuple()
-        or _fraction(record['log_degree']) != unit.log_degree
+        not _matches_identity(unit, record['identity'])
+        or Dimension._with_log(
+            Dimension._from_iter(_fraction(exp) for exp in dimension),
+            _fraction(record['log_degree']),
+        )
+        != unit.dimension
         or _factor(record['factor']) != unit.factor
     ):
         error_message = 'Serialized unit meaning conflicts with the current registry.'
@@ -283,21 +350,35 @@ def _unit(data: object) -> Unit:
 
 
 def _encode(value: object) -> dict[str, object]:
-    if type(value) is Unit or type(value) is ScaledUnit:
+    if type(value) is Unit:
         return _unit_data(value)
-    if type(value) is AffineUnit:
+    if type(value) in (AffineUnit, LogUnit):
+        value = cast(AffineUnit | LogUnit, value)
         record: dict[str, object] = {
-            'type': 'affine_unit',
-            'origin': _encode(value.origin),
+            'type': 'affine_unit' if type(value) is AffineUnit else 'log_unit',
             'delta_unit': _encode(value.delta_unit),
-            'kind': value.kind,
+            'kind': value._kind(),
             'symbol': value.symbol if value._definition is not None else None,
+            'definition_id': _id_data(_definition_id(value._definition))
+            if value._definition is not None
+            else None,
         }
+        if isinstance(value, LogUnit):
+            record['reference'] = _encode(value.reference)
+            record['at'] = _scalar_data(value.at)
+        else:
+            record['origin'] = _encode(value.origin)
         return record
-    if type(value) is Quantity or type(value) is AffineQuantity:
-        quantity = cast(Quantity[Magnitude] | AffineQuantity[Magnitude], value)
+    if type(value) in (Quantity, AffineQuantity, LogQuantity):
+        quantity = cast(
+            Quantity[Magnitude] | AffineQuantity[Magnitude] | LogQuantity[Magnitude], value
+        )
         return {
-            'type': 'quantity' if type(quantity) is Quantity else 'affine_quantity',
+            'type': 'quantity'
+            if type(quantity) is Quantity
+            else 'affine_quantity'
+            if type(quantity) is AffineQuantity
+            else 'log_quantity',
             'value': _scalar_data(quantity.value),
             'unit': _encode(quantity.unit),
         }
@@ -305,49 +386,75 @@ def _encode(value: object) -> dict[str, object]:
     raise TypeError(error_message)
 
 
-def _decode(data: object) -> _Object:
+def _decode(data: object, registry: Registry | None = None) -> _Object:
     record = _record(data)
     kind = _text(record.get('type'))
-    if kind in ('unit', 'scaled_unit'):
-        return _unit(record)
-    if kind == 'affine_unit':
-        return _coordinate(record)
-    if kind in ('quantity', 'affine_quantity'):
+    if kind == 'unit':
+        return _unit(record, registry)
+    if kind in ('affine_unit', 'log_unit'):
+        return _coordinate(record, registry)
+    if kind in ('quantity', 'affine_quantity', 'log_quantity'):
         _record(record, {'type', 'value', 'unit'})
         value = _scalar(record['value'])
         if kind == 'quantity':
-            return Quantity(value, _unit(record['unit']))
-        return AffineQuantity(value, _coordinate(record['unit']))
+            return Quantity(value, _unit(record['unit'], registry))
+        coordinate = _coordinate(record['unit'], registry)
+        if kind == 'affine_quantity' and isinstance(coordinate, AffineUnit):
+            return AffineQuantity(value, coordinate)
+        if kind == 'log_quantity' and isinstance(coordinate, LogUnit):
+            return LogQuantity(value, coordinate)
+        error_message = 'Serialized point type conflicts with its coordinate family.'
+        raise SerializationError(error_message)
     error_message = f'Unknown serialized object type {kind!r}.'
     raise SerializationError(error_message)
 
 
-def _coordinate(data: object) -> AffineUnit:
-    record = _record(data, {'type', 'origin', 'delta_unit', 'kind', 'symbol'})
-    if record['type'] != 'affine_unit':
+def _coordinate(data: object, registry: Registry | None = None) -> AffineUnit | LogUnit:
+    record = _record(data)
+    logarithmic = record.get('type') == 'log_unit'
+    fields = {'reference', 'at'} if logarithmic else {'origin'}
+    _record(data, {'type', 'delta_unit', 'kind', 'symbol', 'definition_id'} | fields)
+    if record['type'] not in ('affine_unit', 'log_unit'):
         error_message = 'Expected an affine unit record.'
         raise SerializationError(error_message)
-    origin_record = _record(record['origin'], {'type', 'value', 'unit'})
-    if origin_record['type'] != 'quantity':
-        error_message = 'Coordinate origin must be a linear quantity.'
+    reference_record = _record(
+        record['reference' if logarithmic else 'origin'], {'type', 'value', 'unit'}
+    )
+    if reference_record['type'] != 'quantity':
+        error_message = 'Coordinate reference must be a linear quantity.'
         raise SerializationError(error_message)
-    origin = Quantity(_scalar(origin_record['value']), _unit(origin_record['unit']))
-    delta = _unit(record['delta_unit'])
+    reference = Quantity(
+        _scalar(reference_record['value']), _unit(reference_record['unit'], registry)
+    )
+    delta = _unit(record['delta_unit'], registry)
     kind = record['kind']
     if kind is not None and kind not in ('power', 'amplitude'):
         error_message = 'Unknown logarithmic coordinate kind.'
         raise SerializationError(error_message)
-    coordinate = AffineUnit(origin, delta_unit=delta, kind=kind)
+    if record['type'] == 'affine_unit' and kind is None:
+        coordinate: AffineUnit | LogUnit = AffineUnit(reference, delta_unit=delta)
+    elif record['type'] == 'log_unit' and kind in ('power', 'amplitude'):
+        at = _scalar(record['at'])
+        coordinate = LogUnit(reference, delta_unit=delta, kind=kind, at=at)
+    else:
+        error_message = 'Serialized coordinate type conflicts with its mapping.'
+        raise SerializationError(error_message)
     symbol = record['symbol']
     if symbol is None:
+        if record['definition_id'] is not None:
+            error_message = 'Anonymous coordinates cannot have a definition ID.'
+            raise SerializationError(error_message)
         return coordinate
-    registered = _as_affine_unit(_text(symbol))
+    spelling = _text(symbol)
+    registered = as_coordinate(spelling if registry is None else registry.parse(spelling))
+    registered_reference = (
+        registered.reference if isinstance(registered, LogUnit) else registered.origin
+    )
     # Require a registered coordinate, rather than silently using a zero-origin unit.
     if registered._definition is None or (
-        registered.origin.unit != coordinate.origin.unit
-        or registered.origin.value != coordinate.origin.value
-        or registered.delta_unit != coordinate.delta_unit
-        or registered.kind != coordinate.kind
+        not _matches_id(registered._definition, _id(record['definition_id']))
+        or registered_reference.unit != reference.unit
+        or registered._mapping != coordinate._mapping
     ):
         error_message = 'Serialized coordinate conflicts with the current registry.'
         raise SerializationError(error_message)

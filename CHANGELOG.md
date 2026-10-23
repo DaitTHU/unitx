@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+### Added
+
+- `Registry` provides independent parsing environments, atomic `include(*units)`
+  and explicit `with registry.defining():` blocks with configurable prefix defaults.
+  `UnitCatalog` collects read-only unit attributes and provides catalogue parsing.
+
+### Changed
+
+- **Breaking:** `Unit` now stores its complete exact extra scale; `ScaledUnit` is
+  removed. Construct scaled units with `Unit(base, scale=...)` or Factor operands.
+- **Breaking:** `.define()` creates standalone definitions outside an explicit
+  Registry block. Extend default parsing explicitly with `default_registry`.
+  Formal identity follows shared definition objects rather than symbols;
+  independent same-name definitions remain distinct. Import `UnitDefinition`
+  and `PrefixPolicy` from `unitx.unitdefinition`; registry table exports are removed.
+- **Breaking:** `LogUnit` and `LogQuantity` replace logarithmic uses of AffineUnit
+  and AffineQuantity. Point `.to()` stays within its coordinate family; use
+  `.to_quantity()` and `LogQuantity.from_quantity()` at physical boundaries.
+- **Breaking:** Dimension equality includes the internal logarithmic axis.
+  Use `.physical` for seven-axis physical comparisons; separate `log_degree`
+  attributes are removed.
+- **Breaking:** Scalar JSON uses format 2 with definition IDs and an optional
+  receiving Registry; format 1 and older pickle payloads are unsupported.
+  Reconstruction requires existing definitions and checks their metadata.
+- Logarithmic coordinates retain exact `reference` and `at` anchors; `origin`
+  is a derived numerical view. Affine defining readings that require an
+  unrepresentable symbolic origin sum are rejected; supply the origin at `at=0`.
+
+### Fixed
+
+- Preserve private coordinate mappings through retained linear projections,
+  and reconstruct private coordinate/point reprs even when their symbols coincide
+  with default logarithmic difference units.
+
 ## [0.13.4] - 2026-10-23
 
 ### Fixed

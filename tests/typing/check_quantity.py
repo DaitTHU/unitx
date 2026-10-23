@@ -8,8 +8,8 @@ from unitx._numerics import Number, Real, Scalar
 from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.si import si
-from unitx.unit import ScaledUnit, Unit
-from unitx.unitregistry import PrefixPolicy
+from unitx.unit import Unit
+from unitx.unitdefinition import PrefixPolicy
 
 
 class _Magnitude(int):
@@ -66,37 +66,37 @@ def test_unit_numeric_construction() -> None:
     )
 
 
-def test_scaled_unit_construction() -> None:
+def test_unit_scale_construction() -> None:
     unit = Unit('m')
     scaled = Factor(2) * unit
-    assert_type(scaled, ScaledUnit)
-    assert_type(pi * unit, ScaledUnit)
-    assert_type(Factor(2) / unit, ScaledUnit)
-    assert_type(pi / scaled, ScaledUnit)
+    assert_type(scaled, Unit)
+    assert_type(pi * unit, Unit)
+    assert_type(Factor(2) / unit, Unit)
+    assert_type(pi / scaled, Unit)
     assert_type(3 * scaled, Quantity[int])
     assert_type(Fraction(3) / scaled, Quantity[Fraction])
-    assert_type(scaled * unit, ScaledUnit)
+    assert_type(scaled * unit, Unit)
     # Base signatures keep mixed operations conservative; runtime dispatch promotes.
-    assert_type(unit * scaled, ScaledUnit)
-    assert_type(scaled / unit, ScaledUnit)
-    assert_type(unit / scaled, ScaledUnit)
-    assert_type(scaled * scaled, ScaledUnit)
-    assert_type(scaled / scaled, ScaledUnit)
-    assert_type(scaled**2, ScaledUnit)
-    assert_type(scaled**0, ScaledUnit)
+    assert_type(unit * scaled, Unit)
+    assert_type(scaled / unit, Unit)
+    assert_type(unit / scaled, Unit)
+    assert_type(scaled * scaled, Unit)
+    assert_type(scaled / scaled, Unit)
+    assert_type(scaled**2, Unit)
+    assert_type(scaled**0, Unit)
     assert_type(unit * unit, Unit)
     assert_type(unit / unit, Unit)
     assert_type(unit**2, Unit)
     assert_type(scaled.scale, Factor)
-    assert_type(ScaledUnit('cm', scale=Factor(2)), ScaledUnit)
+    assert_type(Unit('cm', scale=Factor(2)), Unit)
 
 
-def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
+def test_unit_numeric_scaling(unit: Unit, scaled: Unit) -> None:
     for value in (Factor(2), pi):
-        assert_type(unit * value, ScaledUnit)
-        assert_type(unit / value, ScaledUnit)
-        assert_type(scaled * value, ScaledUnit)
-        assert_type(scaled / value, ScaledUnit)
+        assert_type(unit * value, Unit)
+        assert_type(unit / value, Unit)
+        assert_type(scaled * value, Unit)
+        assert_type(scaled / value, Unit)
     assert_type(unit * 2, Quantity[int])
     assert_type(unit * 0.1, Quantity[float])
     assert_type(unit * Fraction(1, 3), Quantity[Fraction])
@@ -112,8 +112,8 @@ def test_unit_numeric_scaling(unit: Unit, scaled: ScaledUnit) -> None:
     assert_type(unit * 2 / 3, Quantity[float])
     assert_type(3 * (unit * 2), Quantity[int])
     assert_type(Fraction(3) * (unit / 2), Quantity[Real])
-    assert_type(Factor(2) * unit, ScaledUnit)
-    assert_type(pi * scaled, ScaledUnit)
+    assert_type(Factor(2) * unit, Unit)
+    assert_type(pi * scaled, Unit)
     assert_type(unit * Quantity(2, 's'), Quantity[int])
     assert_type(scaled * Quantity(2, 's'), Quantity[int])
     assert_type(unit / Quantity(2, 's'), Quantity[float])
@@ -161,7 +161,7 @@ def test_quantity_value_in(quantity: Quantity[Scalar]) -> None:
     assert_type(Quantity(Decimal(1), 'm').value_in('cm'), Decimal)
     assert_type(Quantity(1.0, 'm').value_in('cm'), Real)
     assert_type(Quantity[float](1, 'cm').value_in('m'), Real)
-    assert_type(Quantity(1, 'm').value_in(ScaledUnit('cm', Factor(2))), Real)
+    assert_type(Quantity(1, 'm').value_in(Unit('cm', scale=Factor(2))), Real)
     assert_type(Quantity(1j, 'cm').value_in('m'), Scalar)
     assert_type(quantity.value_in('m'), Scalar)
 
@@ -346,4 +346,4 @@ def test_display_types() -> None:
     assert_type(q.to_html('.2f'), str)
     assert_type(q.unit.to_latex(), str)
     assert_type(q.unit.to_html(), str)
-    assert_type(ScaledUnit('m', Factor(2)).to_latex(), str)
+    assert_type(Unit('m', scale=Factor(2)).to_latex(), str)

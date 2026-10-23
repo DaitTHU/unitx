@@ -2,7 +2,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import assert_type
 
-from unitx import AffineQuantity, AffineUnit, Quantity, Unit
+from unitx import AffineQuantity, AffineUnit, LogQuantity, LogUnit, Quantity, Unit
 from unitx._numerics import Fractionable
 from unitx.exceptions import SerializationError, UnitxError, VersionError
 from unitx.serialization import from_dict, to_dict
@@ -12,7 +12,15 @@ assert_type(to_dict(AffineQuantity(Decimal('20'), 'degC')), dict[str, object])
 assert_type(to_dict(Unit('m')), dict[str, object])
 
 result = from_dict(to_dict(Quantity(1, 'm')))
-assert_type(result, Unit | AffineUnit | Quantity[Fractionable] | AffineQuantity[Fractionable])
+assert_type(
+    result,
+    Unit
+    | AffineUnit
+    | LogUnit
+    | Quantity[Fractionable]
+    | AffineQuantity[Fractionable]
+    | LogQuantity[Fractionable],
+)
 if isinstance(result, Quantity):
     assert_type(result.value, Fractionable)
     assert_type(result.unit, Unit)

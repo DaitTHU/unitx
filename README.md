@@ -91,13 +91,15 @@ True
 
 ```
 
-Points are `AffineQuantity` objects; differences are `Quantity` objects.
+Linear affine points are `AffineQuantity` objects and logarithmic readings are
+`LogQuantity` objects; differences are `Quantity` objects.
 Multiplying by `si.degC` constructs a difference; use `@` or the explicit
 `AffineQuantity(20, si.degC)` constructor for an absolute reading.
 Adding two points raises `TypeError`; subtract them to obtain a difference.
 Use `.to_quantity()` to turn a point into an ordinary physical quantity for
 further arithmetic. Read the [point and difference guide](https://github.com/DaitTHU/unitx/blob/main/docs/affine.md)
-for temperature, dBm/dBW/dBV, and logarithmic ratio rules.
+for temperatures and [logarithmic quantities](docs/logarithmic.md) for
+dBm/dBW/dBV and ratio rules.
 
 ## Mathematical functions and time
 
@@ -212,7 +214,7 @@ or go directly to a topic:
 | Topic | Guide |
 | --- | --- |
 | Construction, arithmetic, conversion and unit expressions | [Units and quantities](https://github.com/DaitTHU/unitx/blob/main/docs/units.md) |
-| Ready-to-use units, constants and spelling conventions | [Catalogue](https://github.com/DaitTHU/unitx/blob/main/docs/catalogue.md) |
+| Ready-to-use units, constants and spelling conventions | [Catalogue](https://github.com/DaitTHU/unitx/blob/main/docs/catalogues/README.md) |
 | Exact extra scales and process-local registration | [Custom units](https://github.com/DaitTHU/unitx/blob/main/docs/custom-units.md) |
 | Fraction, Decimal, equality, powers and tolerances | [Scalar numerical behavior](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md) |
 | Notebook, text, LaTeX, HTML and siunitx output | [Display and formatting](https://github.com/DaitTHU/unitx/blob/main/docs/display.md) |

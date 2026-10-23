@@ -10,7 +10,8 @@ from ._unicode import SUP_TO_DIGIT, SUPERSCRIPTS
 from .exceptions import UnitSymbolError, UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit
-from .unitregistry import _UNIT_SYMBOL_PATTERN
+from .unitdefinition import _UNIT_SYMBOL_PATTERN
+from .unitregistry import Registry, default_registry
 
 _PATTERNS = {
     'POW': r'\*\*|\^',
@@ -78,7 +79,9 @@ class UnitParser:
     """Parse a physical unit expression into an immutable formal product.
 
     Support multiplication, division, rational powers, and parentheses.
-    Unit symbols, names, prefixes, and aliases are resolved by `SingleUnit`.
+    Unit symbols, names, prefixes, and aliases resolve in the explicit `registry`,
+    or the default environment when it is omitted. Returned single units bind
+    immutable definitions rather than a mutable registry.
     Exponents remain exact fractions, including those written as decimals.
 
     Parameters
@@ -178,13 +181,14 @@ class UnitParser:
     Monomial()
     """
 
-    __slots__ = ('_expression', '_result', '_tokens', '_token')
+    __slots__ = ('_expression', '_result', '_tokens', '_token', '_registry')
     _expression: str
     _result: Monomial[SingleUnit] | None
     _tokens: Iterator[Token]
     _token: Token
 
-    def __init__(self, expression: str) -> None:
+    def __init__(self, expression: str, *, registry: Registry | None = None) -> None:
+        self._registry = default_registry if registry is None else registry
         self._expression = expression
         self._result: Monomial[SingleUnit] | None = None
 
@@ -247,7 +251,7 @@ class UnitParser:
         if ' ' not in name and '-' not in name:
             return None
         try:
-            unit = SingleUnit.from_name(name)
+            unit = SingleUnit._from_definitions(*self._registry._resolve_name(name))
         except UnitSymbolError:
             return None
         self._tokens = iter(())
@@ -355,13 +359,15 @@ class UnitParser:
         base := UNIT | NAME_REF | "1" | "(" product ")"
         """
         if token := self.match('UNIT'):
-            return Monomial({SingleUnit(token.value): 1})
+            return Monomial(
+                {SingleUnit._from_definitions(*self._registry._resolve(token.value)): 1}
+            )
         elif token := self.match('NAME_REF'):
             name = ' '.join(token.value[1:-1].split())
             if not name:
                 error_message = 'Unit name reference must not be empty.'
                 raise UnitSyntaxError(error_message)
-            return Monomial({SingleUnit.from_name(name): 1})
+            return Monomial({SingleUnit._from_definitions(*self._registry._resolve_name(name)): 1})
         elif token := self.match('NUM'):
             if token.value != '1':
                 error_message = f'Invalid number {token.value!r} as a base.'

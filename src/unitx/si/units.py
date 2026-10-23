@@ -1,27 +1,39 @@
 from collections.abc import Iterator
 from decimal import Decimal
-from fractions import Fraction
 from typing import Final
 
+from .._prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PREFIX_SYMBOL_ALIAS_TO_SYMBOL
 from ..affineunit import AffineUnit
 from ..factor import pi, ten
+from ..logunit import LogUnit
+from ..monomial import Monomial
+from ..singleunit import SingleUnit
 from ..unit import Unit
+from ..unitregistry import default_registry
 from .bases import _SI, _si
 
 __all__ = ['si']
 
 
-def _prefixed_units(unit: str, prefixes: str | list[str]) -> Iterator[Unit]:
-    """Returns a generator of `Unit` objects with the given prefixes applied to the unit.
+def _prefixed_units(unit: Unit, prefixes: str | list[str]) -> Iterator[Unit]:
+    """Replace a single unit's prefix with each listed prefix.
 
     Use `prefixes` as a string when every prefix is an individual character.
     Unit without prefix can be included in the string as a space character.
     Otherwise use a list of strings for multi-character prefixes.
     """
-    return (Unit(prefix + unit) for prefix in prefixes)
+    [(base, exponent)] = unit._monomial.components()
+    assert exponent == 1
+    for spelling in prefixes:
+        prefix = (
+            PREFIX_DEFINITIONS[PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(spelling, spelling)]
+            if spelling != ' '
+            else NO_PREFIX
+        )
+        yield Unit._from_monomial(Monomial({SingleUnit._from_definitions(prefix, base._unit): 1}))
 
 
-class si(_si):
+class si(_si, registry=default_registry):
     """The `si` namespace offers a comprehensive set of common units
     such as meters (m), kilograms (kg), and more.
 
@@ -34,62 +46,62 @@ class si(_si):
 
     # SI base unit
 
-    ys, zs, as_, fs, ps, ns, us, ms = _prefixed_units('s', 'yzafpnum')
+    ys, zs, as_, fs, ps, ns, us, ms = _prefixed_units(_si.s, 'yzafpnum')
     """second, time"""
-    am, fm, pm, nm, um, mm, cm, dm, km, Mm, Gm = _prefixed_units('m', 'afpnumcdkMG')
+    am, fm, pm, nm, um, mm, cm, dm, km, Mm, Gm = _prefixed_units(_si.m, 'afpnumcdkMG')
     """metre/meter, length"""
-    fg, pg, ng, ug, mg, g, Mg, Gg = _prefixed_units('g', 'fpnum MG')
+    fg, pg, ng, ug, mg, g, Mg, Gg = _prefixed_units(_si.kg, 'fpnum MG')
     """gram, mass"""
-    fA, pA, nA, uA, mA, kA, MA = _prefixed_units('A', 'fpnumkM')
+    fA, pA, nA, uA, mA, kA, MA = _prefixed_units(_si.A, 'fpnumkM')
     """ampere, electric current"""
-    nK, uK, mK = _prefixed_units('K', 'num')
+    nK, uK, mK = _prefixed_units(_si.K, 'num')
     """kelvin, thermodynamic temperature"""
-    fmol, pmol, nmol, umol, mmol, kmol = _prefixed_units('mol', 'fpnumk')
+    fmol, pmol, nmol, umol, mmol, kmol = _prefixed_units(_si.mol, 'fpnumk')
     """mole, amount of substance"""
-    ucd, mcd, kcd = _prefixed_units('cd', 'umk')
+    ucd, mcd, kcd = _prefixed_units(_si.cd, 'umk')
     """candela, luminous intensity"""
 
     # SI derived unit
 
-    nrad, urad, mrad = _prefixed_units('rad', 'num')
+    nrad, urad, mrad = _prefixed_units(_si.rad, 'num')
     """radian, plane angle"""
-    nHz, uHz, mHz, kHz, MHz, GHz, THz, PHz, EHz = _prefixed_units('Hz', 'numkMGTPE')
+    nHz, uHz, mHz, kHz, MHz, GHz, THz, PHz, EHz = _prefixed_units(_si.Hz, 'numkMGTPE')
     """hertz, frequency"""
-    fN, pN, nN, uN, mN, kN, MN, GN = _prefixed_units('N', 'fpnumkMG')
+    fN, pN, nN, uN, mN, kN, MN, GN = _prefixed_units(_si.N, 'fpnumkMG')
     """newton, force/weight"""
-    fPa, nPa, uPa, mPa, hPa, kPa, MPa, GPa, TPa = _prefixed_units('Pa', 'fnumhkMGT')
+    fPa, nPa, uPa, mPa, hPa, kPa, MPa, GPa, TPa = _prefixed_units(_si.Pa, 'fnumhkMGT')
     """pascal, pressure/stress"""
-    fJ, pJ, nJ, uJ, mJ, kJ, MJ, GJ, TJ, PJ = _prefixed_units('J', 'fpnumkMGTP')
+    fJ, pJ, nJ, uJ, mJ, kJ, MJ, GJ, TJ, PJ = _prefixed_units(_si.J, 'fpnumkMGTP')
     """joule, energy/work/heat"""
-    fW, pW, nW, uW, mW, kW, MW, GW, TW, PW = _prefixed_units('W', 'fpnumkMGTP')
+    fW, pW, nW, uW, mW, kW, MW, GW, TW, PW = _prefixed_units(_si.W, 'fpnumkMGTP')
     """watt, power/radiant flux"""
-    aC, fC, pC, nC, uC, mC, kC = _prefixed_units('C', 'afpnumk')
+    aC, fC, pC, nC, uC, mC, kC = _prefixed_units(_si.C, 'afpnumk')
     """coulomb, electric charge"""
-    pV, nV, uV, mV, kV, MV, GV = _prefixed_units('V', 'pnumkMG')
+    pV, nV, uV, mV, kV, MV, GV = _prefixed_units(_si.V, 'pnumkMG')
     """volt, electric potential/voltage/emf"""
-    aF, fF, pF, nF, uF, mF, kF = _prefixed_units('F', 'afpnumk')
+    aF, fF, pF, nF, uF, mF, kF = _prefixed_units(_si.F, 'afpnumk')
     """farad, capacitance"""
-    nohm, uohm, mohm, kohm, Mohm, Gohm, Tohm = _prefixed_units('Ω', 'numkMGT')
+    nohm, uohm, mohm, kohm, Mohm, Gohm, Tohm = _prefixed_units(_si.ohm, 'numkMGT')
     """ohm, resistance/impedance/reactance"""
-    pS, nS, uS, mS, kS = _prefixed_units('S', 'pnumk')
+    pS, nS, uS, mS, kS = _prefixed_units(_si.S, 'pnumk')
     """siemens, electrical conductance"""
-    nWb, uWb, mWb, kWb = _prefixed_units('Wb', 'numk')
+    nWb, uWb, mWb, kWb = _prefixed_units(_si.Wb, 'numk')
     """weber, magnetic flux"""
-    fT, pT, nT, uT, mT, kT = _prefixed_units('T', 'fpnumk')
+    fT, pT, nT, uT, mT, kT = _prefixed_units(_si.T, 'fpnumk')
     """tesla, magnetic flux density"""
-    pH, nH, uH, mH, kH = _prefixed_units('H', 'pnumk')
+    pH, nH, uH, mH, kH = _prefixed_units(_si.H, 'pnumk')
     """henry, inductance"""
-    ulm, mlm, klm, Mlm = _prefixed_units('lm', 'umkM')
+    ulm, mlm, klm, Mlm = _prefixed_units(_si.lm, 'umkM')
     """lumen, luminous flux"""
-    mlx, klx = _prefixed_units('lx', 'mk')
+    mlx, klx = _prefixed_units(_si.lx, 'mk')
     """lux, illuminance"""
-    mBq, kBq, MBq, GBq, TBq, PBq = _prefixed_units('Bq', 'mkMGTP')
+    mBq, kBq, MBq, GBq, TBq, PBq = _prefixed_units(_si.Bq, 'mkMGTP')
     """becquerel, activity referred to a radionuclide"""
-    nGy, uGy, mGy, kGy, MGy = _prefixed_units('Gy', 'numkM')
+    nGy, uGy, mGy, kGy, MGy = _prefixed_units(_si.Gy, 'numkM')
     """gray, absorbed dose"""
-    pSv, nSv, uSv, mSv, kSv = _prefixed_units('Sv', 'pnumk')
+    pSv, nSv, uSv, mSv, kSv = _prefixed_units(_si.Sv, 'pnumk')
     """sievert, equivalent dose"""
-    nkat, ukat, mkat = _prefixed_units('kat', 'num')
+    nkat, ukat, mkat = _prefixed_units(_si.kat, 'num')
     """katal, catalytic activity"""
 
     # other common units
@@ -110,7 +122,7 @@ class si(_si):
         prefixable=('arcsec', 'arcsecond'),
     )
     """arcsecond, plane angle"""
-    mas, uas = _prefixed_units('arcsec', 'mu')
+    mas, uas = _prefixed_units(arcsec, 'mu')
     """arcsecond, plane angle"""
     percent: Final = (_si.one / 100).define(
         '%', name='percent', symbol_aliases='٪', prefixable=False
@@ -144,7 +156,7 @@ class si(_si):
     """astronomical unit, length"""
     pc: Final = (au / arcsec).define('pc', name='parsec', symbol_aliases='㍶')
     """parsec, length"""
-    kpc, Mpc, Gpc, Tpc = _prefixed_units('pc', 'kMGT')
+    kpc, Mpc, Gpc, Tpc = _prefixed_units(pc, 'kMGT')
     """parsec, length"""
     ly: Final = (_SI.c * a_j).define('ly', name='light year', prefixable=False)
     """light year, length"""
@@ -164,7 +176,7 @@ class si(_si):
     """barn, 1 b = 10⁻²⁸ m², effective cross sections."""
     L: Final = (dm**3).define('L', 'litre', 'liter', symbol_aliases=('l', 'ℓ'))
     """litre/liter, 1 L = 1 dm³, volume"""
-    fL, pL, nL, uL, mL, cL, dL, kL, ML = _prefixed_units('L', 'fpnumcdkM')
+    fL, pL, nL, uL, mL, cL, dL, kL, ML = _prefixed_units(L, 'fpnumcdkM')
     """litre/liter, 1 L = 1 dm³, volume"""
     # mass related
     t: Final = (1000 * _si.kg).define('t', name='tonne', prefixable=False)
@@ -173,9 +185,9 @@ class si(_si):
         'Da', 'dalton', 'unified atomic mass unit', symbol_aliases='u', prefixable='Da'
     )
     """dalton, unified atomic mass unit, 1 Da = m(¹²C) / 12, mass"""
-    kDa, MDa = _prefixed_units('Da', 'kM')
+    kDa, MDa = _prefixed_units(Da, 'kM')
     """dalton, unified atomic mass unit, 1 Da = m(¹²C) / 12, mass"""
-    u: Final = Unit('u')
+    u: Final = Da
     """unified atomic mass unit, 1 u = m(¹²C) / 12, mass"""
     # kinetic related
     c: Final = _SI.c.define('c', name='speed of light', prefixable=False)
@@ -187,46 +199,46 @@ class si(_si):
     # dynamic related
     gf: Final = (_SI.g * g).define('gf', 'gram-force', 'gram force')
     """gram-force, 1 gf = 1 g * 9.80665 m/s², force"""
-    kgf: Final = Unit('kgf')
+    kgf: Final = next(_prefixed_units(gf, 'k'))
     """kilogram-force, 1 kgf = 1 kg * 9.80665 m/s², force"""
     bar: Final = (ten**5 * _si.Pa).define('bar', name='bar', symbol_aliases='㍴')
     """bar, standard-state pressure"""
-    ubar, mbar = _prefixed_units('bar', 'um')
+    ubar, mbar = _prefixed_units(bar, 'um')
     """bar, standard-state pressure"""
     atm: Final = (101_325 * _si.Pa).define('atm', name='atmosphere', prefixable=False)
     """standard atmosphere"""
     mHg: Final = (1000 * (atm / 760)).define('mHg', name='metre of mercury')
     """metre of mercury, 0.760 mHg = 1 atm, pressure"""
-    mmHg: Final = Unit('mmHg')
+    mmHg: Final = next(_prefixed_units(mHg, 'm'))
     """millimetre of mercury, 760 mmHg = 1 atm, pressure"""
     Torr: Final = mmHg.define('Torr', 'torr', 'torricelli')
     """torr, 760 Torr = 1 atm, pressure"""
-    mTorr: Final = Unit('mTorr')
+    mTorr: Final = next(_prefixed_units(Torr, 'm'))
     """millitorr, pressure"""
     Wh: Final = (_si.W * h).define('Wh', name='watthour')
     """watthour, energy"""
-    uWh, mWh, kWh, MWh, GWh, TWh, PWh = _prefixed_units('Wh', 'umkMGTP')
+    uWh, mWh, kWh, MWh, GWh, TWh, PWh = _prefixed_units(Wh, 'umkMGTP')
     """watthour, energy"""
     eV: Final = (_SI.e * _si.V).define('eV', name='electronvolt')
     """electron volt, energy"""
-    ueV, meV, keV, MeV, GeV, TeV, PeV, EeV = _prefixed_units('eV', 'umkMGTPE')
+    ueV, meV, keV, MeV, GeV, TeV, PeV, EeV = _prefixed_units(eV, 'umkMGTPE')
     """electron volt, energy"""
     cal: Final = (4184 * mJ).define('cal', name='calorie', symbol_aliases='㎈')
     """calorie, energy"""
-    kcal: Final = Unit('kcal')
+    kcal: Final = next(_prefixed_units(cal, 'k'))
     """kilocalorie, energy"""
     VA: Final = (_si.V * _si.A).define('VA', name='volt-ampere')
     """volt-ampere, apparent power"""
-    kVA, MVA = _prefixed_units('VA', 'kM')
+    kVA, MVA = _prefixed_units(VA, 'kM')
     """volt-ampere, apparent power"""
     var: Final = (_si.V * _si.A).define('var', name='volt-ampere reactive', symbol_aliases='VAr')
     """volt-ampere reactive, reactive power"""
-    kvar, Mvar = _prefixed_units('var', 'kM')
+    kvar, Mvar = _prefixed_units(var, 'kM')
     """volt-ampere reactive, reactive power"""
     # electromagnetic related
     Ah: Final = (_si.A * h).define('Ah', name='ampere-hour')
     """ampere-hour, electric charge"""
-    mAh, kAh, MAh = _prefixed_units('Ah', 'mkM')
+    mAh, kAh, MAh = _prefixed_units(Ah, 'mkM')
     """ampere-hour, electric charge"""
     mho: Final = _si.S.define('mho', name='mho', symbol_aliases='℧')
     """mho, electrical conductance"""
@@ -235,7 +247,7 @@ class si(_si):
         '°C', 'degree Celsius', 'celsius', symbol_aliases=('degC', '℃')
     )
     """degree Celsius: difference 1 °C = 1 K; point 0 °C = 273.15 K"""
-    degR: Final = (Fraction(5, 9) * _si.K).define(
+    degR: Final = (5 * (_si.K / 9)).define(
         '°R', 'degree Rankine', 'rankine', symbol_aliases='degR', prefixable=False
     )
     """degree Rankine, 0 °R = 0 K, temperature"""
@@ -253,11 +265,9 @@ class si(_si):
     """bel, logarithmic unit for ratios"""
     dB: Final = Unit('dB')
     """decibel, logarithmic unit for ratios"""
-    dBm: Final = AffineUnit(1 * mW, delta_unit=dB, kind='power').define('dBm', 'decibel-milliwatt')
+    dBm: Final = LogUnit(1 * mW, delta_unit=dB, kind='power').define('dBm', 'decibel-milliwatt')
     """decibel-milliwatt, 0 dBm = 1 mW, logarithmic unit for power ratios"""
-    dBW: Final = AffineUnit(1 * _si.W, delta_unit=dB, kind='power').define('dBW', 'decibel-watt')
+    dBW: Final = LogUnit(1 * _si.W, delta_unit=dB, kind='power').define('dBW', 'decibel-watt')
     """decibel-watt, 0 dBW = 1 W, logarithmic unit for power ratios"""
-    dBV: Final = AffineUnit(1 * _si.V, delta_unit=dB, kind='amplitude').define(
-        'dBV', 'decibel-volt'
-    )
+    dBV: Final = LogUnit(1 * _si.V, delta_unit=dB, kind='amplitude').define('dBV', 'decibel-volt')
     """decibel-volt, 0 dBV = 1 V, logarithmic unit for amplitude ratios"""

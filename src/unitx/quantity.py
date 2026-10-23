@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# Core algebra uses shared descriptor/point boundaries, not concrete coordinate families.
+# pyright: reportPrivateUsage=false
 import math
 import operator
 import sys
@@ -8,7 +10,6 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Generic, TypeGuard, TypeVar, cast, overload
 
-from ._conversion import linear_unit, scale_value
 from ._numerics import (
     Array,
     Fractionable,
@@ -21,11 +22,13 @@ from ._numerics import (
     is_numpy_object,
 )
 from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._operands import _LinearUnitSource, _Point, linear_unit
+from ._scaling import scale_value
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
 from .factor import Factor, SymbolicConstant, one
 from .unit import Unit
-from .unitregistry import PrefixPolicy
+from .unitdefinition import PrefixPolicy
 
 # Covariance is safe because Quantity never replaces its magnitude or unit.
 # NumPy out= and indexed assignment write elements, preserving array type and dtype;
@@ -34,8 +37,7 @@ T = TypeVar('T', bound=Magnitude, covariant=True)
 
 
 if TYPE_CHECKING:
-    from .affinequantity import AffineQuantity
-    from .affineunit import AffineUnit, LogKind
+    from ._logarithms import LogKind
 
 
 def _is_quantity(value: object) -> TypeGuard[Quantity[Magnitude]]:
@@ -65,7 +67,7 @@ class Quantity(Generic[T]):
     while ordinary numeric operands participate in magnitude arithmetic.
 
     Quantity describes linear values and differences. Absolute coordinates use
-    AffineQuantity. Logarithmic differences require explicit to_ratio()/to_log()
+    AffineQuantity or LogQuantity. Logarithmic differences require explicit to_ratio()/to_log()
     for power/amplitude interpretation.
 
     Python scalar magnitudes retain their native numerical semantics. Optional
@@ -120,7 +122,7 @@ class Quantity(Generic[T]):
     _value: T
     _unit: Unit
 
-    def __init__(self, value: T, unit: str | Unit | AffineUnit, /) -> None:
+    def __init__(self, value: T, unit: str | Unit | _LinearUnitSource, /) -> None:
         if is_numpy_object(value):
             from ._numpy import validate_magnitude
 
@@ -190,32 +192,32 @@ class Quantity(Generic[T]):
         return self.to_html()
 
     def is_dimensionless(self) -> bool:
-        return self.dimension is DIMENSIONLESS
+        return self.dimension.physical is DIMENSIONLESS
 
     def __bool__(self) -> bool:
         return bool(self.value)
 
     @overload
-    def value_in(self: Quantity[Array], unit: str | Unit | AffineUnit, /) -> NumpyValue: ...
+    def value_in(self: Quantity[Array], unit: str | Unit | _LinearUnitSource, /) -> NumpyValue: ...
 
     @overload
-    def value_in(self: Quantity[Decimal], unit: str | Unit | AffineUnit, /) -> Decimal: ...
+    def value_in(self: Quantity[Decimal], unit: str | Unit | _LinearUnitSource, /) -> Decimal: ...
 
     @overload
     def value_in(
-        self: Quantity[Fraction], unit: str | Unit | AffineUnit, /
+        self: Quantity[Fraction], unit: str | Unit | _LinearUnitSource, /
     ) -> Fraction | float: ...
 
     @overload
-    def value_in[N: Real](self: Quantity[N], unit: str | Unit | AffineUnit, /) -> Real: ...
+    def value_in[N: Real](self: Quantity[N], unit: str | Unit | _LinearUnitSource, /) -> Real: ...
 
     @overload
-    def value_in(self: Quantity[Scalar], unit: str | Unit | AffineUnit, /) -> Scalar: ...
+    def value_in(self: Quantity[Scalar], unit: str | Unit | _LinearUnitSource, /) -> Scalar: ...
 
     @overload
-    def value_in(self, unit: str | Unit | AffineUnit, /) -> Magnitude: ...
+    def value_in(self, unit: str | Unit | _LinearUnitSource, /) -> Magnitude: ...
 
-    def value_in(self, unit: str | Unit | AffineUnit, /) -> Magnitude:
+    def value_in(self, unit: str | Unit | _LinearUnitSource, /) -> Magnitude:
         """Return the magnitude in the specified unit without constructing a Quantity.
 
         The value and its type follow the same conversion rules as
@@ -234,41 +236,49 @@ class Quantity(Generic[T]):
         unit = linear_unit(unit)
         from ._conversion import convert
 
-        return cast(Magnitude, convert(self.value, self.unit, unit))
-
-    @overload
-    def to(self: Quantity[Array], unit: str | Unit | AffineUnit, /) -> Quantity[NumpyValue]: ...
-
-    @overload
-    def to(self: Quantity[Decimal], unit: str | Unit | AffineUnit, /) -> Quantity[Decimal]: ...
+        return convert(self.value, self.unit, unit)
 
     @overload
     def to(
-        self: Quantity[Fraction], unit: str | Unit | AffineUnit, /
+        self: Quantity[Array], unit: str | Unit | _LinearUnitSource, /
+    ) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def to(
+        self: Quantity[Decimal], unit: str | Unit | _LinearUnitSource, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def to(
+        self: Quantity[Fraction], unit: str | Unit | _LinearUnitSource, /
     ) -> Quantity[Fraction | float]: ...
 
     @overload
-    def to[N: Real](self: Quantity[N], unit: str | Unit | AffineUnit, /) -> Quantity[Real]: ...
+    def to[N: Real](
+        self: Quantity[N], unit: str | Unit | _LinearUnitSource, /
+    ) -> Quantity[Real]: ...
 
     @overload
-    def to(self: Quantity[Scalar], unit: str | Unit | AffineUnit, /) -> Quantity[Scalar]: ...
+    def to(self: Quantity[Scalar], unit: str | Unit | _LinearUnitSource, /) -> Quantity[Scalar]: ...
 
     @overload
-    def to(self, unit: str | Unit | AffineUnit, /) -> Quantity[Magnitude]: ...
+    def to(self, unit: str | Unit | _LinearUnitSource, /) -> Quantity[Magnitude]: ...
 
-    def to(self, unit: str | Unit | AffineUnit, /) -> Quantity[Magnitude]:
+    def to(self, unit: str | Unit | _LinearUnitSource, /) -> Quantity[Magnitude]:
         unit = linear_unit(unit)
         return Quantity(self.value_in(unit), unit)
 
     def to_ratio(self, *, kind: LogKind) -> Quantity[Magnitude]:
         """Restore a power or amplitude ratio from a logarithmic difference."""
-        from ._conversion import to_ratio
+        from ._logarithms import to_ratio
 
         return Quantity(cast(Magnitude, to_ratio(self.value, self.unit, kind)), Unit())
 
-    def to_log(self, unit: str | Unit | AffineUnit, /, *, kind: LogKind) -> Quantity[Magnitude]:
+    def to_log(
+        self, unit: str | Unit | _LinearUnitSource, /, *, kind: LogKind
+    ) -> Quantity[Magnitude]:
         """Express an ordinary dimensionless ratio as a logarithmic difference."""
-        from ._conversion import to_log
+        from ._logarithms import to_log
 
         target = linear_unit(unit)
         return Quantity(cast(Magnitude, to_log(self.value, self.unit, target, kind)), target)
@@ -277,20 +287,22 @@ class Quantity(Generic[T]):
         self: Quantity[Fractionable],
         symbol: str,
         /,
-        name: str,
+        name: str | None = None,
         *name_aliases: str,
         symbol_aliases: str | tuple[str, ...] = (),
-        prefixable: PrefixPolicy = True,
+        prefixable: PrefixPolicy | None = None,
     ) -> Unit:
-        """Register a unit equal to this quantity, using Unit.define's name rules.
+        """Define a unit equal to this quantity, using Unit.define's name rules.
 
-        A nonempty primary name is required; additional names are optional
+        The name defaults to the symbol; additional names are optional
         positional arguments.
         The magnitude must be a positive finite int, Fraction, Decimal, or
         float. Decimal and Fraction scales stay exact. Float scales follow
         Factor's denominator limit and can warn or round to zero and fail;
-        use Decimal or Fraction for exact definitions. Registration affects
-        this process and leaves this quantity unchanged.
+        use Decimal or Fraction for exact definitions. A Registry.defining()
+        block binds spellings to its selected environment. Otherwise parser tables
+        stay unchanged; UnitCatalog collects public unit attributes after its
+        class body finishes. This quantity is unchanged.
         """
 
         scale = Factor(self.value)
@@ -329,20 +341,15 @@ class Quantity(Generic[T]):
         return value, 0, factor
 
     def _equal(self, other: object, op: Callable[[Any, Any], bool]) -> bool:
-        from .affinequantity import AffineQuantity
 
-        if isinstance(other, AffineQuantity):
+        if isinstance(other, _Point):
             return NotImplemented
         if self._has_numpy_operand(other):
             from ._numpy import compare
 
             return compare(self, other, op)
-        if _is_quantity(other) and self.unit.log_degree != other.unit.log_degree:
-            return op is operator.ne
-        if not _is_quantity(other) and self.unit.log_degree:
-            return op is operator.ne
         if not _is_quantity(other):
-            if not self.is_dimensionless():
+            if self.dimension != DIMENSIONLESS:
                 return NotImplemented
             other = Quantity(cast(Scalar, other), Unit())
         if self.dimension != other.dimension:
@@ -414,25 +421,24 @@ class Quantity(Generic[T]):
                 value_hash = (value_hash + modulus // 2) % modulus - modulus // 2
                 if value_hash == -1:
                     value_hash = -2
-        if self.unit.log_degree:
-            return hash((value_hash, factor, self.dimension, self.unit.log_degree))
         if factor == one:
-            return value_hash if self.is_dimensionless() else hash((value_hash, self.dimension))
+            return (
+                value_hash
+                if self.dimension == DIMENSIONLESS
+                else hash((value_hash, self.dimension))
+            )
         return hash((value_hash, factor, self.dimension))
 
     def _compare(self, other: object, op: Callable[[Any, Any], bool]) -> bool:
-        from .affinequantity import AffineQuantity
 
-        if isinstance(other, AffineQuantity):
+        if isinstance(other, _Point):
             return NotImplemented
-        if self.unit.log_degree != (other.unit.log_degree if _is_quantity(other) else 0):
-            raise DimensionError('Cannot compare ordinary quantities and logarithmic differences.')
         if self._has_numpy_operand(other):
             from ._numpy import compare
 
             return compare(self, other, op)
         if not _is_quantity(other):
-            if not self.is_dimensionless():
+            if self.dimension != DIMENSIONLESS:
                 return NotImplemented
             other = Quantity(cast(Scalar, other), Unit())
         if self.dimension != other.dimension:
@@ -610,8 +616,6 @@ class Quantity(Generic[T]):
         >>> b.isclose(a, rel_tol=0, abs_tol=Quantity(1, 'mm'))
         True
         """
-        if _is_quantity(other) and self.unit.log_degree != other.unit.log_degree:
-            raise DimensionError('Incompatible logarithmic degree.')
         if self._has_numpy_operand(other, rel_tol, abs_tol):
             from ._numpy import isclose
 
@@ -629,7 +633,7 @@ class Quantity(Generic[T]):
             if not isinstance(other, Fractionable):
                 raise TypeError('other must be a Quantity or real scalar.')
             other = Quantity(other, '')
-        if self.dimension != other.dimension or self.unit.log_degree != other.unit.log_degree:
+        if self.dimension != other.dimension:
             raise DimensionError(
                 'Cannot compare quantities with different dimensions or logarithmic degrees.'
             )
@@ -638,7 +642,7 @@ class Quantity(Generic[T]):
             if not isinstance(abs_tol, Fractionable):
                 raise TypeError('abs_tol must be a Quantity or real scalar.')
             abs_tol = Quantity(abs_tol, self.unit if abs_tol == 0 else Unit())
-        if self.dimension != abs_tol.dimension or self.unit.log_degree != abs_tol.unit.log_degree:
+        if self.dimension != abs_tol.dimension:
             raise DimensionError(
                 'Absolute tolerance must have the same dimension as the quantities.'
             )
@@ -708,14 +712,11 @@ class Quantity(Generic[T]):
         *,
         reverse: bool = False,
     ) -> Quantity[Scalar]:
-        from .affinequantity import AffineQuantity
 
-        if isinstance(other, AffineQuantity):
+        if isinstance(other, _Point):
             return NotImplemented
-        if self.unit.log_degree != (other.unit.log_degree if _is_quantity(other) else 0):
-            raise DimensionError('Addition requires compatible logarithmic degrees.')
         if not _is_quantity(other):
-            if not self.is_dimensionless():
+            if self.dimension != DIMENSIONLESS:
                 return NotImplemented
             other_value = cast(Scalar, other)
             conversion_factor = 1 / self.unit.factor
@@ -737,7 +738,7 @@ class Quantity(Generic[T]):
         return Quantity(cast(Scalar, op(left, right)), self.unit)
 
     @overload
-    def __add__(self, other: AffineQuantity[Magnitude], /) -> AffineQuantity[Magnitude]: ...
+    def __add__[P: _Point[Any]](self, other: _Point[P], /) -> P: ...
 
     @overload
     def __add__(
@@ -770,7 +771,7 @@ class Quantity(Generic[T]):
     @overload
     def __add__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
 
-    def __add__(self, other: object, /) -> Quantity[Magnitude] | AffineQuantity[Magnitude]:
+    def __add__(self, other: object, /) -> Quantity[Magnitude] | _Point[Any]:
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
@@ -884,7 +885,9 @@ class Quantity(Generic[T]):
         return self._add_sub(other, operator.sub, reverse=True)
 
     @overload
-    def __mul__(self, other: Unit | AffineUnit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
+    def __mul__(
+        self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
+    ) -> Quantity[T]: ...
 
     @overload
     def __mul__(
@@ -921,9 +924,7 @@ class Quantity(Generic[T]):
     def __mul__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
 
     def __mul__(self, other: object, /) -> Quantity[Magnitude]:
-        from .affineunit import AffineUnit
-
-        if isinstance(other, AffineUnit):
+        if isinstance(other, _LinearUnitSource):
             other = linear_unit(other)
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
@@ -942,7 +943,9 @@ class Quantity(Generic[T]):
         return Quantity(cast(Scalar, cast(Scalar, self.value) * cast(Scalar, other)), self.unit)
 
     @overload
-    def __rmul__(self, other: Unit | AffineUnit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
+    def __rmul__(
+        self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
+    ) -> Quantity[T]: ...
 
     @overload
     def __rmul__(
@@ -971,9 +974,7 @@ class Quantity(Generic[T]):
     def __rmul__(self, other: Magnitude, /) -> Quantity[Magnitude]: ...
 
     def __rmul__(self, other: object, /) -> Quantity[Magnitude]:
-        from .affineunit import AffineUnit
-
-        if isinstance(other, AffineUnit):
+        if isinstance(other, _LinearUnitSource):
             other = linear_unit(other)
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
@@ -987,7 +988,7 @@ class Quantity(Generic[T]):
 
     @overload
     def __truediv__(
-        self, other: Unit | AffineUnit | Factor | SymbolicConstant, /
+        self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
     ) -> Quantity[T]: ...
 
     @overload
@@ -1025,9 +1026,7 @@ class Quantity(Generic[T]):
     def __truediv__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
 
     def __truediv__(self, other: object, /) -> Quantity[Magnitude]:
-        from .affineunit import AffineUnit
-
-        if isinstance(other, AffineUnit):
+        if isinstance(other, _LinearUnitSource):
             other = linear_unit(other)
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
@@ -1048,7 +1047,12 @@ class Quantity(Generic[T]):
     @overload
     def __rtruediv__(
         self: Quantity[Array],
-        other: Unit | AffineUnit | Factor | SymbolicConstant | Quantity[Magnitude] | Magnitude,
+        other: Unit
+        | _LinearUnitSource
+        | Factor
+        | SymbolicConstant
+        | Quantity[Magnitude]
+        | Magnitude,
         /,
     ) -> Quantity[NumpyValue]: ...
 
@@ -1057,13 +1061,13 @@ class Quantity(Generic[T]):
 
     @overload
     def __rtruediv__(
-        self: Quantity[int], other: Unit | AffineUnit | Factor | SymbolicConstant | int, /
+        self: Quantity[int], other: Unit | _LinearUnitSource | Factor | SymbolicConstant | int, /
     ) -> Quantity[float]: ...
 
     @overload
     def __rtruediv__(
         self: Quantity[Decimal],
-        other: Unit | AffineUnit | Factor | SymbolicConstant | Decimal | int,
+        other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Decimal | int,
         /,
     ) -> Quantity[Decimal]: ...
 
@@ -1072,23 +1076,23 @@ class Quantity(Generic[T]):
 
     @overload
     def __rtruediv__[N: Real](
-        self: Quantity[N], other: Unit | AffineUnit | Factor | SymbolicConstant | Real, /
+        self: Quantity[N], other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Real, /
     ) -> Quantity[Real]: ...
 
     @overload
     def __rtruediv__(
-        self: Quantity[Scalar], other: Unit | AffineUnit | Factor | SymbolicConstant | Scalar, /
+        self: Quantity[Scalar],
+        other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Scalar,
+        /,
     ) -> Quantity[Scalar]: ...
 
     @overload
     def __rtruediv__(
-        self, other: Unit | AffineUnit | Factor | SymbolicConstant | Magnitude, /
+        self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Magnitude, /
     ) -> Quantity[Magnitude]: ...
 
     def __rtruediv__(self, other: object, /) -> Quantity[Magnitude]:
-        from .affineunit import AffineUnit
-
-        if isinstance(other, AffineUnit):
+        if isinstance(other, _LinearUnitSource):
             other = linear_unit(other)
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
@@ -1132,7 +1136,7 @@ class Quantity(Generic[T]):
         return Quantity(cast(Scalar, cast(Scalar, self.value) ** exponent), self.unit**power)
 
     @overload
-    def __iadd__(self, other: AffineQuantity[Magnitude], /) -> AffineQuantity[Magnitude]: ...
+    def __iadd__[P: _Point[Any]](self, other: _Point[P], /) -> P: ...
 
     @overload
     def __iadd__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
@@ -1168,10 +1172,8 @@ class Quantity(Generic[T]):
     @overload
     def __iadd__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
 
-    def __iadd__(self, other: object, /) -> Quantity[Magnitude] | AffineQuantity[Magnitude]:
-        result = cast(
-            'Quantity[Magnitude] | AffineQuantity[Magnitude]', self.__add__(cast(Any, other))
-        )
+    def __iadd__(self, other: object, /) -> Quantity[Magnitude] | _Point[Any]:
+        result = cast('Quantity[Magnitude] | _Point[Any]', self.__add__(cast(Any, other)))
         if is_numpy_object(self.value):
             from ._numpy import write_inplace
 
@@ -1219,7 +1221,9 @@ class Quantity(Generic[T]):
     def __imul__[A: WritableArray](self: Quantity[A], other: object, /) -> Quantity[A]: ...
 
     @overload
-    def __imul__(self, other: Unit | AffineUnit | Factor | SymbolicConstant, /) -> Quantity[T]: ...
+    def __imul__(
+        self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
+    ) -> Quantity[T]: ...
 
     @overload
     def __imul__(
@@ -1263,7 +1267,7 @@ class Quantity(Generic[T]):
 
     @overload
     def __itruediv__(
-        self, other: Unit | AffineUnit | Factor | SymbolicConstant, /
+        self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
     ) -> Quantity[T]: ...
 
     @overload
@@ -1450,6 +1454,6 @@ class Quantity(Generic[T]):
         return apply_ufunc('matmul', other, self)
 
 
-def quantity(value: float, /, unit: str | Unit | AffineUnit) -> Quantity[Decimal]:
+def quantity(value: float, /, unit: str | Unit | _LinearUnitSource) -> Quantity[Decimal]:
     """Construct a quantity from a float's shortest decimal representation."""
     return Quantity(Decimal(repr(value)), unit)

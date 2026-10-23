@@ -21,7 +21,7 @@ from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import DimensionError, InexactFloatWarning, UnitSymbolError
 from unitx.factor import Factor, one, pi
 from unitx.quantity import Quantity
-from unitx.unit import ScaledUnit, Unit
+from unitx.unit import Unit
 
 
 class _IntMagnitude(int):
@@ -76,11 +76,11 @@ def test_quantity_str(unit: str, expected: str) -> None:
         (Unit() / pi, '3/π'),
         (pi * Unit('s'), '3 π⋅s'),
         (Factor(12) * Unit('s'), '3⋅12⋅s'),
-        (ScaledUnit(Unit(), one), '3'),
-        (ScaledUnit(Unit('1/s'), one), '3/s'),
+        (Unit(Unit(), scale=one), '3'),
+        (Unit(Unit('1/s'), scale=one), '3/s'),
     ],
 )
-def test_quantity_scaled_str(unit: ScaledUnit, expected: str) -> None:
+def test_quantity_scaled_str(unit: Unit, expected: str) -> None:
     quantity = Quantity(3, unit)
     before = (quantity.value, quantity.unit, quantity.unit.factor)
     assert str(quantity) == expected
@@ -88,7 +88,7 @@ def test_quantity_scaled_str(unit: ScaledUnit, expected: str) -> None:
 
 
 @pytest.mark.parametrize('value', [0, -2, 2**60 + 1, 0.1, Fraction(3, 7), Decimal('1.2345'), 2j])
-@pytest.mark.parametrize('unit', [Unit('cm'), ScaledUnit('cm', pi), Unit('km/m')])
+@pytest.mark.parametrize('unit', [Unit('cm'), Unit('cm', scale=pi), Unit('km/m')])
 @pytest.mark.parametrize('factor', [one, Factor(2), pi, 1 / (2 * pi), Factor(2) ** Fraction(1, 2)])
 def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
     quantity = Quantity(value, unit)
@@ -113,7 +113,7 @@ def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
 @pytest.mark.parametrize('value', [2, Fraction(3, 7), Decimal('1.2345'), 2j])
 @pytest.mark.parametrize('factor', [Factor(2), pi])
 def test_quantity_factor_reciprocal(value, factor) -> None:
-    quantity = Quantity(value, ScaledUnit('cm', pi))
+    quantity = Quantity(value, Unit('cm', scale=pi))
     result = factor / quantity
     reciprocal = 1 / quantity
     assert result.value == reciprocal.value
@@ -129,7 +129,7 @@ def test_quantity_factor_scaling() -> None:
     assert numeric.value == 6
     assert numeric.unit == quantity.unit
     assert exact.value == 3
-    assert exact.unit == ScaledUnit('cm', Factor(2))
+    assert exact.unit == Unit('cm', scale=Factor(2))
     assert exact == numeric
     assert hash(exact) == hash(numeric)
     assert (exact.to('m').to(exact.unit)).value == exact.value
@@ -150,13 +150,13 @@ def test_quantity_scaled_operations() -> None:
 
 
 def test_quantity_scaled_copy() -> None:
-    unit = ScaledUnit('cm', scale=pi / 180)
+    unit = Unit('cm', scale=pi / 180)
     quantity = Quantity(Decimal('1.25'), unit)
     for rebuilt in (copy(quantity), deepcopy(quantity), pickle.loads(pickle.dumps(quantity))):
         assert rebuilt == quantity
         assert type(rebuilt.value) is Decimal
         assert rebuilt.value == quantity.value
-        assert type(rebuilt.unit) is ScaledUnit
+        assert type(rebuilt.unit) is Unit
         assert rebuilt.unit.scale == unit.scale
         assert rebuilt.unit.factor == unit.factor
         assert {quantity: 'found'}[rebuilt] == 'found'
@@ -184,8 +184,8 @@ def test_quantity_repr_roundtrip(unit: str) -> None:
         (Quantity(0.5, 'm'), 'cm', 50.0, float),
         (Quantity(2**53 + 1, 'm'), 'cm', (2**53 + 1) * 100, int),
         (Quantity(1, 'km/m'), '', 1000, int),
-        (Quantity(1, ScaledUnit('cm', Factor(2))), 'cm', 2, int),
-        (Quantity(1, 'm'), ScaledUnit('cm', Factor(2)), 50, int),
+        (Quantity(1, Unit('cm', scale=Factor(2))), 'cm', 2, int),
+        (Quantity(1, 'm'), Unit('cm', scale=Factor(2)), 50, int),
         (Quantity(2j, 'cm'), 'm', 0.02j, complex),
         (Quantity(1, 'mm^(1/2)'), 'm^(1/2)', math.sqrt(0.001), float),
         (Quantity(1, pi * Unit('m')), 'm', math.pi, float),
@@ -796,7 +796,7 @@ def test_quantity_conversion_identity(value: Decimal) -> None:
 
 
 def test_quantity_decimal_conversion() -> None:
-    unit = ScaledUnit('m', Factor(Fraction(9, 10)))
+    unit = Unit('m', scale=Factor(Fraction(9, 10)))
     with localcontext() as context:
         context.prec = 2
         context.Emax = 100

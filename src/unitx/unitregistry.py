@@ -1,378 +1,266 @@
-"""Unit definitions, spelling resolution, and process-local registration.
+"""Explicit spelling environments and the default SI parser bindings.
 
-`PrefixPolicy` is a bool, spelling string, or tuple of registered unit spellings.
-The `prefixable` keyword on Unit.define() enables all prefixes for every spelling
-with True, disables them with False, or enables only the listed spellings.
-
-Registration and spelling resolution share process-wide indexes without locking.
-Register units during single-threaded initialization; concurrent registration or
-resolution during registration is unsupported. Validation failure leaves indexes
-unchanged, but updates are not atomic for concurrent readers.
+Definitions are already valid before binding. Registry owns spelling lookup and
+checks conflicts against the receiving environment. Registration during concurrent
+reads or writes requires external synchronization.
 """
 
 from __future__ import annotations
 
-import math
-import re
-from decimal import Decimal
-from fractions import Fraction
-from itertools import chain
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from ._immutable import _Immutable
-from ._unicode import SUPERSCRIPTS
-from .dimension import DIMENSIONLESS, Dimension
+from ._builtin_units import _UNIT_ENTRIES
+from ._prefixes import (
+    _PREFIX_NAME_LENGTHS,
+    _PREFIX_SYMBOL_LENGTHS,
+    _PREFIXED_NAME_EXPANSIONS,
+    NO_PREFIX,
+    PREFIX_DEFINITIONS,
+    PREFIX_NAME_TO_SYMBOL,
+    PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
+    PrefixDefinition,
+)
+from ._reconstruction import _publish_definitions
 from .exceptions import UnitRegistryError, UnitSymbolError
-from .factor import Factor, ln10, one, ten
+from .unitdefinition import PrefixPolicy, UnitDefinition
 
-__all__ = ['PrefixPolicy']
+if TYPE_CHECKING:
+    from ._coordinates import _Coordinate
+    from ._numerics import Fractionable
+    from .quantity import Quantity
+    from .unit import Unit
 
-type PrefixPolicy = bool | str | tuple[str, ...]
-
-_UNIT_SYMBOL_PATTERN = r'[^\s\d' + re.escape('*^()/+-[]' + SUPERSCRIPTS) + ']+'
-_UNIT_SYMBOL_RE = re.compile(_UNIT_SYMBOL_PATTERN)
-_UNIT_NAME_RE = re.compile(f'{_UNIT_SYMBOL_PATTERN}(?:[ -]{_UNIT_SYMBOL_PATTERN})*')
-_PREFIXED_NAME_EXCEPTIONS = {'megaohm': 'megohm', 'kiloohm': 'kilohm'}
-_PREFIXED_NAME_EXPANSIONS = {
-    contracted: expanded for expanded, contracted in _PREFIXED_NAME_EXCEPTIONS.items()
-}
+__all__ = ['Registry', 'default_registry']
 
 
-class PrefixDefinition(_Immutable):
-    """Immutable canonical symbol, exact scale, and accepted prefix names."""
-
-    __slots__ = ('symbol', 'symbol_aliases', 'names', 'factor')
-
-    symbol: str
-    symbol_aliases: tuple[str, ...]
-    names: tuple[str, ...]
-    factor: Factor
-
-    def __init__(
-        self,
-        symbol: str,
-        name: str,
-        *name_aliases: str,
-        factor: Factor,
-        symbol_aliases: str | tuple[str, ...] = (),
-    ) -> None:
-        if isinstance(symbol_aliases, str):
-            symbol_aliases = (symbol_aliases,)
-        object.__setattr__(self, 'symbol', symbol)
-        object.__setattr__(self, 'symbol_aliases', symbol_aliases)
-        object.__setattr__(self, 'names', (name, *name_aliases))
-        object.__setattr__(self, 'factor', factor)
-
-    @property
-    def name(self) -> str:
-        return self.names[0]
+_DEFINITION_SCOPE: ContextVar[Registry | None] = ContextVar('unitx_definition_scope', default=None)
 
 
-NO_PREFIX = PrefixDefinition('', '', factor=one)
-"""Identity prefix for unprefixed units."""
-
-_PREFIX_ENTRIES: tuple[PrefixDefinition, ...] = (
-    # Decimal multiples.
-    PrefixDefinition('Q', 'quetta', factor=ten**30),
-    PrefixDefinition('R', 'ronna', factor=ten**27),
-    PrefixDefinition('Y', 'yotta', factor=ten**24),
-    PrefixDefinition('Z', 'zetta', factor=ten**21),
-    PrefixDefinition('E', 'exa', factor=ten**18),
-    PrefixDefinition('P', 'peta', factor=ten**15),
-    PrefixDefinition('T', 'tera', factor=ten**12),
-    PrefixDefinition('G', 'giga', factor=ten**9),
-    PrefixDefinition('M', 'mega', factor=ten**6),
-    PrefixDefinition('k', 'kilo', factor=ten**3),
-    PrefixDefinition('h', 'hecto', factor=ten**2),
-    PrefixDefinition('da', 'deca', factor=ten**1),
-    # Decimal submultiples.
-    PrefixDefinition('d', 'deci', factor=ten**-1),
-    PrefixDefinition('c', 'centi', factor=ten**-2),
-    PrefixDefinition('m', 'milli', factor=ten**-3),
-    PrefixDefinition('µ', 'micro', factor=ten**-6, symbol_aliases=('μ', 'u')),
-    PrefixDefinition('n', 'nano', factor=ten**-9),
-    PrefixDefinition('p', 'pico', factor=ten**-12),
-    PrefixDefinition('f', 'femto', factor=ten**-15),
-    PrefixDefinition('a', 'atto', factor=ten**-18),
-    PrefixDefinition('z', 'zepto', factor=ten**-21),
-    PrefixDefinition('y', 'yocto', factor=ten**-24),
-    PrefixDefinition('r', 'ronto', factor=ten**-27),
-    PrefixDefinition('q', 'quecto', factor=ten**-30),
-)
-
-PREFIX_DEFINITIONS: dict[str, PrefixDefinition] = {
-    definition.symbol: definition for definition in _PREFIX_ENTRIES
-}
-"""Canonical prefix symbol -> prefix definition."""
-
-PREFIX_NAME_TO_SYMBOL: dict[str, str] = {
-    name: definition.symbol for definition in _PREFIX_ENTRIES for name in definition.names if name
-}
-"""Prefix name or name alias -> canonical prefix symbol."""
-
-_PREFIX_NAME_LENGTHS = tuple(sorted({len(name) for name in PREFIX_NAME_TO_SYMBOL}))
-
-PREFIX_SYMBOL_ALIAS_TO_SYMBOL: dict[str, str] = {
-    alias: definition.symbol
-    for definition in _PREFIX_ENTRIES
-    for alias in definition.symbol_aliases
-}
-"""Prefix symbol alias -> canonical prefix symbol."""
-
-_PREFIX_SYMBOL_LENGTHS = tuple(
-    sorted({len(symbol) for symbol in chain(PREFIX_DEFINITIONS, PREFIX_SYMBOL_ALIAS_TO_SYMBOL)})
-)
-
-assert PREFIX_SYMBOL_ALIAS_TO_SYMBOL['u'] == chr(0xB5)
-assert PREFIX_SYMBOL_ALIAS_TO_SYMBOL[chr(0x3BC)] == chr(0xB5)
+def _definition_target() -> Registry | None:
+    return _DEFINITION_SCOPE.get()
 
 
-class UnitDefinition(_Immutable):
-    """Immutable identity, spelling and conversion metadata.
+def _collect_definitions(units: Iterable[Unit | _Coordinate]) -> tuple[UnitDefinition, ...]:
+    """Adapt public unit objects to immutable records before entering the binder."""
+    from ._coordinates import _Coordinate
+    from .unit import Unit
 
-    factor, dimension and log_degree always describe the linear difference unit.
-    An optional (value, unit-expression) reference at reading zero adds an
-    affine coordinate to the same spelling; its physical dimension follows the reference.
-    The registry stores primitive immutable data without importing Quantity.
+    entries: list[UnitDefinition] = []
+    for unit in units:
+        if isinstance(unit, _Coordinate):
+            if unit._definition is None:
+                error_message = 'Name a coordinate with .define() before including it.'
+                raise TypeError(error_message)
+            entries.append(unit._definition)
+        elif isinstance(unit, Unit):
+            entries.extend(base._unit for base, _ in unit._monomial.components())
+        else:
+            error_message = 'Registry.include requires Unit or named AffineUnit or LogUnit objects.'
+            raise TypeError(error_message)
+    return tuple(entries)
+
+
+@dataclass(slots=True)
+class _Bindings:
+    """Own spelling indexes and their lookup, conflict and staging rules."""
+
+    definitions: dict[str, UnitDefinition]
+    names: dict[str, str]
+    aliases: dict[str, str]
+
+    def copy(self) -> _Bindings:
+        return _Bindings(self.definitions.copy(), self.names.copy(), self.aliases.copy())
+
+    def update(self, candidate: _Bindings) -> None:
+        self.definitions.update(candidate.definitions)
+        self.names.update(candidate.names)
+        self.aliases.update(candidate.aliases)
+
+    def resolve_name(self, text: str, /) -> tuple[PrefixDefinition, UnitDefinition]:
+        """Resolve only names to shared definitions, with at most one prefix."""
+        definitions, names = self.definitions, self.names
+        unit_symbol = names.get(text)
+        if unit_symbol is not None:
+            return NO_PREFIX, definitions[unit_symbol]
+        prefixed_name = _PREFIXED_NAME_EXPANSIONS.get(text, text)
+        for prefix_len in _PREFIX_NAME_LENGTHS:
+            prefix_symbol = PREFIX_NAME_TO_SYMBOL.get(prefixed_name[:prefix_len])
+            if prefix_symbol is None:
+                continue
+            name = prefixed_name[prefix_len:]
+            unit_symbol = names.get(name)
+            if unit_symbol is not None:
+                unit = definitions[unit_symbol]
+                if unit.allows_prefix(name):
+                    return PREFIX_DEFINITIONS[prefix_symbol], unit
+        error_message = f'{text!r} is not a valid unit symbol.'
+        raise UnitSymbolError(error_message)
+
+    def resolve(self, text: str, /) -> tuple[PrefixDefinition, UnitDefinition]:
+        """Resolve shared definitions; complete symbols precede one prefix split."""
+        definitions, aliases = self.definitions, self.aliases
+        unitdef = definitions.get(text)
+        if unitdef is not None:
+            return NO_PREFIX, unitdef
+        unit_symbol = aliases.get(text)
+        if unit_symbol is not None:
+            return NO_PREFIX, definitions[unit_symbol]
+        for prefix_len in _PREFIX_SYMBOL_LENGTHS:
+            prefix = text[:prefix_len]
+            prefixdef = PREFIX_DEFINITIONS.get(PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(prefix, prefix))
+            if prefixdef is None:
+                continue
+            unit = text[prefix_len:]
+            unitdef = definitions.get(aliases.get(unit, unit))
+            if unitdef is not None and unitdef.allows_prefix(unit):
+                return prefixdef, unitdef
+        return self.resolve_name(text)
+
+    def register(self, definition: UnitDefinition, /) -> None:
+        """Validate all spellings before updating shared indexes, without locking."""
+        definitions, names_index, aliases_index = self.definitions, self.names, self.aliases
+        symbol = definition.symbol
+        symbols = dict.fromkeys(text for text in definition.symbols if text)
+        names = dict.fromkeys(text for text in definition.names if text)
+        for text in definition._spellings:
+            try:
+                self.resolve(text)
+            except UnitSymbolError:
+                pass
+            else:
+                error_message = f'Unit text {text!r} already resolves to a registered unit.'
+                raise UnitRegistryError(error_message)
+            if ' ' in text:
+                try:
+                    for word in text.split(' '):
+                        self.resolve(word)
+                except UnitSymbolError:
+                    continue
+                error_message = f'Unit text {text!r} already parses as a unit product.'
+                raise UnitRegistryError(error_message)
+
+        definitions[symbol] = definition
+        names_index.update(dict.fromkeys(names, symbol))
+        aliases_index.update(dict.fromkeys((alias for alias in symbols if alias != symbol), symbol))
+
+
+class Registry:
+    """An explicit spelling environment, independent of the default environment.
+
+    Start with only the multiplicative identity. Include existing Unit objects
+    to share their definitions, or define private units. No fallback to the
+    default table, inheritance, or implicit activation occurs. Initialize before
+    concurrent use; registration and parsing during registration need external
+    synchronization.
+
+    `prefixable` supplies the default for definitions made by this registry
+    or within its defining() blocks. Included units retain their own policy.
     """
 
-    __slots__ = (
-        'symbols',
-        'names',
-        'factor',
-        'dimension',
-        'prefixable',
-        'log_degree',
-        'reference',
-        'delta',
-        'kind',
-    )
-
-    symbols: tuple[str, ...]
-    names: tuple[str, ...]
-    factor: Factor
-    dimension: Dimension
-    prefixable: bool | tuple[str, ...]
-    log_degree: Fraction
-    reference: tuple[int | float | Fraction | Decimal, str] | None
-    delta: str | None
-    kind: str | None
+    __slots__ = ('_bindings', '_prefixable')
 
     def __init__(
-        self,
-        symbol: str,
-        name: str,
-        *name_aliases: str,
-        factor: Factor,
-        dimension: Dimension,
-        symbol_aliases: str | tuple[str, ...] = (),
-        prefixable: PrefixPolicy = True,
-        logarithmic: bool = False,
-        log_degree: Fraction = Fraction(0),
-        reference: tuple[int | float | Fraction | Decimal, str] | None = None,
-        delta: str | None = None,
-        kind: str | None = None,
+        self, units: Iterable[Unit | _Coordinate] = (), *, prefixable: bool = True
     ) -> None:
-        if reference is None:
-            if delta is not None or kind is not None:
-                raise ValueError('Coordinate delta/kind require a physical reference.')
-        else:
-            if not isinstance(reference, tuple) or len(reference) != 2:
-                raise TypeError('Reference must be an immutable (value, unit expression) pair.')
-            value, unit_expression = reference
-            if isinstance(value, bool) or not isinstance(value, (int, float, Fraction, Decimal)):
-                raise TypeError('Reference magnitude must be a real Python scalar.')
-            if not isinstance(unit_expression, str) or not isinstance(delta, str):
-                raise TypeError('Reference and delta unit expressions must be strings.')
-            if kind not in (None, 'power', 'amplitude'):
-                raise ValueError('Unknown logarithmic convention.')
-            finite = (
-                value.is_finite()
-                if isinstance(value, Decimal)
-                else (math.isfinite(value) if isinstance(value, float) else True)
-            )
-            if not finite or kind is not None and value <= 0:
-                raise ValueError('Reference must be finite and logarithmic references positive.')
-            if prefixable is not False:
-                raise ValueError('Affine coordinates must disable prefixes.')
-        object.__setattr__(self, 'reference', reference)
-        object.__setattr__(self, 'delta', delta)
-        object.__setattr__(self, 'kind', kind)
-        if type(logarithmic) is not bool:
-            raise TypeError('logarithmic must be bool.')
-        object.__setattr__(self, 'log_degree', Fraction(1) if logarithmic else log_degree)
-        if isinstance(symbol_aliases, str):
-            symbol_aliases = (symbol_aliases,)
-        object.__setattr__(self, 'symbols', (symbol, *symbol_aliases))
-        object.__setattr__(self, 'names', (name, *name_aliases))
-        object.__setattr__(self, 'factor', factor)
-        object.__setattr__(self, 'dimension', dimension)
-        object.__setattr__(
-            self, 'prefixable', (prefixable,) if isinstance(prefixable, str) else prefixable
-        )
+        if type(prefixable) is not bool:
+            error_message = 'Registry prefixable default must be bool.'
+            raise TypeError(error_message)
+        self._prefixable = prefixable
+        self._bindings = _Bindings({'': _UNIT_ENTRIES[0]}, {}, {})
+        units = tuple(units)
+        if units:
+            self.include(*units)
 
-    @property
-    def symbol(self) -> str:
-        return self.symbols[0]
+    @contextmanager
+    def defining(self) -> Iterator[Registry]:
+        """Bind `.define()` calls in this block to this registry.
 
-    def allows_prefix(self, spelling: str) -> bool:
-        return self.prefixable if isinstance(self.prefixable, bool) else spelling in self.prefixable
-
-    @property
-    def name(self) -> str:
-        return self.names[0]
-
-
-_UNIT_ENTRIES: tuple[UnitDefinition, ...] = (
-    UnitDefinition('', '', factor=one, dimension=DIMENSIONLESS, prefixable=False),
-    UnitDefinition('s', 'second', factor=one, dimension=Dimension(T=1)),
-    UnitDefinition('m', 'metre', 'meter', factor=one, dimension=Dimension(L=1)),
-    UnitDefinition('g', 'gram', factor=ten**-3, dimension=Dimension(M=1)),
-    UnitDefinition('A', 'ampere', factor=one, dimension=Dimension(I=1)),
-    UnitDefinition('K', 'kelvin', factor=one, dimension=Dimension(Theta=1), symbol_aliases='K'),
-    UnitDefinition('mol', 'mole', factor=one, dimension=Dimension(N=1), symbol_aliases='㏖'),
-    UnitDefinition('cd', 'candela', factor=one, dimension=Dimension(J=1), symbol_aliases='㏅'),
-    UnitDefinition('Np', 'neper', factor=one, dimension=DIMENSIONLESS, logarithmic=True),
-    UnitDefinition('B', 'bel', factor=ln10 / 2, dimension=DIMENSIONLESS, logarithmic=True),
-)
-
-UNIT_DEFINITIONS: dict[str, UnitDefinition] = {
-    definition.symbol: definition for definition in _UNIT_ENTRIES
-}
-"""Canonical unit symbol -> unit definition."""
-
-UNIT_NAME_TO_SYMBOL: dict[str, str] = {
-    name: definition.symbol for definition in _UNIT_ENTRIES for name in definition.names if name
-}
-"""Unit name or name alias -> canonical unit symbol."""
-
-UNIT_SYMBOL_ALIAS_TO_SYMBOL: dict[str, str] = {
-    alias: definition.symbol
-    for definition in _UNIT_ENTRIES
-    for alias in definition.symbols[1:]
-    if alias
-}
-"""Unit symbol alias -> canonical unit symbol."""
-
-
-def _format_prefixed_name(prefix: PrefixDefinition, name: str) -> str:
-    prefixed_name = prefix.name + name
-    return _PREFIXED_NAME_EXCEPTIONS.get(prefixed_name, prefixed_name)
-
-
-def _resolve_unit_name(text: str) -> tuple[PrefixDefinition, UnitDefinition]:
-    """Resolve only names to shared definitions, with at most one prefix."""
-    unit_symbol = UNIT_NAME_TO_SYMBOL.get(text)
-    if unit_symbol is not None:
-        return NO_PREFIX, UNIT_DEFINITIONS[unit_symbol]
-    prefixed_name = _PREFIXED_NAME_EXPANSIONS.get(text, text)
-    for prefix_len in _PREFIX_NAME_LENGTHS:
-        prefix_symbol = PREFIX_NAME_TO_SYMBOL.get(prefixed_name[:prefix_len])
-        if prefix_symbol is None:
-            continue
-        name = prefixed_name[prefix_len:]
-        unit_symbol = UNIT_NAME_TO_SYMBOL.get(name)
-        if unit_symbol is not None:
-            unit = UNIT_DEFINITIONS[unit_symbol]
-            if unit.allows_prefix(name):
-                return PREFIX_DEFINITIONS[prefix_symbol], unit
-    raise UnitSymbolError(f'{text!r} is not a valid unit symbol.')
-
-
-def _resolve_unit(text: str) -> tuple[PrefixDefinition, UnitDefinition]:
-    """Resolve shared definitions; complete symbols precede one prefix split."""
-    unitdef = UNIT_DEFINITIONS.get(text)
-    if unitdef is not None:
-        return NO_PREFIX, unitdef
-    unit_symbol = UNIT_SYMBOL_ALIAS_TO_SYMBOL.get(text)
-    if unit_symbol is not None:
-        return NO_PREFIX, UNIT_DEFINITIONS[unit_symbol]
-    for prefix_len in _PREFIX_SYMBOL_LENGTHS:
-        prefix = text[:prefix_len]
-        prefixdef = PREFIX_DEFINITIONS.get(PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(prefix, prefix))
-        if prefixdef is None:
-            continue
-        unit = text[prefix_len:]
-        unitdef = UNIT_DEFINITIONS.get(UNIT_SYMBOL_ALIAS_TO_SYMBOL.get(unit, unit))
-        if unitdef is not None and unitdef.allows_prefix(unit):
-            return prefixdef, unitdef
-    return _resolve_unit_name(text)
-
-
-def _register_unit(definition: UnitDefinition, /) -> None:
-    """Validate all spellings before updating shared indexes, without locking."""
-    symbol, *symbol_aliases = definition.symbols
-    if not isinstance(definition.prefixable, (bool, tuple)):
-        wrong_type = type(definition.prefixable).__name__
-        error_message = f'Prefixable must be bool, str or tuple of spellings, got {wrong_type}.'
-        raise TypeError(error_message)
-    # Validate every spelling and alias, including generated prefixed spellings.
-    for kind, texts in (
-        ('symbol', (symbol,)),
-        ('name', (definition.name,)),
-        ('symbol alias', symbol_aliases),
-        ('name alias', definition.names[1:]),
-    ):
-        for text in texts:
-            if not isinstance(text, str):
-                error_message = f'Unit {kind} must be str, got {type(text).__name__}.'
-                raise TypeError(error_message)
-            if text == '' and kind.endswith('alias'):
-                continue
-            is_name = kind.startswith('name')
-            pattern = _UNIT_NAME_RE if is_name else _UNIT_SYMBOL_RE
-            if not text.isprintable() or pattern.fullmatch(text) is None:
-                if is_name:
-                    rule = 'consist of printable unit tokens separated by single spaces or hyphens'
-                else:
-                    rule = 'be a single printable unit token'
-                raise ValueError(f'Unit {kind} must {rule}, got {text!r}.')
-
-    symbols = dict.fromkeys(text for text in (symbol, *symbol_aliases) if text)
-    names = dict.fromkeys(name for name in definition.names if name)
-    if isinstance(definition.prefixable, tuple):
-        for text in definition.prefixable:
-            if not isinstance(text, str):
-                error_message = f'Prefixable spellings must be str, got {type(text).__name__}.'
-                raise TypeError(error_message)
-            if text not in symbols and text not in names:
-                error_message = f'Prefixable spelling {text!r} is not a registered spelling.'
-                raise ValueError(error_message)
-    spellings = [(text, '') for text in (*symbols, *names)]
-    for prefix in PREFIX_DEFINITIONS.values():
-        prefix_symbol = prefix.symbol
-        for text in filter(definition.allows_prefix, symbols):
-            spellings.append((prefix_symbol + text, prefix_symbol))
-            spellings.extend((alias + text, prefix_symbol) for alias in prefix.symbol_aliases)
-        for text in filter(definition.allows_prefix, names):
-            for prefix_name in prefix.names:
-                prefixed_name = prefix_name + text
-                spellings.append((prefixed_name, prefix_symbol))
-                if exception := _PREFIXED_NAME_EXCEPTIONS.get(prefixed_name):
-                    spellings.append((exception, prefix_symbol))
-
-    spelling_prefixes: dict[str, str] = {}
-    for text, prefix in spellings:
-        if spelling_prefixes.setdefault(text, prefix) != prefix:
-            error_message = f'Unit text {text!r} has conflicting prefix meanings.'
-            raise UnitRegistryError(error_message)
+        Unit, Quantity and coordinate definitions, including helper calls, use
+        the selected target. `as` returns this Registry. Bare string parsing
+        still uses the default environment. An inner block supplies its own scope;
+        exit restores the enclosing selection even when an exception is raised.
+        Completed registrations are not rolled back.
+        ContextVar isolation follows asyncio task contexts; it does not
+        synchronize writes to a shared Registry.
+        """
+        token = _DEFINITION_SCOPE.set(self)
         try:
-            _resolve_unit(text)
-        except UnitSymbolError:
-            pass
-        else:
-            error_message = f'Unit text {text!r} already resolves to a registered unit.'
-            raise UnitRegistryError(error_message)
-        if ' ' in text:
-            try:
-                for word in text.split(' '):
-                    _resolve_unit(word)
-            except UnitSymbolError:
-                continue
-            error_message = f'Unit text {text!r} already parses as a unit product.'
-            raise UnitRegistryError(error_message)
+            yield self
+        finally:
+            _DEFINITION_SCOPE.reset(token)
 
-    UNIT_DEFINITIONS[symbol] = definition
-    UNIT_NAME_TO_SYMBOL.update(dict.fromkeys(names, symbol))
-    UNIT_SYMBOL_ALIAS_TO_SYMBOL.update(
-        dict.fromkeys((alias for alias in symbols if alias != symbol), symbol)
-    )
+    def include(self, *units: Unit | _Coordinate) -> None:
+        """Bind an entire batch of existing units without creating new identities.
+
+        Include coordinate dependencies as well. Validate the whole batch before
+        updating spelling indexes; a conflict leaves this Registry unchanged.
+        """
+        self._bind(_collect_definitions(units))
+
+    def _bind(self, definitions: Iterable[UnitDefinition]) -> tuple[UnitDefinition, ...]:
+        """Bind validated records and their dependencies; return the explicit closure."""
+        candidate = self._bindings.copy()
+        bound: dict[UnitDefinition, None] = {}
+
+        def include(definition: UnitDefinition) -> None:
+            if definition in bound:
+                return
+            for dependency in definition._dependencies():
+                include(dependency)
+            if candidate.definitions.get(definition.symbol) is not definition:
+                candidate.register(definition)
+            bound[definition] = None
+
+        for definition in definitions:
+            include(definition)
+        self._bindings.update(candidate)
+        return tuple(bound)
+
+    def _resolve(self, text: str, /) -> tuple[PrefixDefinition, UnitDefinition]:
+        return self._bindings.resolve(text)
+
+    def _resolve_name(self, text: str, /) -> tuple[PrefixDefinition, UnitDefinition]:
+        return self._bindings.resolve_name(text)
+
+    def parse(self, expression: str, /) -> Unit:
+        """Parse using only this environment and return a bound Unit."""
+        from .unit import Unit
+        from .unitparser import UnitParser
+
+        return Unit._from_monomial(UnitParser(expression, registry=self).parse())
+
+    def define(
+        self,
+        source: Unit | Quantity[Fractionable],
+        symbol: str,
+        /,
+        name: str | None = None,
+        *name_aliases: str,
+        symbol_aliases: str | tuple[str, ...] = (),
+        prefixable: PrefixPolicy | None = None,
+    ) -> Unit:
+        """Define and bind a linear unit using the ordinary `.define()` contract."""
+        from .quantity import Quantity
+        from .unit import Unit
+
+        if not isinstance(source, (Unit, Quantity)):
+            error_message = 'Registry.define requires a Unit or positive real Quantity.'
+            raise TypeError(error_message)
+        with self.defining():
+            return source.define(
+                symbol,
+                name,
+                *name_aliases,
+                symbol_aliases=symbol_aliases,
+                prefixable=prefixable,
+            )
+
+
+default_registry = Registry()
+"""The environment used by bare unit strings; extra catalogues do not change it."""
+default_registry._bind(_UNIT_ENTRIES)
+_publish_definitions(__name__, '', default_registry._bindings.definitions.values())

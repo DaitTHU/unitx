@@ -2,15 +2,14 @@ from fractions import Fraction
 
 import pytest
 
-from unitx.dimension import DIMENSIONLESS, Dimension
-from unitx.unitregistry import (
+from unitx._prefixes import (
     NO_PREFIX,
     PREFIX_DEFINITIONS,
     PREFIX_NAME_TO_SYMBOL,
     PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
-    UNIT_DEFINITIONS,
-    UNIT_NAME_TO_SYMBOL,
 )
+from unitx.dimension import DIMENSIONLESS, Dimension
+from unitx.unitregistry import default_registry
 
 
 @pytest.mark.parametrize(
@@ -68,8 +67,12 @@ def test_prefix_definition_aliases() -> None:
 
 
 def test_unit_definition_name_alias() -> None:
-    assert UNIT_NAME_TO_SYMBOL['meter'] == UNIT_NAME_TO_SYMBOL['metre'] == 'm'
-    assert UNIT_DEFINITIONS['m'].name == 'metre'
+    assert (
+        default_registry._bindings.names['meter']
+        == default_registry._bindings.names['metre']
+        == 'm'
+    )
+    assert default_registry._bindings.definitions['m'].name == 'metre'
 
 
 @pytest.mark.parametrize(
@@ -88,13 +91,13 @@ def test_unit_definition_name_alias() -> None:
 def test_unit_definition_values(
     symbol: str, name: str, dimension: Dimension, factor: int | Fraction, prefixable: bool
 ) -> None:
-    definition = UNIT_DEFINITIONS[symbol]
+    definition = default_registry._bindings.definitions[symbol]
     assert definition.name == name
     assert definition.dimension == dimension
     assert definition.factor.value == factor
     assert type(definition.factor.value) is type(factor)
     assert definition.prefixable is prefixable
     if name:
-        assert UNIT_NAME_TO_SYMBOL[name] == symbol
+        assert default_registry._bindings.names[name] == symbol
     else:
-        assert name not in UNIT_NAME_TO_SYMBOL
+        assert name not in default_registry._bindings.names

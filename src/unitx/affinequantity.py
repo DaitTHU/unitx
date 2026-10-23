@@ -1,39 +1,33 @@
-"""Absolute coordinate readings, distinct from linear Quantity differences."""
+"""Affine readings with concrete result construction and point/difference rules."""
 
 from __future__ import annotations
 
-import math
 import operator
 from collections.abc import Callable, Iterator
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any, Generic, Never, TypeVar, cast, overload
 
-from ._conversion import _affine, _log_shift, convert
 from ._numerics import Array, Magnitude, Scalar, is_numpy_object
 from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._operands import _Point, linear_unit
+from ._points import _add_sub, _compare, _isclose
 from .affineunit import AffineUnit, _as_affine_unit
 from .dimension import Dimension
-from .exceptions import DimensionError
-from .factor import one
 from .quantity import Quantity
 from .unit import Unit
 
+__all__ = ['AffineQuantity']
 T = TypeVar('T', bound=Magnitude, covariant=True)
 
 
-class AffineQuantity(Generic[T]):
-    """An absolute reading in a coordinate with an origin.
-
-    Strings are resolved as coordinates: K has zero origin and degC has its
-    Celsius origin. Conversion always preserves point identity, including a
-    conversion to K or W. Use to_quantity(unit) to explicitly obtain an ordinary
-    physical Quantity. Point minus point returns a Quantity difference; adding
-    or subtracting a Quantity difference returns an AffineQuantity.
-    """
+class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
+    """An affine reading; `.to()` stays in its coordinate family."""
 
     __slots__ = ('_value', '_unit')
+
     _value: T
+
     _unit: AffineUnit
 
     def __init__(self, value: T, unit: str | Unit | AffineUnit, /) -> None:
@@ -42,11 +36,17 @@ class AffineQuantity(Generic[T]):
 
             validate_magnitude(value)
             if getattr(value, 'dtype').kind == 'c':
-                raise TypeError('Affine coordinates require real magnitudes.')
+                error_message = 'Affine coordinates require real magnitudes.'
+                raise TypeError(error_message)
         elif isinstance(value, bool) or not isinstance(value, (int, float, Fraction, Decimal)):
-            raise TypeError('Affine coordinates require real numeric magnitudes.')
+            error_message = 'Affine coordinates require real numeric magnitudes.'
+            raise TypeError(error_message)
         self._value = value
-        self._unit = _as_affine_unit(unit)
+        self._unit = self._resolve_coordinate(unit)
+
+    @staticmethod
+    def _resolve_coordinate(unit: str | Unit | AffineUnit) -> AffineUnit:
+        return _as_affine_unit(unit)
 
     @property
     def value(self) -> T:
@@ -61,11 +61,9 @@ class AffineQuantity(Generic[T]):
         return self.unit.dimension
 
     def __repr__(self) -> str:
-        try:
-            unit = repr(self.unit.expression())
-        except TypeError:
-            unit = repr(self.unit)
-        return f'AffineQuantity({self.value!r}, {unit})'
+        expression = self.unit._default_expression()
+        unit = repr(expression) if expression is not None else repr(self.unit)
+        return f'{type(self).__name__}({self.value!r}, {unit})'
 
     def __str__(self) -> str:
         from ._display import text_quantity
@@ -114,9 +112,10 @@ class AffineQuantity(Generic[T]):
     def value_in(self, unit: str | Unit | AffineUnit, /) -> Magnitude: ...
 
     def value_in(self, unit: str | Unit | AffineUnit, /) -> Magnitude:
-        from ._conversion import convert
-
-        return cast(Magnitude, convert(self.value, self.unit, _as_affine_unit(unit)))
+        return cast(
+            Magnitude,
+            self.unit._mapping._value_in(self.value, self._resolve_coordinate(unit)._mapping),
+        )
 
     @overload
     def to(
@@ -129,11 +128,13 @@ class AffineQuantity(Generic[T]):
     ) -> AffineQuantity[Decimal]: ...
 
     @overload
-    def to(self, unit: str | Unit | AffineUnit, /) -> AffineQuantity[Magnitude]: ...
+    def to(
+        self: AffineQuantity[T], unit: str | Unit | AffineUnit, /
+    ) -> AffineQuantity[Magnitude]: ...
 
     def to(self, unit: str | Unit | AffineUnit, /) -> AffineQuantity[Magnitude]:
-        target = _as_affine_unit(unit)
-        return AffineQuantity(self.value_in(target), target)
+        target = self._resolve_coordinate(unit)
+        return AffineQuantity(self.unit._mapping._value_in(self.value, target._mapping), target)
 
     @overload
     def to_quantity(
@@ -150,14 +151,15 @@ class AffineQuantity(Generic[T]):
 
     def to_quantity(self, unit: str | Unit | AffineUnit, /) -> Quantity[Magnitude]:
         """Evaluate the physical quantity in a linear unit, explicitly exiting point rules."""
-        from ._conversion import convert, linear_unit
-
         target = linear_unit(unit)
-        if target.log_degree:
-            raise TypeError(
-                'A physical exit requires an ordinary physical unit, not a log difference.'
+        if target.dimension != target.dimension.physical:
+            error_message = (
+                'A physical exit requires an ordinary physical unit, not a logarithmic difference.'
             )
-        return Quantity(cast(Magnitude, convert(self.value, self.unit, target)), target)
+            raise TypeError(error_message)
+        return Quantity(
+            cast(Magnitude, self.unit._mapping._physical_value(self.value, target)), target
+        )
 
     __hash__ = None  # type: ignore[assignment]
 
@@ -296,49 +298,71 @@ class AffineQuantity(Generic[T]):
         return AffineQuantity(cast(Magnitude, +cast(Any, self.value)), self.unit)
 
     def __neg__(self) -> Never:
-        raise TypeError('Negation is undefined for an affine point.')
+        error_message = 'Negation is undefined for an affine point.'
+        raise TypeError(error_message)
 
     def __abs__(self) -> Never:
-        raise TypeError('Absolute value is undefined for an affine point.')
+        error_message = 'Absolute value is undefined for an affine point.'
+        raise TypeError(error_message)
 
     def __add__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]:
-        return _add_sub(self, other, subtract=False)
+        value, _ = _add_sub(self, other, subtract=False)
+        return AffineQuantity(value, self.unit)
 
     def __radd__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]:
-        return self.__add__(other)
+        value, _ = _add_sub(self, other, subtract=False)
+        return AffineQuantity(value, self.unit)
 
     @overload
-    def __sub__(self, other: AffineQuantity[Magnitude], /) -> Quantity[Magnitude]: ...
+    def __sub__(
+        self: AffineQuantity[T], other: AffineQuantity[Magnitude], /
+    ) -> Quantity[Magnitude]: ...
 
     @overload
-    def __sub__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]: ...
+    def __sub__(
+        self: AffineQuantity[T], other: Quantity[Magnitude], /
+    ) -> AffineQuantity[Magnitude]: ...
+
+    @overload
+    def __sub__(
+        self: AffineQuantity[T], other: object, /
+    ) -> Quantity[Magnitude] | AffineQuantity[Magnitude]: ...
 
     def __sub__(self, other: object, /) -> Quantity[Magnitude] | AffineQuantity[Magnitude]:
-        return _add_sub(self, other, subtract=True)
+        value, unit = _add_sub(self, other, subtract=True)
+        return Quantity(value, unit) if isinstance(unit, Unit) else AffineQuantity(value, self.unit)
 
     def __rsub__(self, other: object, /) -> Never:
-        raise TypeError('A difference cannot subtract an affine point.')
+        error_message = 'A difference cannot subtract an affine point.'
+        raise TypeError(error_message)
 
     def __mul__(self, other: object, /) -> Never:
-        raise TypeError('Convert an affine point to_quantity(unit) before multiplication.')
+        error_message = 'Convert an affine point to_quantity(unit) before multiplication.'
+        raise TypeError(error_message)
 
     def __rmul__(self, other: object, /) -> Never:
-        raise TypeError('Convert an affine point to_quantity(unit) before multiplication.')
+        error_message = 'Convert an affine point to_quantity(unit) before multiplication.'
+        raise TypeError(error_message)
 
     def __truediv__(self, other: object, /) -> Never:
-        raise TypeError('Convert an affine point to_quantity(unit) before division.')
+        error_message = 'Convert an affine point to_quantity(unit) before division.'
+        raise TypeError(error_message)
 
     def __rtruediv__(self, other: object, /) -> Never:
-        raise TypeError('Convert an affine point to_quantity(unit) before division.')
+        error_message = 'Convert an affine point to_quantity(unit) before division.'
+        raise TypeError(error_message)
 
     def __pow__(self, exponent: object, /) -> Never:
-        raise TypeError('Convert an affine point to_quantity(unit) before powers.')
+        error_message = 'Convert an affine point to_quantity(unit) before powers.'
+        raise TypeError(error_message)
 
     def __matmul__(self, other: object, /) -> Never:
-        raise TypeError('Matrix multiplication is undefined for affine points.')
+        error_message = 'Matrix multiplication is undefined for affine points.'
+        raise TypeError(error_message)
 
     def __rmatmul__(self, other: object, /) -> Never:
-        raise TypeError('Matrix multiplication is undefined for affine points.')
+        error_message = 'Matrix multiplication is undefined for affine points.'
+        raise TypeError(error_message)
 
     @overload
     def __iadd__[A: WritableArray](
@@ -346,7 +370,9 @@ class AffineQuantity(Generic[T]):
     ) -> AffineQuantity[A]: ...
 
     @overload
-    def __iadd__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]: ...
+    def __iadd__(
+        self: AffineQuantity[T], other: Quantity[Magnitude], /
+    ) -> AffineQuantity[Magnitude]: ...
 
     def __iadd__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]:
         result = self + other
@@ -362,10 +388,19 @@ class AffineQuantity(Generic[T]):
     ) -> AffineQuantity[A]: ...
 
     @overload
-    def __isub__(self, other: AffineQuantity[Magnitude], /) -> Quantity[Magnitude]: ...
+    def __isub__(
+        self: AffineQuantity[T], other: AffineQuantity[Magnitude], /
+    ) -> Quantity[Magnitude]: ...
 
     @overload
-    def __isub__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]: ...
+    def __isub__(
+        self: AffineQuantity[T], other: Quantity[Magnitude], /
+    ) -> AffineQuantity[Magnitude]: ...
+
+    @overload
+    def __isub__(
+        self: AffineQuantity[T], other: Any, /
+    ) -> Quantity[Magnitude] | AffineQuantity[Magnitude]: ...
 
     def __isub__(self, other: Any, /) -> Quantity[Magnitude] | AffineQuantity[Magnitude]:
         result = self - other
@@ -376,7 +411,8 @@ class AffineQuantity(Generic[T]):
         return result
 
     def __array__(self, dtype: object = None, copy: object = None) -> Any:
-        raise TypeError('Implicit unit removal is forbidden; use q.value_in(unit) or q.value.')
+        error_message = 'Implicit unit removal is forbidden; use q.value_in(unit) or q.value.'
+        raise TypeError(error_message)
 
     def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
         from ._numpy import dispatch_ufunc
@@ -392,7 +428,8 @@ class AffineQuantity(Generic[T]):
 
     def _array_value(self) -> Any:
         if not is_numpy_object(self.value):
-            raise AttributeError('Array attributes require a NumPy magnitude.')
+            error_message = 'Array attributes require a NumPy magnitude.'
+            raise AttributeError(error_message)
         return self.value
 
     @property
@@ -433,176 +470,3 @@ class AffineQuantity(Generic[T]):
 
     def flatten(self: AffineQuantity[Array], order: str = 'C') -> AffineQuantity[NumpyArray]:
         return AffineQuantity(self._array_value().flatten(order), self.unit)
-
-
-def _addition_parts(left: Any, right: Any, *, subtract: bool) -> tuple[Any, Any, Unit | AffineUnit]:
-
-    if not isinstance(left, AffineQuantity):
-        if not subtract and isinstance(left, Quantity) and isinstance(right, AffineQuantity):
-            b, a, unit = _addition_parts(right, left, subtract=False)
-            return a, b, unit
-        raise TypeError('A difference cannot subtract an affine point.')
-    if isinstance(right, AffineQuantity):
-        if not subtract:
-            raise TypeError('Two affine points cannot be added.')
-        if left.unit.kind != right.unit.kind:
-            raise DimensionError('Point subtraction requires the same coordinate convention.')
-        raw = (
-            Decimal(right.value)
-            if isinstance(left.value, Decimal) and isinstance(right.value, int)
-            else right.value
-        )
-        return left.value, convert(raw, right.unit, left.unit), left.unit.delta_unit
-    if not isinstance(right, Quantity):
-        raise TypeError('Point arithmetic requires an explicit Quantity difference.')
-    delta = convert(right.value, right.unit, left.unit.delta_unit)
-    if isinstance(left.value, Decimal) and isinstance(delta, (int, Fraction)):
-        delta = _affine(Decimal(0), 1, delta)
-    return left.value, delta, left.unit
-
-
-def _add_sub(left: Any, right: Any, *, subtract: bool) -> Any:
-
-    a, b, unit = _addition_parts(left, right, subtract=subtract)
-    # Avoid rounding the aligned coordinate before cancellation in a Decimal difference.
-    if (
-        isinstance(a, Decimal)
-        and _finite(a)
-        and isinstance(right.value, (Decimal, int))
-        and _finite(right.value)
-    ):
-        target = left.unit if isinstance(right, AffineQuantity) else left.unit.delta_unit
-        exact = (operator.sub if subtract else operator.add)(
-            Fraction(a), convert(Fraction(right.value), right.unit, target)
-        )
-        value = (
-            Decimal(exact.numerator) / Decimal(exact.denominator)
-            if isinstance(exact, Fraction)
-            else Decimal(str(exact))
-        )
-    else:
-        value = (operator.sub if subtract else operator.add)(a, b)
-    return AffineQuantity(value, unit) if isinstance(unit, AffineUnit) else Quantity(value, unit)
-
-
-def _compare(left: Any, right: Any, op: Any) -> Any:
-    equal = op in (operator.eq, operator.ne)
-    mismatch = not isinstance(right, AffineQuantity)
-    if not mismatch:
-        mismatch = left.dimension != right.dimension or left.unit.kind != right.unit.kind
-    if mismatch:
-        if equal:
-            raw = getattr(right, 'value', right)
-            if is_numpy_object(left.value) or is_numpy_object(raw):
-                from ._numpy import comparison_constant
-
-                return comparison_constant(left.value, raw, op is operator.ne)
-            return op is operator.ne
-        raise DimensionError('Point comparison requires compatible AffineQuantity objects.')
-    u, v = left.unit, right.unit
-    arrays = is_numpy_object(left.value) or is_numpy_object(right.value)
-    a, b = left.value, right.value
-    if u == v:
-        return op(a, b)
-    if not arrays and u.kind is None:
-        if u.origin == v.origin:
-            return op(Quantity(a, u.delta_unit), Quantity(b, v.delta_unit))
-        if not _finite(a) or not _finite(b):
-            return op(a, b)
-        return op(_physical_point(left), _physical_point(right))
-    if u.kind is not None and not arrays:
-        ratio = u.delta_unit.factor / v.delta_unit.factor
-        if ratio.decompose()[1] != one:
-            if u.origin == v.origin:
-                return op(Quantity(left.value, u.delta_unit), Quantity(right.value, v.delta_unit))
-            raise TypeError(
-                'These coordinates require approximate alignment; convert explicitly first.'
-            )
-        _log_shift(v, u, exact=True)
-    if not arrays:
-        try:
-            a, b = Fraction(a), Fraction(b)
-        except (ValueError, OverflowError):
-            pass
-    return op(a, convert(b, v, u))
-
-
-def _physical_point(point: AffineQuantity[Any]) -> Quantity[Any]:
-    """Collapse a finite linear point exactly, without approximating symbolic sums."""
-    unit = point.unit
-    if unit.origin.value == 0:
-        return Quantity(point.value, unit.delta_unit)
-    if point.value == 0:
-        return unit.origin
-    rational, irrational = (unit.delta_unit.factor / unit.origin.unit.factor).decompose()
-    if irrational != one:
-        raise TypeError(
-            'These coordinates require a symbolic sum for exact comparison; '
-            'use isclose with a difference tolerance or convert explicitly first.'
-        )
-    return Quantity(
-        Fraction(point.value) * rational
-        + Fraction(cast(int | float | Fraction | Decimal, unit.origin.value)),
-        unit.origin.unit,
-    )
-
-
-def _finite(value: Any) -> bool:
-    if isinstance(value, Decimal):
-        return value.is_finite()
-    if isinstance(value, (int, Fraction)):
-        return True
-    return math.isfinite(value)
-
-
-def _isclose(left: Any, right: Any, rel_tol: Any, abs_tol: Any, *, equal_nan: bool = False) -> Any:
-
-    if not isinstance(left, AffineQuantity) or not isinstance(right, AffineQuantity):
-        raise TypeError('Affine isclose requires two AffineQuantity points.')
-    unit = left.unit
-    if left.dimension != right.dimension or left.unit.kind != right.unit.kind:
-        raise DimensionError('Point comparison requires compatible coordinates.')
-    if isinstance(rel_tol, Quantity):
-        rel_tol = rel_tol.value_in(Unit())
-    if is_numpy_object(rel_tol):
-        from ._numpy import zero_tolerance
-
-        zero_tolerance(rel_tol)
-    elif not isinstance(rel_tol, (int, float, Fraction, Decimal)):
-        raise TypeError('Relative tolerance must be real.')
-    elif rel_tol != 0:
-        raise ValueError(
-            'Affine isclose requires rel_tol=0; use a difference abs_tol '
-            'or convert to physical units.'
-        )
-    if isinstance(abs_tol, Quantity):
-        tolerance = convert(abs_tol.value, abs_tol.unit, unit.delta_unit)
-    elif is_numpy_object(abs_tol):
-        from ._numpy import zero_tolerance
-
-        zero_tolerance(abs_tol)
-        tolerance = abs_tol
-    elif isinstance(abs_tol, (int, float, Fraction, Decimal)) and abs_tol == 0:
-        tolerance = 0
-    else:
-        raise TypeError('Absolute tolerance must be a Quantity difference or real zero.')
-    if not is_numpy_object(tolerance) and not isinstance(
-        tolerance, (int, float, Fraction, Decimal)
-    ):
-        raise TypeError('Absolute tolerance must be real.')
-    if not is_numpy_object(tolerance) and tolerance == 0:
-        if not any(is_numpy_object(x) for x in (left.value, right.value, rel_tol)):
-            return _compare(left, right, operator.eq)
-    a = convert(left.value, left.unit, unit)
-    b = convert(right.value, right.unit, unit)
-    if any(is_numpy_object(x) for x in (a, b, tolerance, rel_tol)):
-        from ._numpy import affine_close_magnitude
-
-        return affine_close_magnitude(a, b, tolerance, rel_tol, equal_nan=equal_nan)
-    if not _finite(tolerance) or tolerance < 0:
-        raise ValueError('Absolute tolerance must be finite and nonnegative.')
-    if a == b:
-        return True
-    if not _finite(a) or not _finite(b):
-        return equal_nan and math.isnan(a) and math.isnan(b)
-    return abs(a - b) <= tolerance

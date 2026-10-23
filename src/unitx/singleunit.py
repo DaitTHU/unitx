@@ -1,24 +1,19 @@
 from __future__ import annotations
 
-from fractions import Fraction
-
 from ._immutable import _Immutable
+from ._prefixes import NO_PREFIX, PrefixDefinition, _format_prefixed_name
+from ._reconstruction import _definition_by_id
 from .dimension import Dimension
+from .exceptions import UnitSymbolError, UnitSyntaxError
 from .factor import Factor
-from .unitregistry import (
-    NO_PREFIX,
-    PrefixDefinition,
-    UnitDefinition,
-    _format_prefixed_name,
-    _resolve_unit,
-    _resolve_unit_name,
-)
+from .unitdefinition import UnitDefinition
+from .unitregistry import default_registry
 
 __all__ = ['SingleUnit']
 
 
 class SingleUnit(_Immutable):
-    """An immutable unit identified by its canonical prefix and unit symbols.
+    """An immutable unit identified by its canonical prefix and shared definition object.
 
     Hold shared immutable prefix and unit definitions resolved at construction.
 
@@ -37,8 +32,8 @@ class SingleUnit(_Immutable):
     `name` prefers a permitted name, then a symbol. This keeps reconstruction
     valid even when only names or only symbol aliases accept a given prefix.
 
-    The built-in unit table contains s, m, g, A, K, mol, and cd; Unit.define()
-    can register more units in the current process. Compound expressions and
+    The default table includes SI and common scientific units. Extend it
+    explicitly with `default_registry.define()` or `include()`. Compound expressions and
     powers are not accepted. Equality and hashing compare
     canonical unit identity, so aliases compare equal but m and mm do not.
 
@@ -69,7 +64,7 @@ class SingleUnit(_Immutable):
         if not isinstance(text, str):
             error_message = f'Unit symbol or name must be str, got {type(text).__name__}.'
             raise TypeError(error_message)
-        prefix, unit = _resolve_unit(text)
+        prefix, unit = default_registry._resolve(text)
         return cls._from_definitions(prefix, unit)
 
     @classmethod
@@ -88,7 +83,7 @@ class SingleUnit(_Immutable):
         if not isinstance(name, str):
             error_message = f'Unit name must be str, got {type(name).__name__}.'
             raise TypeError(error_message)
-        prefix, unit = _resolve_unit_name(name)
+        prefix, unit = default_registry._resolve_name(name)
         return cls._from_definitions(prefix, unit)
 
     @classmethod
@@ -100,21 +95,24 @@ class SingleUnit(_Immutable):
         return obj
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}({self.symbol!r})'
+        try:
+            resolved = SingleUnit(self.symbol)
+        except (UnitSymbolError, UnitSyntaxError):
+            resolved = None
+        if resolved == self:
+            return f'{type(self).__name__}({self.symbol!r})'
+        return f'SingleUnit._from_identity({self._unit._key.int!r}, {self.prefix_symbol!r})'
 
     def __str__(self) -> str:
         return self.symbol
 
     def __hash__(self) -> int:
-        return hash((self.prefix_symbol, self.unprefixed_symbol))
+        return hash((self.prefix_symbol, self._unit))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, SingleUnit):
             return NotImplemented
-        return (
-            self.prefix_symbol == other.prefix_symbol
-            and self.unprefixed_symbol == other.unprefixed_symbol
-        )
+        return self.prefix_symbol == other.prefix_symbol and self._unit is other._unit
 
     def __copy__(self) -> SingleUnit:
         return self
@@ -122,8 +120,17 @@ class SingleUnit(_Immutable):
     def __deepcopy__(self, memo: dict[int, object]) -> SingleUnit:
         return self
 
-    def __reduce__(self) -> tuple[type[SingleUnit], tuple[str]]:
-        return SingleUnit, (self.symbol,)
+    def __reduce__(self) -> tuple[object, tuple[object, ...]]:
+        return _restore_single_unit, (self._unit, self.prefix_symbol)
+
+    @classmethod
+    def _from_identity(cls, identity: int, prefix: str) -> SingleUnit:
+        from ._prefixes import PREFIX_DEFINITIONS
+
+        return cls._from_definitions(
+            PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX,
+            _definition_by_id(identity),
+        )
 
     @property
     def prefix_symbol(self) -> str:
@@ -196,10 +203,6 @@ class SingleUnit(_Immutable):
         return self.prefix_factor * self.unprefixed_factor
 
     @property
-    def log_degree(self) -> Fraction:
-        return self._unit.log_degree
-
-    @property
     def dimension(self) -> Dimension:
         return self._unit.dimension
 
@@ -209,3 +212,12 @@ class SingleUnit(_Immutable):
 
     def has_prefix(self) -> bool:
         return self.prefix_symbol != ''
+
+
+def _restore_single_unit(definition: UnitDefinition, prefix: str) -> SingleUnit:
+    from ._prefixes import PREFIX_DEFINITIONS
+
+    return SingleUnit._from_definitions(
+        PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX,
+        definition,
+    )

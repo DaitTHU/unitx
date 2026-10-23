@@ -27,7 +27,7 @@ CI covers Python 3.12–3.15, built-in/SymPy factorization and minimum/current N
 Run the executable Markdown examples as well:
 
 ```sh
-python -m doctest README.md docs/*.md
+python -m doctest README.md docs/*.md docs/catalogues/*.md
 ```
 
 Use tracked public guides for release validation; local ignored design notes

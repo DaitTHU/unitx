@@ -1,6 +1,6 @@
 # Display and formatting
 
-`Unit`, `ScaledUnit`, and `Quantity` implement `to_latex()` and `to_html()`,
+`Unit`, `AffineUnit`, and `Quantity` implement `to_latex()` and `to_html()`,
 plus `_repr_latex_()` and `_repr_html_()` for Notebook frontends. LaTeX methods
 return math fragments with slash unit fractions by default; `fraction=False`
 uses signed unit powers instead. The Notebook hook adds `$` delimiters. HTML uses text,
@@ -10,7 +10,7 @@ and SymPy are not required to render scalar quantities.
 
 Rendering traverses the formal unit factors: units are never silently converted
 to SI or simplified by physical equivalence. Rational exponents stay rational;
-ScaledUnit's extra exact multiplier remains visible, including for dimensionless
+Unit's extra exact multiplier remains visible, including for dimensionless
 units. A Quantity groups extra scale factors with its unit. Custom symbols are
 literal text, escaped independently for HTML and LaTeX; they are not executable
 markup or raw TeX commands. Unicode symbols remain Unicode and require font
@@ -22,9 +22,9 @@ complete difference Unit, including any extra scale and rational powers. The
 stored reading is unchanged. Named coordinates keep their own labels:
 
 ```pycon
->>> from unitx.unit import ScaledUnit
+>>> from unitx import Unit
 >>> from unitx.factor import Factor
->>> point = 3 @ ScaledUnit('m', scale=Factor(2))
+>>> point = 3 @ Unit('m', scale=Factor(2))
 >>> str(point)
 '3⋅2⋅m'
 >>> format(point, '.2f')
@@ -87,7 +87,7 @@ Numeric format syntax: [Python format specification](https://docs.python.org/3/l
 
 ## Unit formatting and unit fractions
 
-Unit and ScaledUnit support `format(unit, 'latex')`, `'html'` and `'siunitx'`. Empty specs and `'text'` use `str(unit)`; ordinary Python string
+Unit and AffineUnit support `format(unit, 'latex')`, `'html'` and `'siunitx'`. Empty specs and `'text'` use `str(unit)`; ordinary Python string
 specs such as `'>20'` align the complete unit label. Numeric specs such as `.2f`
 and unknown display names raise ValueError.
 
@@ -108,7 +108,7 @@ factors are grouped, for example `kg m/(s^2 A)` becomes
 same default.
 
 Use `to_latex(fraction=False)` explicitly to render the unit expression with
-signed powers. This also applies to extra scale factors in a ScaledUnit; it does
+signed powers. This also applies to extra scale factors in a Unit; it does
 not change units, stored magnitude or the independent rendering of a Fraction
 magnitude. No stacked-unit-fraction option or separate inline format is provided.
 The accepted format names are `text`, `latex`, `html` and `siunitx`.
@@ -116,7 +116,7 @@ Unknown display names raise ValueError.
 
 ## siunitx export
 
-`Unit.to_siunitx()`, `ScaledUnit.to_siunitx()` and
+`Unit.to_siunitx()`, `AffineUnit.to_siunitx()` and
 `Quantity.to_siunitx(format_spec='')` generate LaTeX for siunitx v3.
 Quantity also accepts the `;siunitx` format option:
 
@@ -143,7 +143,7 @@ LaTeX document, expand units to SI, or map literal units to semantic macros such
 as `\metre`. Literal input consequently does not offer every customization
 available for siunitx's semantic unit macros.
 
-Extra ScaledUnit multipliers and other unit symbols use the existing escaped
+Extra Unit multipliers and other unit symbols use the existing escaped
 structural LaTeX with `parse-units=false`. The rendered unit argument is grouped
 to protect its slashes from siunitx literal formatting. Quantity groups an extra multiplier
 with its unit, preserving the stored magnitude. Unicode symbols require an

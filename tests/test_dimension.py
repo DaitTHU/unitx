@@ -133,9 +133,10 @@ def test_dimension_float_power() -> None:
 
 
 @pytest.mark.parametrize('dimension', [Dimension(L=1), DIMENSIONLESS])
-@pytest.mark.parametrize('attribute', ['_exponents', 'L', 'length'])
+@pytest.mark.parametrize('attribute', ['_monomial', 'L', 'length'])
 def test_dimension_immutable(dimension: Dimension, attribute: str) -> None:
     exponents = dimension.as_tuple()
+    monomial = dimension._monomial
     original_hash = hash(dimension)
     mapping = {dimension: 'unchanged'}
     try:
@@ -148,7 +149,7 @@ def test_dimension_immutable(dimension: Dimension, attribute: str) -> None:
         assert mapping[dimension] == 'unchanged'
     finally:
         # A regression must not leave the shared singleton corrupted for other tests.
-        object.__setattr__(dimension, '_exponents', exponents)
+        object.__setattr__(dimension, '_monomial', monomial)
 
 
 def test_dimension_from_iter() -> None:

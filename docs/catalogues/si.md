@@ -1,9 +1,9 @@
-# Units and physical constants
+# SI units and physical constants
 
 ```pycon
 >>> from unitx import Quantity, Unit
 >>> from unitx.si import SI, si
->>> si.m == Unit('metre')
+>>> si.parse('metre') == si.m == Unit('metre')
 True
 >>> SI.c == 299792458 * si.m / si.s
 True
@@ -38,8 +38,8 @@ of accepted parser spellings:
 The parser accepts permitted prefixes even when a convenience attribute is
 not listed in `si`: construct `Unit('...')` for those spellings. Namespace
 attributes are predefined; dynamically registering a unit does not add one.
-For the complete definitions see [unit source](../src/unitx/si/units.py) and
-[SI bases](../src/unitx/si/bases.py).
+For the complete definitions see [unit source](../../src/unitx/si/units.py) and
+[SI bases](../../src/unitx/si/bases.py).
 
 ## Constants and precision
 
@@ -53,13 +53,13 @@ constants carry the digits in the catalogue; Quantity does not attach an
 uncertainty model to them. Derived constants are numerical values calculated
 when the catalogue loads; increasing Decimal precision later does not
 recompute them. The catalogue does not promise arbitrary-precision constants.
-See [constant source](../src/unitx/si/constants.py) for the stored definitions.
+See [constant source](../../src/unitx/si/constants.py) for the stored definitions.
 
 `unitx.pi` is a symbolic Factor base with a float approximation for numerical
 evaluation. It supports exact cancellation in unit scales. It is distinct
 from predefined `SI.hbar`, whose numerical magnitude is expressed in ordinary
-J s units. See [symbolic factors](scalars.md#symbolic-factors-and-pi) and
-[exact extra scales](custom-units.md#exact-extra-scales).
+J s units. See [symbolic factors](../scalars.md#symbolic-factors-and-pi) and
+[exact extra scales](../custom-units.md#exact-extra-scales).
 
 ## Atomic, natural and Planck scales
 
@@ -166,7 +166,6 @@ Use strings such as `Unit('㍴')`; these aliases do not add Python attributes to
 | Character | Code point | Canonical spelling / namespace |
 | --- | --- | --- |
 | ℃ | U+2103 | °C / si.degC |
-| ℉ | U+2109 | °F / si.degF |
 | ℓ | U+2113 | L / si.L |
 | Ω | U+2126 | Ω / si.ohm |
 | K | U+212A | K / si.K |
@@ -205,7 +204,7 @@ True
 >>> Unit('kΩ') == si.kohm
 True
 >>> from unitx import AffineQuantity
->>> AffineQuantity(32, '℉') == AffineQuantity(0, '℃')
+>>> AffineQuantity(32, si.parse('℉')) == AffineQuantity(0, '℃')
 True
 
 ```
@@ -234,5 +233,5 @@ and Japanese phonetic unit forms; their presence in Unicode does not imply
 support in this catalogue. For portable input, use ordinary unit expressions.
 
 
-[Documentation index](README.md) · [Unit expressions](units.md#unit-expressions) ·
-[Custom units](custom-units.md)
+[Documentation index](../README.md) · [Unit expressions](../units.md#unit-expressions) ·
+[Custom units](../custom-units.md)

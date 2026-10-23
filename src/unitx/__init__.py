@@ -5,16 +5,24 @@ from .affinequantity import AffineQuantity
 from .affineunit import AffineUnit
 from .dimension import DIMENSIONLESS, Dimension
 from .factor import one, pi, ten
+from .logquantity import LogQuantity
+from .logunit import LogUnit
 from .quantity import Quantity
 from .unit import Unit
+from .unitcatalog import UnitCatalog
+from .unitregistry import Registry
 
 __all__ = [
     'AffineQuantity',
     'AffineUnit',
+    'LogUnit',
+    'LogQuantity',
     'DIMENSIONLESS',
     'Dimension',
     'Quantity',
+    'Registry',
     'Unit',
+    'UnitCatalog',
     'one',
     'math',
     'pi',

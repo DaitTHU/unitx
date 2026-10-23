@@ -5,9 +5,11 @@ from typing import Final
 from .._constnamespace import ConstNamespace
 from ..quantity import Quantity, quantity
 from ..unit import Unit
+from ..unitcatalog import UnitCatalog
+from ..unitregistry import default_registry
 
 
-class _si(ConstNamespace):
+class _si(UnitCatalog, registry=default_registry):
     # SI base unit
 
     one: Final = Unit()
