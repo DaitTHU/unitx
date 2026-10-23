@@ -13,8 +13,8 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ._builtin_units import _UNIT_ENTRIES
-from ._prefixes import (
+from ._registry.builtin_units import _UNIT_ENTRIES
+from ._registry.prefixes import (
     _PREFIX_NAME_LENGTHS,
     _PREFIX_SYMBOL_LENGTHS,
     _PREFIXED_NAME_EXPANSIONS,
@@ -24,12 +24,12 @@ from ._prefixes import (
     PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
     PrefixDefinition,
 )
-from ._reconstruction import _publish_definitions
+from ._registry.reconstruction import _publish_definitions
 from .exceptions import UnitRegistryError, UnitSymbolError
 from .unitdefinition import PrefixPolicy, UnitDefinition
 
 if TYPE_CHECKING:
-    from ._coordinates import _Coordinate
+    from ._coordinates.resolve import _Coordinate
     from ._numerics import Fractionable
     from .quantity import Quantity
     from .unit import Unit
@@ -46,7 +46,7 @@ def _definition_target() -> Registry | None:
 
 def _collect_definitions(units: Iterable[Unit | _Coordinate]) -> tuple[UnitDefinition, ...]:
     """Adapt public unit objects to immutable records before entering the binder."""
-    from ._coordinates import _Coordinate
+    from ._coordinates.resolve import _Coordinate
     from .unit import Unit
 
     entries: list[UnitDefinition] = []

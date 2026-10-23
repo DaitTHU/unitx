@@ -8,15 +8,15 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any
 
-from ._coordinates import _Coordinate
-from ._coordinates import convert_point as convert
-from ._numerics import is_numpy_object
-from ._operands import _Point
-from ._scaling import _finite
-from ._scaling import affine_value as _affine
-from .exceptions import DimensionError
-from .quantity import Quantity
-from .unit import Unit
+from .._numerics import is_numpy_object
+from .._operands import _Point
+from .._scaling import _finite
+from .._scaling import affine_value as _affine
+from ..exceptions import DimensionError
+from ..quantity import Quantity
+from ..unit import Unit
+from .resolve import _Coordinate
+from .resolve import convert_point as convert
 
 
 def _addition_parts(
@@ -82,7 +82,7 @@ def _compare(left: Any, right: Any, op: Any) -> Any:
         if equal:
             raw = getattr(right, 'value', right)
             if is_numpy_object(left.value) or is_numpy_object(raw):
-                from ._numpy import comparison_constant
+                from .._numpy import comparison_constant
 
                 return comparison_constant(left.value, raw, op is operator.ne)
             return op is operator.ne
@@ -103,7 +103,7 @@ def _isclose(left: Any, right: Any, rel_tol: Any, abs_tol: Any, *, equal_nan: bo
     if isinstance(rel_tol, Quantity):
         rel_tol = rel_tol.value_in(Unit())
     if is_numpy_object(rel_tol):
-        from ._numpy import zero_tolerance
+        from .._numpy import zero_tolerance
 
         zero_tolerance(rel_tol)
     elif not isinstance(rel_tol, (int, float, Fraction, Decimal)):
@@ -118,7 +118,7 @@ def _isclose(left: Any, right: Any, rel_tol: Any, abs_tol: Any, *, equal_nan: bo
     if isinstance(abs_tol, Quantity):
         tolerance = convert(abs_tol.value, abs_tol.unit, unit.delta_unit)
     elif is_numpy_object(abs_tol):
-        from ._numpy import zero_tolerance
+        from .._numpy import zero_tolerance
 
         zero_tolerance(abs_tol)
         tolerance = abs_tol
@@ -138,7 +138,7 @@ def _isclose(left: Any, right: Any, rel_tol: Any, abs_tol: Any, *, equal_nan: bo
     a = convert(left.value, left.unit, unit)
     b = convert(right.value, right.unit, unit)
     if any(is_numpy_object(x) for x in (a, b, tolerance, rel_tol)):
-        from ._numpy import affine_close_magnitude
+        from .._numpy import affine_close_magnitude
 
         return affine_close_magnitude(a, b, tolerance, rel_tol, equal_nan=equal_nan)
     if not _finite(tolerance) or tolerance < 0:

@@ -2,8 +2,8 @@
 
 from itertools import chain
 
-from ._immutable import _Immutable
-from .factor import Factor, one, ten
+from .._immutable import _Immutable
+from ..factor import Factor, one, ten
 
 
 class PrefixDefinition(_Immutable):

@@ -6,7 +6,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PrefixDefinition
+from unitx._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PrefixDefinition
 from unitx.dimension import Dimension
 from unitx.exceptions import UnitRegistryError, UnitSymbolError
 from unitx.factor import Factor, pi

@@ -7,12 +7,12 @@ from fractions import Fraction
 from functools import partial
 from typing import TYPE_CHECKING, Any, Self, cast, overload
 
-from ._affine_mapping import _AffineMapping
-from ._coordinate_definition import _CoordinateDefinition
+from ._coordinates.affine import _AffineMapping
+from ._coordinates.definition import _CoordinateDefinition
 from ._immutable import _Immutable
 from ._numerics import Fractionable, Magnitude
 from ._operands import _LinearUnitSource, linear_unit
-from ._reconstruction import _definition_by_id
+from ._registry.reconstruction import _definition_by_id
 from ._scaling import _coordinate_scalar
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError, UnitSymbolError
@@ -166,7 +166,7 @@ class AffineUnit(_Immutable, _LinearUnitSource):
         return f'{type(self).__name__}({self.origin!r}, delta_unit={self.delta_unit!r}{kind})'
 
     def __reduce__(self) -> tuple[object, tuple[object, ...]]:
-        from ._coordinates import coordinate_from_definition
+        from ._coordinates.resolve import coordinate_from_definition
 
         if self._definition is not None:
             return coordinate_from_definition, (self._definition,)
@@ -323,7 +323,7 @@ class AffineUnit(_Immutable, _LinearUnitSource):
 
     def _default_expression(self) -> str | None:
         """Return a repr shorthand only when the default binding matches this coordinate."""
-        from ._coordinates import as_coordinate
+        from ._coordinates.resolve import as_coordinate
 
         try:
             expression = self.expression()
@@ -334,7 +334,7 @@ class AffineUnit(_Immutable, _LinearUnitSource):
 
 
 def _as_affine_unit(unit: str | Unit | _LinearUnitSource) -> AffineUnit:
-    from ._coordinates import as_coordinate
+    from ._coordinates.resolve import as_coordinate
 
     coordinate = as_coordinate(unit)
     if not isinstance(coordinate, AffineUnit):

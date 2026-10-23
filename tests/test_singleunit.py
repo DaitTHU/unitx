@@ -5,7 +5,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._prefixes import NO_PREFIX, PREFIX_DEFINITIONS
+from unitx._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import UnitSymbolError
 from unitx.singleunit import SingleUnit

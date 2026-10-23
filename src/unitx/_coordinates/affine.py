@@ -6,16 +6,16 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Self, cast
 
-from ._immutable import _Immutable
-from ._numerics import Magnitude, is_numpy_object
-from ._scaling import _coordinate_scalar, _finite, affine_value, scale_value
-from .dimension import Dimension
-from .exceptions import DimensionError
-from .factor import one
-from .unit import Unit
+from .._immutable import _Immutable
+from .._numerics import Magnitude, is_numpy_object
+from .._scaling import _coordinate_scalar, _finite, affine_value, scale_value
+from ..dimension import Dimension
+from ..exceptions import DimensionError
+from ..factor import one
+from ..unit import Unit
 
 if TYPE_CHECKING:
-    from .quantity import Quantity
+    from ..quantity import Quantity
 
 
 class _AffineMapping(_Immutable):
@@ -51,7 +51,7 @@ class _AffineMapping(_Immutable):
         at: int | float | Fraction | Decimal = 0,
         delta_unit: Unit,
     ) -> Self:
-        from .quantity import Quantity
+        from ..quantity import Quantity
 
         if not isinstance(reference, Quantity):
             error_message = 'Reference must be a physical Quantity.'
@@ -108,7 +108,7 @@ class _AffineMapping(_Immutable):
         )
 
     def _compare_values(self, a: Any, b: Any, other: _AffineMapping, op: Any) -> Any:
-        from .quantity import Quantity
+        from ..quantity import Quantity
 
         assert isinstance(other, _AffineMapping)
         if self == other:
@@ -122,7 +122,7 @@ class _AffineMapping(_Immutable):
         return op(self._exact_physical(a), other._exact_physical(b))
 
     def _exact_physical(self, value: Any) -> Quantity[Any]:
-        from .quantity import Quantity
+        from ..quantity import Quantity
 
         if self.origin.value == 0:
             return Quantity(value, self.delta_unit)

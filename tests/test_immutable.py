@@ -5,7 +5,7 @@ import pickle
 
 import pytest
 
-from unitx._prefixes import NO_PREFIX, PREFIX_DEFINITIONS
+from unitx._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS
 from unitx.dimension import Dimension
 from unitx.factor import Factor, pi
 from unitx.monomial import Monomial

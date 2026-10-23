@@ -361,7 +361,7 @@ def test_imperial_prefix_permissions():
     for catalogue in (imperial, imperial_historical, us):
         for definition in catalogue._registry._bindings.definitions.values():
             # Included SI definitions retain their policy.
-            from unitx._reconstruction import _definition_location
+            from unitx._registry.reconstruction import _definition_location
 
             if _definition_location(definition) == (
                 'unitx.imperial.units',

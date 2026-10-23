@@ -8,14 +8,14 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Literal
 
-from ._numerics import is_numpy_object
-from ._scaling import scale_value
-from .dimension import _LOG_DIMENSION, DIMENSIONLESS
-from .exceptions import DimensionError
-from .factor import Factor, ln10, one
+from .._numerics import is_numpy_object
+from .._scaling import scale_value
+from ..dimension import _LOG_DIMENSION, DIMENSIONLESS
+from ..exceptions import DimensionError
+from ..factor import Factor, ln10, one
 
 if TYPE_CHECKING:
-    from .unit import Unit
+    from ..unit import Unit
 
 type LogKind = Literal['power', 'amplitude']
 
@@ -37,7 +37,7 @@ def _ten_exponent(ratio: Fraction) -> int | None:
 
 def _log10(value: Any) -> Any:
     if is_numpy_object(value):
-        from ._numpy import logarithm_magnitude
+        from .._numpy import logarithm_magnitude
 
         return logarithm_magnitude(value)
     if value < 0:
@@ -53,7 +53,7 @@ def _exp10(value: Any) -> Any:
         error_message = 'Logarithmic conversion requires real magnitudes.'
         raise TypeError(error_message)
     if is_numpy_object(value):
-        from ._numpy import exponential_magnitude
+        from .._numpy import exponential_magnitude
 
         return exponential_magnitude(value)
     if isinstance(value, Decimal):

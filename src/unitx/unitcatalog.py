@@ -4,8 +4,8 @@ from collections.abc import Iterable
 from typing import ClassVar
 
 from ._constnamespace import ConstNamespace, _ConstNamespaceMeta
-from ._coordinates import _Coordinate
-from ._reconstruction import _publish_definitions
+from ._coordinates.resolve import _Coordinate
+from ._registry.reconstruction import _publish_definitions
 from .unit import Unit
 from .unitregistry import Registry, _collect_definitions
 

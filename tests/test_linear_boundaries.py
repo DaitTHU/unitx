@@ -16,10 +16,12 @@ def test_quantity_linear_operations_without_coordinates(monkeypatch):
     original_import = builtins.__import__
     coordinate_modules = {
         '_coordinates',
-        '_points',
-        '_coordinate_definition',
-        '_affine_mapping',
-        '_log_mapping',
+        'resolve',
+        'logarithms',
+        'points',
+        'definition',
+        'affine',
+        'logarithmic',
         'affineunit',
         'affinequantity',
         'logunit',

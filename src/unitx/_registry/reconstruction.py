@@ -13,13 +13,13 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, NamedTuple
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
-from ._numerics import UnfactoredInteger
-from .dimension import Dimension
-from .exceptions import UnitRegistryError
-from .factor import Factor, SymbolicConstant
+from .._numerics import UnfactoredInteger
+from ..dimension import Dimension
+from ..exceptions import UnitRegistryError
+from ..factor import Factor, SymbolicConstant
 
 if TYPE_CHECKING:
-    from .unitdefinition import UnitDefinition, UnitTerms
+    from ..unitdefinition import UnitDefinition, UnitTerms
 
 type DefinitionLocation = tuple[str, str, str]  # module, catalogue, canonical symbol
 type DefinitionId = int | DefinitionLocation
@@ -121,8 +121,8 @@ def _definition_state(definition: UnitDefinition) -> _DefinitionState:
             factors.append((identity, exponent.numerator, exponent.denominator))
         return tuple(sorted(factors))
 
-    from ._coordinate_definition import _CoordinateDefinition
-    from ._log_mapping import _LogMapping
+    from .._coordinates.definition import _CoordinateDefinition
+    from .._coordinates.logarithmic import _LogMapping
 
     coordinate = definition._mapping if isinstance(definition, _CoordinateDefinition) else None
     reference = (

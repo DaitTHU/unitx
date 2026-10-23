@@ -1,8 +1,8 @@
 """Root unit definitions used to initialize spelling environments."""
 
-from .dimension import _LOG_DIMENSION, Dimension
-from .factor import ln10, one, ten
-from .unitdefinition import UnitDefinition, _ConversionData
+from ..dimension import _LOG_DIMENSION, Dimension
+from ..factor import ln10, one, ten
+from ..unitdefinition import UnitDefinition, _ConversionData
 
 _UNIT_ENTRIES: tuple[UnitDefinition, ...] = (
     UnitDefinition._identity(),

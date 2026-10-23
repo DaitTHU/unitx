@@ -6,7 +6,11 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._prefixes import PREFIX_DEFINITIONS, PREFIX_NAME_TO_SYMBOL, PREFIX_SYMBOL_ALIAS_TO_SYMBOL
+from unitx._registry.prefixes import (
+    PREFIX_DEFINITIONS,
+    PREFIX_NAME_TO_SYMBOL,
+    PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
+)
 from unitx.dimension import Dimension
 from unitx.exceptions import (
     InexactFloatWarning,

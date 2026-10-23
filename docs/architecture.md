@@ -5,6 +5,20 @@ prefixes retain their own formal identities; conversion-equivalent expressions
 are not merged. Quantity supplies the magnitude; AffineQuantity and LogQuantity
 supply readings in their respective coordinate families.
 
+## Source layout
+
+Public objects keep their existing modules, such as `unitx.unit`,
+`unitx.quantity` and `unitx.unitregistry`. Private registry support lives in
+`_registry/`: prefix data, root definitions and reconstruction lookup.
+Private coordinate support lives in `_coordinates/`: the two mappings,
+coordinate definitions and resolution, logarithmic evaluation and point helpers.
+Both private package initializers remain lightweight and import no implementations.
+
+Shared numeric scaling, linear conversion and operand interfaces stay outside
+the coordinate package. Ordinary linear operations therefore do not need to
+import coordinate implementations. SI and Imperial definitions remain in their
+respective catalogue packages.
+
 ## Cohesive internal records
 
 Conversion data groups the exact factor and algebraic Dimension. Dimension

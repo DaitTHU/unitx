@@ -14,9 +14,9 @@ from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 from typing import cast
 
-from ._coordinates import as_coordinate
+from ._coordinates.resolve import as_coordinate
 from ._numerics import Fractionable, Magnitude, UnfactoredInteger
-from ._reconstruction import DefinitionId, _definition_id, _matches_id
+from ._registry.reconstruction import DefinitionId, _definition_id, _matches_id
 from .affinequantity import AffineQuantity
 from .affineunit import AffineUnit
 from .dimension import Dimension

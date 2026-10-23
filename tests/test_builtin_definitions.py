@@ -2,7 +2,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._prefixes import (
+from unitx._registry.prefixes import (
     NO_PREFIX,
     PREFIX_DEFINITIONS,
     PREFIX_NAME_TO_SYMBOL,

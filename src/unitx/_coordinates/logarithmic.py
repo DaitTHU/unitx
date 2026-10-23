@@ -6,17 +6,17 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Self, cast
 
-from ._immutable import _Immutable
-from ._logarithms import LogKind, _log_convention
-from ._numerics import Magnitude, is_numpy_object
-from ._scaling import _coordinate_scalar, affine_value, scale_value
-from .dimension import _LOG_DIMENSION, Dimension
-from .exceptions import DimensionError
-from .factor import Factor, one
-from .unit import Unit
+from .._immutable import _Immutable
+from .._numerics import Magnitude, is_numpy_object
+from .._scaling import _coordinate_scalar, affine_value, scale_value
+from ..dimension import _LOG_DIMENSION, Dimension
+from ..exceptions import DimensionError
+from ..factor import Factor, one
+from ..unit import Unit
+from .logarithms import LogKind, _log_convention
 
 if TYPE_CHECKING:
-    from .quantity import Quantity
+    from ..quantity import Quantity
 
 
 class _LogMapping(_Immutable):
@@ -29,7 +29,7 @@ class _LogMapping(_Immutable):
     @property
     def origin(self) -> Quantity[Fraction]:
         """Evaluate the physical zero reading without changing the defining anchor."""
-        from .quantity import Quantity
+        from ..quantity import Quantity
 
         value = self._physical_value(Fraction(0), self.reference.unit)
         return Quantity(_coordinate_scalar(value, 'Origin'), self.reference.unit)
@@ -76,7 +76,7 @@ class _LogMapping(_Immutable):
         kind: LogKind,
         at: int | float | Fraction | Decimal = 0,
     ) -> Self:
-        from .quantity import Quantity
+        from ..quantity import Quantity
 
         if not isinstance(reference, Quantity):
             error_message = 'Logarithmic reference must be a physical Quantity.'
@@ -150,7 +150,7 @@ class _LogMapping(_Immutable):
         return affine_value(relative, 1, self.at)
 
     def _compare_values(self, a: Any, b: Any, other: _LogMapping, op: Any) -> Any:
-        from .quantity import Quantity
+        from ..quantity import Quantity
 
         assert isinstance(other, _LogMapping)
         if self == other:

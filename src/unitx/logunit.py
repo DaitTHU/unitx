@@ -7,13 +7,13 @@ from fractions import Fraction
 from functools import partial
 from typing import TYPE_CHECKING, Any, Self, cast, overload
 
-from ._coordinate_definition import _CoordinateDefinition
+from ._coordinates.definition import _CoordinateDefinition
+from ._coordinates.logarithmic import _LogMapping
+from ._coordinates.logarithms import LogKind
 from ._immutable import _Immutable
-from ._log_mapping import _LogMapping
-from ._logarithms import LogKind
 from ._numerics import Fractionable, Magnitude
 from ._operands import _LinearUnitSource, linear_unit
-from ._reconstruction import _definition_by_id
+from ._registry.reconstruction import _definition_by_id
 from ._scaling import _coordinate_scalar
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError, UnitSymbolError
@@ -181,7 +181,7 @@ class LogUnit(_Immutable, _LinearUnitSource):
         )
 
     def __reduce__(self) -> tuple[object, tuple[object, ...]]:
-        from ._coordinates import coordinate_from_definition
+        from ._coordinates.resolve import coordinate_from_definition
 
         if self._definition is not None:
             return coordinate_from_definition, (self._definition,)
@@ -341,7 +341,7 @@ class LogUnit(_Immutable, _LinearUnitSource):
 
     def _default_expression(self) -> str | None:
         """Return a repr shorthand only when the default binding matches this coordinate."""
-        from ._coordinates import as_coordinate
+        from ._coordinates.resolve import as_coordinate
 
         try:
             expression = self.expression()
@@ -352,7 +352,7 @@ class LogUnit(_Immutable, _LinearUnitSource):
 
 
 def _as_log_unit(unit: str | Unit | _LinearUnitSource) -> LogUnit:
-    from ._coordinates import as_coordinate
+    from ._coordinates.resolve import as_coordinate
 
     coordinate = as_coordinate(unit)
     if not isinstance(coordinate, LogUnit):

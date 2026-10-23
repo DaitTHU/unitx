@@ -8,7 +8,7 @@ from fractions import Fraction
 from uuid import UUID, uuid4
 
 from ._immutable import _Immutable
-from ._prefixes import _PREFIXED_NAME_EXCEPTIONS, PREFIX_DEFINITIONS, PrefixDefinition
+from ._registry.prefixes import _PREFIXED_NAME_EXCEPTIONS, PREFIX_DEFINITIONS, PrefixDefinition
 from ._unicode import SUPERSCRIPTS
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitRegistryError
@@ -144,7 +144,7 @@ class UnitDefinition(_Immutable):
         object.__setattr__(self, '_spelling', spelling)
         object.__setattr__(self, '_conversion', conversion)
         object.__setattr__(self, '_key', uuid4())
-        from ._reconstruction import _remember_definition
+        from ._registry.reconstruction import _remember_definition
 
         _remember_definition(self)
 
@@ -192,7 +192,11 @@ class UnitDefinition(_Immutable):
         return self
 
     def __reduce__(self) -> tuple[object, tuple[object, ...]]:
-        from ._reconstruction import _definition_location, _definition_state, _restore_definition
+        from ._registry.reconstruction import (
+            _definition_location,
+            _definition_state,
+            _restore_definition,
+        )
 
         return _restore_definition, (
             self._key.int,

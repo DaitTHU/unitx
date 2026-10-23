@@ -8,10 +8,10 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any, Generic, Never, TypeVar, cast, overload
 
+from ._coordinates.points import _add_sub, _compare, _isclose
 from ._numerics import Array, Magnitude, Scalar, is_numpy_object
 from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
 from ._operands import _Point, linear_unit
-from ._points import _add_sub, _compare, _isclose
 from .affineunit import AffineUnit, _as_affine_unit
 from .dimension import Dimension
 from .quantity import Quantity

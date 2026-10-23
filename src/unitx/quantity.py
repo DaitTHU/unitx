@@ -37,7 +37,7 @@ T = TypeVar('T', bound=Magnitude, covariant=True)
 
 
 if TYPE_CHECKING:
-    from ._logarithms import LogKind
+    from ._coordinates.logarithms import LogKind
 
 
 def _is_quantity(value: object) -> TypeGuard[Quantity[Magnitude]]:
@@ -270,7 +270,7 @@ class Quantity(Generic[T]):
 
     def to_ratio(self, *, kind: LogKind) -> Quantity[Magnitude]:
         """Restore a power or amplitude ratio from a logarithmic difference."""
-        from ._logarithms import to_ratio
+        from ._coordinates.logarithms import to_ratio
 
         return Quantity(cast(Magnitude, to_ratio(self.value, self.unit, kind)), Unit())
 
@@ -278,7 +278,7 @@ class Quantity(Generic[T]):
         self, unit: str | Unit | _LinearUnitSource, /, *, kind: LogKind
     ) -> Quantity[Magnitude]:
         """Express an ordinary dimensionless ratio as a logarithmic difference."""
-        from ._logarithms import to_log
+        from ._coordinates.logarithms import to_log
 
         target = linear_unit(unit)
         return Quantity(cast(Magnitude, to_log(self.value, self.unit, target, kind)), target)

@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from decimal import Decimal
 from typing import Final
 
-from .._prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PREFIX_SYMBOL_ALIAS_TO_SYMBOL
+from .._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PREFIX_SYMBOL_ALIAS_TO_SYMBOL
 from ..affineunit import AffineUnit
 from ..factor import pi, ten
 from ..logunit import LogUnit

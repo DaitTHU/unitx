@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ._log_mapping import _LogMapping
-from .unitdefinition import UnitDefinition
+from ..unitdefinition import UnitDefinition
+from .logarithmic import _LogMapping
 
 if TYPE_CHECKING:
-    from ._affine_mapping import _AffineMapping
+    from .affine import _AffineMapping
 
 
 class _CoordinateDefinition(UnitDefinition):

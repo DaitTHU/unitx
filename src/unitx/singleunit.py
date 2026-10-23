@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from ._immutable import _Immutable
-from ._prefixes import NO_PREFIX, PrefixDefinition, _format_prefixed_name
-from ._reconstruction import _definition_by_id
+from ._registry.prefixes import NO_PREFIX, PrefixDefinition, _format_prefixed_name
+from ._registry.reconstruction import _definition_by_id
 from .dimension import Dimension
 from .exceptions import UnitSymbolError, UnitSyntaxError
 from .factor import Factor
@@ -125,7 +125,7 @@ class SingleUnit(_Immutable):
 
     @classmethod
     def _from_identity(cls, identity: int, prefix: str) -> SingleUnit:
-        from ._prefixes import PREFIX_DEFINITIONS
+        from ._registry.prefixes import PREFIX_DEFINITIONS
 
         return cls._from_definitions(
             PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX,
@@ -215,7 +215,7 @@ class SingleUnit(_Immutable):
 
 
 def _restore_single_unit(definition: UnitDefinition, prefix: str) -> SingleUnit:
-    from ._prefixes import PREFIX_DEFINITIONS
+    from ._registry.prefixes import PREFIX_DEFINITIONS
 
     return SingleUnit._from_definitions(
         PREFIX_DEFINITIONS[prefix] if prefix else NO_PREFIX,

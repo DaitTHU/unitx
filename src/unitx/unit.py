@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Self, cast, overload
 from ._immutable import _Immutable
 from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_object
 from ._numpy_typing import NumpyValue
-from ._prefixes import NO_PREFIX
+from ._registry.prefixes import NO_PREFIX
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitSymbolError, UnitSyntaxError
 from .factor import Factor, SymbolicConstant, one

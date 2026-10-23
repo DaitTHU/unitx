@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Any, TypeAlias, cast
 
-from ._affine_mapping import _AffineMapping
-from ._coordinate_definition import _CoordinateDefinition
-from ._operands import _LinearUnitSource
-from .affineunit import AffineUnit
-from .exceptions import DimensionError
-from .factor import one
-from .logunit import LogUnit
-from .unit import Unit
+from .._operands import _LinearUnitSource
+from ..affineunit import AffineUnit
+from ..exceptions import DimensionError
+from ..factor import one
+from ..logunit import LogUnit
+from ..unit import Unit
+from .affine import _AffineMapping
+from .definition import _CoordinateDefinition
 
 _Coordinate: TypeAlias = AffineUnit | LogUnit
 
@@ -24,7 +24,7 @@ def coordinate_from_definition(definition: _CoordinateDefinition) -> _Coordinate
 
 def as_coordinate(unit: str | Unit | _LinearUnitSource) -> _Coordinate:
     """Resolve named coordinate metadata, or select a zero-origin affine coordinate."""
-    from .quantity import Quantity
+    from ..quantity import Quantity
 
     if isinstance(unit, _Coordinate):
         return unit
@@ -50,7 +50,7 @@ def as_coordinate(unit: str | Unit | _LinearUnitSource) -> _Coordinate:
 
 def convert_point(value: Any, source: Unit | _Coordinate, target: Unit | _Coordinate) -> Any:
     """Convert matching point or linear operands without crossing their semantics."""
-    from ._conversion import convert
+    from .._conversion import convert
 
     if isinstance(source, _Coordinate) and isinstance(target, _Coordinate):
         if type(source) is not type(target):
