@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-24
+
 ### Added
 
 - `Registry` provides independent parsing environments, atomic `include(*units)`

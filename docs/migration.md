@@ -1,6 +1,8 @@
 # Migration notes
 
-## Coordinate families and algebraic dimensions
+## Upgrading to 0.14.0
+
+### Coordinate families and algebraic dimensions
 
 - Use `LogUnit(reference, delta_unit=..., kind=...)` for logarithmic coordinates;
   AffineUnit now defines linear coordinates only and has no `kind` argument.
@@ -25,7 +27,7 @@
   definitions; an approximate origin cannot recover an exact defining anchor.
 
 
-## Unreleased: catalogue isolation and definition identity
+### Catalogue isolation and definition identity
 
 The unit value is now represented by `Unit` itself, including its exact `scale`.
 Use `Unit(base, scale=factor)` or combine units with `Factor`/`SymbolicConstant`;
