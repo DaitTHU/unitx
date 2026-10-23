@@ -101,14 +101,26 @@ hashability rules are unchanged.
 Import resolves spellings against the default environment, or the explicit
 `Registry` supplied as `from_dict(record, registry=receiver)`. Both formal
 definition IDs and physical metadata must match. Share catalogue definitions
-with `Registry([imperial.ft, si.s])`. Custom definitions intended for exchange
-belong in module-level UnitCatalog declarations; import the same catalogue in
-the receiving process and include the required objects. Their persistence locators
-are derived automatically. Repeating `.define()` in an ordinary block creates a
-new identity and does not recreate a saved definition. Unknown spellings raise SerializationError
-with the original UnitSymbolError retained as `__cause__`.
-Decoding never registers or replaces definitions, and neither function changes
-the input object or record.
+with `Registry([imperial.ft, si.s])`.
+
+Custom definitions follow these sharing rules:
+
+| Scope | Application responsibility |
+| --- | --- |
+| Within one process | Include the existing unit objects in each receiving Registry; this shares their formal identities. |
+| Across processes | Put reusable definitions in a module-level UnitCatalog in an application-controlled module. Import compatible versions of that catalogue in each process and include the required objects in the receiving Registry. Catalogue persistence locations are derived automatically. |
+| Definitions without a published catalogue location | Their UUID handles refer to live definitions in the originating process; they do not provide cross-process reconstruction. This includes units kept only in ordinary blocks or local classes. |
+
+Repeating `.define()` creates a new identity, even with identical spelling,
+dimension and scale. It does not recreate a saved definition. JSON carries
+definition references and validation data, not an installable definition bundle.
+Decoding never imports catalogue modules, constructs missing definitions,
+registers spellings or replaces definitions. Unknown spellings raise
+SerializationError with the original UnitSymbolError retained as `__cause__`.
+Neither function changes the input object or record. Applications that mutate a
+receiving Registry must also follow its
+[synchronization contract](custom-units.md#concurrent-use-and-read-only-access)
+throughout decoding.
 
 A linear unit record contains its canonical symbols, stable definition IDs and its combined
 dimension, SI Factor and logarithmic degree. Import checks these against the

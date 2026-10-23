@@ -161,9 +161,44 @@ when defining one unit from another, use its bound Unit object directly.
 
 Explicit block selection follows ContextVar semantics: asyncio tasks inherit
 context at creation and can outlive the parent's block. Changes in one task do
-not select a registry for another task. Sharing a Registry still requires
-external synchronization for writes or reads during registration; context
-isolation does not make registration concurrent-safe.
+not select a registry for another task. Context isolation does not synchronize
+access to a shared Registry; the concurrent-use contract below still applies.
+
+## Concurrent use and read-only access
+
+A fully initialized Registry supports concurrent `parse()` calls while its
+bindings remain unchanged. Finish catalogue imports and registration before
+sharing the registry with worker threads. Each call creates its own UnitParser;
+callers using UnitParser directly must use separate instances or synchronize
+access to a shared parser's mutable parsing state.
+
+```pycon
+>>> from concurrent.futures import ThreadPoolExecutor
+>>> shared = Registry([si.m, si.s])
+>>> with ThreadPoolExecutor(max_workers=2) as workers:
+...     parsed = list(workers.map(shared.parse, ('m/s', 'km/s')))
+>>> parsed == [si.m / si.s, si.km / si.s]
+True
+
+```
+
+Registry provides no internal locking. If registration can overlap other uses,
+the application must synchronize every writer and every reader of that registry,
+covering each complete registration or parse call with the same lock. This
+includes `include()`, `define()`, definitions inside `defining()` and catalogue
+collection into a shared registry. A failed registration leaves the bindings
+unchanged, but this guarantee does not make a successful update atomically
+visible to concurrent readers. A `defining()` block neither holds a lock nor
+commits all its definitions as one transaction.
+
+There is no public freeze or read-only snapshot API. Read-only use is an
+application discipline. UnitCatalog prevents rebinding its attributes; it does
+not freeze its associated Registry. With `registry=shared`, later registrations
+in `shared` are also visible through the catalogue's `parse()` method.
+`Registry([unit, ...])` creates independent bindings for explicitly supplied
+definitions, retaining their identities, aliases and prefix policies; it does
+not copy an entire registry or disable future registration. Already constructed
+Unit objects retain their definitions when either registry is extended.
 
 ## Catalogue class bodies
 
@@ -341,14 +376,18 @@ when loading in another process. It checks saved immutable metadata recursively,
 including coordinate references and difference definitions. It never creates
 definitions, merges independently constructed objects, or binds spellings. Import
 the same module-level catalogue declarations before unpickling in another process.
-Definitions created in ordinary blocks or local classes have process-local
-locators and cannot be recreated by repeating the same spelling. Pickles from
-older unitx formats are unsupported; load them with the matching older release
-and recreate the values with the current API.
+Definitions without a published module-level catalogue location, including units
+kept only in ordinary blocks or local classes, have process-local locators and
+cannot be recreated by repeating the same spelling. Pickles from older unitx
+formats are unsupported; load them with the matching older release and recreate
+the values with the current API.
 
 JSON format 2 also checks the explicit receiving environment. See
 [serialization](serialization.md#registry-requirements) for receiver examples.
 Unknown or mismatched definitions fail instead of being registered automatically.
+Neither format exports a self-contained set of custom definitions. The
+application supplies shared definition objects within a process, or compatible
+module-level catalogue declarations in each process.
 
 [Documentation index](README.md) · [Units and quantities](units.md) ·
 [SI spelling conventions](catalogues/si.md#spelling-and-scale-conventions)

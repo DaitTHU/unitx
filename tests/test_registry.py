@@ -6,8 +6,10 @@ import os
 import pickle
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal, localcontext
 from fractions import Fraction
+from threading import Barrier
 
 import pytest
 
@@ -29,6 +31,29 @@ def test_registry_shared_identity():
     right.include(si.s)
     right.include(si.s)
     assert right.parse('m/s') == left.parse('m/s')
+
+
+def test_registry_concurrent_reads():
+    registry = Registry([si.m, si.s])
+    span = registry.define(2 * si.m, 'span', 'project span', symbol_aliases='sp')
+    cases = (
+        ('sp/s', span / si.s),
+        ('[project span] / s', span / si.s),
+        ('km^(1/2)/s', si.km ** Fraction(1, 2) / si.s),
+        ('project span', span),
+    )
+    ready = Barrier(len(cases))
+
+    def read(case):
+        expression, expected = case
+        for _ in range(20):
+            ready.wait(timeout=10)
+            assert registry.parse(expression) == expected
+            with pytest.raises(UnitSymbolError):
+                registry.parse('missing')
+
+    with ThreadPoolExecutor(max_workers=len(cases)) as workers:
+        list(workers.map(read, cases))
 
 
 def test_registry_independent_identity():

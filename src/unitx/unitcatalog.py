@@ -43,6 +43,9 @@ class UnitCatalog(ConstNamespace, metaclass=_UnitCatalogMeta):
     attributes and optional `units=` into a fresh Registry, or the supplied
     `registry=`. Include canonical spellings and aliases; attribute names do not
     become parser aliases. Inherited attributes do not populate the parser.
+    Namespace immutability does not freeze the Registry. Later registrations in
+    a supplied Registry remain visible through `parse()`; its synchronization
+    requirements apply to catalogue parsing as well.
 
     Use unit objects to build later definitions in the class body. New spellings
     become parseable only after collection; bare strings always use the default

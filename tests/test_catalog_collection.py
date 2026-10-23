@@ -63,6 +63,20 @@ def test_unit_catalog_no_immediate_parsing():
     assert 1 * survey.doubled == 2 * si.m
 
 
+def test_unit_catalog_shared_registry_updates():
+    registry = Registry([si.m])
+
+    class survey(UnitCatalog, registry=registry):
+        span = (2 * si.m).define('span')
+
+    with pytest.raises(AttributeError):
+        survey.span = si.m
+    with pytest.raises(UnitSymbolError):
+        survey.parse('s')
+    registry.include(si.s)
+    assert survey.parse('span/s') == survey.span / si.s
+
+
 def test_unit_catalog_json_before_collection():
     class thermal(UnitCatalog):
         step = si.K.define('collectionStep')

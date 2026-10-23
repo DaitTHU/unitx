@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Documentation
+
+- Clarify concurrent Registry reads, application synchronization during
+  registration, the absence of a freeze/snapshot API, and custom-definition
+  sharing within and across processes.
+
 ## [0.14.0] - 2026-10-24
 
 ### Added

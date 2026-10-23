@@ -1,8 +1,9 @@
 """Explicit spelling environments and the default SI parser bindings.
 
 Definitions are already valid before binding. Registry owns spelling lookup and
-checks conflicts against the receiving environment. Registration during concurrent
-reads or writes requires external synchronization.
+checks conflicts against the receiving environment. Concurrent parsing is
+supported while bindings remain unchanged. Registration overlapping reads or
+writes requires external synchronization.
 """
 
 from __future__ import annotations
@@ -153,9 +154,11 @@ class Registry:
 
     Start with only the multiplicative identity. Include existing Unit objects
     to share their definitions, or define private units. No fallback to the
-    default table, inheritance, or implicit activation occurs. Initialize before
-    concurrent use; registration and parsing during registration need external
-    synchronization.
+    default table, inheritance, or implicit activation occurs. Concurrent `parse()`
+    calls are supported after initialization while bindings remain unchanged.
+    Registration overlapping any reader or writer requires external
+    synchronization of all accesses. No internal locking, freeze or read-only
+    snapshot API is provided.
 
     `prefixable` supplies the default for definitions made by this registry
     or within its defining() blocks. Included units retain their own policy.
@@ -198,6 +201,8 @@ class Registry:
 
         Include coordinate dependencies as well. Validate the whole batch before
         updating spelling indexes; a conflict leaves this Registry unchanged.
+        This failure guarantee does not provide atomic visibility to concurrent
+        readers. Synchronize the whole call with other accesses when needed.
         """
         self._bind(_collect_definitions(units))
 
@@ -227,7 +232,11 @@ class Registry:
         return self._bindings.resolve_name(text)
 
     def parse(self, expression: str, /) -> Unit:
-        """Parse using only this environment and return a bound Unit."""
+        """Parse using only this environment and return a bound Unit.
+
+        Each call uses an independent parser. Concurrent calls are supported
+        while no registration occurs in this Registry.
+        """
         from .unit import Unit
         from .unitparser import UnitParser
 

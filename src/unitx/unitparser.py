@@ -95,6 +95,9 @@ class UnitParser:
     Parsing occurs on the first call to `parse()`. Successful results are
     cached, and later calls return the same `Monomial[SingleUnit]` object.
     Failed attempts are not cached; a later call parses the original text again.
+    An instance owns mutable parsing state and is not guaranteed safe for
+    concurrent calls. Use separate instances or synchronize access. Concurrent
+    parsers may share a Registry while its bindings remain unchanged.
 
     The grammar for a nonempty expression is::
 

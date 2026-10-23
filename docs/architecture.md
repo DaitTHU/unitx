@@ -38,6 +38,12 @@ A registry's bindings own the symbol, name and alias indexes together. The
 registry adapts public unit objects to definitions, stages a complete binding
 batch, and commits only after all conflicts have been checked. The binding
 implementation does not import Unit, Quantity or coordinate objects.
+This failure-invariance guarantee supplies no locking or atomic visibility to
+concurrent readers. Concurrent parsing is supported while bindings remain
+unchanged; registration requires application synchronization. A catalogue's
+read-only namespace does not freeze those bindings, and Registry exposes no
+freeze or snapshot API. See the
+[concurrent-use contract](custom-units.md#concurrent-use-and-read-only-access).
 
 Packing fields is justified by shared operations and invariants, not by a target
 slot count. Numeric caches, parser state and simple value/unit pairs do not need
