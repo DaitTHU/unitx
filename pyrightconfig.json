@@ -30,6 +30,7 @@
     "src/unitx/_prefixes.py",
     "src/unitx/_reconstruction.py",
     "src/unitx/unitcatalog.py",
+    "src/unitx/imperial/units.py",
     "src/unitx/singleunit.py",
     "src/unitx/unitparser.py",
     "tests/typing"

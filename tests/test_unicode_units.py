@@ -7,6 +7,7 @@ from fractions import Fraction
 import pytest
 
 from unitx import AffineQuantity, Unit
+from unitx.imperial import imperial
 from unitx.si import si
 
 
@@ -54,5 +55,13 @@ def test_unit_unicode_prefix(alias: str, canonical: str) -> None:
 
 def test_affine_quantity_unicode_coordinate() -> None:
     assert AffineQuantity(0, '℃').value_in('K') == Fraction(5463, 20)
-    assert AffineQuantity(32, si.parse('℉')) == AffineQuantity(0, '℃')
+    assert AffineQuantity(32, imperial.parse('℉')) == AffineQuantity(0, '℃')
     assert AffineQuantity(273, 'K') == AffineQuantity(273, 'K')
+
+
+def test_imperial_unicode_coordinate():
+    unit = imperial.parse('℉')
+    assert unit == imperial.parse('degF')
+    assert hash(unit) == hash(imperial.parse('°F'))
+    assert pickle.loads(pickle.dumps(unit)) == unit
+    assert imperial.parse('℉/s') == unit / si.s

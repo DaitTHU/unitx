@@ -2,19 +2,20 @@ from decimal import Decimal
 from typing import Final, assert_type
 
 from unitx import Quantity, Registry, Unit, UnitCatalog
+from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
 from unitx.unitparser import UnitParser
 
-assert_type(si.m, Unit)
-assert_type(si.parse('m/s'), Unit)
-assert_type(3 * si.m, Quantity[int])
+assert_type(imperial.ft, Unit)
+assert_type(imperial.parse('ft/s'), Unit)
+assert_type(3 * imperial.ft, Quantity[int])
 private = Registry([si.m, si.s])
 assert_type(private.include(si.m, si.s), None)
 assert_type(private.parse('m/s'), Unit)
 assert_type(private.define(Decimal('0.5') * si.m, 'span', 'private span'), Unit)
 UnitParser('m', registry=private).parse()
-from_dict(to_dict(3 * si.m), registry=Registry([si.m]))
+from_dict(to_dict(3 * imperial.ft), registry=Registry([imperial.ft]))
 
 assert_type(si.parse('m/s'), Unit)
 

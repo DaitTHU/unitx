@@ -6,7 +6,7 @@ import os
 import pickle
 import subprocess
 import sys
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from fractions import Fraction
 
 import pytest
@@ -14,6 +14,7 @@ import pytest
 from unitx import AffineQuantity, AffineUnit, Quantity, Registry, Unit, UnitCatalog
 from unitx.exceptions import SerializationError, UnitRegistryError, UnitSymbolError
 from unitx.factor import Factor, pi
+from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
 from unitx.singleunit import SingleUnit
@@ -259,6 +260,70 @@ else:
         )
 
 
+@pytest.mark.parametrize(
+    'value, target',
+    [
+        (imperial.inch, si.m),
+        (imperial.ft, si.m),
+        (imperial.lb, si.kg),
+        (imperial.gal, si.L),
+        (imperial.lbf, si.N),
+    ],
+)
+def test_imperial_exact_conversion(value, target):
+    expected = {
+        imperial.inch: Fraction('0.0254'),
+        imperial.ft: Fraction('0.3048'),
+        imperial.lb: Fraction('0.45359237'),
+        imperial.gal: Fraction('4.54609'),
+        imperial.lbf: Fraction('4.4482216152605'),
+    }
+    assert Quantity(1, value).value_in(target) == expected[value]
+
+
+def test_imperial_catalogue():
+    from unitx.imperial import imperial as namespace
+
+    assert namespace is imperial
+    assert imperial.parse('ft/s') == imperial.ft / si.s
+    assert imperial.parse('[fluid ounce]') == imperial.fl_oz
+    assert imperial.parse('feet') == imperial.ft
+    assert imperial.parse('cm') == si.cm
+    assert imperial.parse('gal') == imperial.gal
+    assert Unit('gal') == si.Gal
+    assert imperial.parse('ton').factor == 2240 * imperial.lb.factor
+    assert (20 * imperial.fl_oz).to(imperial.pt).value == 1
+    assert (3 * imperial.ft + 1 * si.m).value_in(si.m) == Fraction('1.9144')
+    with localcontext() as context:
+        context.prec = 2
+        assert Quantity(Decimal('1'), imperial.ft).value_in(si.m) == Decimal('0.30')
+    with pytest.raises(UnitSymbolError):
+        Unit('ft')
+    with pytest.raises(UnitSymbolError):
+        imperial.parse('kft')
+    with pytest.raises(AttributeError):
+        namespace.ft = si.m
+
+
+def test_imperial_module_import():
+    import unitx.imperial.units as definitions
+
+    assert imperial.ft is definitions.imperial.ft
+
+
+def test_unit_catalog_shared_entry():
+    from unitx.imperial import imperial as namespace
+
+    assert issubclass(si, UnitCatalog)
+    assert issubclass(namespace, UnitCatalog)
+    assert si.parse('kg m/s2') == si.N.factor * si.kg * si.m / si.s**2
+    assert namespace.parse('ft/s') == imperial.ft / si.s
+    with pytest.raises(TypeError):
+        namespace()
+    with pytest.raises(AttributeError):
+        namespace._registry = Registry()
+
+
 def test_unit_catalog_custom_entry():
     class laboratory(UnitCatalog, units=(si.m,)):
         span = (2 * si.m).define('span', 'laboratory span')
@@ -288,6 +353,28 @@ def test_registry_prefix_default():
 def test_registry_invalid_prefix_default(policy):
     with pytest.raises(TypeError, match='default must be bool'):
         Registry(prefixable=policy)
+
+
+def test_imperial_prefix_permissions():
+    from unitx.imperial import imperial_historical, us
+
+    for catalogue in (imperial, imperial_historical, us):
+        for definition in catalogue._registry._bindings.definitions.values():
+            # Included SI definitions retain their policy.
+            from unitx._reconstruction import _definition_location
+
+            if _definition_location(definition) == (
+                'unitx.imperial.units',
+                catalogue.__name__,
+                definition.symbol,
+            ):
+                assert definition.prefixable is False
+                with pytest.raises(UnitSymbolError):
+                    catalogue.parse('k' + definition.symbol)
+    assert imperial.parse('point') == imperial.point
+    assert imperial_historical.parse('[barleycorn]') == imperial_historical.barleycorn
+    assert us.parse('[cord]') == us.cord
+    assert (1 * us.us_gal).value_in(si.L) == Fraction('3.785411784')
 
 
 @pytest.mark.parametrize('symbol', ['m', 'dB', 'Np', 'dBm'])

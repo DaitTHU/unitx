@@ -74,13 +74,14 @@ Use `.isclose()` for approximate comparisons.
 Use `@` for an absolute coordinate reading and `*` for a linear difference:
 
 ```pycon
+>>> from unitx.imperial import imperial
 >>> difference = 20 * si.degC  # A temperature difference of 20 degrees
 >>> room = 20 @ si.degC  # A reading of 20 degrees Celsius
 >>> difference.value_in(si.K)
 20
 >>> room.value_in(si.K)
 Fraction(5863, 20)
->>> print(room.to(si.degF))
+>>> print(room.to(imperial.degF))
 68 °F
 >>> print(room + 5 * si.K)
 25 °C

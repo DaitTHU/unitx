@@ -101,7 +101,7 @@ hashability rules are unchanged.
 Import resolves spellings against the default environment, or the explicit
 `Registry` supplied as `from_dict(record, registry=receiver)`. Both formal
 definition IDs and physical metadata must match. Share catalogue definitions
-with `Registry([foot, si.s])`. Custom definitions intended for exchange
+with `Registry([imperial.ft, si.s])`. Custom definitions intended for exchange
 belong in module-level UnitCatalog declarations; import the same catalogue in
 the receiving process and include the required objects. Their persistence locators
 are derived automatically. Repeating `.define()` in an ordinary block creates a
@@ -129,11 +129,10 @@ For catalogue quantities, select the required definitions explicitly:
 
 ```pycon
 >>> from unitx import Registry
+>>> from unitx.imperial import imperial
 >>> from unitx.si import si
->>> foot = (Decimal('0.3048') * si.m).define('ft')
->>> from unitx.si import si
->>> receiver = Registry([foot, si.s])
->>> original = 3 * receiver.parse('ft/s')
+>>> receiver = Registry([imperial.ft, si.s])
+>>> original = 3 * imperial.parse('ft/s')
 >>> from_dict(to_dict(original), registry=receiver) == original
 True
 

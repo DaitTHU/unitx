@@ -11,6 +11,7 @@ reading about an older version.
 | Construct, combine, convert or compare quantities | [Units and quantities](units.md) |
 | Choose and parse a unit catalogue | [Unit catalogues](catalogues/README.md) |
 | Find SI units, constants, prefixes and Unicode spellings | [SI reference](catalogues/si.md) |
+| Find Imperial units and their exact conventions | [Imperial reference](catalogues/imperial.md) |
 | Define an exact scale or register a new unit | [Custom units and registries](custom-units.md) |
 | Understand Fraction, Decimal, float and exact equality | [Scalar numerical behavior](scalars.md) |
 | Work with absolute temperatures | [Points and differences](affine.md) |
@@ -49,7 +50,7 @@ to a zero-origin coordinate such as K.
 
 The package root exports `Quantity`, `AffineQuantity`, `Unit`, `AffineUnit`,
 `LogUnit`, `LogQuantity`, `Dimension`, `DIMENSIONLESS`, `UnitCatalog`, `Registry`, `one`, `ten`, `pi`, the `si`,
-`math` and `time` modules. Import the unit and constant namespaces with
+`imperial`, `math`, and `time` modules. Import the unit and constant namespaces with
 `from unitx.si import si, SI`. `Factor` and other building blocks
 remain available from their own modules; names beginning with `_` are internal.
 

@@ -11,6 +11,7 @@ import pytest
 from unitx import AffineQuantity, AffineUnit, LogQuantity, Quantity, Unit
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
+from unitx.imperial import imperial
 from unitx.si import si
 
 
@@ -18,7 +19,7 @@ def test_unit_linear_temperature():
     assert type(Unit('degC')) is Unit
     assert Unit('degC').factor == Unit('K').factor
     assert Quantity(1, 'K').to('degC') == Quantity(1, 'degC')
-    assert Quantity(9, si.degF).to('degC') == Quantity(5, 'K')
+    assert Quantity(9, imperial.degF).to('degC') == Quantity(5, 'K')
     assert Unit('degC/degC') == Unit()
     assert Unit('degC**0') == Unit()
     assert Quantity(1, 'degC/m').to('K/m').value == 1
@@ -103,7 +104,7 @@ def test_affine_quantity_decimal_cancellation(precision):
     with localcontext() as ctx:
         ctx.prec = precision
         difference = AffineQuantity(Decimal('1000'), 'degC') - AffineQuantity(
-            Decimal('1831.982'), si.degF
+            Decimal('1831.982'), imperial.degF
         )
         assert difference.value == Decimal('0.01')
         assert isinstance(difference.value, Decimal)
@@ -111,7 +112,7 @@ def test_affine_quantity_decimal_cancellation(precision):
         assert shifted.value == Decimal('0.01')
 
 
-@pytest.mark.parametrize('unit', ['K', 'degC', si.degF, 'dBm'])
+@pytest.mark.parametrize('unit', ['K', 'degC', imperial.degF, 'dBm'])
 def test_affine_quantity_reconstruction(unit):
     quantity_type = LogQuantity if unit == 'dBm' else AffineQuantity
     point = quantity_type(Decimal('20'), unit)
@@ -192,13 +193,13 @@ def test_affine_unit_linear_projection():
         assert quantity.value == 2
     assert Quantity(2, 'K').to(descriptor).unit == linear
     assert Quantity(2, 'K').to(descriptor).value == 2
-    assert Quantity(2, 'K').value_in(si.degF) == Fraction(18, 5)
+    assert Quantity(2, 'K').value_in(imperial.degF) == Fraction(18, 5)
     assert descriptor * si.m == linear * si.m
     assert si.m * descriptor == si.m * linear
     assert descriptor / si.m == linear / si.m
     assert si.m / descriptor == si.m / linear
     assert descriptor**2 == linear**2
-    assert descriptor * si.degF == linear * Quantity(1, si.degF).unit
+    assert descriptor * imperial.degF == linear * Quantity(1, imperial.degF).unit
     assert (Quantity(2, 'm') * descriptor).unit == si.m * linear
     assert (descriptor * Quantity(2, 'm')).unit == linear * si.m
     assert (Quantity(2, 'm') / descriptor).unit == si.m / linear
@@ -209,7 +210,7 @@ def test_affine_unit_linear_projection():
 
 
 def test_affine_unit_anonymous_projection():
-    custom = AffineUnit(100 * si.K, at=10, delta_unit=si.degF.delta_unit)
+    custom = AffineUnit(100 * si.K, at=10, delta_unit=imperial.degF.delta_unit)
     difference = Quantity(2, custom)
     assert difference.unit is custom.delta_unit
     assert 2 * custom == custom * 2 == difference

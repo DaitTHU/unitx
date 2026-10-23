@@ -34,8 +34,8 @@ from unitx.exceptions import (
     VersionError,
 )
 from unitx.factor import Factor, SymbolicConstant, ln10, pi
+from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
-from unitx.si import si
 
 
 def _register(source, *args, **kwargs):
@@ -591,15 +591,14 @@ def test_result_and_input_records_do_not_alias():
 
 
 def test_cross_process_json_without_numpy():
-    quantity = AffineQuantity(Fraction(123, 7), si.degF)
+    quantity = AffineQuantity(Fraction(123, 7), imperial.degF)
     source = Path(__file__).resolve().parents[1] / 'src'
     script = f"""import sys, json, importlib.util
 sys.path.insert(0, {str(source)!r})
 assert importlib.util.find_spec('numpy') is None
 from unitx.serialization import from_dict, to_dict
-from unitx.si import si
-from unitx.si import si
-restored = from_dict(json.load(sys.stdin), registry=si._registry)
+from unitx.imperial import imperial
+restored = from_dict(json.load(sys.stdin), registry=imperial._registry)
 print(json.dumps(to_dict(restored), allow_nan=False))
 assert 'numpy' not in sys.modules
 """
@@ -612,7 +611,16 @@ assert 'numpy' not in sys.modules
         timeout=20,
         env=os.environ.copy(),
     )
-    assert from_dict(json.loads(result.stdout), registry=si._registry) == quantity
+    assert from_dict(json.loads(result.stdout), registry=imperial._registry) == quantity
+
+
+def test_serialization_imperial_coordinate():
+    quantity = AffineQuantity(Decimal('32.50'), imperial.degF)
+    for original in (quantity, imperial.degF):
+        restored = exchange(original, registry=imperial._registry)
+        assert restored == original
+        if isinstance(original, (AffineUnit, LogUnit)):
+            assert hash(restored) == hash(original)
 
 
 @pytest.mark.parametrize(

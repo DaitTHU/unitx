@@ -6,6 +6,7 @@ from typing import assert_type
 
 from unitx import AffineQuantity, AffineUnit, Quantity, Unit
 from unitx._numerics import Magnitude
+from unitx.imperial import imperial
 from unitx.si import si
 
 point = AffineQuantity(Decimal('20'), 'degC')
@@ -23,7 +24,7 @@ assert_type(2 * Unit('degC'), Quantity[int])
 assert_type(Unit('m') * Unit('s'), Unit)
 
 celsius = AffineUnit(Decimal('273.15') * si.K)
-fahrenheit = AffineUnit(AffineQuantity(0, celsius), at=32, delta_unit=si.degR)
+fahrenheit = AffineUnit(AffineQuantity(0, celsius), at=32, delta_unit=imperial.degR)
 assert_type(celsius, AffineUnit)
 assert_type(fahrenheit, AffineUnit)
 assert_type(fahrenheit.origin.unit, Unit)

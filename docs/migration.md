@@ -38,6 +38,12 @@ registry table views and spelling resolver functions are removed; applications
 use `Registry.parse()` and `Registry.include(*units)` instead. Each include call
 validates the whole batch before changing the environment.
 
+Use `from unitx.imperial import imperial` for the ready-to-use Imperial
+catalogue, following the existing `from unitx.si import si` structure.
+Its `parse()` uses the catalogue environment. Default `Quantity(..., 'm')` and
+`.to('cm')` retain their existing behavior; extra catalogue imports do not
+change default spellings.
+
 `.define()` no longer registers into the default environment implicitly.
 Outside a `with registry.defining():` block,
 Unit, Quantity and AffineUnit `.define()` calls
@@ -75,8 +81,10 @@ are removed. Compatible cross-environment quantities still interact normally.
 The name defaults to the symbol, allowing `.define('twip')`.
 `Registry(prefixable=False)` supplies the default in explicit definition blocks
 and `registry.define()`; individual policies override it. UnitCatalog does not
-supply construction defaults. Use explicit `Registry(prefixable=False).defining()` blocks to disable prefixes
-from construction onward.
+supply construction defaults. Imperial, historical English and US definitions
+use explicit `Registry(prefixable=False).defining()` blocks to disable prefixes
+from construction onward. Fahrenheit and Rankine are accessed as
+`imperial.degF` and `imperial.degR` instead of SI attributes or default strings.
 
 JSON records advance to version 2; version 1 is explicitly rejected because it
 cannot distinguish same-name private identities. Pickle records use the current

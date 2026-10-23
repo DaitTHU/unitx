@@ -7,6 +7,10 @@
 - `Registry` provides independent parsing environments, atomic `include(*units)`
   and explicit `with registry.defining():` blocks with configurable prefix defaults.
   `UnitCatalog` collects read-only unit attributes and provides catalogue parsing.
+- `unitx.imperial` supplies British Imperial, historical English and US customary
+  catalogues with independent spellings and exact documented scales, including
+  US survey feet, thermochemical Btu, circular mil and conventional water/mercury
+  pressure units. Importing a catalogue does not change default parsing.
 
 ### Changed
 
@@ -23,6 +27,8 @@
 - **Breaking:** Dimension equality includes the internal logarithmic axis.
   Use `.physical` for seven-axis physical comparisons; separate `log_degree`
   attributes are removed.
+- **Breaking:** Fahrenheit and Rankine move from SI/default parsing to
+  `imperial.degF` and `imperial.degR`.
 - **Breaking:** Scalar JSON uses format 2 with definition IDs and an optional
   receiving Registry; format 1 and older pickle payloads are unsupported.
   Reconstruction requires existing definitions and checks their metadata.

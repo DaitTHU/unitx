@@ -1,6 +1,6 @@
 """An intuitive Python library for physical units and quantities."""
 
-from . import math, si, time
+from . import imperial, math, si, time
 from .affinequantity import AffineQuantity
 from .affineunit import AffineUnit
 from .dimension import DIMENSIONLESS, Dimension
@@ -21,6 +21,7 @@ __all__ = [
     'Dimension',
     'Quantity',
     'Registry',
+    'imperial',
     'Unit',
     'UnitCatalog',
     'one',

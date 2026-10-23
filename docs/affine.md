@@ -9,6 +9,7 @@ have separate [LogUnit and LogQuantity types](logarithmic.md).
 >>> from decimal import Decimal
 >>> from fractions import Fraction
 >>> from unitx import AffineQuantity, AffineUnit, Quantity, Unit
+>>> from unitx.imperial import imperial
 >>> from unitx.si import si
 >>> type(Unit('degC')) is Unit
 True
@@ -16,7 +17,7 @@ True
 True
 >>> type(20 @ si.degC) is AffineQuantity
 True
->>> print((20 @ si.degC).to(si.degF))
+>>> print((20 @ si.degC).to(imperial.degF))
 68 °F
 
 ```
@@ -76,7 +77,7 @@ have their ordinary linear meaning; they do not create new coordinate origins.
 True
 >>> cold + (hot - cold) == hot
 True
->>> (30 @ si.degC) - (68 @ si.degF) == Quantity(10, si.K)
+>>> (30 @ si.degC) - (68 @ imperial.degF) == Quantity(10, si.K)
 True
 
 ```
@@ -93,7 +94,7 @@ point. The difference scale defaults to the reference's difference unit.
 
 ```pycon
 >>> celsius = AffineUnit(Decimal('273.15') * si.K)
->>> fahrenheit = AffineUnit(0 @ celsius, at=32, delta_unit=si.degR)
+>>> fahrenheit = AffineUnit(0 @ celsius, at=32, delta_unit=imperial.degR)
 >>> (212 @ fahrenheit).value_in(celsius)
 Fraction(100, 1)
 >>> fahrenheit.origin == Quantity(Fraction(45967, 180), si.K)

@@ -32,7 +32,7 @@ of accepted parser spellings:
 | Mass and mechanics | t, Da, u, c, Gal, knot, gf, kgf |
 | Pressure and energy | bar, atm, mHg, mmHg, Torr, mTorr, Wh, eV, cal |
 | Electrical variants | VA, var, mho |
-| Temperature and logarithmic coordinates | degC, degF, degR, dBm, dBW, dBV |
+| Temperature and logarithmic coordinates | degC, dBm, dBW, dBV |
 | Logarithmic differences | Np, B, dB |
 
 The parser accepts permitted prefixes even when a convenience attribute is
@@ -204,7 +204,8 @@ True
 >>> Unit('kΩ') == si.kohm
 True
 >>> from unitx import AffineQuantity
->>> AffineQuantity(32, si.parse('℉')) == AffineQuantity(0, '℃')
+>>> from unitx.imperial import imperial
+>>> AffineQuantity(32, imperial.parse('℉')) == AffineQuantity(0, '℃')
 True
 
 ```

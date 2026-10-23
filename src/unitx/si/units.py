@@ -247,14 +247,6 @@ class si(_si, registry=default_registry):
         '°C', 'degree Celsius', 'celsius', symbol_aliases=('degC', '℃')
     )
     """degree Celsius: difference 1 °C = 1 K; point 0 °C = 273.15 K"""
-    degR: Final = (5 * (_si.K / 9)).define(
-        '°R', 'degree Rankine', 'rankine', symbol_aliases='degR', prefixable=False
-    )
-    """degree Rankine, 0 °R = 0 K, temperature"""
-    degF: Final = AffineUnit(0 @ degC, at=32, delta_unit=degR).define(
-        '°F', 'degree Fahrenheit', 'fahrenheit', symbol_aliases=('degF', '℉')
-    )
-    """degree Fahrenheit: difference 1 °F = 5/9 K; point 32 °F = 0 °C"""
     # others
     nt: Final = (_si.cd / _si.m**2).define('nt', name='nit')
     """nit, luminance"""

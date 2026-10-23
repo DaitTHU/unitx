@@ -5,6 +5,7 @@ import pytest
 from unitx import LogQuantity
 from unitx.affinequantity import AffineQuantity
 from unitx.exceptions import DimensionError
+from unitx.imperial import imperial
 from unitx.quantity import Quantity
 from unitx.si import si
 from unitx.unit import Unit
@@ -38,10 +39,10 @@ def test_array_conversion_and_statistics():
     assert np.var(q).unit == Unit('dB**2')
     np.testing.assert_allclose(np.std(q).value, np.std(q.value))
     t = AffineQuantity(np.array([0.0, 100.0]), 'degC')
-    np.testing.assert_allclose(t.value_in(si.degF), [32, 212])
+    np.testing.assert_allclose(t.value_in(imperial.degF), [32, 212])
     assert np.std(t).unit == si.K
     assert np.var(t).unit == Unit('K**2')
-    joined = np.concatenate([t, AffineQuantity(np.array([32.0]), si.degF)])
+    joined = np.concatenate([t, AffineQuantity(np.array([32.0]), imperial.degF)])
     np.testing.assert_allclose(joined.value, [0, 100, 0])
 
 
@@ -85,7 +86,7 @@ def test_staged_write_and_fixed_point_unit():
     out = np.add(q, Quantity(1, 'K'), out=q)
     assert out is q and q.value is a
     np.testing.assert_array_equal(a, [1, 101])
-    q[:] = AffineQuantity(np.array([32.0, 212.0]), si.degF)
+    q[:] = AffineQuantity(np.array([32.0, 212.0]), imperial.degF)
     np.testing.assert_allclose(a, [0, 100])
     before = a.copy()
     for op in (
@@ -126,10 +127,12 @@ def test_inplace_and_logarithmic_degree():
 
 def test_masked_scaling_does_not_evaluate_inactive_coordinates():
     q = AffineQuantity(np.array([0.0, 1e308]), 'degC')
-    right = AffineQuantity(np.array([32.0, 1e308]), si.degF)
-    target = AffineQuantity(np.array([7.0, 8.0]), si.degF)
+    right = AffineQuantity(np.array([32.0, 1e308]), imperial.degF)
+    target = AffineQuantity(np.array([7.0, 8.0]), imperial.degF)
     with np.errstate(over='raise', invalid='raise'):
-        np.subtract(right, q, where=np.array([True, False]), out=Quantity(np.zeros(2), si.degR))
+        np.subtract(
+            right, q, where=np.array([True, False]), out=Quantity(np.zeros(2), imperial.degR)
+        )
         np.add(q, Quantity(np.array([1.0, 1e308]), 'K'), where=np.array([True, False]), out=target)
     np.testing.assert_allclose(target.value, [33.8, 8.0])
 
@@ -189,8 +192,8 @@ def test_array_at_matrix_separation():
     assert type(point) is AffineQuantity
     assert type(delta) is Quantity
     assert point.value is values and delta.value is values
-    np.testing.assert_array_equal(point.value_in(si.degF), [32, 212])
-    np.testing.assert_array_equal(delta.value_in(si.degF), [0, 180])
+    np.testing.assert_array_equal(point.value_in(imperial.degF), [32, 212])
+    np.testing.assert_array_equal(delta.value_in(imperial.degF), [0, 180])
     left = Quantity(np.eye(2), 'm')
     right = Quantity(np.eye(2), 's')
     matrix = left @ right
@@ -211,11 +214,11 @@ def test_array_at_magnitude_identity(value):
 
 def test_array_at_output_semantics():
     values = np.array([0.0, 100.0])
-    target = AffineQuantity(np.zeros(2), si.degF)
+    target = AffineQuantity(np.zeros(2), imperial.degF)
     result = np.matmul(values, si.degC, out=target)
     assert result is target
     np.testing.assert_array_equal(target.value, [32, 212])
-    delta_target = Quantity(np.zeros(2), si.degF)
+    delta_target = Quantity(np.zeros(2), imperial.degF)
     with pytest.raises(DimensionError):
         np.matmul(values, si.degC, out=delta_target)
     np.testing.assert_array_equal(delta_target.value, [0, 0])

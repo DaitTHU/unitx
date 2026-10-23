@@ -14,6 +14,7 @@ from unitx.affinequantity import AffineQuantity
 from unitx.affineunit import AffineUnit
 from unitx.exceptions import DimensionError, UnitRegistryError
 from unitx.factor import Factor, SymbolicConstant, ln10, pi
+from unitx.imperial import imperial
 from unitx.quantity import Quantity
 from unitx.si import si
 from unitx.unit import Unit
@@ -33,10 +34,10 @@ def _register(source, *args, **kwargs):
     'x, source, target, expected',
     [
         (0, 'degC', 'K', Fraction(27315, 100)),
-        (100, 'degC', si.degF, 212),
-        (32, si.degF, 'degC', 0),
-        (0, si.degF, 'K', Fraction(45967, 180)),
-        (10, si.degR, 'K', Fraction(50, 9)),
+        (100, 'degC', imperial.degF, 212),
+        (32, imperial.degF, 'degC', 0),
+        (0, imperial.degF, 'K', Fraction(45967, 180)),
+        (10, imperial.degR, 'K', Fraction(50, 9)),
         (30, 'dBm', 'dBW', 0),
         (0, 'dBW', 'dBm', 30),
         (0, 'dBm', 'mW', 1),
@@ -65,7 +66,7 @@ def test_decimal_round_once(precision):
     with localcontext() as ctx:
         ctx.prec = precision
         value = Decimal('1.23456789')
-        result = AffineQuantity(value, si.degF).to('degC').value
+        result = AffineQuantity(value, imperial.degF).to('degC').value
         exact = (Fraction(value) - 32) * Fraction(5, 9)
         assert result == Decimal(exact.numerator) / Decimal(exact.denominator)
         assert isinstance(result, Decimal)
@@ -74,9 +75,9 @@ def test_decimal_round_once(precision):
 
 
 def test_point_and_difference_arithmetic():
-    assert AffineQuantity(30, 'degC') - AffineQuantity(68, si.degF) == Quantity(10, 'K')
-    assert AffineQuantity(20, 'degC') + Quantity(18, si.degR) == AffineQuantity(30, 'degC')
-    assert Quantity(18, si.degR) + AffineQuantity(20, 'degC') == AffineQuantity(30, 'degC')
+    assert AffineQuantity(30, 'degC') - AffineQuantity(68, imperial.degF) == Quantity(10, 'K')
+    assert AffineQuantity(20, 'degC') + Quantity(18, imperial.degR) == AffineQuantity(30, 'degC')
+    assert Quantity(18, imperial.degR) + AffineQuantity(20, 'degC') == AffineQuantity(30, 'degC')
     assert LogQuantity(30, 'dBm') - LogQuantity(-10, 'dBW') == Quantity(10, 'dB')
     assert LogQuantity(20, 'dBm') + Quantity(10, 'dB') == LogQuantity(30, 'dBm')
     assert LogQuantity(20, 'dBV') - Quantity(10, 'dB') == LogQuantity(10, 'dBV')
@@ -157,7 +158,7 @@ def test_affine_tolerances():
         q.isclose(q, rel_tol=0, abs_tol=1)
 
 
-@pytest.mark.parametrize('name', ['degC', si.degF, 'dBm', 'dBV'])
+@pytest.mark.parametrize('name', ['degC', imperial.degF, 'dBm', 'dBV'])
 def test_identity_copy_pickle_and_display(name):
     quantity_type = LogQuantity if name in ('dBm', 'dBV') else AffineQuantity
     unit = quantity_type(0, name).unit
@@ -251,7 +252,7 @@ def test_affine_unit_independent_type():
     assert not (si.K == coordinate)
     assert not (coordinate == si.K)
     assert Quantity(1, 'K').to('degC') == Quantity(1, 'degC')
-    assert Quantity(1, si.degF).to('K') == Quantity(Fraction(5, 9), 'K')
+    assert Quantity(1, imperial.degF).to('K') == Quantity(Fraction(5, 9), 'K')
     assert isinstance(Unit('degC', scale=Factor(2)), Unit)
     assert AffineUnit(AffineQuantity(1, 'degC')).origin == Quantity(Fraction(5483, 20), si.K)
 
@@ -316,14 +317,14 @@ def test_affine_unit_reference_point(precision):
     with localcontext() as ctx:
         ctx.prec = precision
         celsius = AffineUnit(Decimal('273.15') * si.K)
-        fahrenheit = AffineUnit(0 @ celsius, at=Decimal('32'), delta_unit=si.degR)
+        fahrenheit = AffineUnit(0 @ celsius, at=Decimal('32'), delta_unit=imperial.degR)
         assert celsius.delta_unit == si.K
         assert celsius.origin.value == Fraction(5463, 20)
         assert fahrenheit.origin.value == Fraction(45967, 180)
         assert fahrenheit.origin.unit == si.K
         assert AffineQuantity(32, fahrenheit).value_in(celsius) == 0
         assert AffineQuantity(212, fahrenheit).value_in(celsius) == 100
-        assert AffineUnit(0 @ fahrenheit).delta_unit == si.degR
+        assert AffineUnit(0 @ fahrenheit).delta_unit == imperial.degR
         assert AffineUnit(0 @ fahrenheit).origin == fahrenheit.origin
         assert hash(fahrenheit) == hash(pickle.loads(pickle.dumps(fahrenheit)))
         assert eval(repr(fahrenheit)) == fahrenheit
@@ -355,7 +356,7 @@ def test_affine_unit_reference_registration():
     snapshots = [dict(x) for x in tables]
     try:
         unit = _register(
-            AffineUnit(AffineQuantity(0, si.degC), at=32, delta_unit=si.degR),
+            AffineUnit(AffineQuantity(0, si.degC), at=32, delta_unit=imperial.degR),
             'customFahrenheit',
             'custom Fahrenheit',
             symbol_aliases='customF',
@@ -421,7 +422,7 @@ def test_affine_unit_reference_array_invalid():
 
 @pytest.mark.parametrize(
     'unit',
-    [si.degC, si.degF, si.dBm] + [AffineUnit(100 * si.K)],
+    [si.degC, imperial.degF, si.dBm] + [AffineUnit(100 * si.K)],
 )
 def test_affine_unit_independent_display(unit):
     assert str(unit) == unit.symbol

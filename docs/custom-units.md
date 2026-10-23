@@ -309,7 +309,8 @@ annotations on published attributes for static rebinding diagnostics.
 - Each class starts with a fresh environment. Inherited attributes are available
   normally, but parser bindings are not inherited. Use `registry=` when a
   catalogue deliberately shares an existing Registry; SI uses the default one.
-- Prefix permissions are fixed during `.define()`. Catalogue maintainers can use explicit `Registry(prefixable=False).defining()` blocks with
+- Prefix permissions are fixed during `.define()`. Imperial and US catalogue
+  maintainers use explicit `Registry(prefixable=False).defining()` blocks with
   the catalogue's receiving registry. The collector does not change metadata
   or infer policies from class names.
 - Definitions use shared immutable objects as formal identities. Including an
