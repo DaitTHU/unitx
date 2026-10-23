@@ -8,8 +8,10 @@ from fractions import Fraction
 
 import pytest
 
+from unitx.affinequantity import AffineQuantity
 from unitx.factor import Factor
 from unitx.quantity import Quantity
+from unitx.si import si
 from unitx.unit import ScaledUnit, Unit
 
 
@@ -44,6 +46,44 @@ def test_scaled_unit_keeps_exact_scale():
     assert Quantity(4, ScaledUnit('', Factor(2))).to_latex() == (r'\text{4}\,\left(\text{2}\right)')
     assert ScaledUnit('m', Factor(1)).to_latex() == Unit('m').to_latex()
     assert ScaledUnit('m', Factor(2) ** Fraction(1, 2)).to_latex() == (r'\text{2}^{1/2}\,\text{m}')
+
+
+@pytest.mark.parametrize(
+    'unit',
+    [
+        Unit(),
+        ScaledUnit('m', scale=Factor(2)),
+        ScaledUnit('m', scale=Factor(Fraction(2, 3))),
+        ScaledUnit('', scale=Factor(2)),
+        ScaledUnit('s^(-1/2)', scale=Factor(2) ** Fraction(1, 3)),
+    ],
+)
+def test_affine_quantity_zero_origin_display(unit):
+    value = Decimal('3.00')
+    point = AffineQuantity(value, unit)
+    linear = Quantity(value, unit)
+    assert point.unit.symbol == str(unit)
+    assert str(point) == str(linear)
+    for spec in ('', '.2f', ';text', '.2f;latex', ';html', ';siunitx'):
+        assert format(point, spec) == format(linear, spec)
+    for fraction in (True, False):
+        assert point.to_latex(fraction=fraction) == linear.to_latex(fraction=fraction)
+        assert point.unit.to_latex(fraction=fraction) == unit.to_latex(fraction=fraction)
+    assert point.to_html() == linear.to_html()
+    assert point.to_siunitx() == linear.to_siunitx()
+    assert point.unit.to_html() == unit.to_html()
+    assert point.unit.to_siunitx() == unit.to_siunitx()
+    assert point._repr_latex_() == '$' + point.to_latex() + '$'
+    assert point._repr_html_() == point.to_html()
+    assert point.value is value
+    assert point.unit.delta_unit is unit
+
+
+@pytest.mark.parametrize('coordinate', [si.K, si.degC, si.dBm])
+def test_affine_quantity_named_zero_origin_display(coordinate):
+    point = 3 @ coordinate
+    assert str(point) == f'3 {coordinate.symbol}'
+    assert point.to_latex() == r'\text{3}\,' + coordinate.to_latex()
 
 
 @pytest.mark.parametrize('spec', ['', '.2f', '>12.3e', ';text', '.1f;latex', '.1f;html'])

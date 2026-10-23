@@ -18,6 +18,21 @@ type Style = Literal['latex', 'html']
 _DECIMAL_NUMBER = re.compile(r'([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(?:[eE]([+-]?[0-9]+))?')
 
 
+def _display_unit(unit: Unit | AffineUnit) -> Unit | AffineUnit:
+    """Render an unnamed zero-origin linear coordinate through its complete Unit."""
+    from .affineunit import AffineUnit
+
+    if (
+        isinstance(unit, AffineUnit)
+        and unit._definition is None
+        and unit.kind is None
+        and unit.origin.value == 0
+        and unit.origin.unit == unit.delta_unit
+    ):
+        return unit.delta_unit
+    return unit
+
+
 def latex_text(text: str) -> str:
     """Escape literal text, including characters that can terminate math mode."""
     replacements = {
@@ -83,6 +98,7 @@ def unit_body(unit: Unit | AffineUnit, style: Style, *, fraction: bool = True) -
     from .factor import one
     from .unit import ScaledUnit
 
+    unit = _display_unit(unit)
     if isinstance(unit, AffineUnit):
         return latex_text(unit.symbol) if style == 'latex' else escape(unit.symbol)
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
@@ -148,6 +164,7 @@ def quantity_body(
     from .factor import one
     from .unit import ScaledUnit
 
+    unit = _display_unit(unit)
     # Delegate formatting without coercing Decimal, Fraction, arrays or custom scalars.
     text = format_magnitude(value, spec)
     magnitude = rich_magnitude(value, text, spec, style)
@@ -175,6 +192,7 @@ def siunitx_unit_parts(unit: Unit | AffineUnit) -> tuple[str, bool]:
     """Return a unit argument and whether siunitx should parse it."""
     from .affineunit import AffineUnit
 
+    unit = _display_unit(unit)
     if isinstance(unit, AffineUnit):
         return '{' + unit.to_latex() + '}', False
     from .factor import one
@@ -196,6 +214,7 @@ def siunitx_quantity(value: object, unit: Unit | AffineUnit, spec: str) -> str:
     from .factor import one
     from .unit import ScaledUnit
 
+    unit = _display_unit(unit)
     text = format_magnitude(value, spec)
     options: list[str] = []
     # Recognize only ordinary ASCII decimal/scientific notation. All other
@@ -217,6 +236,7 @@ def siunitx_quantity(value: object, unit: Unit | AffineUnit, spec: str) -> str:
 
 
 def text_quantity(value: object, unit: Unit | AffineUnit) -> str:
+    unit = _display_unit(unit)
     unit_text = str(unit)
     if unit_text == '1':
         return str(value)
@@ -231,6 +251,7 @@ def text_quantity(value: object, unit: Unit | AffineUnit) -> str:
 def format_quantity(value: object, unit: Unit | AffineUnit, format_spec: str) -> str:
     from .factor import one
 
+    unit = _display_unit(unit)
     if not format_spec:
         return text_quantity(value, unit)
     # A semicolon used as a Python fill character belongs to the numeric spec.

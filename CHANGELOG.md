@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve exact extra scales and structural unit formatting for affine points
+  in anonymous zero-origin linear coordinates across text, LaTeX, HTML and siunitx.
+  Stored readings and named coordinate labels are unchanged.
+
 ### Added
 
 - Add an Arrhenius fitting notebook with absolute temperatures, activation-energy

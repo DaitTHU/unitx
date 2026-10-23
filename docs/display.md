@@ -17,6 +17,26 @@ markup or raw TeX commands. Unicode symbols remain Unicode and require font
 support in the renderer. These strings are for presentation, not serialization.
 `repr()` and `Unit.expression()` keep their existing reconstruction contracts.
 
+An AffineQuantity in an anonymous zero-origin linear coordinate displays its
+complete difference Unit, including any extra scale and rational powers. The
+stored reading is unchanged. Named coordinates keep their own labels:
+
+```pycon
+>>> from unitx.unit import ScaledUnit
+>>> from unitx.factor import Factor
+>>> point = 3 @ ScaledUnit('m', scale=Factor(2))
+>>> str(point)
+'3⋅2⋅m'
+>>> format(point, '.2f')
+'3.00 (2⋅m)'
+>>> point.to_quantity('m').value
+Fraction(6, 1)
+
+```
+
+LaTeX, HTML and siunitx use the same structural unit rendering as a linear
+Quantity with that complete Unit; formatting never converts the reading.
+
 ## Quantity format syntax
 
 `format(q, 'numeric_spec;style')`, or `f'{q:numeric_spec;style}'`, selects:

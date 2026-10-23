@@ -153,7 +153,7 @@ class AffineUnit(_Immutable):
         if self._definition is not None:
             return self._definition.symbol
         if self.kind is None and self.origin.value == 0 and self.origin.unit == self.delta_unit:
-            return self.delta_unit.symbol
+            return str(self.delta_unit)
         return f'affine({self.origin})'
 
     @property
