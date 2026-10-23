@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-10-23
+
 ### Fixed
 
 - Preserve exact extra scales and structural unit formatting for affine points
