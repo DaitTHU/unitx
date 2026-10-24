@@ -1,6 +1,7 @@
-"""Keep physics notebooks reproducible and free of generated Git payloads."""
+"""Keep scientific examples runnable and notebooks free of generated Git payloads."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,37 @@ import pytest
 from ._notebooks import notebook_source
 
 NOTEBOOKS = sorted((Path(__file__).resolve().parents[1] / 'examples').glob('*.ipynb'))
+
+
+def test_readme_python_examples(monkeypatch):
+    np = pytest.importorskip('numpy')
+    matplotlib = pytest.importorskip('matplotlib')
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+
+    from unitx import Quantity, Unit
+
+    path = Path(__file__).resolve().parents[1] / 'README.md'
+    blocks = re.findall(r'^```python\n(.*?)^```', path.read_text(encoding='utf-8'), re.M | re.S)
+    assert blocks, 'Keep runnable Python examples in the README.'
+    namespace = {'__name__': '__main__'}
+    monkeypatch.setattr(plt, 'show', lambda: None)
+    try:
+        # Later blocks may reuse imports and variables introduced earlier.
+        for index, source in enumerate(blocks, start=1):
+            exec(compile(source, f'{path}:python block {index}', 'exec'), namespace)
+
+        radiance = namespace['radiance']
+        assert isinstance(radiance, Quantity) and radiance.shape == (100, 3)
+        assert radiance.unit == Unit('kW/sr/m2/nm')
+        assert np.all(np.isfinite(radiance.value)) and np.all(radiance.value >= 0)
+        lines = namespace['ax'].get_lines()
+        assert len(lines) == 3
+        for index, line in enumerate(lines):
+            np.testing.assert_array_equal(line.get_xdata(), namespace['wavelength'].value[:, 0])
+            np.testing.assert_array_equal(line.get_ydata(), radiance.value[:, index])
+    finally:
+        plt.close('all')
 
 
 @pytest.mark.parametrize('path', NOTEBOOKS, ids=lambda path: path.stem)

@@ -40,6 +40,8 @@ are not release documentation. Documentation examples should be reproducible
 and avoid modifying source files. Notebook source is checked and executed by
 the tests when its optional dependencies are present; see the
 [notebook policy](examples/README.md#keep-git-history-small).
+With NumPy and Matplotlib installed, the tests also execute the README's
+`python` code blocks in order and check the blackbody plot's numerical data.
 
 ## Keep changes reviewable
 

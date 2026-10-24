@@ -99,7 +99,7 @@ Multiplying by `si.degC` constructs a difference; use `@` or the explicit
 Adding two points raises `TypeError`; subtract them to obtain a difference.
 Use `.to_quantity()` to turn a point into an ordinary physical quantity for
 further arithmetic. Read the [point and difference guide](https://github.com/DaitTHU/unitx/blob/main/docs/affine.md)
-for temperatures and [logarithmic quantities](docs/logarithmic.md) for
+for temperatures and [logarithmic quantities](https://github.com/DaitTHU/unitx/blob/main/docs/logarithmic.md) for
 dBm/dBW/dBV and ratio rules.
 
 ## Mathematical functions and time
