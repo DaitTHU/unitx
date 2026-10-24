@@ -9,6 +9,11 @@ from unitx._numerics import Magnitude
 from unitx.si import si
 
 assert_type(si.dBm, LogUnit)
+assert_type(si.dB(si.mW), LogUnit)
+assert_type(si.dB(si.mV), LogUnit)
+assert_type(si.dB(Decimal('1.25') * si.V), LogUnit)
+assert_type(si.dB(si.Pa, kind='amplitude'), LogUnit)
+assert_type(Decimal(20) @ si.dB(si.mV), LogQuantity[Decimal])
 assert_type(si.dBm.reference, Quantity[Fraction])
 assert_type(si.dBm.at, Fraction)
 assert_type(30 @ si.dBm, LogQuantity[int])

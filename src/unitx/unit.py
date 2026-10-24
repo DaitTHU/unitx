@@ -19,6 +19,7 @@ from .unitregistry import _definition_target
 
 if TYPE_CHECKING:
     from .affinequantity import AffineQuantity
+    from .logunit import LogKind, LogUnit
     from .quantity import Quantity
 
 
@@ -219,6 +220,24 @@ class Unit(_Immutable):
 
     def __deepcopy__(self, memo: dict[int, object]) -> Self:
         return self
+
+    def __call__(
+        self,
+        reference: Unit | Quantity[Magnitude],
+        /,
+        *,
+        kind: LogKind | None = None,
+    ) -> LogUnit:
+        """Construct a referenced dB coordinate; other units raise TypeError.
+
+        A Unit reference means one of that unit. Watts and volts (including
+        SI prefixes and exact scales) default to power and amplitude conventions;
+        other references require an explicit `kind`. Common references reuse
+        the named dBm, dBW and dBV descriptors without registering new units.
+        """
+        from .logunit import _decibel_coordinate
+
+        return _decibel_coordinate(self, reference, kind=kind)
 
     def __str__(self) -> str:
         if self.scale == one:

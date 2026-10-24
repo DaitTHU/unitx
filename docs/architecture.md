@@ -75,6 +75,12 @@ a physical Quantity; `LogQuantity.from_quantity(quantity, coordinate)` enters a
 logarithmic coordinate. These boundaries prevent an implicit exponential or
 logarithm from entering ordinary Quantity conversions.
 
+`Unit.__call__` is a narrow convenience boundary for the formal dB unit. It
+delegates lazily to the logarithmic module, which constructs an ordinary
+LogUnit or reuses a named descriptor. Default conventions recognize watt and
+volt definition identities with their prefixes; they are not inferred from
+dimensions or symbol strings. Calling another Unit raises TypeError.
+
 The difference-unit factor uses the neper scale. The mapping coefficient is
 `ln(10)/2` for power and `ln(10)` for amplitude, so a reading displacement `x - at`
 represents the ratio `10**((x - at) * delta.factor / coefficient)` relative to

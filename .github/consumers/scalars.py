@@ -12,7 +12,17 @@ from pathlib import Path
 from typing import Final, assert_type
 
 import unitx
-from unitx import AffineQuantity, LogQuantity, Quantity, Registry, Unit, UnitCatalog, math, time
+from unitx import (
+    AffineQuantity,
+    LogQuantity,
+    LogUnit,
+    Quantity,
+    Registry,
+    Unit,
+    UnitCatalog,
+    math,
+    time,
+)
 from unitx.factor import Factor
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
@@ -70,6 +80,12 @@ assert celsius.to_quantity(si.K) == Fraction(5863, 20) * si.K
 assert (32 @ imperial.degF).to(si.degC) == 0 @ si.degC
 assert level.to_quantity(si.W) == 1 * si.W
 assert LogQuantity.from_quantity(1 * si.W, si.dBm) == level
+assert_type(si.dB(si.V), LogUnit)
+assert si.dB(si.mW) is si.dBm
+assert Unit('decibel')(si.V) is si.dBV
+millivolt_level = Decimal(20) @ si.dB(si.mV)
+assert_type(millivolt_level, LogQuantity[Decimal])
+assert millivolt_level.to_quantity(si.mV).value == Decimal(10)
 
 registry = Registry([si.m])
 with registry.defining():

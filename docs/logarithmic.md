@@ -54,6 +54,43 @@ True
 
 ## Defining logarithmic coordinates
 
+For a zero-reading reference, `si.dB(reference, kind=...)` is a shorthand for
+`LogUnit(reference, delta_unit=si.dB, kind=...)`. A Unit argument means one of
+that unit; a Quantity argument supplies the full reference value. Watts and
+volts, including their SI prefixes and extra exact scales, default to
+`kind='power'` and `kind='amplitude'`, respectively. This convention follows
+the named unit definition, not physical dimension: other units and composite
+expressions require an explicit `kind`. An explicit `kind` always takes precedence.
+
+```pycon
+>>> si.dB(si.mW) is si.dBm
+True
+>>> si.dB(si.W) is si.dBW
+True
+>>> si.dB(si.V) is si.dBV
+True
+>>> millivolt_level = si.dB(si.mV)
+>>> (20 @ millivolt_level).to_quantity(si.mV).value
+10
+>>> (0 @ millivolt_level).to(si.dBV).value
+-60
+>>> pressure_level = si.dB(20 * si.uPa, kind='amplitude')
+>>> (0 @ pressure_level).to_quantity(si.uPa).value
+20
+
+```
+
+References with value one and unit mW, W or V, using their usual conventions,
+return the existing named descriptors. Other references return
+anonymous LogUnits without registering new names. The millivolt reference
+corresponds to dBmV; dBm refers to a milliwatt. Voltage-to-power conversion
+requires additional physical information such as impedance.
+
+Only the formal dB unit supports this call. Reconstructed dB units behave the
+same way; other Units raise TypeError when called. As a consequence of the
+shared `Unit.__call__` method, `callable(unit)` is true for all Unit objects
+and does not test whether this shorthand is supported.
+
 `LogUnit(reference, /, *, delta_unit, kind, at=0)` means reading `at` represents
 `reference`. A reference is a physical Quantity or LogQuantity. Both `delta_unit`
 and `kind='power'|'amplitude'` are required. References must be positive finite

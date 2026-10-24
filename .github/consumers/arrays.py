@@ -17,6 +17,11 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     assert level.value is values
     np.testing.assert_allclose(level.to_quantity(si.W).value, [0.001, 0.1, 1.0])
 
+    voltage_level = LogQuantity(values, si.dB(si.mV))
+    assert_type(voltage_level, LogQuantity[NDArray[np.float64]])
+    assert voltage_level.value is values
+    np.testing.assert_allclose(voltage_level.to_quantity(si.mV).value, 10 ** (values / 20))
+
     distance = Quantity(values.copy(), si.m)
     assert_type(distance, Quantity[NDArray[np.float64]])
     assert_type(distance.unit, Unit)

@@ -351,6 +351,44 @@ class LogUnit(_Immutable, _LinearUnitSource):
         return expression if resolved == self else None
 
 
+def _decibel_coordinate(
+    delta: Unit, reference: Unit | Quantity[Magnitude], *, kind: LogKind | None
+) -> LogUnit:
+    """Implement the dB call without adding mapping logic to linear Unit algebra."""
+    from .quantity import Quantity
+    from .si import si
+
+    if delta != si.dB:
+        error_message = 'Only dB supports constructing logarithmic coordinates by calling a Unit.'
+        raise TypeError(error_message)
+    if isinstance(reference, Unit):
+        reference = Quantity(1, reference)
+    if not isinstance(reference, Quantity):
+        error_message = 'A dB reference must be a Unit or physical Quantity.'
+        raise TypeError(error_message)
+    if kind is None:
+        terms = reference.unit._as_product().terms
+        if len(terms) == 1 and terms[0][2] == 1:
+            definition = terms[0][1]
+            defaults: tuple[tuple[Unit, LogKind], ...] = ((si.W, 'power'), (si.V, 'amplitude'))
+            for unit, convention in defaults:
+                if definition is unit._as_product().terms[0][1]:
+                    kind = convention
+                    break
+        if kind is None:
+            error_message = 'Specify kind for dB references other than named watts or volts.'
+            raise TypeError(error_message)
+    coordinate = LogUnit(reference, delta_unit=delta, kind=kind)
+    for named in (si.dBm, si.dBW, si.dBV):
+        if (
+            coordinate.kind == named.kind
+            and coordinate.reference.unit == named.reference.unit
+            and coordinate.reference.value == named.reference.value
+        ):
+            return named
+    return coordinate
+
+
 def _as_log_unit(unit: str | Unit | _LinearUnitSource) -> LogUnit:
     from ._coordinates.resolve import as_coordinate
 
