@@ -50,25 +50,29 @@ def test_pyright_type_hints() -> None:
 def test_numpy_type_hints() -> None:
     if find_spec('numpy') is None:
         pytest.skip('NumPy is optional')
-    _check_type_hints('tests/numpy_typing')
+    directory = Path(__file__).resolve().parent / 'numpy_typing'
+    paths = sorted(str(path) for path in directory.glob('*.py') if path.name != 'check_asarray.py')
+    _check_type_hints(*paths)
 
 
 def test_numpy_example_type_hints(tmp_path: Path) -> None:
     if find_spec('numpy') is None or find_spec('matplotlib') is None:
         pytest.skip('NumPy and Matplotlib are optional')
     examples = Path(__file__).resolve().parents[1] / 'examples'
-    for path in examples.glob('*.ipynb'):
-        (tmp_path / f'{path.stem}.py').write_text(notebook_source(path), encoding='utf-8')
-    _check_type_hints(str(tmp_path))
-
-
-def test_arrhenius_fit_type_hints(tmp_path: Path) -> None:
-    if find_spec('numpy') is None or find_spec('matplotlib') is None:
-        pytest.skip('NumPy and Matplotlib are optional')
-    example = Path(__file__).resolve().parents[1] / 'examples' / 'arrhenius_fit.ipynb'
     # Check the actual notebook's inferred members. Basic checking alone allows
     # Any/Unknown to hide lost Quantity wrappers and subplot completion.
-    assertions = """
+    assertions = {
+        'blackbody': """
+from typing import Any, assert_type
+import numpy.typing as npt
+from unitx import Quantity, Unit
+
+assert_type(lam.unit, Unit)
+assert_type(lam.value.ndim, int)
+assert_type(radiance, Quantity[npt.NDArray[Any] | np.number[Any]])
+assert_type(radiance.value.ndim, int)
+""",
+        'arrhenius_fit': """
 from typing import assert_type
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -80,10 +84,15 @@ assert_type(activation_energy.unit, Unit)
 assert_type(predicted_rate.unit, Unit)
 assert_type(fig, Figure)
 assert_type(ax, Axes)
-"""
-    (tmp_path / f'{example.stem}.py').write_text(
-        notebook_source(example) + assertions, encoding='utf-8'
-    )
+""",
+    }
+    if tuple(map(int, version('numpy').split('.')[:2])) < (2, 5):
+        # The actual blackbody notebook uses the same version-sensitive asarray
+        # construction as check_asarray.py; still check its source in basic mode.
+        assertions.pop('blackbody')
+    for path in examples.glob('*.ipynb'):
+        source = notebook_source(path) + assertions.get(path.stem, '')
+        (tmp_path / f'{path.stem}.py').write_text(source, encoding='utf-8')
     _check_type_hints(str(tmp_path))
 
 
@@ -92,7 +101,7 @@ def test_asarray_type_hints() -> None:
         pytest.skip('NumPy is optional')
     if tuple(map(int, version('numpy').split('.')[:2])) < (2, 5):
         pytest.skip('Older NumPy stubs can infer Any for asarray(...) * unit')
-    _check_type_hints('tests/example_typing')
+    _check_type_hints('tests/numpy_typing/check_asarray.py')
 
 
 def test_scalar_optional_type_hints(tmp_path: Path) -> None:

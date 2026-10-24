@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 import warnings
 from copy import copy, deepcopy
@@ -57,7 +59,9 @@ def test_monomial_numerator_and_denominator() -> None:
         ({Decimal('NaN'): -2}, '1/NaN²'),  # Monomial do not check base values
     ],
 )
-def test_monomial_str_format(components, expected: str) -> None:
+def test_monomial_str_format(
+    components: dict[str, object] | dict[object, object], expected: str
+) -> None:
     assert str(Monomial(components)) == expected
 
 

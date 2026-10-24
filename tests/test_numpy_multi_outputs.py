@@ -1,5 +1,9 @@
 """Multi-output decompositions preserve units and stage all writes together."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 np = pytest.importorskip('numpy')
@@ -7,6 +11,9 @@ np = pytest.importorskip('numpy')
 from unitx import Quantity, Unit  # noqa: E402
 from unitx.exceptions import DimensionError  # noqa: E402
 from unitx.factor import Factor  # noqa: E402
+
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike, NDArray
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
@@ -21,7 +28,9 @@ from unitx.factor import Factor  # noqa: E402
         np.array([[0.0, -0.0, -2.5], [3.75, np.inf, np.nan]])[:, ::-1],
     ],
 )
-def test_numpy_multi_output_values(operation, unit, value):
+def test_numpy_multi_output_values(
+    operation: np.ufunc, unit: str | Unit, value: int | np.float32 | NDArray[np.generic]
+) -> None:
     q = Quantity(value, unit)
     result = operation(q)
     expected = operation(value)
@@ -37,7 +46,7 @@ def test_numpy_multi_output_values(operation, unit, value):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_reconstruction(operation):
+def test_numpy_multi_output_reconstruction(operation: np.ufunc) -> None:
     q = Quantity(np.array([-3.75, -0.0, 0.0, 1.25]), Factor(3) * Unit('cm'))
     first, second = operation(q)
     rebuilt = (
@@ -49,7 +58,7 @@ def test_numpy_multi_output_reconstruction(operation):
 
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
-def test_numpy_frexp_extremes(dtype):
+def test_numpy_frexp_extremes(dtype: DTypeLike) -> None:
     info = np.finfo(dtype)
     values = np.array([info.max, -info.max, info.tiny, info.smallest_subnormal], dtype=dtype)
     q = Quantity(values, Factor(2) * Unit('m'))
@@ -61,7 +70,7 @@ def test_numpy_frexp_extremes(dtype):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_buffers(operation):
+def test_numpy_multi_output_buffers(operation: np.ufunc) -> None:
     q = Quantity(np.array([-2.5, 3.75]), Factor(2) * Unit('m'))
     storage = np.full((2, 2), -123.0)
     first = Quantity(storage[:, 0], 'cm')
@@ -81,7 +90,7 @@ def test_numpy_multi_output_buffers(operation):
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
 @pytest.mark.parametrize('missing', [0, 1, 2])
-def test_numpy_multi_output_partial(operation, missing):
+def test_numpy_multi_output_partial(operation: np.ufunc, missing: int) -> None:
     q = Quantity(np.array([1.25, -2.5]), 'km/m')
     first = None if missing in (0, 2) else Quantity(np.empty((3, 2)), '')
     second = (
@@ -105,7 +114,7 @@ def test_numpy_multi_output_partial(operation, missing):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_mask(operation):
+def test_numpy_multi_output_mask(operation: np.ufunc) -> None:
     q = Quantity(np.array([1.25, -2.5]), 'm')
     first = Quantity(np.full((3, 2), -123.0), 'cm')
     second = (
@@ -120,7 +129,7 @@ def test_numpy_multi_output_mask(operation):
     )
 
 
-def test_numpy_multi_output_mask_alias():
+def test_numpy_multi_output_mask_alias() -> None:
     q = Quantity(np.array([1.25, -2.5]), 'm')
     exponent = np.array([1, 0], dtype=np.int32)
     mask = exponent.view(np.bool_)[:2]
@@ -132,7 +141,7 @@ def test_numpy_multi_output_mask_alias():
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_input_alias(operation):
+def test_numpy_multi_output_input_alias(operation: np.ufunc) -> None:
     q = Quantity(np.array([1.25, -2.5]), 'm')
     expected = operation(q.value.copy())
     second = Quantity(np.empty(2), 'm') if operation is np.modf else np.empty(2, dtype=int)
@@ -143,7 +152,7 @@ def test_numpy_multi_output_input_alias(operation):
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
 @pytest.mark.parametrize('failure', ['dimension', 'cast', 'shape', 'readonly', 'scalar', 'kind'])
-def test_numpy_multi_output_invalid_second(operation, failure):
+def test_numpy_multi_output_invalid_second(operation: np.ufunc, failure: str) -> None:
     q = Quantity(np.array([1.25, -2.5]), 'm')
     first = Quantity(np.full(2, -123.0), 'cm')
     raw = np.full(2, -456.0) if operation is np.modf else np.full(2, -456)
@@ -177,7 +186,7 @@ def test_numpy_multi_output_invalid_second(operation, failure):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_invalid_overlap(operation):
+def test_numpy_multi_output_invalid_overlap(operation: np.ufunc) -> None:
     storage = np.full(3, -123.0)
     first = Quantity(storage[:2], 'm')
     second = Quantity(storage[1:], 'm') if operation is np.modf else storage.view(np.int64)[1:]
@@ -187,7 +196,7 @@ def test_numpy_multi_output_invalid_overlap(operation):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_invalid_shape(operation):
+def test_numpy_multi_output_invalid_shape(operation: np.ufunc) -> None:
     first = Quantity(np.full(2, -123.0), 'm')
     second = (
         Quantity(np.full((3, 2), -456.0), 'm') if operation is np.modf else np.full((3, 2), -456)
@@ -198,7 +207,7 @@ def test_numpy_multi_output_invalid_shape(operation):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_invalid_kernel(operation):
+def test_numpy_multi_output_invalid_kernel(operation: np.ufunc) -> None:
     first = Quantity(np.full(2, -123.0), 'm')
     second = Quantity(np.full(2, -456.0), 'm') if operation is np.modf else np.full(2, -456)
     with pytest.raises(TypeError):
@@ -210,9 +219,11 @@ def test_numpy_multi_output_invalid_kernel(operation):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_foreign(operation):
+def test_numpy_multi_output_foreign(operation: np.ufunc) -> None:
     class Foreign:
-        def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        def __array_ufunc__(
+            self, ufunc: np.ufunc, method: str, *inputs: object, **kwargs: object
+        ) -> str:
             return 'foreign dispatched'
 
     q = Quantity(np.array([1.25, -2.5]), 'm')
@@ -225,7 +236,7 @@ def test_numpy_multi_output_foreign(operation):
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
 @pytest.mark.parametrize('shape', [(), (0, 2)])
-def test_numpy_multi_output_shapes(operation, shape):
+def test_numpy_multi_output_shapes(operation: np.ufunc, shape: tuple[int, ...]) -> None:
     q = Quantity(np.full(shape, 1.25), 'm')
     first = Quantity(np.empty(shape), 'cm')
     second = Quantity(np.empty(shape), 'm') if operation is np.modf else np.empty(shape, dtype=int)
@@ -238,7 +249,7 @@ def test_numpy_multi_output_shapes(operation, shape):
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
 @pytest.mark.parametrize('dtype', [np.int16, np.float32, np.float64, np.longdouble])
-def test_numpy_multi_output_dtype(operation, dtype):
+def test_numpy_multi_output_dtype(operation: np.ufunc, dtype: DTypeLike) -> None:
     q = Quantity(np.array([1, -2], dtype=dtype), 'm')
     a, b = operation(q, order='F', subok=False)
     expected = operation(q.value, order='F', subok=False)
@@ -247,7 +258,7 @@ def test_numpy_multi_output_dtype(operation, dtype):
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])
-def test_numpy_multi_output_casting(operation):
+def test_numpy_multi_output_casting(operation: np.ufunc) -> None:
     q = Quantity(np.array([1.25, -2.5]), 'm')
     first = Quantity(np.full(2, -123.0, dtype=np.float32), 'm')
     second = Quantity(np.full(2, -456.0), 'm') if operation is np.modf else np.full(2, -456)
@@ -259,7 +270,7 @@ def test_numpy_multi_output_casting(operation):
     assert first.value.dtype == np.dtype(np.float32)
 
 
-def test_numpy_multi_output_invalid_conversion():
+def test_numpy_multi_output_invalid_conversion() -> None:
     q = Quantity(np.array([1e300]), 'm')
     first = Quantity(np.full(1, -123.0), 'm')
     second = Quantity(np.full(1, -456.0), 'ym')
@@ -274,7 +285,7 @@ def test_numpy_multi_output_invalid_conversion():
     np.testing.assert_equal(second.value, -456)
 
 
-def test_numpy_multi_output_first_mask():
+def test_numpy_multi_output_first_mask() -> None:
     # Writing the mantissa changes the mask bytes before the exponent is copied.
     storage = np.ones(2, dtype=np.uint64)
     first = Quantity(storage.view(np.float64), 'm')

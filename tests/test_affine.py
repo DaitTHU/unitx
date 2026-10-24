@@ -1,27 +1,34 @@
 """Coordinate semantics, exact linear conversions, and logarithmic differences."""
 
+from __future__ import annotations
+
 import copy
 import math
 import operator
 import pickle
+from collections.abc import Callable
 from decimal import Decimal, localcontext
 from fractions import Fraction
 
 import pytest
 
 from unitx import LogQuantity, LogUnit
+from unitx._numerics import Magnitude, Scalar
 from unitx.affinequantity import AffineQuantity
 from unitx.affineunit import AffineUnit
 from unitx.exceptions import DimensionError, UnitRegistryError
 from unitx.factor import Factor, SymbolicConstant, ln10, pi
 from unitx.imperial import imperial
+from unitx.logunit import LogKind
 from unitx.quantity import Quantity
 from unitx.si import si
 from unitx.unit import Unit
 from unitx.unitregistry import default_registry
 
 
-def _register(source, *args, **kwargs):
+def _register(
+    source: Unit | Quantity[Scalar] | AffineUnit | LogUnit, *args: str, **kwargs: object
+) -> Unit | AffineUnit | LogUnit:
     """Explicitly bind test definitions needed by default string round trips."""
     from unitx.unitregistry import default_registry
 
@@ -45,7 +52,9 @@ def _register(source, *args, **kwargs):
         (20, 'dBV', 'V', 10),
     ],
 )
-def test_reference_conversion(x, source, target, expected):
+def test_reference_conversion(
+    x: int, source: str | AffineUnit | Unit, target: str | AffineUnit, expected: Fraction | int
+) -> None:
     quantity_type = (
         LogQuantity if isinstance(source, str) and source.startswith('dB') else AffineQuantity
     )
@@ -62,7 +71,7 @@ def test_reference_conversion(x, source, target, expected):
 
 
 @pytest.mark.parametrize('precision', [2, 8, 28])
-def test_decimal_round_once(precision):
+def test_decimal_round_once(precision: int) -> None:
     with localcontext() as ctx:
         ctx.prec = precision
         value = Decimal('1.23456789')
@@ -74,7 +83,7 @@ def test_decimal_round_once(precision):
         assert LogQuantity(Decimal(20), 'dBm').to_quantity('mW').value == Decimal(100)
 
 
-def test_point_and_difference_arithmetic():
+def test_point_and_difference_arithmetic() -> None:
     assert AffineQuantity(30, 'degC') - AffineQuantity(68, imperial.degF) == Quantity(10, 'K')
     assert AffineQuantity(20, 'degC') + Quantity(18, imperial.degR) == AffineQuantity(30, 'degC')
     assert Quantity(18, imperial.degR) + AffineQuantity(20, 'degC') == AffineQuantity(30, 'degC')
@@ -84,7 +93,7 @@ def test_point_and_difference_arithmetic():
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.mul, operator.truediv])
-def test_point_forbidden_binary(op):
+def test_point_forbidden_binary(op: Callable[..., object]) -> None:
     with pytest.raises(TypeError):
         op(AffineQuantity(10, 'degC'), AffineQuantity(20, 'degC'))
 
@@ -101,17 +110,17 @@ def test_point_forbidden_binary(op):
         lambda q: Quantity(2, 'm') * q,
     ],
 )
-def test_point_forbidden_other(op):
+def test_point_forbidden_other(op: Callable[..., object]) -> None:
     with pytest.raises(TypeError):
         op(LogQuantity(20, 'dBm'))
 
 
 @pytest.mark.parametrize('text', ['degC/m', 'dBm/Hz', 'degC/degC', 'degC**0', 'dBm**2', '/degC'])
-def test_unit_linear_products(text):
+def test_unit_linear_products(text: str) -> None:
     assert isinstance(Unit(text), Unit)
 
 
-def test_logarithmic_algebra_and_ratio():
+def test_logarithmic_algebra_and_ratio() -> None:
     assert ln10 == SymbolicConstant('ln(10)', math.log(10))
     assert pickle.loads(pickle.dumps(ln10)) == ln10
     assert Unit('B').factor == ln10 / 2
@@ -134,7 +143,7 @@ def test_logarithmic_algebra_and_ratio():
         Quantity(1, 'dB') + 1
 
 
-def test_point_comparison_and_hash():
+def test_point_comparison_and_hash() -> None:
     assert AffineQuantity(0, 'degC') == AffineQuantity(Fraction(27315, 100), 'K')
     assert LogQuantity(30, 'dBm') == LogQuantity(0, 'dBW')
     assert not (LogQuantity(0, 'dBm') == Quantity(1, 'mW'))
@@ -147,7 +156,7 @@ def test_point_comparison_and_hash():
     assert AffineQuantity(2**53 + 1, 'degC') != AffineQuantity(float(2**53 + 1), 'degC')
 
 
-def test_affine_tolerances():
+def test_affine_tolerances() -> None:
     q = AffineQuantity(20, 'degC')
     assert q.isclose(AffineQuantity(21, 'degC'), rel_tol=0, abs_tol=Quantity(1, 'K'))
     with pytest.raises(ValueError, match='rel_tol=0'):
@@ -159,7 +168,7 @@ def test_affine_tolerances():
 
 
 @pytest.mark.parametrize('name', ['degC', imperial.degF, 'dBm', 'dBV'])
-def test_identity_copy_pickle_and_display(name):
+def test_identity_copy_pickle_and_display(name: str | AffineUnit) -> None:
     quantity_type = LogQuantity if name in ('dBm', 'dBV') else AffineQuantity
     unit = quantity_type(0, name).unit
     assert isinstance(unit, (AffineUnit, LogUnit))
@@ -177,7 +186,7 @@ def test_identity_copy_pickle_and_display(name):
         unit._logarithm = None
 
 
-def test_custom_definition_and_atomic_conflict():
+def test_custom_definition_and_atomic_conflict() -> None:
     tables = (
         default_registry._bindings.definitions,
         default_registry._bindings.names,
@@ -202,7 +211,7 @@ def test_custom_definition_and_atomic_conflict():
             table.update(snapshot)
 
 
-def test_domains_and_reference_validation():
+def test_domains_and_reference_validation() -> None:
     with pytest.raises(ValueError):
         LogUnit(Quantity(0, 'W'), delta_unit=Unit('dB'), kind='power')
     with pytest.raises(DimensionError):
@@ -217,7 +226,7 @@ def test_domains_and_reference_validation():
         (pi * Unit('m')) * AffineQuantity(0, 'degC')
 
 
-def test_exact_zero_tolerance_and_log_reference_alignment():
+def test_exact_zero_tolerance_and_log_reference_alignment() -> None:
     point = AffineQuantity(0.1, 'degC')
     other = AffineQuantity(Decimal('273.25'), 'K')
     assert not (point == other)
@@ -228,7 +237,7 @@ def test_exact_zero_tolerance_and_log_reference_alignment():
         AffineQuantity(True, 'degC')
 
 
-def test_cross_log_scale_comparison_retains_symbolic_identity():
+def test_cross_log_scale_comparison_retains_symbolic_identity() -> None:
     np_watt = LogUnit(Quantity(1, 'W'), delta_unit=Unit('Np'), kind='power')
     assert LogQuantity(0, np_watt) == LogQuantity(0, 'dBW')
     converted = LogQuantity(1, 'dBW').to(np_watt)
@@ -238,7 +247,7 @@ def test_cross_log_scale_comparison_retains_symbolic_identity():
         LogQuantity(0, np_watt) == LogQuantity(30, 'dBm')
 
 
-def test_affine_unit_independent_type():
+def test_affine_unit_independent_type() -> None:
     from unitx.unit import Unit
 
     coordinate = AffineQuantity(0, 'degC').unit
@@ -257,7 +266,7 @@ def test_affine_unit_independent_type():
     assert AffineUnit(AffineQuantity(1, 'degC')).origin == Quantity(Fraction(5483, 20), si.K)
 
 
-def test_unit_definition_coordinate_metadata():
+def test_unit_definition_coordinate_metadata() -> None:
     coordinate = AffineUnit(10 * si.K).define('referenceStep')
     definition = coordinate._definition
     assert definition is not None
@@ -284,14 +293,16 @@ def test_unit_definition_coordinate_metadata():
         ('dBm * 1', si.dBm),
     ],
 )
-def test_affine_quantity_coordinate_expression(spelling, coordinate):
+def test_affine_quantity_coordinate_expression(
+    spelling: str, coordinate: AffineUnit | LogUnit
+) -> None:
     expected = 3 @ coordinate
     quantity_type = LogQuantity if isinstance(coordinate, LogUnit) else AffineQuantity
     assert quantity_type(3, spelling) == expected
     assert quantity_type(3, Unit(spelling)) == expected
 
 
-def test_logarithmic_complex_hash_uses_exact_component_keys():
+def test_logarithmic_complex_hash_uses_exact_component_keys() -> None:
     left = Quantity(1 + 2j, 'B')
     right = Quantity(10 + 20j, 'dB')
     assert left == right
@@ -302,7 +313,7 @@ def test_logarithmic_complex_hash_uses_exact_component_keys():
 
 
 @pytest.mark.parametrize('value', [0j, 1j])
-def test_point_invalid_complex(value):
+def test_point_invalid_complex(value: complex) -> None:
     assert Quantity(value, 'K').to('degC').value == value
     with pytest.raises(TypeError):
         AffineQuantity(value, 'K')
@@ -313,7 +324,7 @@ def test_point_invalid_complex(value):
 
 
 @pytest.mark.parametrize('precision', [2, 8, 28])
-def test_affine_unit_reference_point(precision):
+def test_affine_unit_reference_point(precision: int) -> None:
     with localcontext() as ctx:
         ctx.prec = precision
         celsius = AffineUnit(Decimal('273.15') * si.K)
@@ -332,7 +343,7 @@ def test_affine_unit_reference_point(precision):
         assert copy.deepcopy(fahrenheit) is fahrenheit
 
 
-def test_affine_unit_log_reference_point():
+def test_affine_unit_log_reference_point() -> None:
     unit = LogUnit(1 * si.W, at=30, delta_unit=si.dB, kind='power')
     assert unit.origin == 1 * si.mW
     assert LogQuantity(30, unit).to_quantity(si.W).value == 1
@@ -347,7 +358,7 @@ def test_affine_unit_log_reference_point():
     assert eval(repr(unit)) == unit
 
 
-def test_affine_unit_reference_registration():
+def test_affine_unit_reference_registration() -> None:
     tables = (
         default_registry._bindings.definitions,
         default_registry._bindings.names,
@@ -378,35 +389,37 @@ def test_affine_unit_reference_registration():
 
 
 @pytest.mark.parametrize('reference', ['degC', 'm', 1, None])
-def test_affine_unit_invalid_reference(reference):
+def test_affine_unit_invalid_reference(reference: str | int | None) -> None:
     with pytest.raises(TypeError, match='Reference must be a Quantity'):
         AffineUnit(reference)
 
 
 @pytest.mark.parametrize('at', [True, 1j, '32', Quantity(32, ''), [32]])
-def test_affine_unit_invalid_reading_type(at):
+def test_affine_unit_invalid_reading_type(
+    at: bool | complex | str | Quantity[Magnitude] | list[int],
+) -> None:
     with pytest.raises(TypeError, match='at must have a real Python scalar'):
         AffineUnit(0 * si.K, at=at)
 
 
 @pytest.mark.parametrize('at', [float('nan'), float('inf'), Decimal('NaN'), Decimal('-Infinity')])
-def test_affine_unit_invalid_reading_finiteness(at):
+def test_affine_unit_invalid_reading_finiteness(at: float | Decimal) -> None:
     with pytest.raises(ValueError, match='at must be finite'):
         AffineUnit(0 * si.K, at=at)
 
 
 @pytest.mark.parametrize('value', [float('nan'), float('inf'), Decimal('NaN')])
-def test_affine_unit_invalid_reference_finiteness(value):
+def test_affine_unit_invalid_reference_finiteness(value: float | Decimal) -> None:
     with pytest.raises(ValueError, match='Reference must be finite'):
         AffineUnit(Quantity(value, si.K))
 
 
-def test_affine_unit_invalid_log_default():
+def test_affine_unit_invalid_log_default() -> None:
     with pytest.raises(TypeError, match='delta_unit'):
         LogUnit(1 * si.W, kind='power')
 
 
-def test_affine_unit_stored_float():
+def test_affine_unit_stored_float() -> None:
     unit = AffineUnit(Quantity(0.1, si.K), at=0.1)
     assert unit.origin.value == 0
     unit = AffineUnit(Quantity(0.1, si.K))
@@ -414,7 +427,7 @@ def test_affine_unit_stored_float():
     assert unit.origin.value != Fraction(1, 10)
 
 
-def test_affine_unit_reference_array_invalid():
+def test_affine_unit_reference_array_invalid() -> None:
     np = pytest.importorskip('numpy')
     with pytest.raises(TypeError, match='Reference must have a real Python scalar'):
         AffineUnit(Quantity(np.array([0, 1]), si.K))
@@ -424,7 +437,7 @@ def test_affine_unit_reference_array_invalid():
     'unit',
     [si.degC, imperial.degF, si.dBm] + [AffineUnit(100 * si.K)],
 )
-def test_affine_unit_independent_display(unit):
+def test_affine_unit_independent_display(unit: AffineUnit | LogUnit) -> None:
     assert str(unit) == unit.symbol
     assert format(unit, '>20') == format(unit.symbol, '>20')
     assert format(unit, 'text') == unit.symbol
@@ -438,7 +451,7 @@ def test_affine_unit_independent_display(unit):
     assert not unit.is_dimensionless()
 
 
-def test_affine_quantity_point_identity():
+def test_affine_quantity_point_identity() -> None:
     point = AffineQuantity(20, 'degC')
     delta = point - AffineQuantity(10, 'degC')
     assert type(point) is AffineQuantity
@@ -450,12 +463,12 @@ def test_affine_quantity_point_identity():
     assert not (point == Quantity(20, 'degC'))
 
 
-def test_quantity_linear_log_target():
+def test_quantity_linear_log_target() -> None:
     assert Quantity(1, '').to_log('dBm', kind='power').value == 0
 
 
 @pytest.mark.parametrize(('kind', 'reading'), [('power', 15), ('amplitude', 30)])
-def test_quantity_scaled_logarithmic_difference(kind, reading):
+def test_quantity_scaled_logarithmic_difference(kind: LogKind, reading: int) -> None:
     delta = Unit(si.dB, scale=Factor(2))
     level = Quantity(Decimal(reading), delta)
     ratio = level.to_ratio(kind=kind)
@@ -467,7 +480,7 @@ def test_quantity_scaled_logarithmic_difference(kind, reading):
 
 
 @pytest.mark.parametrize(('kind', 'reading'), [('power', 5), ('amplitude', 10)])
-def test_affine_unit_scaled_logarithmic_reference(kind, reading):
+def test_affine_unit_scaled_logarithmic_reference(kind: LogKind, reading: int) -> None:
     from unitx import Registry
     from unitx.serialization import from_dict, to_dict
 

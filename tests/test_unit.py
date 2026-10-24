@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import operator
 import pickle
 import warnings
+from collections.abc import Callable
 from copy import copy, deepcopy
 from decimal import Decimal, localcontext
 from fractions import Fraction
@@ -38,7 +41,9 @@ def test_unit_creation() -> None:
         (Unit('cm', scale=Factor(2)), Unit('cm^-1', scale=Factor(Fraction(1, 2)))),
     ],
 )
-def test_unit_quantity_construction(value, unit: Unit, reciprocal: Unit) -> None:
+def test_unit_quantity_construction(
+    value: int | float | Fraction | Decimal | complex, unit: Unit, reciprocal: Unit
+) -> None:
     with localcontext() as context:
         context.prec = 2
         product = value * unit
@@ -57,7 +62,9 @@ def test_unit_quantity_construction(value, unit: Unit, reciprocal: Unit) -> None
     'value',
     [Factor(2), pi, Factor(2) ** Fraction(1, 2)],
 )
-def test_unit_numeric_scaling(unit: Unit, value, operation) -> None:
+def test_unit_numeric_scaling(
+    unit: Unit, value: Factor | SymbolicConstant, operation: Callable[..., object]
+) -> None:
     before = (repr(unit), unit.factor, hash(unit))
     factor = value if isinstance(value, Factor) else Factor(value)
     original_scale = unit.scale if isinstance(unit, Unit) else one
@@ -129,7 +136,7 @@ def test_unit_quantity_dispatch(unit: Unit) -> None:
 @pytest.mark.parametrize(
     'value', [0, -2, 2**60 + 1, Fraction(7, 3), Decimal('1.2345'), 0.1, 1e-300]
 )
-def test_unit_multiplication_symmetry(unit: Unit, value) -> None:
+def test_unit_multiplication_symmetry(unit: Unit, value: int | Fraction | Decimal | float) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter('error', InexactFloatWarning)
         left, right = value * unit, unit * value
@@ -142,7 +149,7 @@ def test_unit_multiplication_symmetry(unit: Unit, value) -> None:
 
 @pytest.mark.parametrize('unit', [Unit('deg'), Unit('deg', scale=pi)])
 @pytest.mark.parametrize('divisor', [60, 2**60 + 1, -60, Fraction(7, 3), Decimal('1.2345')])
-def test_unit_division_exact(unit: Unit, divisor) -> None:
+def test_unit_division_exact(unit: Unit, divisor: int | Fraction | Decimal) -> None:
     with localcontext() as context:
         context.prec = 2
         result = unit / divisor
@@ -451,7 +458,7 @@ def test_unit_invalid_operands(value: object) -> None:
 
 @pytest.mark.parametrize('unit', [Unit('m'), Unit('m', scale=Factor(2))])
 @pytest.mark.parametrize('divisor', [0, 0.0, Fraction(0), Decimal(0)])
-def test_unit_division_invalid(unit: Unit, divisor) -> None:
+def test_unit_division_invalid(unit: Unit, divisor: int | float | Fraction | Decimal) -> None:
     with pytest.raises(ZeroDivisionError):
         unit / divisor
 
@@ -459,7 +466,7 @@ def test_unit_division_invalid(unit: Unit, divisor) -> None:
 @pytest.mark.parametrize('unit', [Unit('m'), Unit('m', scale=Factor(2))])
 @pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
 @pytest.mark.parametrize('value', [True, False])
-def test_unit_invalid_boolean(unit: Unit, value: bool, operation) -> None:
+def test_unit_invalid_boolean(unit: Unit, value: bool, operation: Callable[..., object]) -> None:
     with pytest.raises(TypeError, match='Boolean numeric operands'):
         operation(unit, value)
 
@@ -511,7 +518,7 @@ def test_unit_scale_equality() -> None:
 @pytest.mark.parametrize('left_scale', [None, one, Factor(2)])
 @pytest.mark.parametrize('right_scale', [None, one, Factor(3)])
 def test_unit_scale_promotion(
-    operation, left_scale: Factor | None, right_scale: Factor | None
+    operation: Callable[..., object], left_scale: Factor | None, right_scale: Factor | None
 ) -> None:
     left = Unit('cm') if left_scale is None else Unit(Unit('cm'), scale=left_scale)
     right = Unit('s') if right_scale is None else Unit(Unit('s'), scale=right_scale)
@@ -619,7 +626,7 @@ def test_unit_scale_repr_roundtrip(text: str, scale: Factor | SymbolicConstant) 
         Unit('cm') * Factor(Fraction(3, 2)),
     ],
 )
-def test_unit_scale_copy(unit: Unit, rebuild) -> None:
+def test_unit_scale_copy(unit: Unit, rebuild: Callable[[Unit], Unit]) -> None:
     before = (repr(unit), unit.factor, hash(unit))
     rebuilt = rebuild(unit)
     assert type(rebuilt) is Unit

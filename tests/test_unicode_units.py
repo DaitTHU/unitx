@@ -1,5 +1,7 @@
 """Unicode unit spellings retain canonical identity and coordinate semantics."""
 
+from __future__ import annotations
+
 import copy
 import pickle
 from fractions import Fraction
@@ -59,7 +61,7 @@ def test_affine_quantity_unicode_coordinate() -> None:
     assert AffineQuantity(273, 'K') == AffineQuantity(273, 'K')
 
 
-def test_imperial_unicode_coordinate():
+def test_imperial_unicode_coordinate() -> None:
     unit = imperial.parse('℉')
     assert unit == imperial.parse('degF')
     assert hash(unit) == hash(imperial.parse('°F'))

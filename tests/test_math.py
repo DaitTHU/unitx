@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math as stdmath
 import subprocess
 import sys
@@ -12,7 +14,7 @@ from unitx.factor import Factor
 from unitx.unit import Unit
 
 
-def test_math_root_units():
+def test_math_root_units() -> None:
     result = math.sqrt(Quantity(9, 'cm2'))
     assert result.unit == Unit('cm')
     assert result.value == 3.0
@@ -37,7 +39,7 @@ def test_math_root_units():
         ('log10', 2),
     ],
 )
-def test_math_dimensionless_scaling(name, value):
+def test_math_dimensionless_scaling(name: str, value: float | int) -> None:
     function = getattr(math, name)
     for argument in [value, Quantity(value / 1000, 'km/m')]:
         result = function(argument)
@@ -47,7 +49,7 @@ def test_math_dimensionless_scaling(name, value):
         function(Quantity(1, 'm'))
 
 
-def test_math_angles():
+def test_math_angles() -> None:
     assert math.sin(pi / 2).value == pytest.approx(1)
     assert math.cos(pi).value == pytest.approx(-1)
     assert math.sin(Quantity(90, 'deg')).value == pytest.approx(1)
@@ -58,7 +60,7 @@ def test_math_angles():
         assert result.value == pytest.approx(getattr(stdmath, name)(0.5))
 
 
-def test_math_scalar_domains():
+def test_math_scalar_domains() -> None:
     assert math.sqrt(Decimal('2')).value == stdmath.sqrt(2)
     assert math.log(Fraction(1, 3)).value == stdmath.log(Fraction(1, 3))
     assert math.log(10**1000).value == stdmath.log(10**1000)
@@ -69,7 +71,7 @@ def test_math_scalar_domains():
             function(value)
 
 
-def test_math_hypot_alignment():
+def test_math_hypot_alignment() -> None:
     result = math.hypot(Quantity(3, 'm'), Quantity(400, 'cm'))
     assert result == Quantity(5, 'm')
     assert result.unit == Unit('m')
@@ -80,7 +82,7 @@ def test_math_hypot_alignment():
         math.hypot(Quantity(1, 'm'), 1)
 
 
-def test_math_atan2_alignment():
+def test_math_atan2_alignment() -> None:
     result = math.atan2(Quantity(100, 'cm'), Quantity(1, 'm'))
     assert result.unit == Unit('rad')
     assert result.value == pytest.approx(stdmath.pi / 4)
@@ -90,17 +92,17 @@ def test_math_atan2_alignment():
 
 
 @pytest.mark.parametrize('value', [True, 1j, [1], (1,), object(), AffineQuantity(1, 'K')])
-def test_math_invalid_input(value):
+def test_math_invalid_input(value: object) -> None:
     with pytest.raises(TypeError):
         math.sin(value)
 
 
-def test_math_invalid_logarithmic():
+def test_math_invalid_logarithmic() -> None:
     with pytest.raises(DimensionError, match='physical ratios'):
         math.exp(Quantity(1, 'dB'))
 
 
-def test_math_time_optional_imports():
+def test_math_time_optional_imports() -> None:
     # -S removes all installed optional backends, including NumPy and SymPy.
     code = """
 import sys

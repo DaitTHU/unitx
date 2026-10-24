@@ -15,6 +15,7 @@ without NumPy and the built-in factorization path without SymPy.
 ```sh
 python -m pytest -q
 python -m ruff check .
+python -m ruff check tests conftest.py --select ANN --ignore ANN401
 python -m ruff format --check .
 python -m pyright --pythonpath /path/to/your/python
 ```
@@ -28,6 +29,9 @@ consumers in `.github/consumers/`. It copies those scripts and their independent
 Pyright configuration outside the checkout, first checking scalar runtime and
 types without NumPy, then installing NumPy and checking array runtime and types.
 The release workflow runs the same consumers before uploading distributions.
+Test functions and helpers have annotated parameters and return values. The
+dedicated Ruff command checks those signatures; static inference regressions
+use the separate Pyright consumers rather than annotating expected results.
 
 Run the executable Markdown examples as well:
 

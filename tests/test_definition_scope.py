@@ -1,18 +1,21 @@
 """Definition scopes choose registration targets without changing string parsing."""
 
+from __future__ import annotations
+
 import copy
 import pickle
 
 import pytest
 
 from unitx import AffineQuantity, AffineUnit, Quantity, Registry, Unit, UnitCatalog
+from unitx._numerics import Magnitude, Scalar
 from unitx.exceptions import UnitRegistryError, UnitSymbolError
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
 from unitx.unitregistry import default_registry
 
 
-def test_unit_define_without_registration():
+def test_unit_define_without_registration() -> None:
     first = (2 * si.m).define('scspan', 'scope span')
     second = (2 * si.m).define('scspan', 'scope span')
     assert first != second and first.factor == second.factor
@@ -27,7 +30,7 @@ def test_unit_define_without_registration():
     assert from_dict(to_dict(first), registry=receiver) == first
 
 
-def test_unit_define_existing_text():
+def test_unit_define_existing_text() -> None:
     private = si.s.define('m', 'metre', prefixable=False)
     assert private != si.m
     assert private.dimension == si.s.dimension
@@ -38,7 +41,7 @@ def test_unit_define_existing_text():
     assert Unit('m') == si.m
 
 
-def test_unit_catalog_definition_identity():
+def test_unit_catalog_definition_identity() -> None:
     class example(UnitCatalog, units=(si.s,)):
         span = (2 * si.m).define('scspan', 'scope span')
         speed = (span / si.s).define('scspeed', 'scope speed')
@@ -59,7 +62,7 @@ def test_unit_catalog_definition_identity():
         example.span = si.m
 
 
-def test_unit_catalog_nested_failure():
+def test_unit_catalog_nested_failure() -> None:
     class outer(UnitCatalog):
         first = si.m.define('scfirst', 'scope first')
         with pytest.raises(RuntimeError, match='construction failed'):
@@ -83,7 +86,7 @@ def test_unit_catalog_nested_failure():
         Unit('scinner')
 
 
-def test_unit_catalog_nested_scope():
+def test_unit_catalog_nested_scope() -> None:
     class outer(UnitCatalog):
         first = si.m.define('scsame', 'scope same')
 
@@ -99,7 +102,7 @@ def test_unit_catalog_nested_scope():
         outer.inner.parse('sclast')
 
 
-def test_unit_catalog_explicit_registry_target():
+def test_unit_catalog_explicit_registry_target() -> None:
     explicit = Registry()
 
     class ambient(UnitCatalog):
@@ -113,7 +116,7 @@ def test_unit_catalog_explicit_registry_target():
         explicit.parse('sctwo')
 
 
-def test_unit_catalog_parsing_stays_default():
+def test_unit_catalog_parsing_stays_default() -> None:
     class binary(UnitCatalog):
         byte = Unit().define('B', 'byte')
         default_bel = Unit('B').dimension
@@ -125,8 +128,8 @@ def test_unit_catalog_parsing_stays_default():
     assert binary.byte.dimension == si.one.dimension and si.B.dimension != si.one.dimension
 
 
-def test_unit_catalog_helper_scope():
-    def make(source):
+def test_unit_catalog_helper_scope() -> None:
+    def make(source: Unit | Quantity[Scalar]) -> Unit:
         return source.define('schelper', 'scope helper')
 
     class example(UnitCatalog):
@@ -138,7 +141,7 @@ def test_unit_catalog_helper_scope():
     assert 1 * outside == 1 * example.length
 
 
-def test_unit_catalog_shared_registry():
+def test_unit_catalog_shared_registry() -> None:
     registry = Registry([si.s])
 
     class example(UnitCatalog, registry=registry):
@@ -148,7 +151,7 @@ def test_unit_catalog_shared_registry():
     assert example.parse('s') == si.s
 
 
-def test_unit_catalog_subclass_environment():
+def test_unit_catalog_subclass_environment() -> None:
     class base(UnitCatalog, units=(si.m,)):
         length = (2 * si.m).define('scspan', 'scope span')
 
@@ -164,7 +167,7 @@ def test_unit_catalog_subclass_environment():
         child.parse('m')
 
 
-def test_unit_catalog_assignment_collects_definition():
+def test_unit_catalog_assignment_collects_definition() -> None:
     class example(UnitCatalog):
         metre = si.m
 
@@ -174,7 +177,7 @@ def test_unit_catalog_assignment_collects_definition():
         example.parse('metreAttribute')
 
 
-def test_affine_unit_define_bound_reference():
+def test_affine_unit_define_bound_reference() -> None:
     kelvin = si.K.define('scK', 'scope kelvin')
     coordinate = AffineUnit(Quantity(10, kelvin), delta_unit=kelvin).define(
         'scT', 'scope temperature'
@@ -192,7 +195,7 @@ def test_affine_unit_define_bound_reference():
     assert from_dict(to_dict(3 @ coordinate), registry=receiver) == 3 @ coordinate
 
 
-def test_unit_catalog_affine_coordinate():
+def test_unit_catalog_affine_coordinate() -> None:
     class example(UnitCatalog):
         step = si.K.define('scK', 'scope kelvin')
         temperature = AffineUnit(Quantity(10, step)).define('scT', 'scope temperature')
@@ -203,7 +206,7 @@ def test_unit_catalog_affine_coordinate():
     )
 
 
-def test_registry_include_coordinate_invalid_conflict():
+def test_registry_include_coordinate_invalid_conflict() -> None:
     receiver = Registry([si.s])
     conflicting = si.K.define('s', 'private kelvin', prefixable=False)
     coordinate = AffineUnit(Quantity(2, conflicting)).define('scT', 'scope temperature')
@@ -214,8 +217,8 @@ def test_registry_include_coordinate_invalid_conflict():
     assert receiver.parse('s') == si.s
 
 
-def test_unit_catalog_local_recreation_identity():
-    def build(source):
+def test_unit_catalog_local_recreation_identity() -> None:
+    def build(source: Unit) -> type[UnitCatalog]:
         class example(UnitCatalog):
             length = source.define('screpeat')
 
@@ -230,10 +233,10 @@ def test_unit_catalog_local_recreation_identity():
     assert first.parse('screpeat') == first.length
 
 
-def test_unit_catalog_method_does_not_reactivate():
+def test_unit_catalog_method_does_not_reactivate() -> None:
     class example(UnitCatalog):
         @classmethod
-        def make(cls):
+        def make(cls) -> Unit:
             return si.m.define('scmethod', 'scope method')
 
     length = example.make()
@@ -242,10 +245,10 @@ def test_unit_catalog_method_does_not_reactivate():
         example.parse('scmethod')
 
 
-def test_unit_catalog_collects_thread_result():
+def test_unit_catalog_collects_thread_result() -> None:
     from concurrent.futures import ThreadPoolExecutor
 
-    def make():
+    def make() -> Unit:
         return si.s.define('scthread', 'scope thread')
 
     class example(UnitCatalog):
@@ -260,7 +263,7 @@ def test_unit_catalog_collects_thread_result():
         Unit('scthread')
 
 
-def test_unit_catalog_shared_registry_failure():
+def test_unit_catalog_shared_registry_failure() -> None:
     registry = Registry()
     with pytest.raises(RuntimeError, match='construction failed'):
 
@@ -278,8 +281,8 @@ def test_unit_catalog_shared_registry_failure():
         Unit('scbeforefail')
 
 
-def test_unit_catalog_preserves_prefix_permissions():
-    def make():
+def test_unit_catalog_preserves_prefix_permissions() -> None:
+    def make() -> Unit:
         return (2 * si.m).define('helper', prefixable=False)
 
     class catalogue(UnitCatalog, units=(si.m,)):
@@ -301,7 +304,7 @@ def test_unit_catalog_preserves_prefix_permissions():
         Registry([make()]).parse('khelper')
 
 
-def test_unit_catalog_explicit_block_prefix_default():
+def test_unit_catalog_explicit_block_prefix_default() -> None:
     target = Registry(prefixable=True)
 
     class catalogue(UnitCatalog):
@@ -317,7 +320,7 @@ def test_unit_catalog_explicit_block_prefix_default():
 
 
 @pytest.mark.parametrize('source', [si.dB, si.dB**2, si.dB / si.Np, 2 * si.dB])
-def test_unit_define_logarithmic_conversion(source):
+def test_unit_define_logarithmic_conversion(source: Unit | Quantity[Magnitude]) -> None:
     registry = Registry()
     with registry.defining():
         unit = source.define('logStep')

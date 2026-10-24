@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import math
 import operator
 import pickle
 import warnings
+from collections.abc import Callable
 from copy import copy, deepcopy
 from decimal import (
     ROUND_DOWN,
     ROUND_UP,
     Decimal,
+    DecimalException,
     FloatOperation,
     Inexact,
     InvalidOperation,
@@ -14,12 +18,15 @@ from decimal import (
     localcontext,
 )
 from fractions import Fraction
+from types import NotImplementedType
+from typing import NoReturn
 
 import pytest
 
+from unitx._numerics import Magnitude
 from unitx.dimension import DIMENSIONLESS, Dimension
 from unitx.exceptions import DimensionError, InexactFloatWarning, UnitSymbolError
-from unitx.factor import Factor, one, pi
+from unitx.factor import Factor, SymbolicConstant, one, pi
 from unitx.quantity import Quantity
 from unitx.unit import Unit
 
@@ -90,7 +97,9 @@ def test_quantity_scaled_str(unit: Unit, expected: str) -> None:
 @pytest.mark.parametrize('value', [0, -2, 2**60 + 1, 0.1, Fraction(3, 7), Decimal('1.2345'), 2j])
 @pytest.mark.parametrize('unit', [Unit('cm'), Unit('cm', scale=pi), Unit('km/m')])
 @pytest.mark.parametrize('factor', [one, Factor(2), pi, 1 / (2 * pi), Factor(2) ** Fraction(1, 2)])
-def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
+def test_quantity_factor_operations(
+    value: int | float | Fraction | Decimal | complex, unit: Unit, factor: Factor | SymbolicConstant
+) -> None:
     quantity = Quantity(value, unit)
     before = (repr(quantity), hash(quantity))
     with localcontext() as context:
@@ -112,7 +121,9 @@ def test_quantity_factor_operations(value, unit: Unit, factor) -> None:
 
 @pytest.mark.parametrize('value', [2, Fraction(3, 7), Decimal('1.2345'), 2j])
 @pytest.mark.parametrize('factor', [Factor(2), pi])
-def test_quantity_factor_reciprocal(value, factor) -> None:
+def test_quantity_factor_reciprocal(
+    value: int | Fraction | Decimal | complex, factor: Factor | SymbolicConstant
+) -> None:
     quantity = Quantity(value, Unit('cm', scale=pi))
     result = factor / quantity
     reciprocal = 1 / quantity
@@ -192,7 +203,11 @@ def test_quantity_repr_roundtrip(unit: str) -> None:
     ],
 )
 def test_quantity_value_in(
-    quantity: Quantity, target, expected, expected_type, as_unit: bool
+    quantity: Quantity,
+    target: str | Unit,
+    expected: Fraction | Decimal | float | int | complex,
+    expected_type: type[Fraction] | type[Decimal] | type[float] | type[int] | type[complex],
+    as_unit: bool,
 ) -> None:
     unit = Unit(target) if as_unit and isinstance(target, str) else target
     before = (quantity.value, quantity.unit, repr(quantity), hash(quantity))
@@ -210,7 +225,7 @@ def test_quantity_value_in(
 
 
 @pytest.mark.parametrize('unit', ['s', Unit('s')])
-def test_quantity_value_in_invalid_dimension(unit) -> None:
+def test_quantity_value_in_invalid_dimension(unit: str | Unit) -> None:
     with pytest.raises(DimensionError, match='Cannot convert quantity with dimension'):
         Quantity(1, 'm').value_in(unit)
 
@@ -263,7 +278,7 @@ def test_quantity_irrational_conversion() -> None:
 
 
 @pytest.mark.parametrize('value', [0, -2, Fraction(3, 2), Decimal('1.25'), 1.5])
-def test_quantity_equality(value) -> None:
+def test_quantity_equality(value: int | Fraction | Decimal | float) -> None:
     quantity = Quantity(value, 'm')
     equivalent = Quantity(value * 100, 'cm')
     assert quantity == equivalent
@@ -285,7 +300,7 @@ def test_quantity_equality(value) -> None:
         (Quantity(0.5, ''), 0.5),
     ],
 )
-def test_quantity_scalar_hash(quantity: Quantity, number) -> None:
+def test_quantity_scalar_hash(quantity: Quantity, number: int | Fraction | Decimal | float) -> None:
     assert quantity == number
     assert number == quantity
     assert hash(quantity) == hash(number)
@@ -358,7 +373,7 @@ def test_quantity_isclose_scaled() -> None:
 
 @pytest.mark.parametrize('magnitude', [2**53, 10**400, Fraction(1, 10**400)])
 @pytest.mark.parametrize('unit', ['m', 'mm^(1/2)'])
-def test_quantity_isclose_precision(magnitude, unit: str) -> None:
+def test_quantity_isclose_precision(magnitude: int | Fraction, unit: str) -> None:
     difference = Fraction(1, 10**410) if magnitude < 1 else 1
     left, right = Quantity(magnitude, unit), Quantity(magnitude + difference, unit)
     relative = Fraction(difference) / (2 * abs(magnitude))
@@ -389,32 +404,32 @@ def test_quantity_isclose_exact() -> None:
 
 
 @pytest.mark.parametrize('other', [Quantity(1, 's'), 1])
-def test_quantity_isclose_invalid_dimension(other) -> None:
+def test_quantity_isclose_invalid_dimension(other: Quantity[Magnitude] | int) -> None:
     with pytest.raises(DimensionError, match='Cannot compare quantities with different dimensions'):
         Quantity(1, 'm').isclose(other)
 
 
 @pytest.mark.parametrize('tolerance', [Quantity(1, 's'), Quantity(0, 's'), 1])
-def test_quantity_isclose_invalid_tolerance_dimension(tolerance) -> None:
+def test_quantity_isclose_invalid_tolerance_dimension(tolerance: Quantity[Magnitude] | int) -> None:
     with pytest.raises(DimensionError, match='Absolute tolerance must have the same dimension'):
         Quantity(1, 'm').isclose(Quantity(1, 'm'), abs_tol=tolerance)
 
 
 @pytest.mark.parametrize('tolerance', [-1, math.inf, math.nan, Decimal('-Infinity')])
-def test_quantity_isclose_invalid_relative(tolerance) -> None:
+def test_quantity_isclose_invalid_relative(tolerance: int | float | Decimal) -> None:
     with pytest.raises(ValueError, match='rel_tol must be finite and nonnegative'):
         Quantity(1, 'm').isclose(Quantity(1, 'm'), rel_tol=tolerance)
 
 
 @pytest.mark.parametrize('tolerance', [-1, math.inf, math.nan, Decimal('-Infinity')])
-def test_quantity_isclose_invalid_absolute(tolerance) -> None:
+def test_quantity_isclose_invalid_absolute(tolerance: int | float | Decimal) -> None:
     for absolute in (tolerance, Quantity(tolerance, '')):
         with pytest.raises(ValueError, match='abs_tol must be finite and nonnegative'):
             Quantity(1, '').isclose(1, abs_tol=absolute)
 
 
 @pytest.mark.parametrize('value', ['foo', 1j, object()])
-def test_quantity_isclose_invalid_other(value) -> None:
+def test_quantity_isclose_invalid_other(value: object) -> None:
     with pytest.raises(TypeError, match='other must be a Quantity or real scalar'):
         Quantity(1, '').isclose(value)
 
@@ -462,7 +477,7 @@ def test_quantity_irrational_hash() -> None:
 
 
 @pytest.mark.parametrize('value', [0, -2, Fraction(3, 2), Decimal('0.1')])
-def test_quantity_mixed_comparison(value) -> None:
+def test_quantity_mixed_comparison(value: int | Fraction | Decimal) -> None:
     quantity = Quantity(value, 'm')
     assert quantity == Quantity(Fraction(value) * 100, 'cm')
     assert quantity < Quantity(Fraction(value) * 100 + 1, 'cm')
@@ -480,7 +495,7 @@ def test_quantity_irrational_ordering() -> None:
 
 
 @pytest.mark.parametrize('value', [0, -1, 1, Fraction(3, 2), Decimal('1.25'), 0.5])
-def test_quantity_dimensionless_arithmetic(value) -> None:
+def test_quantity_dimensionless_arithmetic(value: int | Fraction | Decimal | float) -> None:
     quantity = Quantity(value, 'km/m')
     base_value = Fraction(value) * 1000
     for result in (quantity + 1, 1 + quantity, quantity + Quantity(1, '')):
@@ -547,7 +562,11 @@ def test_quantity_decimal_scalar() -> None:
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.mul, operator.truediv])
 @pytest.mark.parametrize('value', [2, Fraction(2), Decimal('2'), 2.0, 2j])
 @pytest.mark.parametrize('scalar', [3, Fraction(1, 3), Decimal('0.3'), 0.3, 0.3j])
-def test_quantity_native_arithmetic(op, value, scalar) -> None:
+def test_quantity_native_arithmetic(
+    op: Callable[..., object],
+    value: int | Fraction | Decimal | float | complex,
+    scalar: int | Fraction | Decimal | float | complex,
+) -> None:
     quantity = Quantity(value, '')
     for left, right in ((value, scalar), (scalar, value)):
         operands = (quantity, scalar) if left is value else (scalar, quantity)
@@ -565,7 +584,9 @@ def test_quantity_native_arithmetic(op, value, scalar) -> None:
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.mul, operator.truediv])
 @pytest.mark.parametrize('value', [Fraction(1, 3), 0.1, 0.1j])
-def test_quantity_decimal_invalid_mixed(op, value) -> None:
+def test_quantity_decimal_invalid_mixed(
+    op: Callable[..., object], value: Fraction | float | complex
+) -> None:
     decimal = Quantity(Decimal('1.25'), 'm')
     other = Quantity(value, 'm')
     with pytest.raises(TypeError):
@@ -597,7 +618,7 @@ def test_quantity_decimal_multiply() -> None:
 
 
 @pytest.mark.parametrize('value', [2**53 + 1, 10**400, Fraction(3, 2), Decimal('1.2345')])
-def test_quantity_unit_operations(value) -> None:
+def test_quantity_unit_operations(value: int | Fraction | Decimal) -> None:
     quantity = Quantity(value, 'm')
     unit = Unit('s')
     product = quantity * unit
@@ -638,7 +659,7 @@ def test_quantity_unary(rounding: str, positive_value: Decimal, negative_value: 
 
 @pytest.mark.parametrize('op', [operator.pos, operator.neg])
 @pytest.mark.parametrize('signal', [Inexact, Rounded])
-def test_quantity_unary_traps(op, signal) -> None:
+def test_quantity_unary_traps(op: Callable[..., object], signal: type[DecimalException]) -> None:
     quantity = Quantity(Decimal('1.2345'), 'm')
     with localcontext() as context:
         context.prec = 2
@@ -649,7 +670,7 @@ def test_quantity_unary_traps(op, signal) -> None:
 
 @pytest.mark.parametrize('op', [operator.pos, operator.neg])
 @pytest.mark.parametrize('value', [Decimal('-0.00'), Decimal('Infinity'), Decimal('NaN')])
-def test_quantity_unary_special(op, value: Decimal) -> None:
+def test_quantity_unary_special(op: Callable[..., object], value: Decimal) -> None:
     quantity = Quantity(value, 'm')
     result = op(quantity)
     assert type(result.value) is Decimal
@@ -659,7 +680,7 @@ def test_quantity_unary_special(op, value: Decimal) -> None:
 
 
 @pytest.mark.parametrize('exponent', [Fraction(1, 2), Decimal('0.5'), 0.5])
-def test_quantity_rational_power(exponent) -> None:
+def test_quantity_rational_power(exponent: Fraction | Decimal | float) -> None:
     quantity = Quantity(4, 'cm2')
     root = quantity**exponent
     assert root.value == pytest.approx(2)
@@ -730,7 +751,7 @@ def test_quantity_invalid_conversion() -> None:
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub])
-def test_quantity_invalid_addition(op) -> None:
+def test_quantity_invalid_addition(op: Callable[..., object]) -> None:
     with pytest.raises(
         DimensionError, match='Cannot operate on quantities with different dimensions'
     ):
@@ -738,13 +759,13 @@ def test_quantity_invalid_addition(op) -> None:
 
 
 @pytest.mark.parametrize('op', [operator.lt, operator.le, operator.gt, operator.ge])
-def test_quantity_invalid_comparison(op) -> None:
+def test_quantity_invalid_comparison(op: Callable[..., object]) -> None:
     with pytest.raises(DimensionError, match='Cannot compare quantities with different dimensions'):
         op(Quantity(1, 'm'), Quantity(1, 's'))
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.lt])
-def test_quantity_invalid_scalar(op) -> None:
+def test_quantity_invalid_scalar(op: Callable[..., object]) -> None:
     quantity = Quantity(1, 'm')
     with pytest.raises(TypeError, match='not supported|unsupported operand'):
         op(quantity, 1)
@@ -753,7 +774,7 @@ def test_quantity_invalid_scalar(op) -> None:
 
 
 @pytest.mark.parametrize('op', [operator.mul, operator.truediv])
-def test_quantity_invalid_operand(op) -> None:
+def test_quantity_invalid_operand(op: Callable[..., object]) -> None:
     quantity = Quantity(1, 'm')
     with pytest.raises(TypeError, match='unsupported operand'):
         op(quantity, object())
@@ -825,7 +846,7 @@ def test_quantity_decimal_irrational() -> None:
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.mul, operator.truediv])
-def test_quantity_decimal_traps(op) -> None:
+def test_quantity_decimal_traps(op: Callable[..., object]) -> None:
     left = Quantity(Decimal('1.2345'), '')
     right = Quantity(Decimal(3), '')
     with localcontext() as context:
@@ -845,53 +866,55 @@ class _OrderedMagnitude:
     def __str__(self) -> str:
         return self.expression
 
-    def _binary(self, other, symbol: str, reverse: bool = False):
+    def _binary(
+        self, other: object, symbol: str, reverse: bool = False
+    ) -> _OrderedMagnitude | NotImplementedType:
         if isinstance(other, (Quantity, Unit)):
             return NotImplemented
         left, right = (other, self) if reverse else (self, other)
         return _OrderedMagnitude(f'({left}{symbol}{right})')
 
-    def __add__(self, other):
+    def __add__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '+')
 
-    def __radd__(self, other):
+    def __radd__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '+', True)
 
-    def __sub__(self, other):
+    def __sub__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '-')
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '-', True)
 
-    def __mul__(self, other):
+    def __mul__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '*')
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '*', True)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '/')
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '/', True)
 
-    def __pos__(self):
+    def __pos__(self) -> _OrderedMagnitude:
         return _OrderedMagnitude(f'(+{self})')
 
-    def __neg__(self):
+    def __neg__(self) -> _OrderedMagnitude:
         return _OrderedMagnitude(f'(-{self})')
 
-    def __pow__(self, other):
+    def __pow__(self, other: object) -> _OrderedMagnitude | NotImplementedType:
         return self._binary(other, '**')
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, _OrderedMagnitude):
             return NotImplemented
         return self.expression == other.expression
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.mul, operator.truediv])
-def test_quantity_custom_order(op) -> None:
+def test_quantity_custom_order(op: Callable[..., object]) -> None:
     left, right = _OrderedMagnitude('left'), _OrderedMagnitude('right')
     quantity = Quantity(right, '')
     assert op(quantity, left).value == op(right, left)
@@ -916,7 +939,11 @@ def test_quantity_custom_conversion() -> None:
 @pytest.mark.parametrize('decimal_type', [Decimal, _DecimalMagnitude])
 @pytest.mark.parametrize('float_type', [float, _FloatMagnitude])
 def test_quantity_decimal_comparison(
-    op, unit: str, trapped: bool, decimal_type, float_type
+    op: Callable[..., object],
+    unit: str,
+    trapped: bool,
+    decimal_type: type[Decimal],
+    float_type: type[float],
 ) -> None:
     left, right = Quantity(decimal_type(1), 'm'), Quantity(float_type(100), unit)
     with localcontext() as context:
@@ -940,7 +967,9 @@ def test_quantity_decimal_comparison(
 )
 @pytest.mark.parametrize('value', [Decimal('NaN'), Decimal('sNaN'), Decimal('Infinity')])
 @pytest.mark.parametrize('trapped', [False, True])
-def test_quantity_comparison_special(op, value: Decimal, trapped: bool) -> None:
+def test_quantity_comparison_special(
+    op: Callable[..., object], value: Decimal, trapped: bool
+) -> None:
     with localcontext() as context:
         context.traps[InvalidOperation] = trapped
         context.clear_flags()
@@ -978,7 +1007,7 @@ def test_quantity_complex_real(unit: str, value: float) -> None:
         (Quantity(complex(0, math.inf), pi * Unit('m')), Quantity(complex(0, math.inf), 'm')),
     ],
 )
-def test_quantity_complex_hash(left: Quantity, right) -> None:
+def test_quantity_complex_hash(left: Quantity, right: Quantity[Magnitude] | complex) -> None:
     assert left == right
     assert right == left
     assert hash(left) == hash(right)
@@ -996,7 +1025,7 @@ def test_quantity_complex_nan(unit: str, value: complex) -> None:
 
 
 @pytest.mark.parametrize('op', [operator.lt, operator.le, operator.gt, operator.ge])
-def test_quantity_complex_invalid_order(op) -> None:
+def test_quantity_complex_invalid_order(op: Callable[..., object]) -> None:
     with pytest.raises(TypeError):
         op(Quantity(0j, 'm'), Quantity(1, 'cm'))
 
@@ -1012,28 +1041,28 @@ def test_quantity_irrational_range() -> None:
 class _ComparisonMagnitude(_OrderedMagnitude):
     """Protocol substitute whose comparison needs no numeric scaling at scale one."""
 
-    def __mul__(self, other):
+    def __mul__(self, other: object) -> NoReturn:
         raise AssertionError('Unexpected magnitude multiplication')
 
     __rmul__ = __mul__
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         # Deliberately independent of __eq__, to check native __ne__ dispatch.
         return True
 
-    def __lt__(self, other):
+    def __lt__(self, other: _ComparisonMagnitude) -> bool:
         return self.expression < other.expression
 
-    def __le__(self, other):
+    def __le__(self, other: _ComparisonMagnitude) -> bool:
         return self.expression <= other.expression
 
-    def __gt__(self, other):
+    def __gt__(self, other: _ComparisonMagnitude) -> bool:
         return self.expression > other.expression
 
-    def __ge__(self, other):
+    def __ge__(self, other: _ComparisonMagnitude) -> bool:
         return self.expression >= other.expression
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.expression)
 
 
@@ -1064,7 +1093,7 @@ def test_quantity_custom_invalid_hash() -> None:
     'value', [0, 2, -2, Fraction(0), Fraction(1, 3), Decimal('-0.00'), Decimal('NaN'), 0j, 1j]
 )
 @pytest.mark.parametrize('unit', ['', 'm', 'km/m'])
-def test_quantity_bool(value, unit: str) -> None:
+def test_quantity_bool(value: int | Fraction | Decimal | complex, unit: str) -> None:
     assert bool(Quantity(value, unit)) is bool(value)
 
 
@@ -1072,7 +1101,9 @@ def test_quantity_bool(value, unit: str) -> None:
 @pytest.mark.parametrize(
     'exponent', [2, 2.0, Fraction(2), Decimal(2), Fraction(1, 2), Decimal('0.5')]
 )
-def test_quantity_native_power(value, exponent) -> None:
+def test_quantity_native_power(
+    value: int | float | Fraction | Decimal | complex, exponent: int | float | Fraction | Decimal
+) -> None:
     quantity = Quantity(value, 'm')
     try:
         expected = value**exponent
@@ -1087,7 +1118,7 @@ def test_quantity_native_power(value, exponent) -> None:
 
 
 @pytest.mark.parametrize('exponent', [2.0, Decimal(2), Fraction(1, 3)])
-def test_quantity_custom_power(exponent) -> None:
+def test_quantity_custom_power(exponent: float | Decimal | Fraction) -> None:
     value = _OrderedMagnitude('x')
     quantity = Quantity(value, 'm')
     assert (quantity**exponent).value == value**exponent
@@ -1124,7 +1155,11 @@ def test_quantity_comparison_precision() -> None:
     ],
 )
 @pytest.mark.parametrize('unit', [Unit('m'), Unit('cm'), Unit('km/m'), pi * Unit('m')])
-def test_quantity_subclass_hash(value, subclass, unit: Unit) -> None:
+def test_quantity_subclass_hash(
+    value: int | float | Decimal | Fraction | complex,
+    subclass: type[int] | type[float] | type[Decimal] | type[Fraction] | type[complex],
+    unit: Unit,
+) -> None:
     plain, derived = Quantity(value, unit), Quantity(subclass(value), unit)
     assert plain == derived
     assert derived == plain
@@ -1136,7 +1171,7 @@ def test_quantity_subclass_hash(value, subclass, unit: Unit) -> None:
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub])
-def test_quantity_subclass_alignment(op) -> None:
+def test_quantity_subclass_alignment(op: Callable[..., object]) -> None:
     left = Quantity(Decimal('1'), 'm')
     plain = Quantity(50, 'cm')
     derived = Quantity(_IntMagnitude(50), 'cm')
@@ -1149,7 +1184,9 @@ def test_quantity_subclass_alignment(op) -> None:
 @pytest.mark.parametrize(
     'subclass', [_IntMagnitude, _FloatMagnitude, _DecimalMagnitude, _FractionMagnitude]
 )
-def test_quantity_subclass_conversion(subclass) -> None:
+def test_quantity_subclass_conversion(
+    subclass: type[int] | type[float] | type[Decimal] | type[Fraction],
+) -> None:
     value = subclass(1)
     quantity = Quantity(value, 'cm')
     exact = Quantity(Fraction(value, 100) if isinstance(value, int) else Fraction(value) / 100, 'm')

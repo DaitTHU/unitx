@@ -1,5 +1,7 @@
 """Exact Imperial/US conventions and independent catalogue spellings."""
 
+from __future__ import annotations
+
 import copy
 import importlib.util
 import pickle
@@ -8,7 +10,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx import Quantity, Unit
+from unitx import Quantity, Unit, UnitCatalog
 from unitx.exceptions import UnitSymbolError
 from unitx.factor import pi
 from unitx.imperial import imperial, imperial_historical, units, us
@@ -33,11 +35,11 @@ from unitx.si import si
         (imperial_historical.ramsden_chain, imperial.ft, 100),
     ],
 )
-def test_imperial_exact_conversion(unit, target, expected):
+def test_imperial_exact_conversion(unit: Unit, target: Unit, expected: Fraction | int) -> None:
     assert Quantity(1, unit).value_in(target) == expected
 
 
-def test_us_survey_foot_distinct_convention():
+def test_us_survey_foot_distinct_convention() -> None:
     ratio = (1 * us.us_survey_foot).value_in(imperial.ft)
     assert ratio == Fraction(500000, 499999)
     assert ratio != 1
@@ -45,14 +47,14 @@ def test_us_survey_foot_distinct_convention():
     assert (1 * us.us_cable).value_in(us.us_survey_foot) != 720
 
 
-def test_imperial_btu_thermochemical_relation():
+def test_imperial_btu_thermochemical_relation() -> None:
     # The NIST REFPROP convention uses 4.184 J/cal, 453.59237 g/lb and 5/9 K/°R.
     assert (1 * imperial.btu_th / imperial.btu_IT).value_in(Unit()) == Fraction(10460, 10467)
     specific_heat = imperial.btu_th / imperial.lb / imperial.degR
     assert (1 * specific_heat).value_in(si.J / si.kg / si.K) == 4184
 
 
-def test_us_circular_mil_symbolic_area():
+def test_us_circular_mil_symbolic_area() -> None:
     assert us.circular_mil.dimension == si.m.dimension**2
     assert us.circular_mil.factor == pi * Fraction(16129, 10**14)
     assert (us.circular_mil / imperial.th**2).factor == pi / 4
@@ -62,12 +64,12 @@ def test_us_circular_mil_symbolic_area():
     ('unit', 'density'),
     [(us.inHg, Fraction('13595.1')), (us.inH2O, Fraction(1000))],
 )
-def test_us_column_pressure_convention(unit, density):
+def test_us_column_pressure_convention(unit: Unit, density: Fraction) -> None:
     assert (1 * unit).value_in(si.Pa) == density * Fraction('9.80665') * Fraction('0.0254')
 
 
 @pytest.mark.parametrize('precision', [2, 8, 28])
-def test_imperial_decimal_context(precision):
+def test_imperial_decimal_context(precision: int) -> None:
     # Load just this module after SI initialization: SI constant approximations
     # have their own precision policy, outside the Imperial definition contract.
     spec = importlib.util.spec_from_file_location('unitx.imperial._precision_probe', units.__file__)
@@ -93,7 +95,7 @@ def test_imperial_decimal_context(precision):
         ('[conventional inch of mercury]', us.inHg),
     ],
 )
-def test_us_spelling_scope(text, unit):
+def test_us_spelling_scope(text: str, unit: Unit) -> None:
     assert us.parse(text) == unit
     assert us.parse(text + ' / s') == unit / si.s
     with pytest.raises(UnitSymbolError):
@@ -104,13 +106,13 @@ def test_us_spelling_scope(text, unit):
     ('catalogue', 'text'),
     [(us, 'kcmil'), (us, 'kinH₂O'), (us, 'kinHg'), (imperial, 'kBtu_th')],
 )
-def test_imperial_invalid_prefix(catalogue, text):
+def test_imperial_invalid_prefix(catalogue: type[UnitCatalog], text: str) -> None:
     with pytest.raises(UnitSymbolError):
         catalogue.parse(text)
 
 
 @pytest.mark.parametrize('unit', [us.circular_mil, us.inH2O, us.inHg, us.us_survey_foot])
-def test_us_reconstruction(unit):
+def test_us_reconstruction(unit: Unit) -> None:
     assert copy.copy(unit) is copy.deepcopy(unit) is unit
     assert pickle.loads(pickle.dumps(unit)) == unit
     assert eval(repr(unit)) == unit

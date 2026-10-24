@@ -1,21 +1,25 @@
 """Point identity belongs to the quantity class, including at zero-origin coordinates."""
 
+from __future__ import annotations
+
 import copy
 import operator
 import pickle
+from collections.abc import Callable
 from decimal import Decimal, localcontext
 from fractions import Fraction
 
 import pytest
 
 from unitx import AffineQuantity, AffineUnit, LogQuantity, Quantity, Unit
+from unitx._numerics import Magnitude
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
 from unitx.imperial import imperial
 from unitx.si import si
 
 
-def test_unit_linear_temperature():
+def test_unit_linear_temperature() -> None:
     assert type(Unit('degC')) is Unit
     assert Unit('degC').factor == Unit('K').factor
     assert Quantity(1, 'K').to('degC') == Quantity(1, 'degC')
@@ -26,7 +30,7 @@ def test_unit_linear_temperature():
     assert isinstance(Unit('degC', scale=Factor(2)), Unit)
 
 
-def test_affine_quantity_zero_origin():
+def test_affine_quantity_zero_origin() -> None:
     zero = AffineQuantity(0, 'K')
     celsius = zero.to('degC')
     assert type(zero) is AffineQuantity
@@ -43,7 +47,7 @@ def test_affine_quantity_zero_origin():
     assert celsius.isclose(approximate, abs_tol=Quantity(1e-12, 'K'))
 
 
-def test_affine_quantity_point_delta():
+def test_affine_quantity_point_delta() -> None:
     hot = AffineQuantity(300, 'K')
     cold = AffineQuantity(20, 'degC')
     difference = hot - cold
@@ -63,7 +67,7 @@ def test_affine_quantity_point_delta():
         hot < Quantity(300, 'K')
 
 
-def test_affine_quantity_physical_exit():
+def test_affine_quantity_physical_exit() -> None:
     point = AffineQuantity(0, 'degC')
     physical = point.to_quantity('K')
     assert type(physical) is Quantity
@@ -77,7 +81,7 @@ def test_affine_quantity_physical_exit():
         point.to_quantity('dB')
 
 
-def test_affine_quantity_scalar_rebinding():
+def test_affine_quantity_scalar_rebinding() -> None:
     point = AffineQuantity(20, 'degC')
     original = point
     point += Quantity(1, 'K')
@@ -88,7 +92,7 @@ def test_affine_quantity_scalar_rebinding():
     assert point == Quantity(1, 'K')
 
 
-def test_affine_quantity_reference_exactness():
+def test_affine_quantity_reference_exactness() -> None:
     origin = 2**53 + 1
     coordinate = AffineUnit(origin * si.deg)
     point = AffineQuantity(0, coordinate)
@@ -100,7 +104,7 @@ def test_affine_quantity_reference_exactness():
 
 
 @pytest.mark.parametrize('precision', [2, 8, 28])
-def test_affine_quantity_decimal_cancellation(precision):
+def test_affine_quantity_decimal_cancellation(precision: int) -> None:
     with localcontext() as ctx:
         ctx.prec = precision
         difference = AffineQuantity(Decimal('1000'), 'degC') - AffineQuantity(
@@ -113,7 +117,7 @@ def test_affine_quantity_decimal_cancellation(precision):
 
 
 @pytest.mark.parametrize('unit', ['K', 'degC', imperial.degF, 'dBm'])
-def test_affine_quantity_reconstruction(unit):
+def test_affine_quantity_reconstruction(unit: str | AffineUnit) -> None:
     quantity_type = LogQuantity if unit == 'dBm' else AffineQuantity
     point = quantity_type(Decimal('20'), unit)
     assert not isinstance(point, Quantity)
@@ -127,7 +131,7 @@ def test_affine_quantity_reconstruction(unit):
 
 
 @pytest.mark.parametrize('value', [True, 1j, [1, 2], (1, 2), object()])
-def test_affine_quantity_invalid_magnitude(value):
+def test_affine_quantity_invalid_magnitude(value: object) -> None:
     with pytest.raises(TypeError):
         AffineQuantity(value, 'K')
 
@@ -135,12 +139,12 @@ def test_affine_quantity_invalid_magnitude(value):
 @pytest.mark.parametrize(
     'operation', [operator.neg, operator.abs, lambda p: p * 2, lambda p: 2 / p, lambda p: p**2]
 )
-def test_affine_quantity_invalid_arithmetic(operation):
+def test_affine_quantity_invalid_arithmetic(operation: Callable[..., object]) -> None:
     with pytest.raises(TypeError):
         operation(AffineQuantity(1, 'K'))
 
 
-def test_affine_quantity_invalid_cross_domain():
+def test_affine_quantity_invalid_cross_domain() -> None:
     point = AffineQuantity(0, 'degC')
     assert Quantity(1, point.unit) == Quantity(1, 'degC')
     assert Quantity(1, point.unit).unit == Unit('degC')
@@ -153,7 +157,7 @@ def test_affine_quantity_invalid_cross_domain():
     assert not (Quantity(0, 'K dB') == point)
 
 
-def test_affine_quantity_scaled_coordinate():
+def test_affine_quantity_scaled_coordinate() -> None:
     scaled = Factor(2) * si.K
     point = AffineQuantity(1, scaled)
     assert point.to('K') == AffineQuantity(2, 'K')
@@ -163,7 +167,7 @@ def test_affine_quantity_scaled_coordinate():
 
 
 @pytest.mark.parametrize('value', [0, -20, Fraction(1, 3), Decimal('1.25')])
-def test_unit_at_construction(value):
+def test_unit_at_construction(value: int | Fraction | Decimal) -> None:
     point = value @ si.degC
     assert type(point) is AffineQuantity
     assert point.value is value
@@ -176,12 +180,14 @@ def test_unit_at_construction(value):
 
 
 @pytest.mark.parametrize('value', [True, 1j, [1, 2], (1, 2), Quantity(1, 'K')])
-def test_unit_at_invalid_magnitude(value):
+def test_unit_at_invalid_magnitude(
+    value: bool | complex | list[int] | tuple[int, ...] | Quantity[Magnitude],
+) -> None:
     with pytest.raises(TypeError):
         value @ si.degC
 
 
-def test_affine_unit_linear_projection():
+def test_affine_unit_linear_projection() -> None:
     descriptor = si.degC
     assert isinstance(descriptor, AffineUnit)
     assert not isinstance(descriptor, Unit)
@@ -209,7 +215,7 @@ def test_affine_unit_linear_projection():
     assert (descriptor * Factor(2)).scale == Factor(2)
 
 
-def test_affine_unit_anonymous_projection():
+def test_affine_unit_anonymous_projection() -> None:
     custom = AffineUnit(100 * si.K, at=10, delta_unit=imperial.degF.delta_unit)
     difference = Quantity(2, custom)
     assert difference.unit is custom.delta_unit
@@ -218,7 +224,7 @@ def test_affine_unit_anonymous_projection():
     assert (2 @ custom).value_in('K') != difference.value_in('K')
 
 
-def test_affine_quantity_symbolic_pi():
+def test_affine_quantity_symbolic_pi() -> None:
     import math
 
     from unitx.factor import pi
@@ -237,7 +243,7 @@ def test_affine_quantity_symbolic_pi():
     assert exact.isclose(symbolic)
 
 
-def test_affine_quantity_symbolic_origin():
+def test_affine_quantity_symbolic_origin() -> None:
     from unitx.factor import pi
 
     degrees = AffineUnit(Quantity(180, 'deg'))
@@ -252,7 +258,7 @@ def test_affine_quantity_symbolic_origin():
 
 
 @pytest.mark.parametrize('operation', [operator.eq, operator.lt, lambda a, b: a.isclose(b)])
-def test_affine_quantity_invalid_symbolic_sum(operation):
+def test_affine_quantity_invalid_symbolic_sum(operation: Callable[..., object]) -> None:
     coordinate = AffineUnit(Quantity(1, 'rad'), delta_unit='deg')
     point = AffineQuantity(1, coordinate)
     with pytest.raises(TypeError, match='symbolic sum'):

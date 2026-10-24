@@ -144,21 +144,26 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     assert_type(q * Unit('s'), Quantity[npt.NDArray[np.float64]])
 
 
-def blackbody_contracts() -> None:
-    lam = si.um * np.linspace(0.01, 3, 100)[:, None]
+def array_expression_contracts(a: npt.NDArray[np.float64]) -> None:
+    distance = np.linspace(0.1, 3, 100) * si.m
+    typed_distance = si.m * a
     temperature = si.K * np.array([3000, 4000, 5000], dtype=np.float64)
-    frequency = SI.c / lam
-    exponent = SI.h * frequency / (SI.kB * temperature)
-    occupation = np.expm1(np.asarray(exponent.value_in(si.one)))
-    radiance = 2 * SI.h * SI.c**2 / (lam**5 * occupation)
-    assert_type(lam.unit, Unit)
-    assert_type(lam.value.ndim, int)
+    default_temperature = si.K * np.array([3000, 4000, 5000])
+    ratio = distance / (2 * si.m)
+    occupation = np.expm1(np.asarray(ratio.value_in(si.one)))
+    explicit = distance / (distance**2 * occupation)
+    direct = distance / (distance**2 * np.expm1(ratio))
+    assert_type(distance.unit, Unit)
+    assert_type(distance.value.ndim, int)
+    assert_type(typed_distance, Quantity[npt.NDArray[np.float64]])
     assert_type(temperature, Quantity[npt.NDArray[np.float64]])
-    assert_type(frequency, Quantity[NumpyValue])
-    assert_type(exponent, Quantity[NumpyValue])
-    assert_type(radiance, Quantity[NumpyValue])
-    assert_type(radiance.to('W/m3/sr'), Quantity[NumpyValue])
-    assert_type(SI.h * lam, Quantity[NumpyValue])
+    assert_type(default_temperature, Quantity[npt.NDArray[Any]])
+    assert_type(ratio, Quantity[NumpyValue])
+    assert_type(explicit, Quantity[NumpyValue])
+    assert_type(direct, Quantity[NumpyValue])
+    assert_type(direct.value, NumpyValue)
+    assert_type(direct.to('1/cm'), Quantity[NumpyValue])
+    assert_type(SI.h * distance, Quantity[NumpyValue])
 
 
 def numpy_result_methods(a: npt.NDArray[np.float64]) -> None:
@@ -172,17 +177,3 @@ def numpy_result_methods(a: npt.NDArray[np.float64]) -> None:
         result.value.reshape((1, -1))
         result.value.astype(np.float64)
         result.value.sum()
-
-
-def direct_numpy_contracts() -> None:
-    lam = np.linspace(0.01, 3, 100)[:, None] * si.um
-    temperature = si.K * np.array([3000, 4000, 5000])
-    frequency = SI.c / lam
-    radiance = 2 * SI.h * SI.c**2 / (lam**5 * np.expm1(SI.h * frequency / (SI.kB * temperature)))
-    assert_type(lam.unit, Unit)
-    assert_type(lam.value.ndim, int)
-    assert_type(temperature, Quantity[npt.NDArray[Any]])
-    assert_type(frequency, Quantity[NumpyValue])
-    assert_type(radiance, Quantity[NumpyValue])
-    assert_type(radiance.to('kW/sr/m2/nm'), Quantity[NumpyValue])
-    assert_type(radiance.value, NumpyValue)

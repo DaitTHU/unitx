@@ -1,10 +1,13 @@
 """Shared attribute protection must preserve the compact instance layout."""
 
+from __future__ import annotations
+
 import copy
 import pickle
 
 import pytest
 
+from unitx import AffineUnit
 from unitx._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS
 from unitx.dimension import Dimension
 from unitx.factor import Factor, pi
@@ -35,7 +38,7 @@ def test_immutable_slots(value: object) -> None:
 
 
 @pytest.mark.parametrize('unit', [Unit('m/s'), Unit('m/s', scale=Factor(2)), si.degC])
-def test_unit_immutable_state(unit):
+def test_unit_immutable_state(unit: Unit | AffineUnit) -> None:
     mapping = {unit: 'value'}
     for name in (
         '_conversion',

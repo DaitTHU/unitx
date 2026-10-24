@@ -40,8 +40,7 @@
     "src/unitx/serialization.py",
     "src/unitx/quantity.py",
     "tests/typing",
-    "tests/numpy_typing",
-    "tests/example_typing"
+    "tests/numpy_typing"
   ],
   "extraPaths": ["src", "examples"],
   "pythonVersion": "3.12",

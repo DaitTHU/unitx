@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 import warnings
 from collections.abc import Iterator
@@ -6,6 +8,7 @@ from fractions import Fraction
 
 import pytest
 
+from unitx._numerics import Magnitude
 from unitx._registry.prefixes import (
     PREFIX_DEFINITIONS,
     PREFIX_NAME_TO_SYMBOL,
@@ -26,9 +29,11 @@ from unitx.unitdefinition import UnitDefinition
 from unitx.unitparser import UnitParser
 from unitx.unitregistry import default_registry
 
+type RegistrySnapshot = tuple[dict[str, UnitDefinition], dict[str, str], dict[str, str]]
+
 
 @pytest.fixture(autouse=True)
-def unit_registry() -> Iterator[tuple[dict[str, UnitDefinition], dict[str, str], dict[str, str]]]:
+def unit_registry() -> Iterator[RegistrySnapshot]:
     """Keep definitions local to each test without replacing shared dictionaries."""
     tables = (
         default_registry._bindings.definitions,
@@ -56,7 +61,7 @@ def test_unit_define_identity() -> None:
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 @pytest.mark.parametrize('keyword', [False, True])
-def test_unit_define_name(source, keyword: bool) -> None:
+def test_unit_define_name(source: Unit | Quantity[Magnitude], keyword: bool) -> None:
     if keyword:
         unit = default_registry.define(source, 'rvlen', name='reviewlength')
     else:
@@ -70,7 +75,7 @@ def test_unit_define_name(source, keyword: bool) -> None:
     ('source', 'scale'),
     [(Unit('m'), 1), (Factor(2) * Unit('m'), 2), (Quantity(2, 'm'), 2)],
 )
-def test_unit_define_aliases(source, scale: int) -> None:
+def test_unit_define_aliases(source: Unit | Quantity[Magnitude], scale: int) -> None:
     unit = default_registry.define(
         source,
         'rvlen',
@@ -168,7 +173,7 @@ def test_unit_define_prefixable() -> None:
     ('source', 'scale'),
     [(Unit('m'), 1), (Factor(2) * Unit('m'), 2), (Quantity(2, 'm'), 2)],
 )
-def test_unit_define_multiword(source, scale: int) -> None:
+def test_unit_define_multiword(source: Unit | Quantity[Magnitude], scale: int) -> None:
     unit = default_registry.define(
         source,
         'rvau',
@@ -271,7 +276,11 @@ def test_unit_parser_invalid_multiword_factor(text: str) -> None:
 
 @pytest.mark.parametrize('name', ['m s', 'metre second', 'kilometre second', 'km s'])
 @pytest.mark.parametrize('use_alias', [False, True])
-def test_unit_define_invalid_product(name: str, use_alias: bool, unit_registry) -> None:
+def test_unit_define_invalid_product(
+    name: str,
+    use_alias: bool,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         with pytest.raises(UnitRegistryError, match='already parses as a unit product'):
@@ -325,7 +334,9 @@ def test_unit_define_invalid_multiword_conflict() -> None:
     ) == before
 
 
-def test_unit_define_invalid_multiword_prefix(unit_registry) -> None:
+def test_unit_define_invalid_multiword_prefix(
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(UnitRegistryError, match='conflicting prefix meanings'):
         default_registry.define(
             Unit('m'), 'rvau', 'review astronomical unit', 'kiloreview astronomical unit'
@@ -351,7 +362,7 @@ def test_unit_scale_define_exact() -> None:
 
 
 @pytest.mark.parametrize('value', [60, Fraction(60), Decimal('60'), 60.0])
-def test_quantity_define_scale(value) -> None:
+def test_quantity_define_scale(value: int | Fraction | Decimal | float) -> None:
     source = Quantity(value, 's')
     unit = default_registry.define(source, 'rvmin', name='reviewminute', prefixable=False)
     assert unit.factor == Factor(60)
@@ -389,7 +400,9 @@ def test_quantity_define_float() -> None:
     assert source.unit == Unit('m')
 
 
-def test_quantity_define_warning_error(unit_registry) -> None:
+def test_quantity_define_warning_error(
+    unit_registry: RegistrySnapshot,
+) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter('error', InexactFloatWarning)
         with pytest.raises(InexactFloatWarning, match='conversion is inexact'):
@@ -490,7 +503,10 @@ def test_unit_define_invalid_name(name: str) -> None:
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
-def test_unit_define_invalid_empty_name(source, unit_registry) -> None:
+def test_unit_define_invalid_empty_name(
+    source: Unit | Quantity[Magnitude],
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(ValueError, match='Unit name must consist of printable unit tokens'):
         default_registry.define(source, 'rvlen', '', 'reviewlength', '', symbol_aliases='rvspan')
     assert (
@@ -501,7 +517,10 @@ def test_unit_define_invalid_empty_name(source, unit_registry) -> None:
 
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
-def test_unit_define_default_name(source: Unit | Quantity[int], unit_registry) -> None:
+def test_unit_define_default_name(
+    source: Unit | Quantity[int],
+    unit_registry: RegistrySnapshot,
+) -> None:
     unit = default_registry.define(source, 'rvlen')
     assert Unit('rvlen') == Unit('[rvlen]') == unit
     assert default_registry._bindings.definitions['rvlen'].name == 'rvlen'
@@ -529,7 +548,7 @@ def test_unit_define_invalid_type(symbol: object) -> None:
 
 
 @pytest.mark.parametrize('name', [0, True])
-def test_unit_define_invalid_name_type(name) -> None:
+def test_unit_define_invalid_name_type(name: int | bool) -> None:
     with pytest.raises(TypeError, match='Unit name must be str'):
         default_registry.define(Unit('m'), 'rvlen', name=name)
     assert 'rvlen' not in default_registry._bindings.definitions
@@ -537,7 +556,11 @@ def test_unit_define_invalid_name_type(name) -> None:
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 @pytest.mark.parametrize('name_aliases', [(None,), (0, 'reviewlength'), (('reviewdistance',),)])
-def test_unit_define_invalid_name_alias_type(source, name_aliases, unit_registry) -> None:
+def test_unit_define_invalid_name_alias_type(
+    source: Unit | Quantity[Magnitude],
+    name_aliases: tuple[None, ...] | tuple[int | str, ...] | tuple[tuple[str, ...], ...],
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(TypeError, match='Unit name alias must be str'):
         default_registry.define(source, 'rvlen', 'reviewlength', *name_aliases)
     assert (
@@ -549,7 +572,11 @@ def test_unit_define_invalid_name_alias_type(source, name_aliases, unit_registry
 
 @pytest.mark.parametrize('source', [Unit('m'), Factor(2) * Unit('m'), Quantity(2, 'm')])
 @pytest.mark.parametrize('alias', ['m/s', 'review2', 'rv  alias'])
-def test_unit_define_invalid_name_alias(source, alias: str, unit_registry) -> None:
+def test_unit_define_invalid_name_alias(
+    source: Unit | Quantity[Magnitude],
+    alias: str,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(ValueError, match='Unit name alias must consist of printable unit tokens'):
         default_registry.define(source, 'rvlen', 'reviewlength', 'reviewspan', alias)
     assert (
@@ -646,7 +673,10 @@ def test_unit_define_duplicate_aliases() -> None:
 
 
 @pytest.mark.parametrize('value', [0, -1, Fraction(-1), Decimal('-2')])
-def test_quantity_define_invalid_scale(value, unit_registry) -> None:
+def test_quantity_define_invalid_scale(
+    value: int | Fraction | Decimal,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(ValueError, match='Factor must be positive'):
         default_registry.define(Quantity(value, 'm'), 'rvlen', name='reviewlength')
     assert (
@@ -657,7 +687,7 @@ def test_quantity_define_invalid_scale(value, unit_registry) -> None:
 
 
 @pytest.mark.parametrize('value', [True, False])
-def test_quantity_define_invalid_boolean(value: bool, unit_registry) -> None:
+def test_quantity_define_invalid_boolean(value: bool, unit_registry: RegistrySnapshot) -> None:
     with pytest.raises(TypeError, match='Factor must be a number'):
         default_registry.define(Quantity(value, 'm'), 'rvlen', name='reviewlength')
     assert (
@@ -668,7 +698,10 @@ def test_quantity_define_invalid_boolean(value: bool, unit_registry) -> None:
 
 
 @pytest.mark.parametrize('value', [float('nan'), Decimal('NaN')])
-def test_quantity_define_invalid_nan(value: float | Decimal, unit_registry) -> None:
+def test_quantity_define_invalid_nan(
+    value: float | Decimal,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(ValueError, match='cannot convert NaN to integer ratio'):
         default_registry.define(Quantity(value, 'm'), 'rvlen', name='reviewlength')
     assert (
@@ -681,7 +714,10 @@ def test_quantity_define_invalid_nan(value: float | Decimal, unit_registry) -> N
 @pytest.mark.parametrize(
     'value', [float('inf'), float('-inf'), Decimal('Infinity'), Decimal('-Infinity')]
 )
-def test_quantity_define_invalid_infinity(value: float | Decimal, unit_registry) -> None:
+def test_quantity_define_invalid_infinity(
+    value: float | Decimal,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(OverflowError, match='cannot convert Infinity to integer ratio'):
         default_registry.define(Quantity(value, 'm'), 'rvlen', name='reviewlength')
     assert (
@@ -691,7 +727,9 @@ def test_quantity_define_invalid_infinity(value: float | Decimal, unit_registry)
     ) == unit_registry
 
 
-def test_quantity_define_invalid_float(unit_registry) -> None:
+def test_quantity_define_invalid_float(
+    unit_registry: RegistrySnapshot,
+) -> None:
     with (
         pytest.warns(InexactFloatWarning),
         pytest.raises(ValueError, match='Factor must be positive'),

@@ -1,5 +1,10 @@
 """Array coordinate operations and fixed-buffer safety."""
 
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 import pytest
 
 from unitx import LogQuantity
@@ -10,10 +15,14 @@ from unitx.quantity import Quantity
 from unitx.si import si
 from unitx.unit import Unit
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+
 np = pytest.importorskip('numpy')
 
 
-def test_array_construction_and_views():
+def test_array_construction_and_views() -> None:
     a = np.arange(6.0).reshape(2, 3)
     for q in (
         a @ si.degC,
@@ -30,7 +39,7 @@ def test_array_construction_and_views():
             np.asarray(q)
 
 
-def test_array_conversion_and_statistics():
+def test_array_conversion_and_statistics() -> None:
     q = LogQuantity(np.array([0.0, 20.0, 30.0]), 'dBm')
     np.testing.assert_allclose(q.to_quantity('W').value, [0.001, 0.1, 1])
     assert np.mean(q).unit == LogQuantity(0, 'dBm').unit
@@ -46,7 +55,7 @@ def test_array_conversion_and_statistics():
     np.testing.assert_allclose(joined.value, [0, 100, 0])
 
 
-def test_numpy_add_sub_and_comparison():
+def test_numpy_add_sub_and_comparison() -> None:
     q = LogQuantity(np.array([0.0, 20.0]), 'dBm')
     np.testing.assert_allclose((q + 10 * si.dB).value, [10, 30])
     result = q - LogQuantity(np.array([-30.0, -10.0]), 'dBW')
@@ -75,12 +84,12 @@ def test_numpy_add_sub_and_comparison():
         lambda q: q * 2,
     ],
 )
-def test_array_forbidden(func):
+def test_array_forbidden(func: Callable[..., object] | np.ufunc) -> None:
     with pytest.raises(TypeError):
         func(AffineQuantity(np.array([1.0, 2.0]), 'degC'))
 
 
-def test_staged_write_and_fixed_point_unit():
+def test_staged_write_and_fixed_point_unit() -> None:
     a = np.array([0.0, 100.0])
     q = AffineQuantity(a, 'degC')
     out = np.add(q, Quantity(1, 'K'), out=q)
@@ -104,7 +113,7 @@ def test_staged_write_and_fixed_point_unit():
     np.testing.assert_array_equal(intq.value, before)
 
 
-def test_inplace_and_logarithmic_degree():
+def test_inplace_and_logarithmic_degree() -> None:
     q = AffineQuantity(np.array([0.0, 100.0]), 'degC')
     original = q
     q += Quantity(1, 'K')
@@ -125,7 +134,7 @@ def test_inplace_and_logarithmic_degree():
     assert np.power(log, 2).unit == Unit('dB**2')
 
 
-def test_masked_scaling_does_not_evaluate_inactive_coordinates():
+def test_masked_scaling_does_not_evaluate_inactive_coordinates() -> None:
     q = AffineQuantity(np.array([0.0, 1e308]), 'degC')
     right = AffineQuantity(np.array([32.0, 1e308]), imperial.degF)
     target = AffineQuantity(np.array([7.0, 8.0]), imperial.degF)
@@ -137,7 +146,7 @@ def test_masked_scaling_does_not_evaluate_inactive_coordinates():
     np.testing.assert_allclose(target.value, [33.8, 8.0])
 
 
-def test_predicates_comparison_masks_and_extrema():
+def test_predicates_comparison_masks_and_extrema() -> None:
     q = LogQuantity(np.array([0.0, 20.0]), 'dBm')
     assert np.min(q).unit == LogQuantity(0, 'dBm').unit
     assert np.max(q).value == 20
@@ -155,7 +164,7 @@ def test_predicates_comparison_masks_and_extrema():
         np.add(point, Quantity(1, 'dB'), out=point)
 
 
-def test_logarithmic_reduction_and_hash_semantics():
+def test_logarithmic_reduction_and_hash_semantics() -> None:
     q = Quantity(np.array([1.0, 2.0]), 'dB')
     with pytest.raises(TypeError):
         hash(q)
@@ -170,7 +179,7 @@ def test_logarithmic_reduction_and_hash_semantics():
         )
 
 
-def test_affine_tolerance_arrays_participate_in_broadcasting():
+def test_affine_tolerance_arrays_participate_in_broadcasting() -> None:
     left = AffineQuantity(0, 'degC')
     right = AffineQuantity(1, 'degC')
     mask = left.isclose(right, rel_tol=np.zeros(3), abs_tol=Quantity(1, 'K'))
@@ -185,7 +194,7 @@ def test_affine_tolerance_arrays_participate_in_broadcasting():
         AffineQuantity(np.array([0j]), 'K')
 
 
-def test_array_at_matrix_separation():
+def test_array_at_matrix_separation() -> None:
     values = np.array([0.0, 100.0])
     point = values @ si.degC
     delta = values * si.degC
@@ -205,14 +214,14 @@ def test_array_at_matrix_separation():
 
 
 @pytest.mark.parametrize('value', [np.array(0), np.float64(0), np.arange(4.0)[::2]])
-def test_array_at_magnitude_identity(value):
+def test_array_at_magnitude_identity(value: NDArray[np.generic] | np.float64) -> None:
     point = value @ si.K
     assert type(point) is AffineQuantity
     assert point.value is value
     assert point.to('K').value is value
 
 
-def test_array_at_output_semantics():
+def test_array_at_output_semantics() -> None:
     values = np.array([0.0, 100.0])
     target = AffineQuantity(np.zeros(2), imperial.degF)
     result = np.matmul(values, si.degC, out=target)
@@ -224,7 +233,7 @@ def test_array_at_output_semantics():
     np.testing.assert_array_equal(delta_target.value, [0, 0])
 
 
-def test_descriptor_array_projection():
+def test_descriptor_array_projection() -> None:
     values = np.array([1.0, 2.0])
     for delta in (Quantity(values, si.degC), values * si.degC, si.degC * values):
         assert type(delta) is Quantity

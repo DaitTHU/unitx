@@ -1,7 +1,10 @@
 """siunitx v3 output preserves the stored coordinates and exact expressions."""
 
+from __future__ import annotations
+
 from decimal import Decimal, localcontext
 from fractions import Fraction
+from pathlib import Path
 
 import pytest
 
@@ -21,7 +24,7 @@ from unitx.unit import Unit
         ('um', r'\unit[parse-units=false]{{\text{µm}}}'),
     ],
 )
-def test_units(source, expected):
+def test_units(source: str, expected: str) -> None:
     assert Unit(source).to_siunitx() == expected
 
 
@@ -38,13 +41,15 @@ def test_units(source, expected):
         (2, '04d', r'\qty{0002}{m.s^{-1}}'),
     ],
 )
-def test_quantity_and_format(value, spec, expected):
+def test_quantity_and_format(
+    value: float | Decimal | Fraction | complex | int, spec: str, expected: str
+) -> None:
     q = Quantity(value, 'm/s')
     assert q.to_siunitx(spec) == expected
     assert format(q, spec + ';siunitx') == expected
 
 
-def test_dimensionless_and_scale():
+def test_dimensionless_and_scale() -> None:
     assert Quantity(2, '').to_siunitx() == r'\num{2}'
     assert Quantity(Fraction(2, 3), '').to_siunitx() == (r'\num[parse-numbers=false]{\frac{2}{3}}')
     assert Quantity(2, 'km/m').to_siunitx() == r'\qty{2}{km.m^{-1}}'
@@ -64,7 +69,7 @@ def test_dimensionless_and_scale():
     assert unit.scale == Factor(Fraction(2, 3))
 
 
-def test_exact_decimal_and_errors():
+def test_exact_decimal_and_errors() -> None:
     q = Quantity(Decimal('12345678901234567890.123456789'), 'm')
     with localcontext() as ctx:
         ctx.prec = 2
@@ -75,7 +80,7 @@ def test_exact_decimal_and_errors():
         q.to_siunitx('invalid')
 
 
-def test_custom_unit_and_number_escaping():
+def test_custom_unit_and_number_escaping() -> None:
     from unitx.unitregistry import default_registry
 
     tables = (
@@ -89,7 +94,7 @@ def test_custom_unit_and_number_escaping():
         assert unit.to_siunitx() == r'\unit[parse-units=false]{{\text{sifmt\_\$}}}'
 
         class Label(int):
-            def __format__(self, spec):
+            def __format__(self, spec: str) -> str:
                 return r'\input{secret}$%'
 
         q = Quantity(Label(2), unit)
@@ -103,7 +108,7 @@ def test_custom_unit_and_number_escaping():
             table.update(snapshot)
 
 
-def test_array_boundary():
+def test_array_boundary() -> None:
     np = pytest.importorskip('numpy')
     data = np.array([1.0, 2.0])
     data.flags.writeable = False
@@ -115,7 +120,7 @@ def test_array_boundary():
     np.testing.assert_array_equal(data, [1.0, 2.0])
 
 
-def test_generated_ascii_output_compiles_when_tex_available(tmp_path):
+def test_generated_ascii_output_compiles_when_tex_available(tmp_path: Path) -> None:
     import shutil
     import subprocess
 

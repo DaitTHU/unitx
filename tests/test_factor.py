@@ -1,5 +1,7 @@
 """Tests for the Factor and SymbolicConstant class"""
 
+from __future__ import annotations
+
 import math
 import operator
 import warnings
@@ -15,6 +17,7 @@ import unitx.factor as factor_module
 from unitx._numerics import Fractionable, UnfactoredInteger
 from unitx.exceptions import IncompleteFactorWarning, InexactFloatWarning
 from unitx.factor import Factor, SymbolicConstant, one, pi, ten, two
+from unitx.monomial import Monomial
 
 
 @pytest.fixture
@@ -584,7 +587,9 @@ def test_factor_decompose_cache(factor: Factor, monkeypatch: pytest.MonkeyPatch)
     rational, irrational = first
     assert Factor(rational) * irrational == factor
 
-    def unexpected_construction(cls, monomial) -> NoReturn:
+    def unexpected_construction(
+        cls: type[Factor], monomial: Monomial[int | SymbolicConstant]
+    ) -> NoReturn:
         pytest.fail('A cached decomposition must not construct another Factor.')
 
     monkeypatch.setattr(Factor, '_from_monomial', classmethod(unexpected_construction))

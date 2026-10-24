@@ -1,5 +1,7 @@
 """Complete algebra and explicit physical boundaries of logarithmic readings."""
 
+from __future__ import annotations
+
 import copy
 import operator
 import pickle
@@ -21,11 +23,12 @@ from unitx import (
 )
 from unitx._conversion import compatible, convert
 from unitx.exceptions import DimensionError, SerializationError
+from unitx.logunit import LogKind
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
 
 
-def test_dimension_complete_and_physical_views():
+def test_dimension_complete_and_physical_views() -> None:
     log = si.dB.dimension
     assert log != DIMENSIONLESS
     assert log.physical is DIMENSIONLESS
@@ -53,7 +56,7 @@ def test_dimension_complete_and_physical_views():
 
 
 @pytest.mark.parametrize('unit', [si.dB, si.dB**2, si.dB / si.m])
-def test_quantity_complete_compatibility(unit):
+def test_quantity_complete_compatibility(unit: Unit) -> None:
     plain = Unit('' if unit.is_dimensionless() else '/m')
     quantity = 1 * unit
     assert quantity.dimension.physical == plain.dimension
@@ -68,7 +71,7 @@ def test_quantity_complete_compatibility(unit):
     assert {0 * unit: 'log', 0 * plain: 'physical'}[0 * unit] == 'log'
 
 
-def test_log_unit_concrete_family():
+def test_log_unit_concrete_family() -> None:
     assert type(si.degC) is AffineUnit
     assert type(si.dBm) is LogUnit
     assert not isinstance(si.dBm, AffineUnit)
@@ -85,7 +88,7 @@ def test_log_unit_concrete_family():
     assert type(+(30 @ si.dBm)) is LogQuantity
 
 
-def test_log_quantity_explicit_physical_boundary():
+def test_log_quantity_explicit_physical_boundary() -> None:
     level = 30 @ si.dBm
     assert level.to_quantity(si.W) == 1 * si.W
     assert level.to(si.dBW) == 0 @ si.dBW
@@ -112,7 +115,7 @@ def test_log_quantity_explicit_physical_boundary():
 
 
 @pytest.mark.parametrize('precision', [2, 28, 50])
-def test_log_unit_defining_anchor_exactness(precision):
+def test_log_unit_defining_anchor_exactness(precision: int) -> None:
     coordinate = LogUnit(1 * si.W, at=1, delta_unit=si.dB, kind='power')
     with localcontext() as context:
         context.prec = precision
@@ -134,13 +137,13 @@ def test_log_unit_defining_anchor_exactness(precision):
             assert (Decimal(1) @ restored).to_quantity(si.W).value == Decimal(1)
 
 
-def test_log_unit_definition_does_not_evaluate_origin():
+def test_log_unit_definition_does_not_evaluate_origin() -> None:
     coordinate = LogUnit(1 * si.W, at=10**6, delta_unit=si.dB, kind='power')
     assert (10**6 @ coordinate).to_quantity(si.W) == 1 * si.W
     assert from_dict(to_dict(coordinate)) == coordinate
 
 
-def test_log_unit_anchor_identity_retains_exact_definition():
+def test_log_unit_anchor_identity_retains_exact_definition() -> None:
     coordinate = LogUnit(1 * si.W, at=1, delta_unit=si.dB, kind='power')
     approximated = LogUnit(coordinate.origin, delta_unit=si.dB, kind='power')
     assert coordinate != approximated
@@ -148,7 +151,7 @@ def test_log_unit_anchor_identity_retains_exact_definition():
 
 
 @pytest.mark.parametrize('precision', [2, 8, 28])
-def test_log_quantity_decimal_domains(precision):
+def test_log_quantity_decimal_domains(precision: int) -> None:
     with localcontext() as context:
         context.prec = precision
         level = Decimal('30') @ si.dBm
@@ -161,7 +164,7 @@ def test_log_quantity_decimal_domains(precision):
 
 
 @pytest.mark.parametrize('kind', ['power', 'amplitude'])
-def test_log_unit_registry_reconstruction(kind):
+def test_log_unit_registry_reconstruction(kind: LogKind) -> None:
     coordinate = LogUnit(1 * si.W, delta_unit=si.dB, kind=kind).define('privateLevel')
     registry = Registry([coordinate])
     point = LogQuantity(Fraction(3, 2), registry.parse('privateLevel'))
@@ -175,7 +178,7 @@ def test_log_unit_registry_reconstruction(kind):
         from_dict(record, registry=registry)
 
 
-def test_numpy_complete_dimension_writes():
+def test_numpy_complete_dimension_writes() -> None:
     np = pytest.importorskip('numpy')
     target = Quantity(np.array([1.0, 2.0]), si.dB)
     saved = target.value.copy()
@@ -192,7 +195,7 @@ def test_numpy_complete_dimension_writes():
     assert np.var(target).dimension == si.dB.dimension**2
 
 
-def test_numpy_log_quantity_storage_and_family():
+def test_numpy_log_quantity_storage_and_family() -> None:
     np = pytest.importorskip('numpy')
     raw = np.array([0.0, 20.0, 30.0])
     point = raw @ si.dBm

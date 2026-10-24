@@ -52,6 +52,7 @@ jobs:
       - name: Validate source
         run: |
           python -m ruff check .
+          python -m ruff check tests conftest.py --select ANN --ignore ANN401
           python -m ruff format --check .
           python -m pytest -q
           python -m doctest README.md docs/*.md docs/catalogues/*.md

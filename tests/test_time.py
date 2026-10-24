@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone, tzinfo
 from decimal import Decimal, localcontext
 from fractions import Fraction
@@ -13,7 +15,7 @@ from unitx.unit import Unit
 @pytest.mark.parametrize(
     'name', ['time', 'monotonic', 'perf_counter', 'process_time', 'thread_time']
 )
-def test_time_clock_exact(monkeypatch, name):
+def test_time_clock_exact(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     # Large timestamps must reach the point without an intermediate float.
     ticks = iter([2**63 + 1, 2**63 + 4])
     monkeypatch.setattr(time._time, name + '_ns', lambda: next(ticks), raising=False)
@@ -46,14 +48,14 @@ def test_time_clock_exact(monkeypatch, name):
             function(start)
 
 
-def test_time_live_clocks():
+def test_time_live_clocks() -> None:
     assert type(time.time().value) is int
     for clock in (time.monotonic, time.perf_counter, time.process_time):
         assert clock() <= clock()
 
 
 @pytest.mark.parametrize('duration', [timedelta.min, timedelta.max, timedelta(microseconds=-1)])
-def test_timedelta_exact_roundtrip(duration):
+def test_timedelta_exact_roundtrip(duration: timedelta) -> None:
     q = time.from_timedelta(duration)
     assert type(q.value) is int
     assert q.unit == Unit('us')
@@ -61,11 +63,11 @@ def test_timedelta_exact_roundtrip(duration):
 
 
 @pytest.mark.parametrize('nanoseconds, microseconds', [(500, 0), (1500, 2), (2500, 2), (-1500, -2)])
-def test_to_timedelta_rounding(nanoseconds, microseconds):
+def test_to_timedelta_rounding(nanoseconds: int, microseconds: int) -> None:
     assert time.to_timedelta(Quantity(nanoseconds, 'ns')) == timedelta(microseconds=microseconds)
 
 
-def test_to_timedelta_decimal_context():
+def test_to_timedelta_decimal_context() -> None:
     with localcontext() as context:
         context.prec = 2
         assert time.to_timedelta(Quantity(Decimal('1.2345675'), 's')) == timedelta(
@@ -76,32 +78,32 @@ def test_to_timedelta_decimal_context():
     assert time.to_timedelta(Quantity(Fraction(1, 3), 'min')) == timedelta(seconds=20)
 
 
-def test_to_timedelta_invalid_range():
+def test_to_timedelta_invalid_range() -> None:
     with pytest.raises(OverflowError):
         time.to_timedelta(time.from_timedelta(timedelta.max) + Quantity(1, 'us'))
 
 
 @pytest.mark.parametrize('value', [float('nan'), float('inf'), Decimal('-Infinity')])
-def test_time_invalid_nonfinite(value):
+def test_time_invalid_nonfinite(value: float | Decimal) -> None:
     for function in (time.to_timedelta, time.sleep):
         with pytest.raises(ValueError, match='finite'):
             function(Quantity(value, 's'))
 
 
 @pytest.mark.parametrize('value', [True, 1j, object()])
-def test_time_invalid_magnitude(value):
+def test_time_invalid_magnitude(value: object) -> None:
     for function in (time.to_timedelta, time.sleep):
         with pytest.raises(TypeError, match='magnitude'):
             function(Quantity(value, 's'))
 
 
-def test_time_invalid_dimension():
+def test_time_invalid_dimension() -> None:
     for function in (time.to_timedelta, time.sleep):
         with pytest.raises(DimensionError):
             function(Quantity(1, 'm'))
 
 
-def test_time_invalid_duration():
+def test_time_invalid_duration() -> None:
     for function in (time.to_timedelta, time.sleep):
         with pytest.raises(TypeError, match='duration Quantity'):
             function(1)
@@ -109,7 +111,7 @@ def test_time_invalid_duration():
         time.from_timedelta(1)
 
 
-def test_sleep_conversion(monkeypatch):
+def test_sleep_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = []
     monkeypatch.setattr(time._time, 'sleep', calls.append)
     time.sleep(Quantity(125, 'ms'))
@@ -131,7 +133,7 @@ def test_sleep_conversion(monkeypatch):
         datetime(2000, 1, 1, tzinfo=timezone(timedelta(seconds=-123, microseconds=456))),
     ],
 )
-def test_datetime_exact_roundtrip(instant):
+def test_datetime_exact_roundtrip(instant: datetime) -> None:
     point = time.from_datetime(instant)
     assert type(point) is AffineQuantity
     assert type(point.value) is int
@@ -142,7 +144,7 @@ def test_datetime_exact_roundtrip(instant):
     assert time.to_datetime(point, tz=instant.tzinfo) == instant
 
 
-def test_datetime_epoch_and_native_clock(monkeypatch):
+def test_datetime_epoch_and_native_clock(monkeypatch: pytest.MonkeyPatch) -> None:
     epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
     assert time.from_datetime(epoch).value == 0
     assert time.from_datetime(epoch - timedelta(microseconds=1)).value == -1000
@@ -152,7 +154,7 @@ def test_datetime_epoch_and_native_clock(monkeypatch):
     assert time.to_datetime(time.time()) == instant
 
 
-def test_datetime_known_epoch_coordinate():
+def test_datetime_known_epoch_coordinate() -> None:
     epoch = datetime(2000, 1, 1, tzinfo=timezone.utc)
     seconds_since_2000 = AffineUnit(time.from_datetime(epoch), delta_unit='s')
     point = time.from_datetime(epoch + timedelta(seconds=2, microseconds=3))
@@ -165,13 +167,13 @@ def test_datetime_known_epoch_coordinate():
 
 
 @pytest.mark.parametrize('nanoseconds, microseconds', [(500, 0), (1500, 2), (2500, 2), (-1500, -2)])
-def test_datetime_rounding(nanoseconds, microseconds):
+def test_datetime_rounding(nanoseconds: int, microseconds: int) -> None:
     assert time.to_datetime(AffineQuantity(nanoseconds, 'ns')) == datetime(
         1970, 1, 1, tzinfo=timezone.utc
     ) + timedelta(microseconds=microseconds)
 
 
-def test_datetime_rounding_includes_origin():
+def test_datetime_rounding_includes_origin() -> None:
     # Rounding the origin and reading separately would produce 0 us, not 1 us.
     coordinate = AffineUnit(Quantity(Fraction(1, 4), 'us'), delta_unit='us')
     assert time.to_datetime(Fraction(1, 4) @ coordinate) == datetime(
@@ -182,7 +184,7 @@ def test_datetime_rounding_includes_origin():
     )
 
 
-def test_datetime_decimal_context():
+def test_datetime_decimal_context() -> None:
     coordinate = AffineUnit(Quantity(Decimal('0.00000025'), 's'), delta_unit='s')
     with localcontext() as context:
         context.prec = 2
@@ -191,7 +193,7 @@ def test_datetime_decimal_context():
         )
 
 
-def test_datetime_dst_fold():
+def test_datetime_dst_fold() -> None:
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
     try:
@@ -206,13 +208,13 @@ def test_datetime_dst_fold():
     assert time.to_datetime(b, tz=eastern).fold == 1
 
 
-def test_datetime_invalid_input():
+def test_datetime_invalid_input() -> None:
     for value in (1, timedelta(0), AffineQuantity(0, 's')):
         with pytest.raises(TypeError, match='datetime'):
             time.from_datetime(value)
 
     class NoOffset(tzinfo):
-        def utcoffset(self, dt):
+        def utcoffset(self, dt: datetime | None) -> None:
             return None
 
     for value in (datetime(2000, 1, 1), datetime(2000, 1, 1, tzinfo=NoOffset())):
@@ -231,19 +233,19 @@ def test_datetime_invalid_input():
 
 
 @pytest.mark.parametrize('value', [float('nan'), float('inf'), Decimal('-Infinity')])
-def test_datetime_invalid_nonfinite(value):
+def test_datetime_invalid_nonfinite(value: float | Decimal) -> None:
     with pytest.raises(ValueError, match='finite'):
         time.to_datetime(AffineQuantity(value, 's'))
 
 
-def test_datetime_numpy_readings_rejected():
+def test_datetime_numpy_readings_rejected() -> None:
     np = pytest.importorskip('numpy')
     for value in (np.float64(0), np.array(0.0), np.array([0.0, 1.0])):
         with pytest.raises(TypeError, match='magnitude'):
             time.to_datetime(AffineQuantity(value, 's'))
 
 
-def test_datetime_invalid_range():
+def test_datetime_invalid_range() -> None:
     with pytest.raises(OverflowError):
         time.from_datetime(datetime.min.replace(tzinfo=timezone(timedelta(hours=1))))
     for instant, offset in (

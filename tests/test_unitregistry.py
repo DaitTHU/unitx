@@ -1,11 +1,15 @@
 """Registration policies, spelling fallbacks, and failure invariants."""
 
+from __future__ import annotations
+
 import copy
 import pickle
+from collections.abc import Iterator
 from fractions import Fraction
 
 import pytest
 
+from unitx._numerics import Magnitude
 from unitx._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PrefixDefinition
 from unitx.dimension import Dimension
 from unitx.exceptions import UnitRegistryError, UnitSymbolError
@@ -17,9 +21,11 @@ from unitx.unitdefinition import UnitDefinition
 from unitx.unitparser import UnitParser
 from unitx.unitregistry import default_registry
 
+type RegistrySnapshot = tuple[dict[str, UnitDefinition], dict[str, str], dict[str, str]]
+
 
 @pytest.fixture(autouse=True)
-def unit_registry():
+def unit_registry() -> Iterator[RegistrySnapshot]:
     tables = (
         default_registry._bindings.definitions,
         default_registry._bindings.names,
@@ -33,7 +39,7 @@ def unit_registry():
 
 
 @pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
-def test_unit_define_binding_policy(source) -> None:
+def test_unit_define_binding_policy(source: Unit | Quantity[Magnitude]) -> None:
     unit = default_registry.define(
         source,
         'rvbind',
@@ -132,7 +138,7 @@ def test_single_unit_empty_aliases(allowed: str) -> None:
 
 
 @pytest.mark.parametrize('policy', [False, ()])
-def test_unit_define_prefix_disabled(policy) -> None:
+def test_unit_define_prefix_disabled(policy: bool | tuple[object, ...]) -> None:
     unit = default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable=policy)
     assert Unit('rvpolicy') == Unit('review policy') == unit
     for text in ('mrvpolicy', 'millireview policy'):
@@ -151,7 +157,7 @@ def test_unit_define_duplicate_spellings() -> None:
 
 @pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
 @pytest.mark.parametrize('spelling', ['rvselect', 'rvselected', 'review selected', 'review alias'])
-def test_unit_define_string_policy(source, spelling: str) -> None:
+def test_unit_define_string_policy(source: Unit | Quantity[Magnitude], spelling: str) -> None:
     unit = default_registry.define(
         source,
         'rvselect',
@@ -172,7 +178,10 @@ def test_unit_define_string_policy(source, spelling: str) -> None:
 
 
 @pytest.mark.parametrize('policy', [[], ['rvpolicy'], {}, {'rvpolicy': True}, 1])
-def test_unit_define_invalid_policy(policy, unit_registry) -> None:
+def test_unit_define_invalid_policy(
+    policy: list[object] | list[str] | dict[str, object] | int,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(TypeError, match='Prefixable must be bool, str or tuple of spellings'):
         default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable=policy)
     assert (
@@ -183,7 +192,10 @@ def test_unit_define_invalid_policy(policy, unit_registry) -> None:
 
 
 @pytest.mark.parametrize('text', [1, None, True, ('rvpolicy',)])
-def test_unit_define_invalid_policy_type(text, unit_registry) -> None:
+def test_unit_define_invalid_policy_type(
+    text: int | None | bool | tuple[str, ...],
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(TypeError, match='Prefixable spellings must be str'):
         default_registry.define(
             Unit('m'), 'rvpolicy', 'review policy', prefixable=('rvpolicy', text)
@@ -197,7 +209,11 @@ def test_unit_define_invalid_policy_type(text, unit_registry) -> None:
 
 @pytest.mark.parametrize('text', ['unknown', '', 'mrvpolicy', 'm', 'µ'])
 @pytest.mark.parametrize('as_tuple', [False, True])
-def test_unit_define_invalid_policy_spelling(text: str, as_tuple: bool, unit_registry) -> None:
+def test_unit_define_invalid_policy_spelling(
+    text: str,
+    as_tuple: bool,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(ValueError, match='is not a registered spelling'):
         default_registry.define(
             Unit('m'),
@@ -247,7 +263,11 @@ def test_unit_define_policy_conflict(first: bool) -> None:
 
 @pytest.mark.parametrize('text', ['rv[unit', 'rv]unit', '[rvunit]', 'rv²', 'rv⁻¹'])
 @pytest.mark.parametrize('kind', ['symbol', 'name', 'symbol_alias', 'name_alias'])
-def test_unit_define_invalid_reserved(text: str, kind: str, unit_registry) -> None:
+def test_unit_define_invalid_reserved(
+    text: str,
+    kind: str,
+    unit_registry: RegistrySnapshot,
+) -> None:
     with pytest.raises(ValueError):
         default_registry.define(
             Unit('m'),
@@ -279,7 +299,7 @@ def test_unit_define_hyphenated_name(name: str) -> None:
 @pytest.mark.parametrize(
     'name', ['-review', 'review-', 'review--name', 'review -name', 'review- name']
 )
-def test_unit_define_invalid_hyphen(name: str, unit_registry) -> None:
+def test_unit_define_invalid_hyphen(name: str, unit_registry: RegistrySnapshot) -> None:
     with pytest.raises(ValueError):
         default_registry.define(Unit('m'), 'rvhyphen', name)
     assert (
@@ -313,7 +333,9 @@ def test_unit_parser_reference_retry() -> None:
         ),
     ],
 )
-def test_unit_definition_immutable(definition, attribute: str) -> None:
+def test_unit_definition_immutable(
+    definition: PrefixDefinition | UnitDefinition, attribute: str
+) -> None:
     single = SingleUnit('km')
     before = single.symbol, single.name, single.factor, single.dimension, hash(single)
     with pytest.raises(AttributeError):
@@ -391,13 +413,13 @@ def test_unit_definition_invalid_symbol(symbol: str) -> None:
 
 
 @pytest.mark.parametrize('factor', [None, 0, 2.0, '2'])
-def test_unit_definition_invalid_factor(factor) -> None:
+def test_unit_definition_invalid_factor(factor: None | int | float | str) -> None:
     with pytest.raises(TypeError, match='Unit definition factor must be a Factor'):
         UnitDefinition('span', factor=factor)
 
 
 @pytest.mark.parametrize('dimension', [None, 'L', (1,)])
-def test_unit_definition_invalid_dimension(dimension) -> None:
+def test_unit_definition_invalid_dimension(dimension: None | str | tuple[int, ...]) -> None:
     with pytest.raises(TypeError, match='Unit definition dimension must be a Dimension'):
         UnitDefinition('span', dimension=dimension)
 
@@ -488,7 +510,7 @@ def test_unit_resolver_permissions() -> None:
 
 
 @pytest.mark.parametrize('spelling', ['megaohm', 'megohm', 'kiloohm', 'kilohm'])
-def test_unit_define_invalid_contraction(spelling: str, unit_registry) -> None:
+def test_unit_define_invalid_contraction(spelling: str, unit_registry: RegistrySnapshot) -> None:
     with pytest.raises(UnitRegistryError, match='already resolves to a registered unit'):
         default_registry.define(Unit('m'), spelling, 'review reserved')
     assert (

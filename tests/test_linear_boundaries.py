@@ -1,18 +1,21 @@
 """Bound linear algebra remains independent of coordinate implementations."""
 
+from __future__ import annotations
+
 import builtins
 import gc
 import pickle
 from decimal import Decimal
 from fractions import Fraction
+from types import ModuleType
 
 import pytest
 
-from unitx import AffineQuantity, AffineUnit, LogQuantity, LogUnit, Quantity, Registry
+from unitx import AffineQuantity, AffineUnit, LogQuantity, LogUnit, Quantity, Registry, Unit
 from unitx.si import si
 
 
-def test_quantity_linear_operations_without_coordinates(monkeypatch):
+def test_quantity_linear_operations_without_coordinates(monkeypatch: pytest.MonkeyPatch) -> None:
     original_import = builtins.__import__
     coordinate_modules = {
         '_coordinates',
@@ -28,7 +31,7 @@ def test_quantity_linear_operations_without_coordinates(monkeypatch):
         'logquantity',
     }
 
-    def independent_import(name, *args, **kwargs):
+    def independent_import(name: str, *args: object, **kwargs: object) -> ModuleType:
         if name.rsplit('.', 1)[-1] in coordinate_modules:
             raise AssertionError(f'Linear algebra imported coordinate implementation {name}')
         return original_import(name, *args, **kwargs)
@@ -45,8 +48,8 @@ def test_quantity_linear_operations_without_coordinates(monkeypatch):
 
 
 @pytest.mark.parametrize('family', ['affine', 'logarithmic'])
-def test_coordinate_linear_projection_retains_private_mapping(family):
-    def project(reference):
+def test_coordinate_linear_projection_retains_private_mapping(family: str) -> None:
+    def project(reference: int) -> Unit:
         coordinate = (
             AffineUnit(reference * si.K)
             if family == 'affine'
@@ -65,7 +68,7 @@ def test_coordinate_linear_projection_retains_private_mapping(family):
     assert pickle.loads(pickle.dumps(first_reading)) == first_reading
 
 
-def test_affine_unit_invalid_symbolic_origin_normalization():
+def test_affine_unit_invalid_symbolic_origin_normalization() -> None:
     from unitx import pi
 
     with pytest.raises(TypeError, match='requires a symbolic sum for its origin'):
@@ -75,7 +78,7 @@ def test_affine_unit_invalid_symbolic_origin_normalization():
     assert coordinate.delta_unit == pi * si.m
 
 
-def test_affine_unit_invalid_symbolic_reference_normalization():
+def test_affine_unit_invalid_symbolic_reference_normalization() -> None:
     from unitx import pi
 
     coordinate = AffineUnit(1 * si.m, delta_unit=pi * si.m)

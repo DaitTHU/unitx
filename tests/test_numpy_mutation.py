@@ -1,16 +1,25 @@
 """Fixed-unit ndarray writes, aliasing, and unchanged targets on failure."""
 
+from __future__ import annotations
+
 import operator
 import subprocess
 import sys
+from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
+from typing import TYPE_CHECKING
 
 import pytest
 
 from unitx import Quantity, Unit
+from unitx._numerics import Magnitude
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor, pi
+
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike, NDArray
+
 
 np = pytest.importorskip('numpy')
 
@@ -40,7 +49,7 @@ np = pytest.importorskip('numpy')
         [],
     ],
 )
-def test_assignment_indexing(key):
+def test_assignment_indexing(key: object) -> None:
     expected = np.arange(6.0).reshape(2, 3)
     a = expected.copy()
     q = Quantity(a, 'm')
@@ -53,13 +62,15 @@ def test_assignment_indexing(key):
 
 @pytest.mark.parametrize('unit', [Unit('m'), Factor(2) * Unit('m'), pi * Unit('m')])
 @pytest.mark.parametrize('raw', [3, Fraction(3), Decimal('3'), np.float32(3), np.array(3.0)])
-def test_assignment_unit_conversion(unit, raw):
+def test_assignment_unit_conversion(
+    unit: Unit, raw: int | Fraction | Decimal | np.float32 | NDArray[np.generic]
+) -> None:
     q = Quantity(np.zeros(3), unit)
     q[:] = Quantity(raw, 'm')
     np.testing.assert_allclose(q.value, float(Quantity(raw, 'm').value_in(unit)))
 
 
-def test_assignment_dimensionless_values():
+def test_assignment_dimensionless_values() -> None:
     q = Quantity(np.zeros(4), 'km/m')
     q[:2] = 2000
     q[2:] = Quantity(np.array([3.0, 4.0]), '')
@@ -69,7 +80,7 @@ def test_assignment_dimensionless_values():
 
 
 @pytest.mark.parametrize('shape', [(), (0,), (2, 0), (3, 2)])
-def test_assignment_empty_scalar_and_strided(shape):
+def test_assignment_empty_scalar_and_strided(shape: tuple[int, ...]) -> None:
     base = np.zeros(shape + (2,), dtype=np.float32)
     a = base[..., 0]
     q = Quantity(a, 'm')
@@ -78,7 +89,7 @@ def test_assignment_empty_scalar_and_strided(shape):
     np.testing.assert_array_equal(base[..., 1], 0)
 
 
-def test_assignment_broadcasting_and_overlap():
+def test_assignment_broadcasting_and_overlap() -> None:
     q = Quantity(np.arange(12.0).reshape(3, 4), 'm')
     expected = q.value.copy()
     expected[:, 1:] = expected[:, :-1].copy()
@@ -91,7 +102,7 @@ def test_assignment_broadcasting_and_overlap():
     np.testing.assert_array_equal(q.value, expected)
 
 
-def test_assignment_snapshots_indices_sharing_target_storage():
+def test_assignment_snapshots_indices_sharing_target_storage() -> None:
     a = np.array([2, 0, 1])
     key = a[:]
     q = Quantity(a, '')
@@ -123,7 +134,11 @@ def test_assignment_snapshots_indices_sharing_target_storage():
         (slice(None), Factor(2), TypeError),
     ],
 )
-def test_assignment_failures_preserve_target(key, value, error):
+def test_assignment_failures_preserve_target(
+    key: object,
+    value: int | NDArray[np.generic] | Quantity[Magnitude] | list[int] | bool | Unit | Factor,
+    error: type[Exception],
+) -> None:
     a = np.array([4, 5, 6], dtype=np.int16)
     q = Quantity(a, 'm')
     with pytest.raises(error):
@@ -131,14 +146,14 @@ def test_assignment_failures_preserve_target(key, value, error):
     np.testing.assert_array_equal(a, [4, 5, 6])
 
 
-def test_assignment_native_boolean_shape_rules():
+def test_assignment_native_boolean_shape_rules() -> None:
     q = Quantity(np.ones(3), 'm')
     with pytest.raises(TypeError):
         q[np.ones(3, dtype=bool)] = Quantity(np.zeros((1, 3)), 'm')
     np.testing.assert_array_equal(q.value, 1)
 
 
-def test_assignment_cast_overflow_is_staged():
+def test_assignment_cast_overflow_is_staged() -> None:
     a = np.ones(3, dtype=np.float32)
     q = Quantity(a, 'm')
     with np.errstate(over='raise'), pytest.raises(FloatingPointError):
@@ -147,7 +162,7 @@ def test_assignment_cast_overflow_is_staged():
 
 
 @pytest.mark.parametrize('raw', [1.0, np.float64(1), np.int32(1)])
-def test_scalar_assignment_is_rejected(raw):
+def test_scalar_assignment_is_rejected(raw: float | np.float64 | np.int32) -> None:
     with pytest.raises(TypeError, match='ndarray'):
         Quantity(raw, 'm')[...] = Quantity(2, 'm')
 
@@ -168,7 +183,11 @@ def test_scalar_assignment_is_rejected(raw):
         (operator.itruediv, Unit('km/m'), [0.001, 0.002, 0.003]),
     ],
 )
-def test_inplace_fixed_destination(operation, rhs, expected):
+def test_inplace_fixed_destination(
+    operation: Callable[..., object],
+    rhs: Quantity[Magnitude] | int | Factor | Unit,
+    expected: list[float] | list[int] | list[float | int],
+) -> None:
     a = np.array([1.0, 2.0, 3.0], dtype=np.float32)
     q = Quantity(a, 'm')
     alias = q
@@ -179,7 +198,7 @@ def test_inplace_fixed_destination(operation, rhs, expected):
     np.testing.assert_allclose(a, expected)
 
 
-def test_inplace_dimensionless_power_and_unit_scale():
+def test_inplace_dimensionless_power_and_unit_scale() -> None:
     unit = Factor(2) * Unit('km/m')
     q = Quantity(np.array([1.0, 2.0]), unit)
     assert operator.ipow(q, 2) is q
@@ -190,7 +209,7 @@ def test_inplace_dimensionless_power_and_unit_scale():
     np.testing.assert_allclose(q.value, np.pi)
 
 
-def test_inplace_matmul():
+def test_inplace_matmul() -> None:
     a = np.arange(4.0, dtype=np.float32).reshape(2, 2)
     q = Quantity(a, 'm')
     rhs = Quantity(np.array([[2.0, 1.0], [0.0, 3.0]]), 'km/m')
@@ -200,7 +219,7 @@ def test_inplace_matmul():
     np.testing.assert_allclose(a, expected)
 
 
-def test_inplace_alias_strided_and_overlap():
+def test_inplace_alias_strided_and_overlap() -> None:
     base = np.arange(12.0, dtype=np.float64).reshape(3, 4)
     q = Quantity(base[:, ::2], 'm')
     before = base.copy()
@@ -212,7 +231,7 @@ def test_inplace_alias_strided_and_overlap():
 
 
 @pytest.mark.parametrize('shape', [(), (0,), (2, 0)])
-def test_inplace_empty_and_zero_dimensional(shape):
+def test_inplace_empty_and_zero_dimensional(shape: tuple[int, ...]) -> None:
     q = Quantity(np.ones(shape), 'm')
     a = q.value
     assert operator.iadd(q, Quantity(100, 'cm')) is q
@@ -236,7 +255,11 @@ def test_inplace_empty_and_zero_dimensional(shape):
         (operator.imatmul, np.ones((3, 3)), ValueError),
     ],
 )
-def test_inplace_failures_preserve_destination(operation, rhs, error):
+def test_inplace_failures_preserve_destination(
+    operation: Callable[..., object],
+    rhs: Quantity[Magnitude] | int | Unit | NDArray[np.generic],
+    error: type[Exception],
+) -> None:
     a = np.array([2, 4], dtype=np.int32)
     q = Quantity(a, 'm')
     unit = q.unit
@@ -246,7 +269,7 @@ def test_inplace_failures_preserve_destination(operation, rhs, error):
     np.testing.assert_array_equal(a, [2, 4])
 
 
-def test_readonly_writes_fail():
+def test_readonly_writes_fail() -> None:
     a = np.ones(3)
     a.flags.writeable = False
     q = Quantity(a, 'm')
@@ -256,7 +279,7 @@ def test_readonly_writes_fail():
         np.testing.assert_array_equal(a, 1)
 
 
-def test_inplace_kernel_and_cast_errors_leave_target_unchanged():
+def test_inplace_kernel_and_cast_errors_leave_target_unchanged() -> None:
     q = Quantity(np.array([1.0, 0.0]), 'm')
     with np.errstate(all='raise'), pytest.raises(FloatingPointError):
         operator.itruediv(q, np.array([2.0, 0.0]))
@@ -267,7 +290,7 @@ def test_inplace_kernel_and_cast_errors_leave_target_unchanged():
     np.testing.assert_array_equal(q.value, 1)
 
 
-def test_augmented_subscription_and_repeated_indices():
+def test_augmented_subscription_and_repeated_indices() -> None:
     q = Quantity(np.arange(5.0), 'm')
     q[1:] += q[:-1]
     np.testing.assert_array_equal(q.value, [0, 1, 3, 5, 7])
@@ -281,7 +304,9 @@ def test_augmented_subscription_and_repeated_indices():
 
 
 @pytest.mark.parametrize('value', [1, 1.0, Fraction(1), Decimal('1'), np.float32(1), np.int32(1)])
-def test_scalar_augmented_arithmetic_remains_ordinary(value):
+def test_scalar_augmented_arithmetic_remains_ordinary(
+    value: int | float | Fraction | Decimal | np.float32 | np.int32,
+) -> None:
     q = Quantity(value, 'm')
     original = q
     q += Quantity(value, 'm')
@@ -291,7 +316,7 @@ def test_scalar_augmented_arithmetic_remains_ordinary(value):
     assert q.unit == Unit('m s')
 
 
-def test_scalar_augmented_arithmetic_does_not_import_numpy():
+def test_scalar_augmented_arithmetic_does_not_import_numpy() -> None:
     script = """
 import sys
 from fractions import Fraction
@@ -318,7 +343,7 @@ assert 'numpy' not in sys.modules
     subprocess.run([sys.executable, '-c', script], check=True)
 
 
-def test_reused_output_temporary_still_checks_casting_option():
+def test_reused_output_temporary_still_checks_casting_option() -> None:
     q = Quantity(np.ones(3), 'm')
     with pytest.raises(ValueError):
         np.add(q, q, out=q, casting='invalid')
@@ -326,7 +351,7 @@ def test_reused_output_temporary_still_checks_casting_option():
 
 
 @pytest.mark.parametrize('dtype', [np.int8, np.uint16, np.float32, np.float64, np.complex64])
-def test_assignment_and_inplace_keep_destination_dtype(dtype):
+def test_assignment_and_inplace_keep_destination_dtype(dtype: DTypeLike) -> None:
     a = np.array([1, 2, 3], dtype=dtype)
     q = Quantity(a, 'm')
     q[:] = Quantity(np.array([4, 5, 6], dtype=dtype), 'm')
@@ -335,7 +360,7 @@ def test_assignment_and_inplace_keep_destination_dtype(dtype):
     np.testing.assert_array_equal(a, [8, 10, 12])
 
 
-def test_inplace_python_augmented_syntax():
+def test_inplace_python_augmented_syntax() -> None:
     q = Quantity(np.array([[1.0, 2.0], [3.0, 4.0]]), 'm')
     alias = q
     q += Quantity(100, 'cm')
@@ -348,7 +373,7 @@ def test_inplace_python_augmented_syntax():
     np.testing.assert_array_equal(q.value, [[1.5, 2.5], [3.5, 4.5]])
 
 
-def test_inplace_unsupported_subclasses_and_object_arrays():
+def test_inplace_unsupported_subclasses_and_object_arrays() -> None:
     q = Quantity(np.ones(3), 'm')
     for value in (np.ma.array([1, 2, 3]), np.array([1, 2, 3], dtype=object)):
         with pytest.raises(TypeError):
@@ -356,14 +381,14 @@ def test_inplace_unsupported_subclasses_and_object_arrays():
         np.testing.assert_array_equal(q.value, 1)
 
 
-def test_inplace_integer_overflow_uses_numpy_rules():
+def test_inplace_integer_overflow_uses_numpy_rules() -> None:
     q = Quantity(np.array([100, 50], dtype=np.int8), 'm')
     expected = np.multiply(q.value.copy(), 2)
     assert operator.imul(q, 2) is q
     np.testing.assert_array_equal(q.value, expected)
 
 
-def test_inplace_complex_and_matrix_input_output_alias():
+def test_inplace_complex_and_matrix_input_output_alias() -> None:
     q = Quantity(np.array([1 + 2j, 3 - 4j], dtype=np.complex64), 'm')
     assert operator.itruediv(q, 2j) is q
     np.testing.assert_array_equal(q.value, [1 - 0.5j, -2 - 1.5j])

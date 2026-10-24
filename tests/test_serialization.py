@@ -1,14 +1,18 @@
 """JSON exchange preserves stored numbers, formal units and coordinate identity."""
 
+from __future__ import annotations
+
 import copy
 import json
 import math
 import os
 import subprocess
 import sys
+from collections.abc import Iterator
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -18,12 +22,13 @@ from unitx import (
     LogQuantity,
     LogUnit,
     Quantity,
+    Registry,
     Unit,
     serialization,
     time,
 )
 from unitx import unitregistry as registry
-from unitx._numerics import UnfactoredInteger
+from unitx._numerics import Magnitude, Scalar, UnfactoredInteger
 from unitx.exceptions import (
     DimensionError,
     IncompleteFactorWarning,
@@ -35,10 +40,13 @@ from unitx.exceptions import (
 )
 from unitx.factor import Factor, SymbolicConstant, ln10, pi
 from unitx.imperial import imperial
+from unitx.logunit import LogKind
 from unitx.serialization import from_dict, to_dict
 
 
-def _register(source, *args, **kwargs):
+def _register(
+    source: Unit | Quantity[Scalar] | AffineUnit | LogUnit, *args: str, **kwargs: object
+) -> Unit | AffineUnit | LogUnit:
     """Explicitly bind test definitions needed by default string round trips."""
     from unitx.unitregistry import default_registry
 
@@ -47,11 +55,13 @@ def _register(source, *args, **kwargs):
     return result
 
 
-def exchange(value, *, registry=None):
+def exchange(
+    value: serialization._Object, *, registry: Registry | None = None
+) -> serialization._Object:
     return from_dict(json.loads(json.dumps(to_dict(value), allow_nan=False)), registry=registry)
 
 
-def test_serialization_version_two_record():
+def test_serialization_version_two_record() -> None:
     # An independently specified wire record fixes the public format.
     record = {
         'version': 2,
@@ -82,7 +92,7 @@ def test_serialization_version_two_record():
 
 
 @pytest.fixture
-def isolated_registry():
+def isolated_registry() -> Iterator[None]:
     tables = (
         registry.default_registry._bindings.definitions,
         registry.default_registry._bindings.names,
@@ -112,7 +122,10 @@ def isolated_registry():
     ],
 )
 @pytest.mark.parametrize('quantity_class', [Quantity, AffineQuantity])
-def test_scalar_json_roundtrip(value, quantity_class):
+def test_scalar_json_roundtrip(
+    value: int | float | Fraction | Decimal,
+    quantity_class: type[Quantity[Scalar]] | type[AffineQuantity[Scalar]],
+) -> None:
     quantity = quantity_class(value, 'cm')
     before = repr(quantity)
     restored = exchange(quantity)
@@ -132,14 +145,16 @@ def test_scalar_json_roundtrip(value, quantity_class):
 
 @pytest.mark.parametrize('quantity_class', [Quantity, AffineQuantity])
 @pytest.mark.parametrize('value', [float('inf'), -float('inf'), float('nan')])
-def test_float_specials_are_strict_json(value, quantity_class):
+def test_float_specials_are_strict_json(
+    value: float, quantity_class: type[Quantity[Scalar]] | type[AffineQuantity[Scalar]]
+) -> None:
     restored = exchange(quantity_class(value, 'm'))
     assert type(restored.value) is float
     assert math.isnan(restored.value) if math.isnan(value) else restored.value == value
 
 
 @pytest.mark.parametrize('text', ['Infinity', '-Infinity', 'NaN42', '-sNaN17'])
-def test_decimal_specials_and_context(text):
+def test_decimal_specials_and_context(text: str) -> None:
     original = Quantity(Decimal(text), 's')
     with localcontext() as context:
         context.prec = 2
@@ -164,7 +179,7 @@ def test_decimal_specials_and_context(text):
         Unit('cm', scale=(Factor(2) ** Fraction(1, 2)) * ln10),
     ],
 )
-def test_unit_identity_scale_and_future_arithmetic(unit):
+def test_unit_identity_scale_and_future_arithmetic(unit: Unit) -> None:
     restored = exchange(unit)
     assert type(restored) is type(unit)
     assert restored == unit
@@ -178,7 +193,7 @@ def test_unit_identity_scale_and_future_arithmetic(unit):
 
 
 @pytest.mark.parametrize('name', ['degC', 'dBm', 'dBW', 'dBV', 'K', 'ns'])
-def test_registered_and_zero_origin_coordinates(name):
+def test_registered_and_zero_origin_coordinates(name: str) -> None:
     quantity_type = LogQuantity if name in ('dBm', 'dBW', 'dBV') else AffineQuantity
     quantity = quantity_type(Decimal('12.500'), name)
     for original in (quantity, quantity.unit):
@@ -192,7 +207,7 @@ def test_registered_and_zero_origin_coordinates(name):
 
 
 @pytest.mark.parametrize('kind', [None, 'power', 'amplitude'])
-def test_anonymous_coordinates_preserve_origin_and_explicit_scales(kind):
+def test_anonymous_coordinates_preserve_origin_and_explicit_scales(kind: LogKind | None) -> None:
     if kind is None:
         coordinate = AffineUnit(
             Quantity(Fraction(-7, 3), Unit('s', scale=Factor(3))),
@@ -217,7 +232,7 @@ def test_anonymous_coordinates_preserve_origin_and_explicit_scales(kind):
     )
 
 
-def test_datetime_known_epoch():
+def test_datetime_known_epoch() -> None:
     from datetime import datetime, timezone
 
     epoch = datetime(2000, 1, 1, tzinfo=timezone.utc)
@@ -226,7 +241,7 @@ def test_datetime_known_epoch():
     assert time.to_datetime(exchange(point)) == time.to_datetime(point)
 
 
-def test_decimal_context_cannot_round_origin_or_magnitude():
+def test_decimal_context_cannot_round_origin_or_magnitude() -> None:
     coordinate = AffineUnit(Quantity(Decimal('123456.789'), 's'), delta_unit='ms')
     point = AffineQuantity(Decimal('0.000000123400'), coordinate)
     data = to_dict(point)
@@ -239,7 +254,7 @@ def test_decimal_context_cannot_round_origin_or_magnitude():
         assert not any(context.flags.values())
 
 
-def test_custom_names_prefix_permissions_and_quoted_symbols(isolated_registry):
+def test_custom_names_prefix_permissions_and_quoted_symbols(isolated_registry: None) -> None:
     custom = _register(
         Quantity(Fraction(3, 7), 'm'),
         "sx'\\",
@@ -256,7 +271,7 @@ def test_custom_names_prefix_permissions_and_quoted_symbols(isolated_registry):
     assert exchange(coordinate).symbol == 'sxepoch'
 
 
-def test_unknown_units_fail_without_registration(isolated_registry):
+def test_unknown_units_fail_without_registration(isolated_registry: None) -> None:
     unit = _register(Quantity(2, 'm'), 'sxmissing', 'serialization missing')
     data = to_dict(Quantity(3, unit))
     registry.default_registry._bindings.definitions.pop('sxmissing')
@@ -274,7 +289,9 @@ def test_unknown_units_fail_without_registration(isolated_registry):
 
 
 @pytest.mark.parametrize('replacement', [Quantity(3, 'm'), Quantity(2, 's')])
-def test_same_symbol_changed_meaning_rejected(isolated_registry, replacement):
+def test_same_symbol_changed_meaning_rejected(
+    isolated_registry: None, replacement: Quantity[Magnitude]
+) -> None:
     unit = _register(Quantity(2, 'm'), 'sxdrift', 'serialization drift')
     data = to_dict(unit)
     registry.default_registry._bindings.definitions.pop('sxdrift')
@@ -284,14 +301,14 @@ def test_same_symbol_changed_meaning_rejected(isolated_registry, replacement):
         from_dict(data)
 
 
-def test_equal_physical_scale_does_not_replace_formal_identity():
+def test_equal_physical_scale_does_not_replace_formal_identity() -> None:
     data = to_dict(Unit('Hz'))
     data['expression'] = 'Bq'
     with pytest.raises(SerializationError, match='conflicts'):
         from_dict(data)
 
 
-def test_registry_does_not_rebind_changed_alias_identity(isolated_registry):
+def test_registry_does_not_rebind_changed_alias_identity(isolated_registry: None) -> None:
     # Prefix permission can make an alias the reconstruction spelling. Moving
     # that spelling to an equal-scale distinct unit must not change identity.
     source = _register(
@@ -308,7 +325,7 @@ def test_registry_does_not_rebind_changed_alias_identity(isolated_registry):
         from_dict(data)
 
 
-def test_coordinate_reference_cannot_drift(isolated_registry):
+def test_coordinate_reference_cannot_drift(isolated_registry: None) -> None:
     coordinate = _register(AffineUnit(Quantity(2, 's')), 'sxcoord', 'serialization coordinate')
     data = to_dict(coordinate)
     registry.default_registry._bindings.definitions.pop('sxcoord')
@@ -318,7 +335,7 @@ def test_coordinate_reference_cannot_drift(isolated_registry):
         from_dict(data)
 
 
-def test_unfactored_scale_retains_formal_state():
+def test_unfactored_scale_retains_formal_state() -> None:
     with pytest.warns(IncompleteFactorWarning):
         scale = Factor.from_dict({UnfactoredInteger(1000003 * 1000033, 1000): Fraction(1, 3)})
     quantity = Quantity(Fraction(1, 7), Unit('m', scale=scale))
@@ -330,20 +347,20 @@ def test_unfactored_scale_retains_formal_state():
     assert base.limit == 1000
 
 
-def test_symbolic_scale_is_reconstructed_without_evaluating_label():
+def test_symbolic_scale_is_reconstructed_without_evaluating_label() -> None:
     constant = SymbolicConstant('e', math.e)
     unit = Unit('m', scale=constant ** Fraction(1, 3))
     assert exchange(unit).scale == unit.scale
 
 
 @pytest.mark.parametrize('data', [None, [], 'text', 1])
-def test_records_require_dictionaries(data):
+def test_records_require_dictionaries(data: None | list[object] | str | int) -> None:
     with pytest.raises(TypeError, match='dictionary'):
         from_dict(data)
 
 
 @pytest.mark.parametrize('version', [None, True, '1', 1.0])
-def test_version_is_required_exact_integer(version):
+def test_version_is_required_exact_integer(version: None | bool | str | float) -> None:
     data = to_dict(Unit('m'))
     data['version'] = version
     with pytest.raises(SerializationError, match='version'):
@@ -351,7 +368,7 @@ def test_version_is_required_exact_integer(version):
 
 
 @pytest.mark.parametrize('version', [0, -1, 1, 3])
-def test_serialization_invalid_unsupported_version(version):
+def test_serialization_invalid_unsupported_version(version: int) -> None:
     data = to_dict(Unit('m'))
     data['version'] = version
     with pytest.raises(VersionError, match=f'version {version}; expected 2') as caught:
@@ -361,7 +378,7 @@ def test_serialization_invalid_unsupported_version(version):
     assert not isinstance(caught.value, SerializationError)
 
 
-def test_serialization_error_catch_boundaries():
+def test_serialization_error_catch_boundaries() -> None:
     for error_class in (SerializationError, VersionError):
         error = error_class('test error')
         assert isinstance(error, UnitxError)
@@ -378,7 +395,7 @@ def test_serialization_error_catch_boundaries():
 @pytest.mark.parametrize(
     'expression, cause', [('missingserializationunit', UnitSymbolError), ('m +', UnitSyntaxError)]
 )
-def test_serialization_parse_error_cause(expression, cause):
+def test_serialization_parse_error_cause(expression: str, cause: type[Exception]) -> None:
     data = to_dict(Unit('m'))
     data['expression'] = expression
     with pytest.raises(SerializationError) as caught:
@@ -395,7 +412,7 @@ def test_serialization_parse_error_cause(expression, cause):
         ('decimal', 'bad decimal', InvalidOperation),
     ],
 )
-def test_serialization_numeric_error_cause(kind, value, cause):
+def test_serialization_numeric_error_cause(kind: str, value: str, cause: type[Exception]) -> None:
     data = to_dict(Quantity(1, 'm'))
     data['value'] = {'type': kind, 'value': value}
     with pytest.raises(SerializationError) as caught:
@@ -403,8 +420,8 @@ def test_serialization_numeric_error_cause(kind, value, cause):
     assert isinstance(caught.value.__cause__, cause)
 
 
-def test_serialization_internal_error_propagates(monkeypatch):
-    def fail(data, registry):
+def test_serialization_internal_error_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(data: object, registry: Registry | None) -> NoReturn:
         error_message = 'Unexpected implementation failure.'
         raise RuntimeError(error_message)
 
@@ -414,14 +431,14 @@ def test_serialization_internal_error_propagates(monkeypatch):
 
 
 @pytest.mark.parametrize('field', ['version', 'type', 'expression', 'factor', 'identity'])
-def test_missing_fields_fail(field):
+def test_missing_fields_fail(field: str) -> None:
     data = to_dict(Unit('m'))
     data.pop(field)
     with pytest.raises(SerializationError):
         from_dict(data)
 
 
-def test_unknown_fields_and_tags_rejected():
+def test_unknown_fields_and_tags_rejected() -> None:
     data = to_dict(Unit('m'))
     data['extra'] = None
     with pytest.raises(SerializationError, match='fields'):
@@ -474,7 +491,7 @@ def test_unknown_fields_and_tags_rejected():
         ('factor', [{'type': 'prime', 'value': '2', 'exponent': ['1', '1']}] * 2),
     ],
 )
-def test_invalid_unit_metadata_is_rejected_without_mutation(field, value):
+def test_invalid_unit_metadata_is_rejected_without_mutation(field: str, value: object) -> None:
     data = to_dict(Unit('m'))
     data[field] = value
     before = copy.deepcopy(data)
@@ -485,7 +502,7 @@ def test_invalid_unit_metadata_is_rejected_without_mutation(field, value):
     assert registry.default_registry._bindings.definitions == registry_before
 
 
-def test_nested_type_boundaries():
+def test_nested_type_boundaries() -> None:
     linear = to_dict(Quantity(1, 'K'))
     linear['unit'] = to_dict(AffineQuantity(0, 'degC'))['unit']
     with pytest.raises(SerializationError, match='linear unit'):
@@ -500,7 +517,7 @@ def test_nested_type_boundaries():
         from_dict(coordinate)
 
 
-def test_invalid_coordinate_kind_and_dimension():
+def test_invalid_coordinate_kind_and_dimension() -> None:
     data = to_dict(AffineUnit(Quantity(0, 's')))
     data['kind'] = 'invalid'
     with pytest.raises(SerializationError, match='kind'):
@@ -513,7 +530,7 @@ def test_invalid_coordinate_kind_and_dimension():
     assert isinstance(caught.value.__cause__, DimensionError)
 
 
-def test_factor_symbol_conflicts_are_rejected():
+def test_factor_symbol_conflicts_are_rejected() -> None:
     data = to_dict(Unit('m', scale=pi))
     data['scale'] = [
         {'type': 'symbolic', 'symbol': 'x', 'value': value.hex(), 'exponent': ['1', '1']}
@@ -538,7 +555,7 @@ def test_factor_symbol_conflicts_are_rejected():
         {'type': 'decimal', 'value': 'no number'},
     ],
 )
-def test_invalid_scalars_rejected(scalar):
+def test_invalid_scalars_rejected(scalar: dict[str, object]) -> None:
     data = to_dict(Quantity(1, 'm'))
     data['value'] = scalar
     with localcontext() as context:
@@ -550,12 +567,12 @@ def test_invalid_scalars_rejected(scalar):
 
 
 @pytest.mark.parametrize('value', [True, 1j, '1'])
-def test_unsupported_magnitudes_rejected(value):
+def test_unsupported_magnitudes_rejected(value: bool | complex | str) -> None:
     with pytest.raises(TypeError, match='magnitude'):
         to_dict(Quantity(value, 'm'))
 
 
-def test_subclasses_are_not_silently_normalized():
+def test_subclasses_are_not_silently_normalized() -> None:
     class Integer(int):
         pass
 
@@ -572,14 +589,14 @@ def test_subclasses_are_not_silently_normalized():
         to_dict(Quantity(Integer(1), 'm'))
 
 
-def test_numpy_is_explicitly_unsupported():
+def test_numpy_is_explicitly_unsupported() -> None:
     np = pytest.importorskip('numpy')
     for value in (np.float64(1), np.int64(1), np.array(1), np.array([1, 2])):
         with pytest.raises(TypeError, match='magnitude'):
             to_dict(Quantity(value, 'm'))
 
 
-def test_result_and_input_records_do_not_alias():
+def test_result_and_input_records_do_not_alias() -> None:
     original = Quantity(Fraction(1, 3), Unit('m', scale=pi))
     data = to_dict(original)
     before = copy.deepcopy(data)
@@ -590,7 +607,7 @@ def test_result_and_input_records_do_not_alias():
     assert to_dict(original) == before
 
 
-def test_cross_process_json_without_numpy():
+def test_cross_process_json_without_numpy() -> None:
     quantity = AffineQuantity(Fraction(123, 7), imperial.degF)
     source = Path(__file__).resolve().parents[1] / 'src'
     script = f"""import sys, json, importlib.util
@@ -614,7 +631,7 @@ assert 'numpy' not in sys.modules
     assert from_dict(json.loads(result.stdout), registry=imperial._registry) == quantity
 
 
-def test_serialization_imperial_coordinate():
+def test_serialization_imperial_coordinate() -> None:
     quantity = AffineQuantity(Decimal('32.50'), imperial.degF)
     for original in (quantity, imperial.degF):
         restored = exchange(original, registry=imperial._registry)
@@ -639,7 +656,7 @@ def test_serialization_imperial_coordinate():
         {'uuid': '01'},
     ],
 )
-def test_serialization_invalid_definition_id(identity):
+def test_serialization_invalid_definition_id(identity: str | dict[str, object]) -> None:
     record = to_dict(Unit('m'))
     record['identity'][0][2] = identity
     with pytest.raises(SerializationError):

@@ -93,7 +93,12 @@ in static analysis. Result dtype and shape remain determined by NumPy.
 
 The test suite runs strict scalar fixtures with and without NumPy and checks
 array consumers separately when NumPy is installed. `tests/typing` and
-`tests/numpy_typing` are static fixtures, not runtime test modules.
+`tests/numpy_typing` are static fixtures excluded from pytest collection.
+The small `check_asarray.py` regression requires NumPy >= 2.5 stubs; other array
+fixtures cover the full supported NumPy range. Notebook checks extract the
+actual code and add selected type assertions, rather than maintaining copies
+of scientific examples. Runtime test annotations describe fixtures and test
+data; they do not replace static `assert_type()` checks of public inference.
 
 ```sh
 python -m pyright --pythonpath /path/to/your/python

@@ -1,5 +1,7 @@
 """Public SI namespaces, conversions, and constant values."""
 
+from __future__ import annotations
+
 import copy
 import os
 import pickle
@@ -12,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from unitx._constnamespace import ConstNamespace
 from unitx.exceptions import UnitSymbolError
 from unitx.factor import pi
 from unitx.quantity import Quantity, quantity
@@ -195,7 +198,7 @@ def test_particle_helion_g_factor() -> None:
     ('namespace', 'attribute'),
     [(si, 'm'), (SI, 'c'), (Particle, 'me'), (au, 'length'), (nu, 'charge'), (Planck, 'mass')],
 )
-def test_si_namespace_readonly(namespace, attribute: str) -> None:
+def test_si_namespace_readonly(namespace: type[ConstNamespace], attribute: str) -> None:
     before = getattr(namespace, attribute)
     with pytest.raises(TypeError):
         namespace()
@@ -257,7 +260,9 @@ importlib.import_module('unitx.si')
         (Planck, 'temperature', 'K', 1.416784e32),
     ],
 )
-def test_physical_unit_scales(namespace, attribute: str, unit: str, value: float) -> None:
+def test_physical_unit_scales(
+    namespace: type[ConstNamespace], attribute: str, unit: str, value: float
+) -> None:
     scale = getattr(namespace, attribute)
     assert type(scale.value) is Decimal
     assert float(scale.value_in(unit)) == pytest.approx(value, rel=5e-7, abs=0)

@@ -1,5 +1,7 @@
 """Explicit definition blocks coexist with catalogue class scopes."""
 
+from __future__ import annotations
+
 import asyncio
 from decimal import Decimal
 
@@ -11,7 +13,7 @@ from unitx.serialization import from_dict, to_dict
 from unitx.si import si
 
 
-def test_registry_defining_units():
+def test_registry_defining_units() -> None:
     registry = Registry([si.m, si.s])
     with registry.defining() as selected:
         assert selected is registry
@@ -32,7 +34,7 @@ def test_registry_defining_units():
         registry.parse('woutside')
 
 
-def test_registry_defining_nested_failure():
+def test_registry_defining_nested_failure() -> None:
     outer, inner = Registry(), Registry()
     with outer.defining():
         first = si.m.define('wfirst', 'with first')
@@ -56,8 +58,8 @@ def test_registry_defining_nested_failure():
             registry.parse('wafter')
 
 
-def test_registry_defining_helper():
-    def make():
+def test_registry_defining_helper() -> None:
+    def make() -> Unit:
         return (2 * si.s).define('wtime', 'with time')
 
     registry = Registry()
@@ -67,7 +69,7 @@ def test_registry_defining_helper():
     assert make() != duration
 
 
-def test_registry_defining_affine_unit():
+def test_registry_defining_affine_unit() -> None:
     registry = Registry()
     with registry.defining():
         step = si.K.define('wK', 'with kelvin')
@@ -77,7 +79,7 @@ def test_registry_defining_affine_unit():
     assert from_dict(to_dict(3 @ temperature), registry=registry) == 3 @ temperature
 
 
-def test_registry_defining_parsing_stays_default():
+def test_registry_defining_parsing_stays_default() -> None:
     registry = Registry()
     with registry.defining():
         byte = Unit().define('B', 'byte')
@@ -90,7 +92,7 @@ def test_registry_defining_parsing_stays_default():
     assert byte.dimension == si.one.dimension and si.B.dimension != si.one.dimension
 
 
-def test_registry_defining_invalid_definition():
+def test_registry_defining_invalid_definition() -> None:
     registry = Registry([si.m])
     with registry.defining():
         with pytest.raises(UnitRegistryError):
@@ -102,7 +104,7 @@ def test_registry_defining_invalid_definition():
         registry.parse('[with conflicting metre]')
 
 
-def test_registry_defining_explicit_target():
+def test_registry_defining_explicit_target() -> None:
     selected = Registry()
     explicit = Registry()
     with selected.defining():
@@ -116,7 +118,7 @@ def test_registry_defining_explicit_target():
         explicit.parse('wtwo')
 
 
-def test_registry_defining_catalogue_nesting():
+def test_registry_defining_catalogue_nesting() -> None:
     outer = Registry()
     inner = Registry()
     with outer.defining():
@@ -148,7 +150,7 @@ def test_registry_defining_catalogue_nesting():
         catalogue.parse('wmass')
 
 
-def test_registry_defining_catalogue_failure():
+def test_registry_defining_catalogue_failure() -> None:
     registry = Registry()
     with registry.defining():
         with pytest.raises(RuntimeError, match='catalogue failed'):
@@ -163,11 +165,11 @@ def test_registry_defining_catalogue_failure():
     assert (1 * registry.parse('wfailed')).value_in(si.m) == 1
 
 
-def test_registry_defining_async_isolation():
-    async def exercise():
+def test_registry_defining_async_isolation() -> None:
+    async def exercise() -> list[tuple[Registry, Unit]]:
         ready = [asyncio.Event(), asyncio.Event()]
 
-        async def worker(index, source):
+        async def worker(index: int, source: Unit) -> tuple[Registry, Unit]:
             registry = Registry()
             with registry.defining():
                 ready[index].set()
@@ -187,14 +189,14 @@ def test_registry_defining_async_isolation():
         Unit('wshared')
 
 
-def test_registry_defining_async_inheritance():
-    async def make():
+def test_registry_defining_async_inheritance() -> None:
+    async def make() -> Unit:
         await asyncio.sleep(0)
         return si.m.define('wtask', 'with task')
 
     registry = Registry()
 
-    async def exercise():
+    async def exercise() -> Unit:
         with registry.defining():
             task = asyncio.create_task(make())
         # Task context is copied at creation, even when it outlives the block.
@@ -205,7 +207,7 @@ def test_registry_defining_async_inheritance():
     assert asyncio.run(make()) != result
 
 
-def test_registry_defining_failure_restores_catalogue():
+def test_registry_defining_failure_restores_catalogue() -> None:
     registry = Registry()
 
     class catalogue(UnitCatalog):

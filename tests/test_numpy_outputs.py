@@ -1,6 +1,13 @@
 """Unit-aware function and reduction outputs, including shared storage."""
 
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 import pytest
+
+from unitx._numerics import Magnitude
 
 np = pytest.importorskip('numpy')
 
@@ -8,12 +15,15 @@ from unitx import Quantity, Unit  # noqa: E402
 from unitx.exceptions import DimensionError  # noqa: E402
 from unitx.factor import Factor  # noqa: E402
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
 
 @pytest.mark.parametrize(
     'operation',
     [np.sum, np.mean, np.median, np.std, np.var, np.cumsum, np.add.reduce, np.add.accumulate],
 )
-def test_numpy_function_out_conversion(operation):
+def test_numpy_function_out_conversion(operation: Callable[..., object]) -> None:
     unit = Factor(2) * Unit('m')
     q = Quantity(np.arange(6.0).reshape(2, 3), unit)
     natural_unit = unit**2 if operation is np.var else unit
@@ -31,7 +41,7 @@ def test_numpy_function_out_conversion(operation):
 
 
 @pytest.mark.parametrize('operation', [np.sum, np.mean, np.median, np.std, np.var, np.add.reduce])
-def test_numpy_reduction_out_axes(operation):
+def test_numpy_reduction_out_axes(operation: Callable[..., object]) -> None:
     q = Quantity(np.arange(24.0).reshape(2, 3, 4), 'm')
     unit = 'm2' if operation is np.var else 'm'
     expected = operation(q.value, axis=(0, -1), keepdims=True)
@@ -40,7 +50,7 @@ def test_numpy_reduction_out_axes(operation):
     np.testing.assert_allclose(target.value, expected)
 
 
-def test_numpy_function_out_positional():
+def test_numpy_function_out_positional() -> None:
     q = Quantity(np.array([1.0, 2.0, 3.0]), 'm')
     target = Quantity(np.array(-123.0), 'cm')
     for operation in (np.sum, np.mean, np.std, np.var):
@@ -59,7 +69,7 @@ def test_numpy_function_out_positional():
 
 
 @pytest.mark.parametrize('operation', [np.concatenate, np.stack])
-def test_numpy_join_out_conversion(operation):
+def test_numpy_join_out_conversion(operation: Callable[..., object]) -> None:
     q = Quantity(np.arange(3.0), 'm')
     other = Quantity(np.arange(3.0) * 100, 'cm')
     expected = operation((q.value, q.value)) * 1000
@@ -71,7 +81,7 @@ def test_numpy_join_out_conversion(operation):
     assert operation((q, other), 0, target) is target
 
 
-def test_numpy_join_out_alias():
+def test_numpy_join_out_alias() -> None:
     storage = np.arange(6.0)
     q = Quantity(storage, 'm')
     assert np.concatenate((q[3:], q[:3]), out=q) is q
@@ -79,7 +89,7 @@ def test_numpy_join_out_alias():
 
 
 @pytest.mark.parametrize('operation', [np.argmin, np.argmax])
-def test_numpy_index_out(operation):
+def test_numpy_index_out(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([[3, 1, 4], [2, 7, 0]]), 'm')
     storage = np.full((3, 2), -123, dtype=np.intp)
     target = storage[:, 0]
@@ -91,7 +101,7 @@ def test_numpy_index_out(operation):
     np.testing.assert_array_equal(kept, operation(q.value, axis=0, keepdims=True))
 
 
-def test_numpy_reduction_out_storage():
+def test_numpy_reduction_out_storage() -> None:
     storage = np.arange(6.0).reshape(2, 3)
     q = Quantity(storage, 'm')
     target = Quantity(storage[0], 'cm')
@@ -107,7 +117,7 @@ def test_numpy_reduction_out_storage():
     np.testing.assert_array_equal(separate.value, [603, 1607, 3012])
 
 
-def test_numpy_function_out_empty():
+def test_numpy_function_out_empty() -> None:
     q = Quantity(np.empty((0, 3)), 'm')
     target = Quantity(np.full(3, -123.0), 'cm')
     assert np.sum(q, axis=0, out=target) is target
@@ -122,7 +132,7 @@ def test_numpy_function_out_empty():
 
 
 @pytest.mark.parametrize('operation', [np.sum, np.add.reduce, np.cumsum, np.add.accumulate])
-def test_numpy_function_out_invalid_dimension(operation):
+def test_numpy_function_out_invalid_dimension(operation: Callable[..., object]) -> None:
     q = Quantity(np.arange(3.0), 'm')
     target = Quantity(np.full(np.shape(operation(q.value)), -123.0), 's')
     with pytest.raises(DimensionError, match='out has an incompatible dimension'):
@@ -131,7 +141,7 @@ def test_numpy_function_out_invalid_dimension(operation):
 
 
 @pytest.mark.parametrize('shape', [(1,), (2, 3), (0,)])
-def test_numpy_reduction_out_invalid_shape(shape):
+def test_numpy_reduction_out_invalid_shape(shape: tuple[int, ...]) -> None:
     q = Quantity(np.arange(3.0), 'm')
     for operation in (np.sum, np.add.reduce, np.argmax):
         buffer = np.full(shape, -123, dtype=np.intp)
@@ -141,7 +151,7 @@ def test_numpy_reduction_out_invalid_shape(shape):
         np.testing.assert_array_equal(buffer, -123)
 
 
-def test_numpy_function_out_invalid_buffer():
+def test_numpy_function_out_invalid_buffer() -> None:
     q = Quantity(np.arange(3.0), 'm')
     for target in (np.array(-123.0), Quantity(1, 'm'), Quantity(np.float64(1), 'm')):
         with pytest.raises(TypeError, match='plain numeric ndarray'):
@@ -156,7 +166,7 @@ def test_numpy_function_out_invalid_buffer():
 @pytest.mark.parametrize(
     'target', [np.array(-123.0), np.array(False), Quantity(np.array(-123), '')]
 )
-def test_numpy_index_out_invalid_buffer(target):
+def test_numpy_index_out_invalid_buffer(target: NDArray[np.generic] | Quantity[Magnitude]) -> None:
     q = Quantity(np.arange(3.0), 'm')
     with pytest.raises(TypeError, match='Unitless out'):
         np.argmax(q, out=target)
@@ -165,7 +175,7 @@ def test_numpy_index_out_invalid_buffer(target):
     )
 
 
-def test_numpy_function_out_invalid_cast():
+def test_numpy_function_out_invalid_cast() -> None:
     q = Quantity(np.array([1.0, 2.5]), 'cm')
     target = Quantity(np.array(-123), 'm')
     for operation in (np.sum, np.mean, np.median, np.add.reduce):
@@ -182,7 +192,7 @@ def test_numpy_function_out_invalid_cast():
     np.testing.assert_allclose(narrow.value, 0.035)
 
 
-def test_numpy_join_out_invalid_options():
+def test_numpy_join_out_invalid_options() -> None:
     q = Quantity(np.array([1.0]), 'cm')
     target = Quantity(np.full(2, -123), 'm')
     with pytest.raises(TypeError):
@@ -198,7 +208,7 @@ def test_numpy_join_out_invalid_options():
     np.testing.assert_array_equal(target.value, 0)
 
 
-def test_numpy_function_out_invalid_kernel():
+def test_numpy_function_out_invalid_kernel() -> None:
     q = Quantity(np.array([np.inf, np.inf]), 'm')
     target = Quantity(np.array(-123.0), 'm2')
     with np.errstate(invalid='raise'):
@@ -210,14 +220,22 @@ def test_numpy_function_out_invalid_kernel():
     assert target.value == -123
 
 
-def test_numpy_reduction_out_protocol():
+def test_numpy_reduction_out_protocol() -> None:
     q = Quantity(np.arange(3.0), 'm')
 
     class Foreign:
-        def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        def __array_ufunc__(
+            self, ufunc: np.ufunc, method: str, *inputs: object, **kwargs: object
+        ) -> str:
             return 'foreign dispatched'
 
-        def __array_function__(self, func, types, args, kwargs):
+        def __array_function__(
+            self,
+            func: Callable[..., object],
+            types: tuple[type[object], ...],
+            args: tuple[object, ...],
+            kwargs: dict[str, object],
+        ) -> str:
             return 'foreign dispatched'
 
     assert np.add.reduce(q, out=Foreign()) == 'foreign dispatched'

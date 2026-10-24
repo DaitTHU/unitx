@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import math as stdmath
 import subprocess
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -8,11 +11,15 @@ from unitx import AffineQuantity, Quantity, math, time
 from unitx.exceptions import DimensionError
 from unitx.unit import Unit
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+
 np = pytest.importorskip('numpy')
 
 
 @pytest.mark.parametrize('numpy_first', [True, False])
-def test_math_numpy_import_order(numpy_first):
+def test_math_numpy_import_order(numpy_first: bool) -> None:
     imports = 'import numpy as np\nfrom unitx import math, Quantity'
     if not numpy_first:
         imports = 'from unitx import math, Quantity\nimport numpy as np'
@@ -27,7 +34,7 @@ assert q.unit.expression() == 'm'
     subprocess.run([sys.executable, '-c', code], check=True)
 
 
-def test_math_numpy_roots():
+def test_math_numpy_roots() -> None:
     values = np.arange(16.0).reshape(4, 4)[:, ::2]
     q = Quantity(values, 'cm2')
     result = math.sqrt(q)
@@ -39,7 +46,7 @@ def test_math_numpy_roots():
     assert math.sqrt(Quantity(np.empty(0), 'm2')).value.size == 0
 
 
-def test_math_numpy_angles():
+def test_math_numpy_angles() -> None:
     result = math.sin(Quantity(np.array([0.0, 90]), 'deg'))
     np.testing.assert_allclose(result.value, [0, 1])
     for function, native in [
@@ -52,7 +59,7 @@ def test_math_numpy_angles():
         np.testing.assert_allclose(result.value, native([0.0, 0.5]))
 
 
-def test_math_numpy_broadcast():
+def test_math_numpy_broadcast() -> None:
     y = Quantity(np.array([[3.0], [5.0]]), 'm')
     x = Quantity(np.array([400.0, 1200]), 'cm')
     result = math.hypot(y, x)
@@ -68,7 +75,7 @@ def test_math_numpy_broadcast():
     )
 
 
-def test_math_numpy_error_domains():
+def test_math_numpy_error_domains() -> None:
     with np.errstate(invalid='raise'):
         with pytest.raises(FloatingPointError):
             math.sqrt(np.array([-1.0]))
@@ -84,13 +91,13 @@ def test_math_numpy_error_domains():
 
 
 @pytest.mark.parametrize('value', [np.array([1.0]), np.array(1.0), np.float64(1.0)])
-def test_time_numpy_invalid(value):
+def test_time_numpy_invalid(value: NDArray[np.generic] | np.float64) -> None:
     for function in (time.sleep, time.to_timedelta):
         with pytest.raises(TypeError, match='magnitude'):
             function(Quantity(value, 's'))
 
 
-def test_math_numpy_ufunc_outputs():
+def test_math_numpy_ufunc_outputs() -> None:
     q = Quantity(np.array([0.0, 1]), '')
     out = Quantity(np.array([7.0, 7]), 'deg')
     result = q.__array_ufunc__(np.arcsin, '__call__', q, out=(out,), where=np.array([False, True]))

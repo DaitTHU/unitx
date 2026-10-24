@@ -1,10 +1,13 @@
 """Collection preserves immutable definitions and keeps persistence separate."""
 
+from __future__ import annotations
+
 import copy
 import os
 import pickle
 import subprocess
 import sys
+from pathlib import Path
 from uuid import UUID
 
 import pytest
@@ -17,7 +20,7 @@ from unitx.unitdefinition import UnitDefinition
 
 
 @pytest.mark.parametrize('protocol', range(pickle.HIGHEST_PROTOCOL + 1))
-def test_unit_definition_pickle(protocol):
+def test_unit_definition_pickle(protocol: int) -> None:
     definition = UnitDefinition('span')
     assert isinstance(definition._key, UUID)
     assert pickle.loads(pickle.dumps(definition, protocol=protocol)) is definition
@@ -27,8 +30,8 @@ def test_unit_definition_pickle(protocol):
     assert definition.symbol == 'span'
 
 
-def test_unit_catalog_collects_final_definitions():
-    def make():
+def test_unit_catalog_collects_final_definitions() -> None:
+    def make() -> Unit:
         si.s.define('unused')
         return si.m.define('span', prefixable=False)
 
@@ -52,7 +55,7 @@ def test_unit_catalog_collects_final_definitions():
         receiver.parse('kspan')
 
 
-def test_unit_catalog_no_immediate_parsing():
+def test_unit_catalog_no_immediate_parsing() -> None:
     class survey(UnitCatalog):
         span = si.m.define('collectionSpan')
         doubled = (2 * span).define('collectionDouble')
@@ -63,7 +66,7 @@ def test_unit_catalog_no_immediate_parsing():
     assert 1 * survey.doubled == 2 * si.m
 
 
-def test_unit_catalog_shared_registry_updates():
+def test_unit_catalog_shared_registry_updates() -> None:
     registry = Registry([si.m])
 
     class survey(UnitCatalog, registry=registry):
@@ -77,7 +80,7 @@ def test_unit_catalog_shared_registry_updates():
     assert survey.parse('span/s') == survey.span / si.s
 
 
-def test_unit_catalog_json_before_collection():
+def test_unit_catalog_json_before_collection() -> None:
     class thermal(UnitCatalog):
         step = si.K.define('collectionStep')
         reading = AffineUnit(10 * step).define('collectionReading')
@@ -96,7 +99,7 @@ def test_unit_catalog_json_before_collection():
         from_dict(thermal.point_record, registry=other)
 
 
-def test_unit_catalog_invalid_collection_atomic():
+def test_unit_catalog_invalid_collection_atomic() -> None:
     registry = Registry([si.m])
     with pytest.raises(UnitRegistryError):
 
@@ -109,7 +112,7 @@ def test_unit_catalog_invalid_collection_atomic():
         registry.parse('collectionFirst')
 
 
-def test_unit_catalog_publication_explicit_units():
+def test_unit_catalog_publication_explicit_units() -> None:
     external = si.s.define('unpublishedStep')
     shared = Registry([external])
     saved = to_dict(external)
@@ -126,7 +129,7 @@ def test_unit_catalog_publication_explicit_units():
     assert to_dict(external) == saved
 
 
-def test_unit_catalog_module_recreation_independent():
+def test_unit_catalog_module_recreation_independent() -> None:
     namespace = {'__name__': 'collection_catalogue', 'UnitCatalog': UnitCatalog, 'source': si.m}
     source = "class survey(UnitCatalog):\n    span = source.define('span')"
     exec(source, namespace)
@@ -141,7 +144,7 @@ def test_unit_catalog_module_recreation_independent():
 
 
 @pytest.mark.parametrize('dependency', ['reference', 'delta', 'nested_reference'])
-def test_unit_catalog_pickle_dependency_metadata(tmp_path, dependency):
+def test_unit_catalog_pickle_dependency_metadata(tmp_path: Path, dependency: str) -> None:
     module = tmp_path / 'thermal_catalogue.py'
     module.write_text("""
 import os

@@ -1,10 +1,13 @@
 """Public display contracts, escaping and numerical independence."""
 
+from __future__ import annotations
+
 import pickle
 import subprocess
 import sys
 from decimal import Decimal, localcontext
 from fractions import Fraction
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,8 +16,11 @@ from unitx.factor import Factor
 from unitx.quantity import Quantity
 from unitx.unit import Unit
 
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike
 
-def test_structural_unit_rendering():
+
+def test_structural_unit_rendering() -> None:
     unit = Unit('kg m / (s^2 A)')
     assert unit.to_latex() == r'\text{kg}\,\text{m}/(\text{s}^{2}\,\text{A})'
     assert unit.to_html() == '<span class="unitx">kg&thinsp;m/(s<sup>2</sup>&thinsp;A)</span>'
@@ -24,7 +30,7 @@ def test_structural_unit_rendering():
 
 
 @pytest.mark.parametrize('unit', [Unit(), Unit('m/s^2'), Unit('m', scale=Factor(Fraction(2, 3)))])
-def test_notebook_protocol(unit):
+def test_notebook_protocol(unit: Unit) -> None:
     for obj in (unit, Quantity(Fraction(2, 3), unit)):
         assert obj._repr_latex_() == '$' + obj.to_latex() + '$'
         assert obj._repr_html_() == obj.to_html()
@@ -33,7 +39,7 @@ def test_notebook_protocol(unit):
         assert repr(restored) == repr(obj)
 
 
-def test_unit_scale_keeps_exact_scale():
+def test_unit_scale_keeps_exact_scale() -> None:
     unit = Unit('m', scale=Factor(Fraction(2, 3)))
     assert unit.to_latex() == r'\text{2}/\text{3}\,\text{m}'
     assert Quantity(4, unit).to_latex() == (r'\text{4}\,\left(\text{2}/\text{3}\,\text{m}\right)')
@@ -57,7 +63,7 @@ def test_unit_scale_keeps_exact_scale():
         Unit('s^(-1/2)', scale=Factor(2) ** Fraction(1, 3)),
     ],
 )
-def test_affine_quantity_zero_origin_display(unit):
+def test_affine_quantity_zero_origin_display(unit: Unit) -> None:
     value = Decimal('3.00')
     point = AffineQuantity(value, unit)
     linear = Quantity(value, unit)
@@ -78,7 +84,7 @@ def test_affine_quantity_zero_origin_display(unit):
     assert point.unit.delta_unit is unit
 
 
-def test_affine_quantity_named_zero_origin_display():
+def test_affine_quantity_named_zero_origin_display() -> None:
     unit = Unit('m', scale=Factor(2))
     coordinate = AffineUnit(0 * unit).define('displaySpan')
     point = 3 @ coordinate
@@ -88,7 +94,7 @@ def test_affine_quantity_named_zero_origin_display():
 
 
 @pytest.mark.parametrize('spec', ['', '.2f', '>12.3e', ';text', '.1f;latex', '.1f;html'])
-def test_format_numeric_delegation(spec):
+def test_format_numeric_delegation(spec: str) -> None:
     q = Quantity(Decimal('12.345'), 'm/s')
     if not spec:
         assert format(q, spec) == str(q)
@@ -100,7 +106,7 @@ def test_format_numeric_delegation(spec):
         assert format(q, spec) == expected[style]
 
 
-def test_native_precision_and_errors():
+def test_native_precision_and_errors() -> None:
     q = Quantity(Decimal('12345678901234567890.123456789'), 'm')
     with localcontext() as ctx:
         ctx.prec = 2
@@ -120,7 +126,7 @@ def test_native_precision_and_errors():
     assert format(Quantity(2, '1/s'), '04d') == '0002/s'
 
 
-def test_literal_text_escaping():
+def test_literal_text_escaping() -> None:
     # Low-level escaping also handles characters excluded from registered tokens.
     from unitx._display import latex_text, product
 
@@ -134,7 +140,7 @@ def test_literal_text_escaping():
         assert escaped in latex
 
 
-def test_numpy_display_keeps_array_and_native_format_boundary():
+def test_numpy_display_keeps_array_and_native_format_boundary() -> None:
     np = pytest.importorskip('numpy')
     array = np.arange(12).reshape(3, 4)[:, ::2]
     array.flags.writeable = False
@@ -160,7 +166,7 @@ def test_numpy_display_keeps_array_and_native_format_boundary():
         assert item.value is value
 
 
-def test_display_does_not_import_optional_backends():
+def test_display_does_not_import_optional_backends() -> None:
     code = """
 import sys
 from unitx.quantity import Quantity
@@ -178,9 +184,9 @@ assert optional.intersection(sys.modules) == before
     subprocess.run([sys.executable, '-c', code], check=True)
 
 
-def test_custom_magnitude_formatting_and_escaping():
+def test_custom_magnitude_formatting_and_escaping() -> None:
     class Labeled(int):
-        def __format__(self, spec):
+        def __format__(self, spec: str) -> str:
             return '<b>&$' + spec
 
     q = Quantity(Labeled(2), 'm')
@@ -189,7 +195,7 @@ def test_custom_magnitude_formatting_and_escaping():
     assert r'\text{<b>\&\$custom}' in q.to_latex('custom')
 
 
-def test_complex_grouping_and_scale_immutability():
+def test_complex_grouping_and_scale_immutability() -> None:
     q = Quantity(1 + 2j, Unit('m/s', scale=Factor(Fraction(2, 3))))
     original = repr(q)
     assert format(q, '.1f').startswith('(1.0+2.0j) ')
@@ -199,7 +205,7 @@ def test_complex_grouping_and_scale_immutability():
     assert repr(q) == original
 
 
-def test_ipython_mime_dispatch_when_available():
+def test_ipython_mime_dispatch_when_available() -> None:
     ipython = pytest.importorskip('IPython.core.formatters')
     formatter = ipython.DisplayFormatter()
     for obj in (Unit('m/s'), Unit('m', scale=Factor(2)), Quantity(Fraction(2, 3), 'm')):
@@ -223,7 +229,7 @@ def test_ipython_mime_dispatch_when_available():
         ('.2f', '(1.00+2.00j)'),
     ],
 )
-def test_complex_native_parentheses_and_alignment(spec, expected):
+def test_complex_native_parentheses_and_alignment(spec: str, expected: str) -> None:
     q = Quantity(1 + 2j, 'm')
     assert format(q, spec) == expected + ' m'
     from html import escape
@@ -235,7 +241,7 @@ def test_complex_native_parentheses_and_alignment(spec, expected):
     )
 
 
-def test_registered_symbol_escaping():
+def test_registered_symbol_escaping() -> None:
     from unitx.unitregistry import default_registry
 
     tables = (
@@ -260,7 +266,7 @@ def test_registered_symbol_escaping():
             table.update(snapshot)
 
 
-def test_scaled_dimensionless_unit_is_not_hidden():
+def test_scaled_dimensionless_unit_is_not_hidden() -> None:
     q = Quantity(2, 'km/m')
     assert q.to_latex() == r'\text{2}\,\text{km}/\text{m}'
     assert q.to_html() == (
@@ -283,7 +289,9 @@ def test_scaled_dimensionless_unit_is_not_hidden():
         (Decimal('-NaN'), '', r'-\mathrm{NaN}', '-NaN'),
     ],
 )
-def test_scientific_and_special_real_magnitudes(value, spec, latex, html):
+def test_scientific_and_special_real_magnitudes(
+    value: float | Decimal, spec: str, latex: str, html: str
+) -> None:
     q = Quantity(value, 'm')
     assert q.to_latex(spec) == latex + r'\,\text{m}'
     assert q.to_html(spec) == (
@@ -295,7 +303,7 @@ def test_scientific_and_special_real_magnitudes(value, spec, latex, html):
     assert format(q, spec + ';html') == q.to_html(spec)
 
 
-def test_unit_format_selection_and_alignment():
+def test_unit_format_selection_and_alignment() -> None:
     unit = Unit('kg m/(s^2 A)')
     assert format(unit, '') == str(unit)
     assert format(unit, 'text') == str(unit)
@@ -310,7 +318,7 @@ def test_unit_format_selection_and_alignment():
         format(unit, '.2f')
 
 
-def test_inline_fractional_powers_and_extra_scale():
+def test_inline_fractional_powers_and_extra_scale() -> None:
     unit = Unit('m^(1/3)/s', scale=Factor(Fraction(2, 3)))
     expected = r'\text{2}\,\text{3}^{-1}\,\text{m}^{1/3}\,\text{s}^{-1}'
     assert unit.to_latex(fraction=False) == expected
@@ -322,13 +330,13 @@ def test_inline_fractional_powers_and_extra_scale():
     assert unit.scale == Factor(Fraction(2, 3))
 
 
-def test_rich_numbers_respect_custom_formatting_and_padding():
+def test_rich_numbers_respect_custom_formatting_and_padding() -> None:
     class LiteralFloat(float):
-        def __format__(self, spec):
+        def __format__(self, spec: str) -> str:
             return '1e9'
 
     class LiteralFraction(Fraction):
-        def __format__(self, spec):
+        def __format__(self, spec: str) -> str:
             return 'custom fraction'
 
     assert Quantity(LiteralFloat(2), '').to_latex() == r'\text{1e9}'
@@ -341,7 +349,7 @@ def test_rich_numbers_respect_custom_formatting_and_padding():
     assert Quantity(0.0, '').to_latex('.1e') == r'0.0\times 10^{0}'
 
 
-def test_numpy_scalars_and_arrays_have_distinct_rich_boundaries():
+def test_numpy_scalars_and_arrays_have_distinct_rich_boundaries() -> None:
     np = pytest.importorskip('numpy')
     assert Quantity(np.float64(1.234e-6), '').to_latex('.2e') == r'1.23\times 10^{-6}'
     assert Quantity(np.float32('inf'), '').to_latex() == r'\infty'
@@ -355,7 +363,7 @@ def test_numpy_scalars_and_arrays_have_distinct_rich_boundaries():
 
 
 @pytest.mark.parametrize('unit', [Unit(), Unit('', scale=Factor(1))])
-def test_identity_unit_is_omitted_in_all_quantity_representations(unit):
+def test_identity_unit_is_omitted_in_all_quantity_representations(unit: Unit) -> None:
     q = Quantity(4, unit)
     assert q.to_latex() == r'\text{4}'
     assert q.to_latex(fraction=False) == r'\text{4}'
@@ -364,7 +372,7 @@ def test_identity_unit_is_omitted_in_all_quantity_representations(unit):
 
 
 @pytest.mark.parametrize('dtype', ['complex64', 'complex128', 'clongdouble'])
-def test_numpy_complex_scalars_keep_necessary_grouping(dtype):
+def test_numpy_complex_scalars_keep_necessary_grouping(dtype: DTypeLike) -> None:
     np = pytest.importorskip('numpy')
     value = getattr(np, dtype)(1 + 2j)
     q = Quantity(value, 'm')
@@ -383,7 +391,7 @@ def test_numpy_complex_scalars_keep_necessary_grouping(dtype):
         ('m^(1/2)/s^(1/3)', r'\text{m}^{1/2}/\text{s}^{1/3}'),
     ],
 )
-def test_latex_defaults_to_slash_unit_fractions(source, expected):
+def test_latex_defaults_to_slash_unit_fractions(source: str, expected: str) -> None:
     unit = Unit(source)
     q = Quantity(Fraction(2, 3), unit)
     assert unit.to_latex() == expected
@@ -396,7 +404,7 @@ def test_latex_defaults_to_slash_unit_fractions(source, expected):
     assert q.to_latex(fraction=False).startswith(r'\frac{2}{3}\,')
 
 
-def test_removed_latex_inline_format_is_rejected():
+def test_removed_latex_inline_format_is_rejected() -> None:
     unit = Unit('m/s')
     with pytest.raises(ValueError):
         format(unit, 'latex_inline')

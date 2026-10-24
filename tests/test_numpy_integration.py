@@ -1,16 +1,26 @@
 """Trapezoidal integrals combine ordinate and coordinate units."""
 
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 import pytest
+
+from unitx._numerics import Magnitude
 
 np = pytest.importorskip('numpy')
 
 from unitx import Quantity, Unit  # noqa: E402
 from unitx.factor import Factor  # noqa: E402
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
 
 @pytest.mark.parametrize('y_unit', [Unit('A'), Factor(2) * Unit('mA')])
 @pytest.mark.parametrize('x_unit', [Unit('ms'), Factor(3) * Unit('s')])
-def test_trapezoid_coordinate_units(y_unit, x_unit):
+def test_trapezoid_coordinate_units(y_unit: Unit, x_unit: Unit) -> None:
     current = Quantity(np.array([1.0, 2, 4]), y_unit)
     time = Quantity(np.array([0.0, 2, 5]), x_unit)
     charge = np.trapezoid(current, x=time)
@@ -21,7 +31,7 @@ def test_trapezoid_coordinate_units(y_unit, x_unit):
     np.testing.assert_array_equal(time.value, [0, 2, 5])
 
 
-def test_trapezoid_mixed_inputs():
+def test_trapezoid_mixed_inputs() -> None:
     values = np.array([1.0, 2, 3])
     coordinates = np.array([0.0, 1, 2])
     assert np.trapezoid(Quantity(values, 'V'), coordinates).isclose(Quantity(4, 'V'))
@@ -31,7 +41,9 @@ def test_trapezoid_mixed_inputs():
 
 
 @pytest.mark.parametrize('spacing', [2, np.float32(2), np.array(2.0), Quantity(2, 's')])
-def test_trapezoid_spacing(spacing):
+def test_trapezoid_spacing(
+    spacing: int | np.float32 | NDArray[np.generic] | Quantity[Magnitude],
+) -> None:
     current = Quantity(np.array([1.0, 2, 3]), 'A')
     result = np.trapezoid(current, dx=spacing)
     assert result.value == 8
@@ -40,7 +52,7 @@ def test_trapezoid_spacing(spacing):
 
 @pytest.mark.parametrize('axis', [0, 1, -1])
 @pytest.mark.parametrize('coordinate_rank', [1, 2])
-def test_trapezoid_axes(axis, coordinate_rank):
+def test_trapezoid_axes(axis: int, coordinate_rank: int) -> None:
     values = np.arange(12.0).reshape(3, 4)[:, ::-1]
     coordinates = np.arange(values.shape[axis], dtype=float)
     if coordinate_rank == 2:
@@ -53,12 +65,12 @@ def test_trapezoid_axes(axis, coordinate_rank):
 
 
 @pytest.mark.parametrize('size', [0, 1])
-def test_trapezoid_empty_intervals(size):
+def test_trapezoid_empty_intervals(size: int) -> None:
     result = np.trapezoid(Quantity(np.ones(size), 'V'), dx=Quantity(2, 's'))
     assert result.value == 0 and result.unit == Unit('V s')
 
 
-def test_trapezoid_oriented_coordinates():
+def test_trapezoid_oriented_coordinates() -> None:
     y = Quantity(np.array([1.0, 2, 4]), 'A')
     x = Quantity(np.array([0.0, 2, 5]), 's')
     forward = np.trapezoid(y, x)
@@ -68,25 +80,31 @@ def test_trapezoid_oriented_coordinates():
     assert np.trapezoid(y, x, dx=object()).isclose(forward)
 
 
-def test_trapezoid_invalid_spacing():
+def test_trapezoid_invalid_spacing() -> None:
     with pytest.raises(TypeError, match='dx must be'):
         np.trapezoid(Quantity(np.arange(3.0), 'm'), dx=Quantity(np.ones(2), 's'))
 
 
-def test_trapezoid_invalid_shape():
+def test_trapezoid_invalid_shape() -> None:
     with pytest.raises(ValueError):
         np.trapezoid(Quantity(np.arange(3.0), 'm'), Quantity(np.arange(5.0), 's'))
 
 
-def test_trapezoid_invalid_options():
+def test_trapezoid_invalid_options() -> None:
     q = Quantity(np.arange(3.0), 'm')
     with pytest.raises(TypeError):
         np.trapezoid(q, out=q)
 
 
-def test_trapezoid_foreign_protocol():
+def test_trapezoid_foreign_protocol() -> None:
     class Foreign:
-        def __array_function__(self, func, types, args, kwargs):
+        def __array_function__(
+            self,
+            func: Callable[..., object],
+            types: tuple[type[object], ...],
+            args: tuple[object, ...],
+            kwargs: dict[str, object],
+        ) -> str:
             return 'foreign dispatched'
 
     q = Quantity(np.arange(3.0), 'm')

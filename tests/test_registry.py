@@ -1,5 +1,7 @@
 """Explicit environments bind text; constructed units keep definition identity."""
 
+from __future__ import annotations
+
 import copy
 import json
 import os
@@ -9,6 +11,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal, localcontext
 from fractions import Fraction
+from pathlib import Path
 from threading import Barrier
 
 import pytest
@@ -23,7 +26,7 @@ from unitx.singleunit import SingleUnit
 from unitx.unitparser import UnitParser
 
 
-def test_registry_shared_identity():
+def test_registry_shared_identity() -> None:
     left, right = Registry([si.m, si.s]), Registry([si.m])
     assert left.parse('m') == right.parse('metre') == si.m
     assert hash(left.parse('m')) == hash(si.m)
@@ -33,7 +36,7 @@ def test_registry_shared_identity():
     assert right.parse('m/s') == left.parse('m/s')
 
 
-def test_registry_concurrent_reads():
+def test_registry_concurrent_reads() -> None:
     registry = Registry([si.m, si.s])
     span = registry.define(2 * si.m, 'span', 'project span', symbol_aliases='sp')
     cases = (
@@ -44,7 +47,7 @@ def test_registry_concurrent_reads():
     )
     ready = Barrier(len(cases))
 
-    def read(case):
+    def read(case: tuple[str, Unit]) -> None:
         expression, expected = case
         for _ in range(20):
             ready.wait(timeout=10)
@@ -56,7 +59,7 @@ def test_registry_concurrent_reads():
         list(workers.map(read, cases))
 
 
-def test_registry_independent_identity():
+def test_registry_independent_identity() -> None:
     left, right = Registry(), Registry()
     first = left.define(si.m, 'span', 'private span')
     second = right.define(si.m, 'span', 'private span')
@@ -71,7 +74,7 @@ def test_registry_independent_identity():
     assert (Quantity(1, first) + Quantity(2, second)).value == 3
 
 
-def test_registry_conflicting_symbol():
+def test_registry_conflicting_symbol() -> None:
     alternate = Registry()
     byte = alternate.define(Unit(), 'B', 'byte')
     assert alternate.parse('B') == byte
@@ -82,7 +85,7 @@ def test_registry_conflicting_symbol():
         alternate.parse('bel')
 
 
-def test_registry_no_fallback():
+def test_registry_no_fallback() -> None:
     private = Registry()
     assert private.parse('') == Unit()
     with pytest.raises(UnitSymbolError):
@@ -93,12 +96,12 @@ def test_registry_no_fallback():
 
 
 @pytest.mark.parametrize('units', [None, False, 0])
-def test_registry_invalid_units(units):
+def test_registry_invalid_units(units: None | bool | int) -> None:
     with pytest.raises(TypeError):
         Registry(units)
 
 
-def test_registry_parser_retry():
+def test_registry_parser_retry() -> None:
     private = Registry([si.s])
     parser = UnitParser('[private distance] / s', registry=private)
     with pytest.raises(UnitSymbolError):
@@ -115,7 +118,7 @@ def test_registry_parser_retry():
 @pytest.mark.parametrize(
     'symbol, name', [('m', 'other'), ('cm', 'other'), ('span', 'metre second')]
 )
-def test_registry_invalid_conflict(symbol, name):
+def test_registry_invalid_conflict(symbol: str, name: str) -> None:
     private = Registry([si.m, si.s])
     original = private.parse('m/s')
     with pytest.raises(UnitRegistryError):
@@ -125,7 +128,7 @@ def test_registry_invalid_conflict(symbol, name):
         private.parse('other')
 
 
-def test_registry_include_invalid_conflict():
+def test_registry_include_invalid_conflict() -> None:
     private = Registry([si.s])
     private.define(si.s, 'm', 'private metre', prefixable=False)
     with pytest.raises(UnitRegistryError):
@@ -135,7 +138,7 @@ def test_registry_include_invalid_conflict():
     assert private.parse('m').dimension == si.s.dimension
 
 
-def test_registry_include_shares_definition():
+def test_registry_include_shares_definition() -> None:
     first, second = Registry(), Registry()
     unit = first.define(si.m, 'span')
     second.include(unit)
@@ -144,14 +147,14 @@ def test_registry_include_shares_definition():
     assert next(iter(unit._monomial.bases()))._unit is next(iter(shared._monomial.bases()))._unit
 
 
-def test_registry_include_batch():
+def test_registry_include_batch() -> None:
     private = Registry()
     private.include(si.m, si.s, si.m)
     assert private.parse('metre/second') == si.m / si.s
     assert {private.parse('m'): 'length'}[si.m] == 'length'
 
 
-def test_registry_include_invalid_batch_conflict():
+def test_registry_include_invalid_batch_conflict() -> None:
     private = Registry([si.m])
     conflicting = si.s.define('m', prefixable=False)
     with pytest.raises(UnitRegistryError):
@@ -161,7 +164,7 @@ def test_registry_include_invalid_batch_conflict():
         private.parse('second')
 
 
-def test_registry_include_invalid_batch_object():
+def test_registry_include_invalid_batch_object() -> None:
     private = Registry([si.m])
     with pytest.raises(TypeError, match='Registry.include requires Unit or named AffineUnit'):
         private.include(si.s, 3)
@@ -170,7 +173,7 @@ def test_registry_include_invalid_batch_object():
 
 
 @pytest.mark.parametrize('protocol', range(pickle.HIGHEST_PROTOCOL + 1))
-def test_registry_pickle_identity(protocol):
+def test_registry_pickle_identity(protocol: int) -> None:
     private = Registry()
     unit = private.define(si.m, 'span', 'private span')
     for original in (unit, Unit._from_monomial(UnitParser('kspan', registry=private).parse())):
@@ -184,7 +187,7 @@ def test_registry_pickle_identity(protocol):
     assert pickle.loads(pickle.dumps(combined, protocol=protocol)) == combined
 
 
-def test_registry_reconstruction():
+def test_registry_reconstruction() -> None:
     private = Registry([si.s])
     unit = private.define(si.m, 'span', 'private span')
     single = next(iter(UnitParser('kspan', registry=private).parse().bases()))
@@ -200,7 +203,7 @@ def test_registry_reconstruction():
     assert pickle.loads(pickle.dumps(definition)) is definition
 
 
-def test_registry_json_receiver():
+def test_registry_json_receiver() -> None:
     private = Registry()
     unit = private.define(si.m, 'span', 'private span')
     record = json.loads(json.dumps(to_dict(Quantity(Fraction(2, 7), unit))))
@@ -213,7 +216,7 @@ def test_registry_json_receiver():
         from_dict(record, registry=other)
 
 
-def test_registry_affine_bound_unit():
+def test_registry_affine_bound_unit() -> None:
     private = Registry()
     kelvin = private.define(si.K, 'degC', 'private temperature')
     # A bound Unit named degC must not acquire the default Celsius offset.
@@ -231,7 +234,7 @@ def test_registry_affine_bound_unit():
 
 
 @pytest.mark.parametrize('protocol', range(pickle.HIGHEST_PROTOCOL + 1))
-def test_registry_scaled_coordinate_reconstruction(protocol):
+def test_registry_scaled_coordinate_reconstruction(protocol: int) -> None:
     reference = Unit(si.K, scale=pi)
     delta = Unit(si.K, scale=pi / 2)
     named = AffineUnit(10 * reference, delta_unit=delta).define('scaledReading')
@@ -246,7 +249,7 @@ def test_registry_scaled_coordinate_reconstruction(protocol):
     assert from_dict(to_dict(point), registry=private) == point
 
 
-def test_registry_fresh_process_identity(tmp_path):
+def test_registry_fresh_process_identity(tmp_path: Path) -> None:
     module = tmp_path / 'survey_catalogue.py'
     module.write_text("""
 from unitx import AffineUnit, LogUnit, UnitCatalog
@@ -295,7 +298,7 @@ else:
         (imperial.lbf, si.N),
     ],
 )
-def test_imperial_exact_conversion(value, target):
+def test_imperial_exact_conversion(value: Unit, target: Unit) -> None:
     expected = {
         imperial.inch: Fraction('0.0254'),
         imperial.ft: Fraction('0.3048'),
@@ -306,7 +309,7 @@ def test_imperial_exact_conversion(value, target):
     assert Quantity(1, value).value_in(target) == expected[value]
 
 
-def test_imperial_catalogue():
+def test_imperial_catalogue() -> None:
     from unitx.imperial import imperial as namespace
 
     assert namespace is imperial
@@ -330,13 +333,13 @@ def test_imperial_catalogue():
         namespace.ft = si.m
 
 
-def test_imperial_module_import():
+def test_imperial_module_import() -> None:
     import unitx.imperial.units as definitions
 
     assert imperial.ft is definitions.imperial.ft
 
 
-def test_unit_catalog_shared_entry():
+def test_unit_catalog_shared_entry() -> None:
     from unitx.imperial import imperial as namespace
 
     assert issubclass(si, UnitCatalog)
@@ -349,7 +352,7 @@ def test_unit_catalog_shared_entry():
         namespace._registry = Registry()
 
 
-def test_unit_catalog_custom_entry():
+def test_unit_catalog_custom_entry() -> None:
     class laboratory(UnitCatalog, units=(si.m,)):
         span = (2 * si.m).define('span', 'laboratory span')
 
@@ -359,7 +362,7 @@ def test_unit_catalog_custom_entry():
         laboratory.parse('s')
 
 
-def test_registry_prefix_default():
+def test_registry_prefix_default() -> None:
     registry = Registry(prefixable=False)
     span = registry.define(si.m, 'span')
     assert registry.parse('[span]') == span
@@ -375,12 +378,12 @@ def test_registry_prefix_default():
 
 
 @pytest.mark.parametrize('policy', [None, 1, 'span', ()])
-def test_registry_invalid_prefix_default(policy):
+def test_registry_invalid_prefix_default(policy: None | int | str | tuple[object, ...]) -> None:
     with pytest.raises(TypeError, match='default must be bool'):
         Registry(prefixable=policy)
 
 
-def test_imperial_prefix_permissions():
+def test_imperial_prefix_permissions() -> None:
     from unitx.imperial import imperial_historical, us
 
     for catalogue in (imperial, imperial_historical, us):
@@ -403,7 +406,7 @@ def test_imperial_prefix_permissions():
 
 
 @pytest.mark.parametrize('symbol', ['m', 'dB', 'Np', 'dBm'])
-def test_registry_coordinate_repr_conflicting_text(symbol):
+def test_registry_coordinate_repr_conflicting_text(symbol: str) -> None:
     registry = Registry([si.K])
     with registry.defining():
         coordinate = AffineUnit(10 * si.K).define(symbol)

@@ -1,14 +1,19 @@
 """NumPy's numeric domain, unit rules, and deliberate failure boundaries."""
 
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from decimal import Decimal, localcontext
 from fractions import Fraction
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
+from unitx._numerics import Array
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
@@ -16,10 +21,14 @@ from unitx.unit import Unit
 
 from ._notebooks import notebook_source
 
+if TYPE_CHECKING:
+    from numpy.typing import ArrayLike, DTypeLike, NDArray
+
+
 np = pytest.importorskip('numpy')
 
 
-def assert_quantity(q, values, unit):
+def assert_quantity(q: Quantity[Array], values: ArrayLike, unit: str | Unit) -> None:
     assert isinstance(q, Quantity)
     np.testing.assert_allclose(q.value, values)
     assert q.unit == Unit(unit) if isinstance(unit, str) else q.unit == unit
@@ -28,7 +37,9 @@ def assert_quantity(q, values, unit):
 
 @pytest.mark.parametrize('unit', [Unit('m'), Factor(2) * Unit('m')])
 @pytest.mark.parametrize('value', [np.arange(4), np.array(3.0), np.float32(2), np.int64(4)])
-def test_construction_preserves_entire_magnitude(unit, value):
+def test_construction_preserves_entire_magnitude(
+    unit: Unit, value: NDArray[np.generic] | np.float32 | np.int64
+) -> None:
     for q in (value * unit, unit * value, value / unit, Quantity(value, unit)):
         assert isinstance(q, Quantity)
         assert q.value is value
@@ -54,12 +65,12 @@ def test_construction_preserves_entire_magnitude(unit, value):
         (1, 2),
     ],
 )
-def test_unsupported_magnitudes(value):
+def test_unsupported_magnitudes(value: object) -> None:
     with pytest.raises(TypeError):
         Quantity(value, 'm')
 
 
-def test_no_implicit_coercion_or_unit_removal():
+def test_no_implicit_coercion_or_unit_removal() -> None:
     for value in (1, np.arange(3), np.array(1)):
         for unit in ('', 'm', 'km/m'):
             for convert in (np.array, np.asarray):
@@ -69,7 +80,7 @@ def test_no_implicit_coercion_or_unit_removal():
     np.testing.assert_array_equal(np.asarray(q.value_in('cm')), [0, 100, 200])
 
 
-def test_views_index_iteration_and_metadata():
+def test_views_index_iteration_and_metadata() -> None:
     a = np.arange(12).reshape(3, 4)[:, ::2]
     a.flags.writeable = False
     q = Quantity(a, 'm')
@@ -95,7 +106,7 @@ def test_views_index_iteration_and_metadata():
 
 
 @pytest.mark.parametrize('value', [np.array([1], dtype=np.int16), np.array(1), np.float32(1)])
-def test_quantity_numpy_result_types(value):
+def test_quantity_numpy_result_types(value: NDArray[np.generic] | np.float32) -> None:
     q = Quantity(value, 'm')
     for actual, expected in (
         (q * 2, np.multiply(value, 2)),
@@ -110,7 +121,7 @@ def test_quantity_numpy_result_types(value):
     assert q.flatten().value.dtype == value.dtype
 
 
-def test_scaling_identity_rational_irrational_dtype_and_storage():
+def test_scaling_identity_rational_irrational_dtype_and_storage() -> None:
     a = np.arange(4, dtype=np.int16)
     q = Quantity(a, 'm')
     assert q.to('m').value is a
@@ -131,7 +142,7 @@ def test_scaling_identity_rational_irrational_dtype_and_storage():
         Quantity(np.array([1], dtype=np.int8), 'km').to('mm')
 
 
-def test_exact_scale_stays_in_unit_algebra():
+def test_exact_scale_stays_in_unit_algebra() -> None:
     q = Quantity(np.arange(3), 'cm')
     for result in (q * Factor(2), Factor(2) * q, q / pi):
         assert result.value is q.value
@@ -141,7 +152,7 @@ def test_exact_scale_stays_in_unit_algebra():
 
 
 @pytest.mark.parametrize('operation', [np.add, np.subtract])
-def test_addition_broadcast_and_scaled_dimensionless(operation):
+def test_addition_broadcast_and_scaled_dimensionless(operation: np.ufunc) -> None:
     a = Quantity(np.array([[1], [2]]), 'm')
     b = Quantity(np.array([0, 100, 200]), 'cm')
     assert_quantity(operation(a, b), operation(a.value, b.value / 100), 'm')
@@ -155,7 +166,7 @@ def test_addition_broadcast_and_scaled_dimensionless(operation):
             operation(a, other)
 
 
-def test_operators_and_matmul():
+def test_operators_and_matmul() -> None:
     a = Quantity(np.array([1.0, 2.0]), 'm')
     b = Quantity(np.array([2.0, 4.0]), 's')
     assert_quantity(a * b, [2, 8], 'm s')
@@ -175,7 +186,7 @@ def test_operators_and_matmul():
 
 @pytest.mark.parametrize('value', [Decimal('1.25'), Fraction(5, 4)])
 @pytest.mark.parametrize('dtype', [np.int32, np.float32, np.float64, np.complex64])
-def test_quantity_numpy_scalar_mixing(value, dtype):
+def test_quantity_numpy_scalar_mixing(value: Decimal | Fraction, dtype: DTypeLike) -> None:
     a = np.array([2, 4], dtype=dtype)
     q = Quantity(a, 'm')
     scalar = Quantity(value, 'm')
@@ -194,7 +205,7 @@ def test_quantity_numpy_scalar_mixing(value, dtype):
     np.testing.assert_array_equal(q.value, a)
 
 
-def test_quantity_numpy_decimal_context():
+def test_quantity_numpy_decimal_context() -> None:
     from unitx.si import SI
 
     constant = SI.h.value
@@ -208,7 +219,7 @@ def test_quantity_numpy_decimal_context():
 
 
 @pytest.mark.parametrize('exponent', [Fraction(1, 3), Decimal('0.25')])
-def test_quantity_numpy_exact_exponent(exponent):
+def test_quantity_numpy_exact_exponent(exponent: Fraction | Decimal) -> None:
     q = Quantity(np.array([64.0]), 'm')
     for power in (exponent, Quantity(exponent * 1000, 'm/km')):
         result = np.power(q, power)
@@ -216,7 +227,7 @@ def test_quantity_numpy_exact_exponent(exponent):
         np.testing.assert_allclose(result.value, np.power(q.value, float(exponent)))
 
 
-def test_quantity_numpy_scalar_output():
+def test_quantity_numpy_scalar_output() -> None:
     q = Quantity(np.array([1.0, 2.0]), 'm')
     target = Quantity(np.zeros(2), 'cm')
     assert np.multiply(q, Decimal('0.25'), out=target) is target
@@ -227,7 +238,7 @@ def test_quantity_numpy_scalar_output():
     )
 
 
-def test_quantity_numpy_blackbody():
+def test_quantity_numpy_blackbody() -> None:
     from unitx.si import SI, si
 
     lam = si.um * np.linspace(0.01, 3, 100)[:, None]
@@ -246,7 +257,7 @@ def test_quantity_numpy_blackbody():
     np.testing.assert_allclose(peaks, float(SI.b.value_in('um K')) / T.value, atol=0.02)
 
 
-def test_numpy_blackbody_example(tmp_path, monkeypatch):
+def test_numpy_blackbody_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     matplotlib = pytest.importorskip('matplotlib')
     matplotlib.use('Agg')
     from matplotlib import pyplot as plt
@@ -272,7 +283,7 @@ def test_numpy_blackbody_example(tmp_path, monkeypatch):
 @pytest.mark.parametrize(
     'operation', [np.equal, np.not_equal, np.less, np.less_equal, np.greater, np.greater_equal]
 )
-def test_comparison_broadcast_mixed_domain(operation):
+def test_comparison_broadcast_mixed_domain(operation: np.ufunc) -> None:
     a = Quantity(np.array([[1], [2]]), 'm')
     b = Quantity(np.array([100.0, 200.0]), 'cm')
     np.testing.assert_array_equal(operation(a, b), operation(a.value, b.value * 0.01))
@@ -290,7 +301,7 @@ def test_comparison_broadcast_mixed_domain(operation):
             operation(a, Quantity(np.array([1, 2]), 's'))
 
 
-def test_python_comparisons_and_hash_truth():
+def test_python_comparisons_and_hash_truth() -> None:
     q = Quantity(np.array([1, 2]), 'm')
     np.testing.assert_array_equal(q == Quantity(100, 'cm'), [True, False])
     np.testing.assert_array_equal(Quantity(100, 'cm') != q, [False, True])
@@ -307,12 +318,12 @@ def test_python_comparisons_and_hash_truth():
 @pytest.mark.parametrize(
     'operation,power', [(np.square, 2), (np.sqrt, Fraction(1, 2)), (np.cbrt, Fraction(1, 3))]
 )
-def test_exact_root_units(operation, power):
+def test_exact_root_units(operation: np.ufunc, power: int | Fraction) -> None:
     q = Quantity(np.array([1.0, 8.0]), Factor(2) * Unit('m'))
     assert_quantity(operation(q), operation(q.value), q.unit**power)
 
 
-def test_power_uniform_exponent_and_scaled_dimensionless():
+def test_power_uniform_exponent_and_scaled_dimensionless() -> None:
     q = Quantity(np.array([1.0, 4.0]), 'm2')
     assert_quantity(q ** Fraction(1, 2), [1, 2], 'm')
     assert_quantity(q ** Decimal('.5'), [1, 2], 'm')
@@ -329,7 +340,7 @@ def test_power_uniform_exponent_and_scaled_dimensionless():
 
 
 @pytest.mark.parametrize('operation', [np.sin, np.cos, np.exp, np.log])
-def test_dimensionless_functions_normalize_scale(operation):
+def test_dimensionless_functions_normalize_scale(operation: np.ufunc) -> None:
     q = Quantity(np.array([1.0, 2.0]), 'km/m')
     with np.errstate(over='ignore'):
         assert_quantity(operation(q), operation(q.value * 1000), '')
@@ -343,7 +354,7 @@ def test_dimensionless_functions_normalize_scale(operation):
 
 
 @pytest.mark.parametrize('operation', [np.sum, np.mean, np.std, np.median, np.var, np.cumsum])
-def test_reductions(operation):
+def test_reductions(operation: Callable[..., object]) -> None:
     q = Quantity(np.arange(6.0).reshape(2, 3), Factor(2) * Unit('cm'))
     assert_quantity(
         operation(q, axis=0),
@@ -359,7 +370,7 @@ def test_reductions(operation):
         )
 
 
-def test_empty_zero_dim_and_ufunc_methods():
+def test_empty_zero_dim_and_ufunc_methods() -> None:
     q = Quantity(np.array([], dtype=float), 'm')
     assert_quantity(np.sum(q), 0, 'm')
     assert (q == Quantity(1, 'm')).shape == (0,)
@@ -373,7 +384,7 @@ def test_empty_zero_dim_and_ufunc_methods():
             method(q, q) if method == np.add.outer else method(q)
 
 
-def test_reshape_join_predicates_and_positions():
+def test_reshape_join_predicates_and_positions() -> None:
     q = Quantity(np.arange(6.0), 'm')
     reshaped = np.reshape(q, (2, 3))
     assert np.shares_memory(reshaped.value, q.value)
@@ -386,7 +397,7 @@ def test_reshape_join_predicates_and_positions():
     assert np.argmax(q) == 5
 
 
-def test_close_symmetric_vs_numpy_and_units():
+def test_close_symmetric_vs_numpy_and_units() -> None:
     a = Quantity(np.array([10.0, 0.0, np.inf, np.nan]), 'm')
     b = Quantity(np.array([900.0, 0.0, np.inf, np.nan]), 'cm')
     np.testing.assert_array_equal(a.isclose(b, rel_tol=0.1), [True, True, True, False])
@@ -412,7 +423,7 @@ def test_close_symmetric_vs_numpy_and_units():
 
 
 @pytest.mark.parametrize('tolerance', [np.array([-0.1]), np.array([np.inf]), np.array([np.nan])])
-def test_close_bad_tolerances(tolerance):
+def test_close_bad_tolerances(tolerance: NDArray[np.generic]) -> None:
     q = Quantity(np.arange(3.0), 'm')
     with pytest.raises(ValueError):
         q.isclose(q, rel_tol=tolerance)
@@ -424,7 +435,7 @@ def test_close_bad_tolerances(tolerance):
         q.isclose(q, rel_tol=Quantity(0.1, 'm'))
 
 
-def test_unsupported_outputs_do_not_mutate():
+def test_unsupported_outputs_do_not_mutate() -> None:
     q = Quantity(np.arange(3.0), 'm')
     buffer = np.full(3, -123.0)
     target = Quantity(buffer, 'm')
@@ -455,7 +466,7 @@ def test_unsupported_outputs_do_not_mutate():
 
 
 @pytest.mark.parametrize('tuple_out', [False, True])
-def test_ufunc_out_conversion(tuple_out):
+def test_ufunc_out_conversion(tuple_out: bool) -> None:
     q = Quantity(np.array([1.0, 2.0, 3.0]), 'm')
     buffer = np.full(3, -1.0)
     unit = Factor(2) * Unit('cm')
@@ -467,7 +478,7 @@ def test_ufunc_out_conversion(tuple_out):
     assert_quantity(np.add(q, q, out=(None,)), [2, 4, 6], 'm')
 
 
-def test_ufunc_out_broadcast():
+def test_ufunc_out_broadcast() -> None:
     # A zero-dimensional result can broadcast into a larger output buffer.
     target = Quantity(np.empty((2, 3)), 'cm')
     assert np.add(Quantity(1, 'm'), Quantity(2, 'm'), target) is target
@@ -479,7 +490,7 @@ def test_ufunc_out_broadcast():
     assert np.negative(Quantity(np.empty((0, 3)), 'm'), out=empty) is empty
 
 
-def test_ufunc_out_mask():
+def test_ufunc_out_mask() -> None:
     target = Quantity(np.full(3, -123.0), 'cm')
     # Masked-out invalid values are neither evaluated nor scaled for writing.
     q = Quantity(np.array([1.0, 0.0, 3.0]), 'm')
@@ -494,7 +505,7 @@ def test_ufunc_out_mask():
 
 
 @pytest.mark.parametrize('operation', [np.multiply, np.divide, np.sqrt, np.matmul])
-def test_ufunc_out_unit_algebra(operation):
+def test_ufunc_out_unit_algebra(operation: np.ufunc) -> None:
     a = Quantity(np.array([[1.0, 4.0], [9.0, 16.0]]), 'cm2')
     b = Quantity(np.full((2, 2), 2.0), 's')
     expected = operation(a) if operation is np.sqrt else operation(a, b)
@@ -504,7 +515,7 @@ def test_ufunc_out_unit_algebra(operation):
     np.testing.assert_allclose(target.value, expected.value * 2)
 
 
-def test_ufunc_out_dimensionless():
+def test_ufunc_out_dimensionless() -> None:
     target = Quantity(np.zeros(2), 'km/m')
     assert np.exp(Quantity(np.zeros(2), ''), out=target) is target
     assert_quantity(target, [0.001, 0.001], 'km/m')
@@ -515,7 +526,7 @@ def test_ufunc_out_dimensionless():
 
 
 @pytest.mark.parametrize('casting', ['same_kind', 'safe', 'no'])
-def test_ufunc_out_casting(casting):
+def test_ufunc_out_casting(casting: str) -> None:
     q = Quantity(np.array([1.0, 2.0], dtype=np.float64), 'm')
     buffer = np.full(2, -123.0, dtype=np.float32)
     target = Quantity(buffer, 'm')
@@ -529,7 +540,7 @@ def test_ufunc_out_casting(casting):
         np.testing.assert_array_equal(buffer, [-123, -123])
 
 
-def test_ufunc_out_integer_casting():
+def test_ufunc_out_integer_casting() -> None:
     q = Quantity(np.array([1, 2], dtype=np.int64), 'cm')
     target = Quantity(np.full(2, -123, dtype=np.int64), 'm')
     with pytest.raises(TypeError):
@@ -543,7 +554,7 @@ def test_ufunc_out_integer_casting():
     assert_quantity(floating, [0.02, 0.04], 'm')
 
 
-def test_ufunc_out_shared_storage():
+def test_ufunc_out_shared_storage() -> None:
     storage = np.arange(6.0)
     source = Quantity(storage[:-1], 'm')
     target = Quantity(storage[1:], 'cm')
@@ -557,7 +568,7 @@ def test_ufunc_out_shared_storage():
     np.testing.assert_array_equal(a.value, expected)
 
 
-def test_ufunc_out_strided_buffer():
+def test_ufunc_out_strided_buffer() -> None:
     storage = np.full((2, 6), -123.0)
     target = Quantity(storage[:, ::2], 'm')
     q = Quantity(np.arange(6.0).reshape(2, 3), pi * Unit('m'))
@@ -570,7 +581,7 @@ def test_ufunc_out_strided_buffer():
     assert_quantity(target, readonly.value * 2, 'm')
 
 
-def test_ufunc_out_shared_mask():
+def test_ufunc_out_shared_mask() -> None:
     storage = np.array([True, False, True, False, True, False])
     target = storage[1:]
     mask = storage[:-1]
@@ -581,7 +592,7 @@ def test_ufunc_out_shared_mask():
     np.testing.assert_array_equal(target, np.where(original_mask, expected, original))
 
 
-def test_ufunc_out_invalid_scale():
+def test_ufunc_out_invalid_scale() -> None:
     q = Quantity(np.array([1, 2], dtype=np.int8), 'km')
     target = Quantity(np.full(2, -123.0), 'mm')
     with pytest.raises(OverflowError):
@@ -593,7 +604,7 @@ def test_ufunc_out_invalid_scale():
     np.testing.assert_array_equal(target.value, [-123] * 2)
 
 
-def test_ufunc_out_invalid_buffer():
+def test_ufunc_out_invalid_buffer() -> None:
     q = Quantity(np.arange(3.0), 'm')
     for target in (Quantity(np.full(3, -123.0), 's'), Quantity(np.full(2, -123.0), 'm')):
         with pytest.raises((DimensionError, ValueError)):
@@ -615,7 +626,7 @@ def test_ufunc_out_invalid_buffer():
     np.testing.assert_array_equal(target.value, [-123] * 3)
 
 
-def test_ufunc_out_cast_error():
+def test_ufunc_out_cast_error() -> None:
     q = Quantity(np.array([1.0, 1e300]), 'm')
     target = Quantity(np.full(2, -123.0, dtype=np.float32), 'm')
     with np.errstate(over='raise'):
@@ -625,7 +636,7 @@ def test_ufunc_out_cast_error():
 
 
 @pytest.mark.parametrize('operation', [np.isfinite, np.equal])
-def test_ufunc_out_predicates(operation):
+def test_ufunc_out_predicates(operation: np.ufunc) -> None:
     q = Quantity(np.array([1.0, np.inf, np.nan]), 'm')
     target = np.array([False, True, True])
     args = (q, q) if operation is np.equal else (q,)
@@ -637,11 +648,13 @@ def test_ufunc_out_predicates(operation):
         operation(*args, out=Quantity(np.empty(3), ''))
 
 
-def test_ufunc_out_protocol():
+def test_ufunc_out_protocol() -> None:
     q = Quantity(np.arange(3.0), 'm')
 
     class Foreign:
-        def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        def __array_ufunc__(
+            self, ufunc: np.ufunc, method: str, *inputs: object, **kwargs: object
+        ) -> str:
             return 'foreign dispatched'
 
     assert np.add(q, q, out=Foreign()) == 'foreign dispatched'
@@ -652,7 +665,7 @@ def test_ufunc_out_protocol():
 
 
 @pytest.mark.parametrize('numpy_first', [True, False])
-def test_import_order(numpy_first):
+def test_import_order(numpy_first: bool) -> None:
     lines = ['import numpy as np', 'from unitx import Unit, Quantity']
     if not numpy_first:
         lines.reverse()
@@ -661,7 +674,7 @@ def test_import_order(numpy_first):
     subprocess.run([sys.executable, '-c', script], env=env, check=True, timeout=20)
 
 
-def test_core_does_not_import_numpy():
+def test_core_does_not_import_numpy() -> None:
     src = Path(__file__).resolve().parents[1] / 'src'
     script = f"""
 import sys
@@ -675,11 +688,13 @@ assert 'numpy' not in sys.modules
     subprocess.run([sys.executable, '-S', '-c', script], check=True, timeout=20)
 
 
-def test_unknown_protocol_inputs_allow_other_dispatch():
+def test_unknown_protocol_inputs_allow_other_dispatch() -> None:
     q = Quantity(np.arange(2), 'm')
 
     class Foreign:
-        def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        def __array_ufunc__(
+            self, ufunc: np.ufunc, method: str, *inputs: object, **kwargs: object
+        ) -> str:
             return 'foreign dispatched'
 
     other = Foreign()
@@ -693,7 +708,7 @@ def test_unknown_protocol_inputs_allow_other_dispatch():
         Quantity(other, 'm')
 
 
-def test_tolerance_broadcast_scale_nan_and_empty():
+def test_tolerance_broadcast_scale_nan_and_empty() -> None:
     q = Quantity(np.array([[1.0], [2.0]]), 'm')
     other = Quantity(np.array([100.0, 201.0]), 'cm')
     tol = Quantity(np.array([0.0, 2.0]), 'cm')
@@ -705,7 +720,7 @@ def test_tolerance_broadcast_scale_nan_and_empty():
     assert_quantity(Quantity(np.array([4.0]), 'km/m') ** Fraction(1, 2), np.sqrt([4000.0]), '')
 
 
-def test_numpy_scalars_and_zero_dim_outputs():
+def test_numpy_scalars_and_zero_dim_outputs() -> None:
     for value in (np.float32(1), np.array(1, dtype=np.float32)):
         q = Quantity(value, 'm')
         assert_quantity(q.to('cm'), np.multiply(value, 100), 'cm')
@@ -720,7 +735,7 @@ def test_numpy_scalars_and_zero_dim_outputs():
             convert(q, dtype=float, copy=True)
 
 
-def test_scalar_paths_still_do_not_import_numpy_for_rejected_matmul():
+def test_scalar_paths_still_do_not_import_numpy_for_rejected_matmul() -> None:
     src = Path(__file__).resolve().parents[1] / 'src'
     script = f"""
 import sys

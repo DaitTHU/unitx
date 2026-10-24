@@ -57,6 +57,7 @@ jobs:
       - name: Run Ruff
         run: |
           ruff check .
+          ruff check tests conftest.py --select ANN --ignore ANN401
           ruff format --check .
 
       - name: Run tests
