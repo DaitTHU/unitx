@@ -10,9 +10,10 @@ from __future__ import annotations
 import cmath
 import math
 from fractions import Fraction
-from typing import cast
+from typing import cast, overload
 
 from unitx import Quantity, Unit
+from unitx._numerics import Scalar
 from unitx.exceptions import DimensionError
 from unitx.si import si
 
@@ -47,10 +48,25 @@ class Impedance(Quantity[Number]):
         # Scaling the explicitly supported numeric domain stays in that domain.
         return cast(Number, super().value_in(unit))
 
-    def __add__(self, other: object, /) -> Impedance:  # pyright: ignore[reportIncompatibleMethodOverride]
+    @overload
+    def __add__(self, other: Impedance, /) -> Impedance: ...
+
+    @overload
+    def __add__(self, other: Quantity[Scalar] | Scalar, /) -> Quantity[Scalar]: ...
+
+    def __add__(self, other: object, /) -> Quantity[Scalar]:  # pyright: ignore[reportIncompatibleMethodOverride]
         if not isinstance(other, Impedance):
             return NotImplemented
         return Impedance(self.value + other.value_in(self.unit), self.unit)
+
+    @overload
+    def __iadd__(self, other: Impedance, /) -> Impedance: ...
+
+    @overload
+    def __iadd__(self, other: Quantity[Scalar] | Scalar, /) -> Quantity[Scalar]: ...
+
+    def __iadd__(self, other: Quantity[Scalar] | Scalar, /) -> Quantity[Scalar]:  # pyright: ignore[reportIncompatibleMethodOverride]
+        return self + other
 
     def __floordiv__(self, other: object, /) -> Impedance:
         if not isinstance(other, Impedance):

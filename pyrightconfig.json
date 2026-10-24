@@ -37,6 +37,7 @@
     "tests/typing"
   ],
   "strict": [
+    "examples/impedance.py",
     "src/unitx/serialization.py",
     "src/unitx/quantity.py",
     "tests/typing",

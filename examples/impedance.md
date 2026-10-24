@@ -54,6 +54,12 @@ current, admittance and power have their usual units. Ordinary operations such
 as subtraction also retain the base class's result behavior. Only addition of
 two Impedances, parallel composition and conversion preserve the extension
 type. Quantity's general subclass and serialization contracts stay unchanged.
+Mixing an Impedance with an ordinary Quantity in addition returns an ordinary
+Quantity in either operand order. For example, `z + 50 * si.ohm` loses the
+extension's `//` operation; construct `Impedance(50)` to compose circuit elements.
+The type annotations distinguish this mixed result from `z1 + z2`.
+The scalar `+=` operation follows the same rule, returning a new result rather
+than changing the original object. `//=` follows parallel composition.
 The example deliberately narrows the inherited addition and conversion
 signatures to its scalar model and str/Unit targets. Local Pyright annotations
 mark that specialization; it is not a general template for preserving all of

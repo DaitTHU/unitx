@@ -72,6 +72,29 @@ def test_impedance_physical_results() -> None:
     assert admittance == Fraction(1, 100) * si.S
 
 
+def test_impedance_mixed_addition() -> None:
+    impedance = Impedance(100)
+    quantity = 50 * si.ohm
+    for result in (impedance + quantity, quantity + impedance):
+        assert type(result) is Quantity
+        assert result == 150 * si.ohm
+        with pytest.raises(TypeError, match='unsupported operand'):
+            result // impedance
+
+
+def test_impedance_augmented_addition() -> None:
+    series = Impedance(100)
+    original = series
+    series += Impedance(50)
+    assert type(series) is Impedance
+    assert series == 150 * si.ohm
+    assert original == 100 * si.ohm
+    mixed = Impedance(100)
+    mixed += 50 * si.ohm
+    assert type(mixed) is Quantity
+    assert mixed == 150 * si.ohm
+
+
 @pytest.mark.parametrize('value', [True, '100', Decimal(100), [100]])
 def test_impedance_magnitude_invalid(value: bool | str | Decimal | list[int]) -> None:
     with pytest.raises(TypeError, match='int, float, Fraction or complex scalar'):

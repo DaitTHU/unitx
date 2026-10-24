@@ -36,6 +36,20 @@ seconds. An `Annotated` label alone does not teach a type checker dimensional
 algebra. unitx does not currently supply dimension-parameterized quantities
 or a call-validation decorator.
 
+## Quantity subclasses
+
+Preserving the magnitude parameter T does not preserve a Quantity subclass.
+Quantity's ordinary binary arithmetic, unary operators and `.to()` construct
+ordinary Quantity objects. A subclass must explicitly implement the operations
+that preserve its own invariants. Scalar augmented operators delegate to the
+corresponding binary operation; their annotations must describe the subclass's
+results too.
+For example, the [Impedance extension](https://github.com/DaitTHU/unitx/blob/main/examples/impedance.md)
+preserves its type for addition of two Impedances, parallel composition and
+conversion. Adding an ordinary Quantity returns an ordinary Quantity in either
+operand order. Its local overrides specialize the base class's wider input
+domain; they are not a template for preserving every array or coordinate overload.
+
 ## NumPy magnitude types
 
 `_numerics.py` defines `Scalar`, `Array`, and `Magnitude = Array | Scalar`

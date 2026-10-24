@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct the Impedance example's mixed-addition result annotations and retain
+  its specialized scalar `+=` result types. Document the subclass boundary and
+  check it with runtime and static consumers.
+
 ### Documentation
 
 - Host the MkDocs guides on GitHub Pages with automatic deployment from main.

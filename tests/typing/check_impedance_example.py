@@ -15,3 +15,17 @@ assert_type(first + second, Impedance)
 assert_type(first // second, Impedance)
 assert_type((first + second).to(si.kohm) // second, Impedance)
 assert_type(first * (2 * si.A), Quantity[Scalar])
+ordinary = 100 * si.ohm
+assert_type(first + ordinary, Quantity[Scalar])
+assert_type(ordinary + first, Quantity[Scalar])
+assert_type(first - second, Quantity[Scalar])
+assert_type(-first, Quantity[Scalar])
+series: Impedance = first
+series += second
+assert_type(series, Impedance)
+mixed = first
+mixed += ordinary
+assert_type(mixed, Quantity[Scalar])
+parallel = first
+parallel //= second
+assert_type(parallel, Impedance)
