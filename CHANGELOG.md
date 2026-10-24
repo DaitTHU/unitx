@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-10-24
+
 ### Fixed
 
 - Correct the Impedance example's mixed-addition result annotations and retain
