@@ -3,6 +3,7 @@
 import os
 import pickle
 import sys
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from fractions import Fraction
 from importlib.metadata import distribution
@@ -11,7 +12,7 @@ from pathlib import Path
 from typing import Final, assert_type
 
 import unitx
-from unitx import AffineQuantity, LogQuantity, Quantity, Registry, Unit, UnitCatalog
+from unitx import AffineQuantity, LogQuantity, Quantity, Registry, Unit, UnitCatalog, math, time
 from unitx.factor import Factor
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
@@ -29,6 +30,37 @@ assert_type(distance.to(si.cm), Quantity[Decimal])
 assert distance.value_in(si.cm) == Decimal(125)
 assert Quantity(1, si.cm).value_in(si.m) == Fraction(1, 100)
 assert 2 * Unit(si.m, scale=Factor(3)) == 6 * si.m
+
+root = math.sqrt(9 * si.m**2)
+assert_type(root, Quantity[float])
+assert root == 3 * si.m
+assert math.sin(90 * si.deg).value == 1.0
+assert math.hypot(3 * si.m, 400 * si.cm) == 5 * si.m
+
+stamp = time.time()
+start = time.perf_counter()
+elapsed = time.perf_counter() - start
+assert_type(stamp, AffineQuantity[int])
+assert_type(start, AffineQuantity[int])
+assert_type(elapsed.unit, Unit)
+assert type(stamp.value) is int and stamp.unit.delta_unit == si.ns
+assert type(elapsed.value) is int and elapsed.unit == si.ns and elapsed.value >= 0
+local_zone = timezone(timedelta(hours=8))
+instant = datetime(2000, 1, 1, 12, 34, 56, 123456, tzinfo=local_zone)
+point = time.from_datetime(instant)
+assert_type(point, AffineQuantity[int])
+assert_type(time.to_datetime(point), datetime)
+utc_instant = time.to_datetime(point)
+local_instant = time.to_datetime(point, tz=local_zone)
+assert utc_instant == instant and utc_instant.tzinfo is timezone.utc
+assert local_instant == instant and local_instant.tzinfo is local_zone
+assert time.to_datetime(AffineQuantity(1500, si.ns)) == datetime(
+    1970, 1, 1, 0, 0, 0, 2, tzinfo=timezone.utc
+)
+duration = time.from_timedelta(timedelta(microseconds=123456))
+assert_type(duration, Quantity[int])
+assert duration == 123456 * si.us
+assert time.to_timedelta(Quantity(Decimal('0.0000015'), si.s)) == timedelta(microseconds=2)
 
 celsius = 20 @ si.degC
 level = 30 @ si.dBm
