@@ -1,5 +1,10 @@
 # Scientific examples
 
+For a small extension without optional dependencies, see
+[Extending Quantity: complex impedances](impedance.md). Its standalone Python
+script uses a Quantity subclass for series `+` and parallel `//` composition
+and calculates an RLC circuit with complex current and power.
+
 These notebooks use unitx for dimensional calculations and NumPy for numerical
 work. Each contains a model, assumptions, plots, and numerical checks. The
 material parameters and measurement draws are illustrative, not experimental data.
@@ -12,6 +17,7 @@ material parameters and measurement draws are illustrative, not experimental dat
 | [Optical attenuation](optical_attenuation.ipynb) | Transmission through absorbing layers | prod/multiply.reduce, input masks, Quantity initial, fixed-unit out |
 | [Pendulum uncertainty](pendulum_uncertainty.ipynb) | Correlated input uncertainties and Monte Carlo propagation | Mean/std/var units, mixed measurement units, explicit quantiles |
 | [Arrhenius fit](arrhenius_fit.ipynb) | Estimate activation energy from synthetic reaction rates | Absolute temperatures, regression boundary, parameter units and model-based standard errors |
+| [Smith chart](smith_chart.ipynb) | Series/parallel RLC impedance and reflection trajectories | Quantity subclass, complex arithmetic, explicit normalization and plotting boundary |
 
 ## Run
 
@@ -25,11 +31,14 @@ jupyter lab examples/
 
 Open a notebook and run all cells from the beginning. Use the current checkout
 so that all demonstrated APIs are available.
+Keep `smith_chart.ipynb` beside its companion `impedance.py` module.
 The examples do not download datasets or write files. Keep physical quantities in calculations;
 plot their `.value` and derive labels from their `.unit`. Convert only to choose
 a useful display scale or to align units at a numerical boundary. Quantiles use
 an explicit numerical boundary and reattach the input unit, without naming a
 variable after its unit. Display equations use `$$...$$`.
+Generate physical parameter labels from Quantity formatting or `to_latex()`;
+do not repeat their numerical values and unit spellings in plot strings.
 
 ## Keep Git history small
 

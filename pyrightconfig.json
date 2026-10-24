@@ -1,5 +1,6 @@
 {
   "include": [
+    "examples/impedance.py",
     "src/unitx/_display.py",
     "src/unitx/math.py",
     "src/unitx/time.py",
@@ -42,7 +43,7 @@
     "tests/numpy_typing",
     "tests/example_typing"
   ],
-  "extraPaths": ["src"],
+  "extraPaths": ["src", "examples"],
   "pythonVersion": "3.12",
   "typeCheckingMode": "basic"
 }

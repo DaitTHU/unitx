@@ -1,5 +1,7 @@
 """Keep scientific examples runnable and notebooks free of generated Git payloads."""
 
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
@@ -11,7 +13,7 @@ from ._notebooks import notebook_source
 NOTEBOOKS = sorted((Path(__file__).resolve().parents[1] / 'examples').glob('*.ipynb'))
 
 
-def test_readme_python_examples(monkeypatch):
+def test_readme_python_examples(monkeypatch: pytest.MonkeyPatch) -> None:
     np = pytest.importorskip('numpy')
     matplotlib = pytest.importorskip('matplotlib')
     matplotlib.use('Agg')
@@ -43,7 +45,7 @@ def test_readme_python_examples(monkeypatch):
 
 
 @pytest.mark.parametrize('path', NOTEBOOKS, ids=lambda path: path.stem)
-def test_notebook_clean_source(path):
+def test_notebook_clean_source(path: Path) -> None:
     notebook = json.loads(path.read_text(encoding='utf-8'))
     assert not notebook['metadata'].get('widgets'), 'Clear saved widget state before committing.'
     for cell in notebook['cells']:
@@ -61,12 +63,14 @@ def test_notebook_clean_source(path):
 @pytest.mark.parametrize(
     'path', [path for path in NOTEBOOKS if path.stem != 'blackbody'], ids=lambda path: path.stem
 )
-def test_notebook_physics(path, monkeypatch):
+def test_notebook_physics(path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip('numpy')
     matplotlib = pytest.importorskip('matplotlib')
     matplotlib.use('Agg')
     from matplotlib import pyplot as plt
 
+    # Match Jupyter's access to companion modules beside the notebook.
+    monkeypatch.syspath_prepend(str(path.parent))
     monkeypatch.setattr(plt, 'show', lambda: None)
     try:
         exec(compile(notebook_source(path), str(path), 'exec'), {'__name__': '__main__'})
