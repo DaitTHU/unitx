@@ -209,7 +209,7 @@ plt.show()
 
 ## Read more
 
-Start at the [documentation index](https://github.com/DaitTHU/unitx/blob/main/docs/README.md),
+Start at the [documentation site](https://daitthu.github.io/unitx/),
 or go directly to a topic:
 
 | Topic | Guide |

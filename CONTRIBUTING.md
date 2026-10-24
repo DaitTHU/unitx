@@ -58,9 +58,13 @@ python -m mkdocs serve
 ```
 
 The build writes to the ignored `site/` directory. CI checks the strict build,
-including internal links and anchors. `.readthedocs.yaml` uses the same pinned
-MkDocs requirement; connect the repository to a Read the Docs project to host
-it. These configuration files alone do not create or publish a hosted site.
+including internal links and anchors. The [documentation site](https://daitthu.github.io/unitx/)
+is hosted on GitHub Pages. `.github/workflows/pages.yml` builds and deploys
+changes to `docs/`, `mkdocs.yml` or the workflow on main; it also supports
+manual runs. Repository Settings → Pages must use GitHub Actions as its source.
+`.readthedocs.yaml` retains the same pinned MkDocs requirement for a future
+Read the Docs deployment. Do not connect or publish that project until
+ownership of `unitx.readthedocs.io` has transferred to the project owner.
 Mermaid diagrams load a pinned JavaScript module from jsDelivr in the browser;
 building the HTML does not require that CDN. Repository files outside `docs/`
 use GitHub links so they also work on a hosted documentation site.

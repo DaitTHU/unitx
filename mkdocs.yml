@@ -1,4 +1,5 @@
 site_name: unitx
+site_url: https://daitthu.github.io/unitx/
 site_description: Physical units and quantities with exact unit algebra.
 repo_url: https://github.com/DaitTHU/unitx
 edit_uri: blob/main/docs/

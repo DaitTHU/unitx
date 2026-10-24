@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Documentation
+
+- Host the MkDocs guides on GitHub Pages with automatic deployment from main.
+  Keep Read the Docs deployment pending transfer of the project name.
+
 ## [0.14.3] - 2026-10-24
 
 ### Added
