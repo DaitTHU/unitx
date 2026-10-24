@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-10-24
+
+### Added
+
+- Allow `si.dB(reference, kind=...)` to construct a logarithmic coordinate.
+  Named watts and volts, including SI prefixes, supply conventional defaults;
+  common references reuse dBm, dBW and dBV. Other units require an explicit kind.
+- Add a standalone Impedance subclass example with series addition, parallel
+  `//` composition, unit conversion and a complex RLC circuit calculation,
+  plus a notebook that traces its frequency response on a Smith chart.
+
+### Internal
+
+- Consolidate static consumers under scalar and NumPy typing fixtures, checking
+  actual notebook source instead of duplicate blackbody examples. Keep the
+  NumPy 2.5 asarray regression separately gated and exclude static fixtures from
+  pytest collection.
+- Complete runtime-test signature annotations and check them in the existing CI
+  and release lint steps.
+
 ## [0.14.2] - 2026-10-24
 
 ### Documentation
