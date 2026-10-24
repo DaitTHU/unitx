@@ -11,6 +11,19 @@ permissions:
   contents: read
 
 jobs:
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install documentation dependencies
+        run: python -m pip install -r docs/requirements.txt
+      - name: Build documentation with strict link checks
+        run: python -m mkdocs build --strict
+
   test:
     name: Test Python ${{ matrix.python-version }} (${{ matrix.backend }})
     runs-on: ubuntu-latest

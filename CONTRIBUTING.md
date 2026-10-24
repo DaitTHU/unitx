@@ -43,6 +43,31 @@ the tests when its optional dependencies are present; see the
 With NumPy and Matplotlib installed, the tests also execute the README's
 `python` code blocks in order and check the blackbody plot's numerical data.
 
+## Documentation site
+
+Build or preview the existing Markdown guides with MkDocs:
+
+```sh
+python -m pip install -r docs/requirements.txt
+python -m mkdocs build --strict
+python -m mkdocs serve
+```
+
+The build writes to the ignored `site/` directory. CI checks the strict build,
+including internal links and anchors. `.readthedocs.yaml` uses the same pinned
+MkDocs requirement; connect the repository to a Read the Docs project to host
+it. These configuration files alone do not create or publish a hosted site.
+Mermaid diagrams load a pinned JavaScript module from jsDelivr in the browser;
+building the HTML does not require that CDN. Repository files outside `docs/`
+use GitHub links so they also work on a hosted documentation site.
+
+## Performance measurements
+
+Run the [scalar and NumPy benchmarks](benchmarks/README.md) when investigating
+performance changes. Their JSON reports record the environment and per-call
+timings; compare runs under the same conditions rather than setting CI timing
+thresholds.
+
 ## Keep changes reviewable
 
 Implement the agreed public behavior in code, annotations, tests and docs

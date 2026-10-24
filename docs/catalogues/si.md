@@ -38,8 +38,8 @@ of accepted parser spellings:
 The parser accepts permitted prefixes even when a convenience attribute is
 not listed in `si`: construct `Unit('...')` for those spellings. Namespace
 attributes are predefined; dynamically registering a unit does not add one.
-For the complete definitions see [unit source](../../src/unitx/si/units.py) and
-[SI bases](../../src/unitx/si/bases.py).
+For the complete definitions see [unit source](https://github.com/DaitTHU/unitx/blob/main/src/unitx/si/units.py)
+and [SI bases](https://github.com/DaitTHU/unitx/blob/main/src/unitx/si/bases.py).
 
 ## Constants and precision
 
@@ -53,7 +53,8 @@ constants carry the digits in the catalogue; Quantity does not attach an
 uncertainty model to them. Derived constants are numerical values calculated
 when the catalogue loads; increasing Decimal precision later does not
 recompute them. The catalogue does not promise arbitrary-precision constants.
-See [constant source](../../src/unitx/si/constants.py) for the stored definitions.
+See [constant source](https://github.com/DaitTHU/unitx/blob/main/src/unitx/si/constants.py)
+for the stored definitions.
 
 `unitx.pi` is a symbolic Factor base with a float approximation for numerical
 evaluation. It supports exact cancellation in unit scales. It is distinct

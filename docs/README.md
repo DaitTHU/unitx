@@ -1,6 +1,7 @@
 # unitx documentation
 
-Use the [project README](../README.md) for installation and a first calculation.
+Use the [project README](https://github.com/DaitTHU/unitx/blob/main/README.md)
+for installation and a first calculation.
 These guides describe the current source tree; select a release tag when
 reading about an older version.
 
@@ -22,8 +23,8 @@ reading about an older version.
 | Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
 | Understand annotations and NumPy inference limits | [Typing](typing.md) |
 | Update code written for an earlier release | [Migration notes](migration.md) |
-| Run scientific examples | [Scientific examples](../examples/README.md) |
-| Test or contribute a change | [Contributing](../CONTRIBUTING.md) |
+| Run scientific examples | [Scientific examples](https://github.com/DaitTHU/unitx/blob/main/examples/README.md) |
+| Test or contribute a change | [Contributing](https://github.com/DaitTHU/unitx/blob/main/CONTRIBUTING.md) |
 | Understand model and implementation boundaries | [Architecture](architecture.md) |
 
 For a first read, follow units and quantities, then the catalogue. Read the

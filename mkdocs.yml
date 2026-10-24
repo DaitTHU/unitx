@@ -1,0 +1,41 @@
+site_name: unitx
+site_description: Physical units and quantities with exact unit algebra.
+repo_url: https://github.com/DaitTHU/unitx
+edit_uri: blob/main/docs/
+
+theme:
+  name: readthedocs
+  highlightjs: false
+
+nav:
+  - Overview: README.md
+  - Units and quantities: units.md
+  - Catalogues:
+      - Overview: catalogues/README.md
+      - SI: catalogues/si.md
+      - Imperial: catalogues/imperial.md
+  - Custom units and registries: custom-units.md
+  - Scalar numerical behavior: scalars.md
+  - Points and differences: affine.md
+  - Logarithmic quantities: logarithmic.md
+  - Mathematics and time: stdlib.md
+  - NumPy: numpy.md
+  - Display and formatting: display.md
+  - Scalar data exchange: serialization.md
+  - Typing: typing.md
+  - Migration: migration.md
+  - Architecture: architecture.md
+  - Scientific examples: https://github.com/DaitTHU/unitx/blob/main/examples/README.md
+  - Contributing: https://github.com/DaitTHU/unitx/blob/main/CONTRIBUTING.md
+  - Changelog: https://github.com/DaitTHU/unitx/blob/main/CHANGELOG.md
+
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    anchors: warn
+    unrecognized_links: warn
+
+extra_javascript:
+  - path: javascripts/mermaid.mjs
+    type: module
