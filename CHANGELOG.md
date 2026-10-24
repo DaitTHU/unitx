@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-24
+
+### Documentation
+
+- Add a MkDocs site with pinned build requirements, Mermaid diagrams,
+  Read the Docs configuration and strict CI checks for internal links and anchors.
+  Hosting can use an available project name; no documentation domain is assumed.
+- Fix the README's logarithmic-guide link for package-index rendering.
+
+### Internal
+
+- Execute the README's Python code blocks directly and check the blackbody
+  plot's units, curve count and numerical data.
+- Extend installed-wheel runtime and type consumers with mathematical functions,
+  integer clock readings, duration arithmetic and datetime precision checks.
+- Add reproducible scalar benchmarks for parsing, conversion, comparison and
+  exact factors, recording the environment and timing parameters as JSON.
+
 ## [0.14.1] - 2026-10-24
 
 ### Documentation
