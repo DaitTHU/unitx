@@ -10,7 +10,7 @@ Runtime tests are grouped by responsibility:
 - `display/`: text, Unicode and export formatting.
 - `stdlib/`: scalar mathematical and time functions.
 
-Cross-cutting import, immutability, serialization, warning, example and typing
+Cross-cutting import, immutability, serialization, warning, plotting, example and typing
 checks remain at the root. `typing/` and `numpy_typing/` contain static consumers
 run by `test_typing.py`; pytest does not collect them as runtime tests.
 

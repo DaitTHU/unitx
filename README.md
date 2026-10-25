@@ -165,7 +165,9 @@ assert exact == Fraction(1, 100)
 assert Fraction(float(approximate[0])) != exact  # Binary float approximates 1/100
 ```
 
-Use `.value` or `.value_in(unit)` at plotting and external-library boundaries.
+Use `.value` or `.value_in(unit)` at external-library boundaries.
+The optional [Matplotlib adapter](https://github.com/DaitTHU/unitx/blob/main/docs/matplotlib.md)
+supports direct `ax.plot(t, q)` with automatic axis conversion.
 `np.asarray(quantity)` and `np.array(quantity)` raise TypeError to prevent
 implicit unit removal. NumPy's type stubs do not describe every wrapped
 operation; see the [typing guide](https://github.com/DaitTHU/unitx/blob/main/docs/typing.md).

@@ -142,3 +142,4 @@ for value in (quantity, celsius, level):
     assert pickle.loads(pickle.dumps(value)) == value
 assert 'numpy' not in sys.modules
 assert 'sympy' not in sys.modules
+assert 'matplotlib' not in sys.modules

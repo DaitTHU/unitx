@@ -28,6 +28,9 @@ An additional CI job builds the distributions and checks their wheel with the
 consumers in `.github/consumers/`. It copies those scripts and their independent
 Pyright configuration outside the checkout, first checking scalar runtime and
 types without NumPy, then installing NumPy and checking array runtime and types.
+It then installs Matplotlib and checks the optional axis converter with the
+installed plotting consumer. The NumPy minimum job also checks Matplotlib 3.9;
+the current job uses current Matplotlib.
 The release workflow runs the same consumers before uploading distributions.
 Test functions and helpers have annotated parameters and return values. The
 dedicated Ruff command checks those signatures; static inference regressions

@@ -83,9 +83,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install package and dependencies
         run: python -m pip install -e '.[test,numpy]' 'matplotlib>=3.9'
-      - name: Select minimum NumPy
+      - name: Select minimum NumPy and Matplotlib
         if: matrix.numpy != 'latest'
-        run: python -m pip install 'numpy==${{ matrix.numpy }}'
+        run: python -m pip install 'numpy==${{ matrix.numpy }}' 'matplotlib==3.9.*'
       - name: Run tests and typing
         run: |
           pytest -q
@@ -140,3 +140,12 @@ jobs:
         run: |
           python -I arrays.py
           python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" arrays.py
+
+      - name: Install optional Matplotlib
+        run: python -m pip install 'matplotlib>=3.9'
+
+      - name: Check installed Matplotlib runtime and types
+        working-directory: ${{ runner.temp }}/unitx-consumers
+        run: |
+          python -I plots.py
+          python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" plots.py

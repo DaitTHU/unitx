@@ -12,6 +12,14 @@
 - Add `Quantity.astype(dtype)` for explicit magnitude conversion without
   changing units. Refine float-compatible scalar multiplication, division and
   integer-power annotations so ordinary formulas need fewer casts.
+- Add the optional Matplotlib adapter `unitx.matplotlib.register()` for direct
+  `ax.plot(t, q)`, compatible axis conversion, default unit labels and unit
+  switching. Core imports retain their optional-dependency boundary.
+
+### Fixed
+
+- Scalar quantities and points raise TypeError for iteration and len, allowing
+  standard iterable detection and scalar plotting limits to work correctly.
 
 ## [0.16.5] - 2026-10-25
 

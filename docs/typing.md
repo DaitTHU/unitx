@@ -147,7 +147,9 @@ directly; runtime tests use ordinary NumPy calls.
 Runtime support and installed-consumer checks cover
 these calls; unitx does not replace NumPy's stubs.
 
-Use `.value` or `.value_in(unit)` at Matplotlib plotting boundaries too.
+The optional [Matplotlib adapter](matplotlib.md) can handle the plotting
+boundary directly, so `ax.plot(t, q)` needs no manual magnitude extraction.
+Other external-library boundaries still use `.value` or `.value_in(unit)`.
 `.to()` returns a new Quantity; write `q = q.to(unit)` to retain the conversion.
 It has no `inplace` option. NumPy-free scalar consumers retain working type hints.
 

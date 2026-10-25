@@ -463,9 +463,15 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         assign_item(self, key, value)
 
     def __len__(self: AffineQuantity[Array]) -> int:
+        if not is_numpy_object(self.value):
+            error_message = 'Scalar quantities have no len().'
+            raise TypeError(error_message)
         return len(self._array_value())
 
     def __iter__(self: AffineQuantity[Array]) -> Iterator[AffineQuantity[NumpyValue]]:
+        if not is_numpy_object(self.value):
+            error_message = 'Scalar quantities are not iterable.'
+            raise TypeError(error_message)
         return (AffineQuantity(value, self.unit) for value in self._array_value())
 
     def flatten(self: AffineQuantity[Array], order: str = 'C') -> AffineQuantity[NumpyArray]:

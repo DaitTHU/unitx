@@ -17,6 +17,7 @@ Private implementations are grouped by responsibility:
 | Package | Responsibility |
 | --- | --- |
 | `_numerics/` | Scalar protocols and number theory, exact scaling, linear conversion, optional NumPy kernels and annotations |
+| `matplotlib.py` | Optional, explicitly registered axis conversion at Matplotlib's numeric plotting boundary |
 | `_formatting/` | Unicode unit notation shared with the parser, and rich rendering |
 | `_electromagnetism/` | Fixed electromagnetic coefficients and explicit physical correspondence |
 | `_registry/` | Prefix data, root definitions and reconstruction lookup |

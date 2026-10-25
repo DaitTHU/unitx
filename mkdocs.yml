@@ -28,6 +28,7 @@ nav:
       - Reductions and statistics: numpy/statistics.md
       - Integration and differentiation: numpy/calculus.md
       - Writes and output buffers: numpy/writes.md
+  - Matplotlib plots: matplotlib.md
   - Display and formatting: display.md
   - Scalar data exchange: serialization.md
   - Typing: typing.md

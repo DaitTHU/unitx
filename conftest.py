@@ -10,6 +10,8 @@ from unitx.factor import Factor
 collect_ignore = ['tests/typing', 'tests/numpy_typing']
 if find_spec('numpy') is None:
     collect_ignore.append('src/unitx/_numerics/numpy.py')
+if find_spec('matplotlib') is None:
+    collect_ignore.append('src/unitx/matplotlib.py')
 
 _DOCTEST_FILTER: dict[str, tuple[pytest.MarkDecorator, ...]] = {
     f'{obj.__module__}.{obj.__qualname__}': tuple(

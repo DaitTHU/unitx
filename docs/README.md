@@ -20,6 +20,7 @@ reading about an older version.
 | Work with logarithmic differences and readings | [Logarithmic quantities](logarithmic.md) |
 | Call unit-aware mathematical functions or read a clock | [Standard-library enhancements](stdlib.md) |
 | Calculate with arrays, masks, reductions and output buffers | [NumPy support](numpy.md) |
+| Plot quantities with automatic axis conversion | [Matplotlib plots](matplotlib.md) |
 | Format text or export LaTeX, HTML and siunitx | [Display and formatting](display.md) |
 | Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
 | Understand annotations and NumPy inference limits | [Typing](typing.md) |

@@ -3,6 +3,7 @@
     "examples/impedance.py",
     "src/unitx/_formatting",
     "src/unitx/math.py",
+    "src/unitx/matplotlib.py",
     "src/unitx/time.py",
     "src/unitx/serialization.py",
     "src/unitx/affineunit.py",

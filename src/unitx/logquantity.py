@@ -441,9 +441,15 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         assign_item(self, key, value)
 
     def __len__(self: LogQuantity[Array]) -> int:
+        if not is_numpy_object(self.value):
+            error_message = 'Scalar quantities have no len().'
+            raise TypeError(error_message)
         return len(self._array_value())
 
     def __iter__(self: LogQuantity[Array]) -> Iterator[LogQuantity[NumpyValue]]:
+        if not is_numpy_object(self.value):
+            error_message = 'Scalar quantities are not iterable.'
+            raise TypeError(error_message)
         return (LogQuantity(value, self.unit) for value in self._array_value())
 
     def flatten(self: LogQuantity[Array], order: str = 'C') -> LogQuantity[NumpyArray]:
