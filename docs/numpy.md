@@ -85,13 +85,20 @@ methods, mixed array types, and keywords fail explicitly.
 | ufunc / Python operation | Result rule |
 | --- | --- |
 | add, subtract / `+`, `-` | Align compatible dimensions to the first Quantity's unit |
-| minimum, maximum | Elementwise selection; align to the first Quantity's unit or point coordinate |
+| minimum, maximum, fmin, fmax | Elementwise selection; align to the first Quantity's unit or point coordinate; fmin/fmax use NumPy's NaN selection |
 | multiply, divide/true_divide, matmul / `*`, `/`, `@` | Combine units |
 | equal, not_equal, less, less_equal, greater, greater_equal / comparisons | Bare boolean results |
 | positive, negative, absolute, fabs, conjugate / unary `+`, `-`, `abs` | Preserve unit |
 | square, sqrt, cbrt, reciprocal | Exact unit exponents 2, 1/2, 1/3, -1 |
 | power, float_power / `**` | Dimensional bases require a finite real scalar exponent; dimensionless bases/exponents normalize their scales |
-| sin, cos, tan, exp, expm1, log, log2, log10, log1p | Require coherent dimensionless values; return dimensionless Quantity |
+| sin, cos, tan, sinh, cosh, tanh, arcsinh, arccosh, arctanh, exp, expm1, exp2, log, log2, log10, log1p | Require coherent dimensionless values; return dimensionless Quantity |
+| logaddexp, logaddexp2 | Normalize both dimensionless inputs; return dimensionless Quantity |
+| floor, ceil, trunc, rint | Round stored magnitudes; retain unit or point coordinate |
+| sign | Dimensionless Quantity; complex convention follows NumPy |
+| copysign | First input's unit; second input supplies only the sign and may have any linear unit |
+| remainder/mod, fmod | Compatible linear inputs; remainder in the first Quantity's unit |
+| floor_divide, divmod | Compatible linear inputs; dimensionless quotient, remainder in the first Quantity's unit |
+| degrees/rad2deg, radians/deg2rad | Dimensionless angular input; equivalent angle in deg or rad |
 | arcsin, arccos, arctan | Require coherent dimensionless values; return Quantity in rad |
 | hypot | Compatible input dimensions; align to the first Quantity's unit |
 | arctan2 | Compatible input dimensions; return Quantity in rad |
@@ -102,7 +109,7 @@ methods, mixed array types, and keywords fail explicitly.
 | multiply.reduce | Product unit rules below; accepts axis, dtype, keepdims, initial, where, out |
 
 Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and
-`out` as described below (two outputs for modf/frexp). Each kernel validates its own options.
+`out` as described below (two outputs for modf/frexp/divmod). Each kernel validates its own options.
 `where` is a bare boolean scalar
 or plain boolean ndarray; masked-out positions without an output buffer follow
 NumPy's uninitialized-result behavior. Numeric outputs must stay in the
@@ -110,7 +117,7 @@ supported dtype domain. Product accumulation, at, outer, and reduceat are
 unsupported. Python `**` also accepts Fraction/Decimal exponents, retaining
 exact unit exponents while passing a float exponent to the NumPy kernel.
 Angles retain unitx's dimensionless model: deg/rad normalize before these
-functions, including exp/log. Python scalar numerical semantics remain native.
+functions, including exp/log. Python scalar arithmetic follows the separate [scalar rules](scalars.md).
 
 | NumPy function | Unit/result rule | Supported options |
 | --- | --- | --- |
@@ -137,8 +144,12 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | unique, unique_all/counts/inverse/values | Wrapped values; bare indices and counts | unique accepts return_index/inverse/counts, axis, equal_nan, version-available sorted |
 | isin, intersect1d, union1d, setdiff1d, setxor1d | Align compatible inputs; isin returns a mask, sets return wrapped values | Native assume_unique, invert, kind and return_indices where applicable |
 | nonzero, flatnonzero, argwhere, count_nonzero | Bare indices or counts of nonzero readings | count_nonzero accepts axis and keepdims |
-| zeros_like, empty_like | Preserve unit or point coordinate | dtype, order, subok, shape, device; plain numeric outputs only |
+| zeros_like, ones_like, empty_like | Preserve unit or point coordinate | dtype, order, subok, shape, device; plain numeric outputs only |
 | real, imag | Preserve linear Quantity unit; views follow NumPy | No options; points are unsupported |
+| real_if_close | Preserve linear Quantity unit; native real/complex dtype decision | tol; points are unsupported |
+| angle | Phase of a linear Quantity in rad or deg | deg; points are unsupported |
+| round/around, fix | Round stored magnitudes; preserve unit or point coordinate | decimals/out for round; out for fix |
+| unwrap | Unwrap a dimensionless linear phase; preserve its input unit | discont, axis, period; bare thresholds are radians |
 | sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
 | min/amin/nanmin, max/amax/nanmax | Preserve unit or point coordinate | axis, keepdims, initial, where, out |
@@ -268,9 +279,9 @@ an `out` option. Indices such as `kth` and `sorter` must be bare integers.
 
 ## Allocation and complex components
 
-`zeros_like(q)` and `empty_like(q)` allocate numeric storage while preserving
+`zeros_like(q)`, `ones_like(q)` and `empty_like(q)` allocate numeric storage while preserving
 the complete unit or point coordinate. Native dtype, order, shape overrides,
-writeability and errors apply. Zero-filled points mean zero in their retained
+writeability and errors apply. Zero- and one-filled points mean readings of zero and one in their retained
 coordinate, as for diagonal construction. `empty_like` leaves values
 uninitialized. Boolean, object, string and other unsupported magnitude dtypes
 remain rejected; `subok` does not enable ndarray subclasses.
@@ -286,6 +297,55 @@ buffer = np.empty_like(samples, shape=(3, 2))
 buffer[:] = samples
 np.testing.assert_array_equal(np.real(buffer).value[0], [1, 3])
 np.testing.assert_array_equal(np.imag(buffer).value[0], [2, 4])
+```
+
+## Mathematical and complex functions
+
+Hyperbolic functions, their inverses, `exp2` and both `logaddexp` variants
+normalize dimensionless inputs to coherent values. Inverse hyperbolic results
+are dimensionless; inverse trigonometric results remain in radians.
+NumPy controls real/complex domains, dtype, broadcasting, NaNs and warnings.
+
+`floor`, `ceil`, `trunc`, `rint`, `round`/`around` and `fix` round the **stored
+magnitude**, retaining the complete unit or point coordinate. Thus rounding
+metres and rounding centimetres have different physical resolutions. `decimals`
+is a bare integer. Output buffers follow the existing staged-write rules.
+`fix` forwards NumPy's deprecation warning where the installed NumPy version
+emits one; prefer `trunc` in new code.
+`sign` returns a dimensionless Quantity; `copysign` retains its first input's
+unit and takes only the sign of its second linear input, regardless of dimension.
+
+`floor_divide`, `remainder`/`mod`, `fmod` and `divmod` require compatible linear
+inputs, aligned to the first Quantity's unit. Floor division returns a
+dimensionless Quantity; remainders retain the alignment unit. `divmod` returns
+both with the multiple-output staging rules. Bare values are dimensionless,
+including zero. Points are unsupported for these operations.
+
+`angle(z, deg=False)` accepts a linear Quantity of any dimension and returns
+its complex phase in rad (deg when requested). `real_if_close(z, tol=100)`
+retains the input unit and NumPy's dtype-dependent tolerance rule. Both reject
+points. `degrees`/`rad2deg` and `radians`/`deg2rad` return an equivalent angle in
+the named target unit: the source unit remains authoritative. For example,
+`np.deg2rad(180 * si.deg)` is pi radians; coherent dimensionless input already
+represents radians. Bare NumPy calls retain NumPy's ordinary conventions.
+
+`unwrap(p, discont=None, axis=-1, *, period=2*pi)` requires a dimensionless
+linear phase. It normalizes to radians for NumPy's kernel, then restores p's
+complete unit. A bare `period` or `discont` is in radians; a dimensionless
+Quantity threshold is converted to radians. Thresholds must be finite real
+scalars, with positive period and nonnegative discont. Scaled dimensionless
+units and degrees work with the default period. No output buffer is supported.
+
+```pycon
+>>> import numpy as np
+>>> from unitx import Quantity
+>>> phase = Quantity(np.array([170.0, -170.0, -160.0]), 'deg')
+>>> np.unwrap(phase).value.round(8).tolist()
+[170.0, 190.0, 200.0]
+>>> turns, remainder = np.divmod(Quantity(np.array([250.0]), 'cm'), Quantity(1.0, 'm'))
+>>> turns.value.tolist(), remainder.value.tolist()
+([2.0], [50.0])
+
 ```
 
 ## Selection and clipping

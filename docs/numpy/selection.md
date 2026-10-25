@@ -14,8 +14,9 @@ follow NumPy. The one-argument form does not accept a Quantity condition; use
 
 `np.minimum(x, y)` and `np.maximum(x, y)` use the same alignment rules and
 support the documented ufunc options, including masked writes to `out`.
-Their reduce/accumulate methods and `fmin/fmax` are unsupported. NaNs propagate
-according to NumPy's minimum/maximum rules. See the
+Their reduce/accumulate methods are unsupported. `fmin/fmax` share the same
+alignment and output rules, choosing the non-NaN operand when only one is NaN.
+NaNs propagate according to NumPy's minimum/maximum rules. See the
 [output buffer contract](writes.md#output-buffers) for staging and casting.
 
 `np.clip(a, lower, upper)` requires a Quantity or point as a, and converts the

@@ -9,6 +9,7 @@ only after computing, converting, and casting a temporary result.
 
 import math
 import operator
+import warnings
 from decimal import Decimal
 from fractions import Fraction
 from functools import partial
@@ -21,7 +22,7 @@ from .._coordinates.resolve import convert_point as convert
 from .._operands import _Point, linear_unit
 from ..affinequantity import AffineQuantity
 from ..dimension import DIMENSIONLESS
-from ..exceptions import DimensionError
+from ..exceptions import _WARNING_SKIP_PREFIXES, DimensionError
 from ..factor import Factor, one
 from ..logquantity import LogQuantity
 from ..quantity import Quantity
@@ -206,7 +207,7 @@ def write_inplace(target: Quantity[Any] | _Point[Any], result: Quantity[Any] | _
 
 
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
-    if ufunc in (np.modf, np.frexp) and method == '__call__':
+    if ufunc in (np.modf, np.frexp, np.divmod) and method == '__call__':
         return _dispatch_multi_output(ufunc, inputs, kwargs)
     outputs = kwargs.get('out', ())
     if any(x is not None for x in outputs):
@@ -432,9 +433,28 @@ def _dispatch_ufunc(
             return NotImplemented
         a, b, unit = _align_operands(*inputs)
         return _wrap(ufunc(a, b, **kwargs), unit)
-    if ufunc in (np.minimum, np.maximum):
+    if ufunc in (np.minimum, np.maximum, np.fmin, np.fmax):
         a, b, unit = _selection_parts(*inputs)
         return _wrap(ufunc(a, b, **kwargs), unit)
+    if ufunc in (np.remainder, np.fmod, np.floor_divide, np.divmod):
+        a, b, unit = _align_operands(*inputs)
+        result = ufunc(a, b, **kwargs)
+        if ufunc is np.divmod:
+            return _wrap(result[0], Unit()), _wrap(result[1], unit)
+        return _wrap(result, Unit() if ufunc is np.floor_divide else unit)
+    if ufunc is np.copysign:
+        a, unit = _linear_parts(inputs[0])
+        b, _ = _linear_parts(inputs[1])
+        return _wrap(ufunc(a, b, **kwargs), unit)
+    if ufunc in (np.logaddexp, np.logaddexp2):
+        a, u = _linear_parts(inputs[0])
+        b, v = _linear_parts(inputs[1])
+        if u.dimension != DIMENSIONLESS or v.dimension != DIMENSIONLESS:
+            error_message = 'This function requires dimensionless inputs.'
+            raise DimensionError(error_message)
+        return _wrap(
+            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), Unit()
+        )
     if ufunc in (np.hypot, np.arctan2):
         a, b, unit = _align_operands(*inputs)
         if unit.dimension != unit.dimension.physical:
@@ -475,8 +495,27 @@ def _dispatch_ufunc(
         # Decompose the stored coordinates. Both modf parts, and the frexp
         # mantissa, carry the input unit; the binary exponent is a bare integer.
         return _wrap(first, unit), _wrap(second, unit) if ufunc is np.modf else second
-    if ufunc in (np.positive, np.negative, np.absolute, np.fabs, np.conjugate):
+    if ufunc in (
+        np.positive,
+        np.negative,
+        np.absolute,
+        np.fabs,
+        np.conjugate,
+        np.floor,
+        np.ceil,
+        np.trunc,
+        np.rint,
+    ):
         return _wrap(ufunc(a, **kwargs), unit)
+    if ufunc is np.sign:
+        return _wrap(ufunc(a, **kwargs), Unit())
+    if ufunc in (np.degrees, np.rad2deg, np.radians, np.deg2rad):
+        if unit.dimension != DIMENSIONLESS:
+            error_message = 'Angle conversion requires dimensionless input.'
+            raise DimensionError(error_message)
+        source = Unit('rad') if ufunc in (np.degrees, np.rad2deg) else Unit('deg')
+        target = Unit('deg') if ufunc in (np.degrees, np.rad2deg) else Unit('rad')
+        return _wrap(ufunc(scale_magnitude(a, unit.factor / source.factor), **kwargs), target)
     if ufunc in (np.isfinite, np.isnan, np.isinf, np.signbit):
         return ufunc(a, **kwargs)
     if ufunc in (np.square, np.sqrt, np.cbrt, np.reciprocal):
@@ -507,7 +546,24 @@ def _dispatch_ufunc(
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
-    if ufunc in (np.sin, np.cos, np.tan, np.exp, np.expm1, np.log, np.log2, np.log10, np.log1p):
+    if ufunc in (
+        np.sin,
+        np.cos,
+        np.tan,
+        np.sinh,
+        np.cosh,
+        np.tanh,
+        np.arcsinh,
+        np.arccosh,
+        np.arctanh,
+        np.exp,
+        np.expm1,
+        np.exp2,
+        np.log,
+        np.log2,
+        np.log10,
+        np.log1p,
+    ):
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit())
@@ -933,6 +989,60 @@ def _ravel(q: Any, order: Literal['C', 'F', 'A', 'K'] = 'C') -> Any:
 def _array_transform(func: Any, q: Any, *args: Any, **kwargs: Any) -> Any:
     """Transform storage without changing values, units or coordinates."""
     return _wrap(func(q.value, *args, **kwargs), q.unit)
+
+
+def _round(q: Any, decimals: int = 0, out: Any = None) -> Any:
+    return _write_output(_wrap(np.round(q.value, decimals=decimals), q.unit), out)
+
+
+def _fix(q: Any, out: Any = None) -> Any:
+    # Newer NumPy deprecates fix. Forward its warning at the user's call site,
+    # respecting their filters, before committing any output.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', DeprecationWarning)
+        value = np.fix(q.value)
+    for warning in caught:
+        warnings.warn(
+            warning.message,
+            warning.category,
+            skip_file_prefixes=(*_WARNING_SKIP_PREFIXES, *np.__path__),
+        )
+    return _write_output(_wrap(value, q.unit), out)
+
+
+def _angle(q: Any, deg: bool = False) -> Any:
+    return _wrap(np.angle(q.value, deg=deg), Unit('deg') if deg else Unit('rad'))
+
+
+def _unwrap(p: Any, discont: Any = None, axis: int = -1, *, period: Any = 2 * math.pi) -> Any:
+    if p.dimension != DIMENSIONLESS:
+        error_message = 'unwrap requires dimensionless linear phase input.'
+        raise DimensionError(error_message)
+
+    def threshold(value: Any, name: str) -> Any:
+        if not _is_supported_operand(value):
+            error_message = f'{name} must be a finite real scalar.'
+            raise TypeError(error_message)
+        raw, unit = _linear_parts(value)
+        if unit.dimension != DIMENSIONLESS:
+            error_message = f'{name} must be dimensionless.'
+            raise DimensionError(error_message)
+        raw = scale_magnitude(raw, unit.factor)
+        if np.ndim(raw) != 0 or np.iscomplexobj(raw) or not np.isfinite(raw):
+            error_message = f'{name} must be a finite real scalar.'
+            raise ValueError(error_message)
+        if raw < 0 or (name == 'period' and raw == 0):
+            error_message = (
+                f'{name} must be positive.' if name == 'period' else f'{name} must be nonnegative.'
+            )
+            raise ValueError(error_message)
+        return raw
+
+    period = threshold(period, 'period')
+    discont = None if discont is None else threshold(discont, 'discont')
+    values = scale_magnitude(p.value, p.unit.factor)
+    result = np.unwrap(values, discont=discont, axis=axis, period=period)
+    return _wrap(scale_magnitude(result, 1 / p.unit.factor), p.unit)
 
 
 def _array_metadata(func: Any, q: Any, *args: Any, **kwargs: Any) -> Any:
@@ -1386,11 +1496,11 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
             result = _compare(left, right, op)
         return np.equal(result, True, **kwargs) if kwargs else result
     q = inputs[0]
-    if ufunc is np.positive:
-        return _wrap(np.positive(q.value, **kwargs), q.unit)
+    if ufunc in (np.positive, np.floor, np.ceil, np.trunc, np.rint):
+        return _wrap(ufunc(q.value, **kwargs), q.unit)
     if ufunc in (np.isfinite, np.isnan, np.isinf):
         return ufunc(q.value, **kwargs)
-    if ufunc in (np.minimum, np.maximum):
+    if ufunc in (np.minimum, np.maximum, np.fmin, np.fmax):
         a, b, unit = _selection_parts(*inputs)
         return _wrap(ufunc(a, b, **kwargs), unit)
     raise TypeError('This ufunc is undefined for affine points; convert to physical units first.')
@@ -1465,13 +1575,20 @@ _ARRAY_FUNCTIONS = {
     np.argwhere: partial(_array_metadata, np.argwhere),
     np.count_nonzero: partial(_array_metadata, np.count_nonzero),
     np.zeros_like: partial(_array_transform, np.zeros_like),
+    np.ones_like: partial(_array_transform, np.ones_like),
     np.empty_like: partial(_array_transform, np.empty_like),
+    np.round: _round,
+    np.around: _round,
+    np.fix: _fix,
 }
 
 _QUANTITY_FUNCTIONS = {
     **_ARRAY_FUNCTIONS,
     np.real: partial(_array_transform, np.real),
     np.imag: partial(_array_transform, np.imag),
+    np.real_if_close: partial(_array_transform, np.real_if_close),
+    np.angle: _angle,
+    np.unwrap: _unwrap,
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
     np.nanargmin: partial(_argmin_max, np.nanargmin),

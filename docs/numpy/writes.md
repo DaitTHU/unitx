@@ -178,7 +178,11 @@ computing `np.exp2(exponent)` can overflow for large finite inputs. Dtype,
 signed-zero, NaN/Inf, and real-input restrictions follow
 [NumPy modf](https://numpy.org/doc/stable/reference/generated/numpy.modf.html) and
 [frexp](https://numpy.org/doc/stable/reference/generated/numpy.frexp.html).
-Only their ordinary `__call__` operation is supported.
+`np.divmod(a, b)` aligns compatible linear inputs and returns a dimensionless
+quotient plus a remainder in the alignment unit. For example, 250 cm divided
+by 1 m gives a quotient of 2 and a remainder of 50 cm. Both outputs require
+Quantity buffers. Points and incompatible dimensions are rejected.
+Only these functions' ordinary `__call__` operation is supported.
 
 Both accept `out=(first, second)` or positional output arguments. Each `None`
 allocates that output; `(None, None)` allocates both. Every unit-bearing output

@@ -1,5 +1,18 @@
 # Migration notes
 
+## Upgrading to 0.16.7
+
+Linear Quantity arithmetic now permits built-in float/Decimal mixing in
+`+`, `-`, `*`, `/` and their augmented forms. The float is converted through
+`Decimal(repr(x))`; unit alignment and arithmetic run under the active Decimal
+context, then the result is converted to float. This replaces a TypeError
+with an implicit precision downgrade. Pure Decimal arithmetic, exact
+comparison and hashing retain their existing rules. See [scalar behavior](scalars.md).
+
+`np.ones_like(q)` now preserves q's unit or point coordinate, with ones in
+that stored representation. New math and complex functions have the explicit
+unit rules in the [NumPy guide](numpy.md#mathematical-and-complex-functions).
+
 ## Upgrading to 0.15.1
 
 Catalogue lookup is now `catalogue.unit(expression)`. Replace calls such as

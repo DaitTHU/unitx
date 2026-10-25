@@ -230,8 +230,6 @@ def test_numpy_multi_output_foreign(operation: np.ufunc) -> None:
     assert operation(q, out=(None, Foreign())) == 'foreign dispatched'
     assert q.__array_ufunc__(operation, 'reduce', q) is NotImplemented
     assert q.__array_ufunc__(operation, '__call__', q, out=(None,)) is NotImplemented
-    with pytest.raises(TypeError):
-        np.divmod(q, q)
 
 
 @pytest.mark.parametrize('operation', [np.modf, np.frexp])

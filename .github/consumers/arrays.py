@@ -33,6 +33,16 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     assert voltage_level.value is values
     np.testing.assert_allclose(voltage_level.to_quantity(si.mV).value, 10 ** (values / 20))
 
+    phase = Quantity(np.array([170.0, -170.0, -160.0]), si.deg)
+    unwrapped = cast(Quantity[Array], np.unwrap(phase))
+    assert unwrapped.unit == si.deg
+    np.testing.assert_allclose(unwrapped.value, [170, 190, 200])
+    ones = cast(Quantity[Array], np.ones_like(phase))
+    assert ones.unit == si.deg
+    np.testing.assert_array_equal(ones.value, [1, 1, 1])
+    normalized = cast(Quantity[Array], np.sinh(Quantity(values, si.one)))
+    assert normalized.unit == si.one
+    np.testing.assert_allclose(normalized.value, np.sinh(values))
     distance = Quantity(values.copy(), si.m)
     assert_type(distance, Quantity[NDArray[np.float64]])
     assert_type(distance.unit, Unit)

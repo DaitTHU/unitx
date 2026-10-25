@@ -14,7 +14,7 @@ np = pytest.importorskip('numpy')
 ArrayQuantity = Quantity[Array] | AffineQuantity[Array] | LogQuantity[Array]
 
 
-@pytest.mark.parametrize('operation', [np.zeros_like, np.empty_like])
+@pytest.mark.parametrize('operation', [np.zeros_like, np.ones_like, np.empty_like])
 @pytest.mark.parametrize('order', ['C', 'F', 'A', 'K'])
 @pytest.mark.parametrize('shape', [None, (), (0, 3), (3, 4)])
 def test_numpy_allocation_storage(
@@ -34,14 +34,14 @@ def test_numpy_allocation_storage(
     assert result.value.dtype == expected.dtype and result.shape == expected.shape
     assert result.value.strides == expected.strides and result.value.flags.writeable
     assert not np.shares_memory(result.value, array_sample.value)
-    if operation is np.zeros_like:
+    if operation is not np.empty_like:
         np.testing.assert_array_equal(result.value, expected)
     else:
         result.value[...] = 42
         np.testing.assert_array_equal(result.value, np.full(result.shape, 42))
 
 
-@pytest.mark.parametrize('operation', [np.zeros_like, np.empty_like])
+@pytest.mark.parametrize('operation', [np.zeros_like, np.ones_like, np.empty_like])
 @pytest.mark.parametrize('dtype', [bool, object, str])
 def test_numpy_allocation_invalid_dtype(operation: Callable[..., Any], dtype: Any) -> None:
     with pytest.raises(TypeError):
