@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-10-25
+
 ### Added
 
 - Support NumPy `nanmean`, `nanmedian`, `nanstd`, `nanvar`, `nanquantile` and
