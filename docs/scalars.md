@@ -25,7 +25,8 @@ signals and exceptions.
 | int true division | Python float result |
 | Fraction arithmetic | Exact rational result when the other operand supports it |
 | Decimal arithmetic | Decimal result under the active context |
-| Decimal with float/Fraction arithmetic | Native TypeError; choose a common domain explicitly |
+| Built-in Decimal with float in `+`, `-`, `*`, `/` | Convert float with `Decimal(repr(x))`, calculate in the active Decimal context, return float |
+| Decimal with Fraction arithmetic | Native TypeError; choose a common domain explicitly |
 | Unary `+` and `-` | Apply the native magnitude operator; keep the unit |
 | `bool(q)` | Delegate to `bool(q.value)`; a zero magnitude is false regardless of unit |
 
@@ -41,6 +42,34 @@ Fraction(1, 3)
 False
 
 ```
+
+Mixing a built-in float with a built-in Decimal magnitude explicitly opts the
+calculation into a float result, including when one operand is a bare scalar.
+This lets float formulas use `SI` constants without casting every constant:
+
+```pycon
+>>> from unitx.si import SI
+>>> charge = 0.5 * SI.e
+>>> charge.value
+8.01088317e-20
+>>> type(charge.value) is float
+True
+>>> (Quantity(1e-300, '') * Decimal('1e400')).value
+1e+100
+
+```
+
+For example, `x * Quantity(d, unit)` evaluates its magnitude as
+`float(Decimal(repr(x)) * d)`. Unit alignment for addition/subtraction also
+runs in Decimal before the final float conversion. This is an **implicit
+precision downgrade**: the Decimal context controls intermediate rounding,
+signals and traps; the final float can round, overflow to infinity or
+underflow to zero. A very small Decimal context can reduce accuracy further.
+This rule does not convert the Decimal operand to float before calculating.
+It applies to the four binary operators above and their augmented forms,
+not powers, comparisons, hashes, custom scalar subclasses or bare Python
+`float * Decimal` expressions. Pure Decimal/int arithmetic stays Decimal.
+Choose all-Decimal inputs for calculations that must retain Decimal precision.
 
 Custom scalar magnitudes are responsible for their own operator domain and
 must defer Unit operands to reflected construction. Structural protocol
@@ -59,8 +88,9 @@ shortest decimal representation.
 
 Addition and subtraction first convert the right operand to the left
 quantity's unit. When an int operand is aligned with a Decimal magnitude,
-it is scaled in the Decimal domain. Explicit Fraction and float operands
-keep their own domains. Conversion and arithmetic can each round; changing
+it is scaled in the Decimal domain. Mixed built-in float/Decimal operands
+also align in Decimal and return float; explicit Fraction operands keep
+their own domain. Conversion and arithmetic can each round; changing
 the calculation's unit can therefore change rounding errors.
 
 ```pycon

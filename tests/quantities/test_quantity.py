@@ -562,7 +562,7 @@ def test_quantity_decimal_scalar() -> None:
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.mul, operator.truediv])
 @pytest.mark.parametrize('value', [2, Fraction(2), Decimal('2'), 2.0, 2j])
 @pytest.mark.parametrize('scalar', [3, Fraction(1, 3), Decimal('0.3'), 0.3, 0.3j])
-def test_quantity_native_arithmetic(
+def test_quantity_scalar_arithmetic(
     op: Callable[..., object],
     value: int | Fraction | Decimal | float | complex,
     scalar: int | Fraction | Decimal | float | complex,
@@ -571,7 +571,12 @@ def test_quantity_native_arithmetic(
     for left, right in ((value, scalar), (scalar, value)):
         operands = (quantity, scalar) if left is value else (scalar, quantity)
         try:
-            expected = op(left, right)
+            if {type(left), type(right)} == {float, Decimal}:
+                a = Decimal(repr(left)) if type(left) is float else left
+                b = Decimal(repr(right)) if type(right) is float else right
+                expected = float(op(a, b))
+            else:
+                expected = op(left, right)
         except TypeError:
             with pytest.raises(TypeError):
                 op(*operands)
@@ -583,7 +588,7 @@ def test_quantity_native_arithmetic(
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub, operator.mul, operator.truediv])
-@pytest.mark.parametrize('value', [Fraction(1, 3), 0.1, 0.1j])
+@pytest.mark.parametrize('value', [Fraction(1, 3), 0.1j])
 def test_quantity_decimal_invalid_mixed(
     op: Callable[..., object], value: Fraction | float | complex
 ) -> None:

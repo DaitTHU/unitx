@@ -50,13 +50,31 @@ def _is_nonfinite_real(value: object) -> bool:
     )
 
 
+def _is_float_decimal(left: object, right: object) -> bool:
+    return (type(left) is float and type(right) is Decimal) or (
+        type(left) is Decimal and type(right) is float
+    )
+
+
+def _scalar_arithmetic(
+    op: Callable[[Scalar, Scalar], object], left: Scalar, right: Scalar
+) -> Scalar:
+    if _is_float_decimal(left, right):
+        a = Decimal(repr(left)) if type(left) is float else left
+        b = Decimal(repr(right)) if type(right) is float else right
+        return float(cast(Decimal, op(a, b)))
+    return cast(Scalar, op(left, right))
+
+
 class Quantity(Generic[T]):
     """A magnitude paired with a physical unit.
 
     Construction preserves the magnitude's type. Arithmetic operators act on
     the magnitudes in operand order, using their native promotion, precision,
-    rounding, signals, and exceptions. Decimal arithmetic stays Decimal;
-    mixing it with float or Fraction in arithmetic is unsupported, as in Python.
+    rounding, signals, and exceptions. Built-in float/Decimal mixing in `+`, `-`, `*`, `/`
+    converts the float via `Decimal(repr(x))`, calculates under the active Decimal
+    context and returns float (an implicit precision downgrade). Pure Decimal
+    arithmetic stays Decimal; Decimal/Fraction mixing remains unsupported.
     Unit conversion uses native scaling for each magnitude. Rational scales
     preserve exact int/Fraction arithmetic; Decimal scaling combines the value
     and scale exactly before rounding once in the active Decimal context.
@@ -751,20 +769,26 @@ class Quantity(Generic[T]):
             conversion_factor = 1 / self.unit.factor
         else:
             if self.dimension != other.dimension:
-                raise DimensionError(
+                error_message = (
                     'Cannot operate on quantities with different dimensions: '
                     f'{self.dimension!r} and {other.dimension!r}.'
                 )
+                raise DimensionError(error_message)
             other_value = cast(Scalar, other.value)
             conversion_factor = other.unit.factor / self.unit.factor
+        value = cast(Scalar, self.value)
+        mixed = _is_float_decimal(value, other_value)
+        if mixed:
+            value = Decimal(repr(value)) if type(value) is float else value
+            other_value = Decimal(repr(other_value)) if type(other_value) is float else other_value
         # Decimal accepts integers natively. Unit alignment must not turn an
         # otherwise compatible integer into an incompatible Fraction.
         if isinstance(self.value, Decimal) and isinstance(other_value, int):
             other_value = Decimal(other_value)
         other_value = cast(Scalar, scale_value(other_value, conversion_factor))
-        value = cast(Scalar, self.value)
         left, right = (other_value, value) if reverse else (value, other_value)
-        return Quantity(cast(Scalar, op(left, right)), self.unit)
+        result = op(left, right)
+        return Quantity(float(cast(Decimal, result)) if mixed else cast(Scalar, result), self.unit)
 
     @overload
     def __add__[P: _Point[Any]](self, other: _Point[P], /) -> P: ...
@@ -778,14 +802,32 @@ class Quantity(Generic[T]):
     def __add__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __add__(
+    def __add__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __add__(
+    def __add__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __add__(self: Quantity[Decimal], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __add__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[float]: ...
+
+    # Prefer concrete integer inference before float scientific formulas.
+    # Hidden integers in float annotations have the documented typing exception.
+    @overload
+    def __add__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Quantity[int] | int, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __add__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
 
     @overload
     def __add__[L: Real, R: Real](
@@ -821,7 +863,23 @@ class Quantity(Generic[T]):
     def __radd__(self: Quantity[Decimal], other: Decimal | int, /) -> Quantity[Decimal]: ...
 
     @overload
-    def __radd__(self: Quantity[int], other: Decimal, /) -> Quantity[Decimal]: ...
+    def __radd__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Decimal, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __radd__(self: Quantity[Decimal], other: float, /) -> Quantity[float]: ...
+
+    @overload
+    def __radd__(self: Quantity[float], other: Decimal, /) -> Quantity[float]: ...
+
+    @overload
+    def __radd__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: int, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __radd__(self: Quantity[float], other: float, /) -> Quantity[float]: ...
 
     @overload
     def __radd__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
@@ -850,14 +908,30 @@ class Quantity(Generic[T]):
     def __sub__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __sub__(
+    def __sub__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __sub__(
+    def __sub__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __sub__(self: Quantity[Decimal], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __sub__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __sub__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Quantity[int] | int, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __sub__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
 
     @overload
     def __sub__[L: Real, R: Real](
@@ -893,7 +967,23 @@ class Quantity(Generic[T]):
     def __rsub__(self: Quantity[Decimal], other: Decimal | int, /) -> Quantity[Decimal]: ...
 
     @overload
-    def __rsub__(self: Quantity[int], other: Decimal, /) -> Quantity[Decimal]: ...
+    def __rsub__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Decimal, /
+    ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __rsub__(self: Quantity[Decimal], other: float, /) -> Quantity[float]: ...
+
+    @overload
+    def __rsub__(self: Quantity[float], other: Decimal, /) -> Quantity[float]: ...
+
+    @overload
+    def __rsub__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: int, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __rsub__(self: Quantity[float], other: float, /) -> Quantity[float]: ...
 
     @overload
     def __rsub__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
@@ -930,17 +1020,25 @@ class Quantity(Generic[T]):
     def __mul__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[int]: ...
 
     @overload
-    def __mul__(
+    def __mul__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __mul__(
+    def __mul__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
 
     @overload
     def __mul__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __mul__(self: Quantity[Decimal], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __mul__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[float]: ...
 
     @overload
     def __mul__[L: Real, R: Real](
@@ -967,12 +1065,17 @@ class Quantity(Generic[T]):
         if _is_quantity(other):
             assert isinstance(other.unit, Unit)
             return Quantity(
-                cast(Scalar, cast(Scalar, self.value) * cast(Scalar, other.value)),
+                _scalar_arithmetic(
+                    operator.mul, cast(Scalar, self.value), cast(Scalar, other.value)
+                ),
                 self.unit * other.unit,
             )
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, self.unit * other)
-        return Quantity(cast(Scalar, cast(Scalar, self.value) * cast(Scalar, other)), self.unit)
+        return Quantity(
+            _scalar_arithmetic(operator.mul, cast(Scalar, self.value), cast(Scalar, other)),
+            self.unit,
+        )
 
     @overload
     def __rmul__(
@@ -994,10 +1097,18 @@ class Quantity(Generic[T]):
     def __rmul__(self: Quantity[Decimal], other: Decimal | int, /) -> Quantity[Decimal]: ...
 
     @overload
-    def __rmul__(self: Quantity[int], other: Decimal, /) -> Quantity[Decimal]: ...
+    def __rmul__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Decimal, /
+    ) -> Quantity[Decimal]: ...
 
     @overload
     def __rmul__(self: Quantity[float], other: float, /) -> Quantity[float]: ...
+
+    @overload
+    def __rmul__(self: Quantity[Decimal], other: float, /) -> Quantity[float]: ...
+
+    @overload
+    def __rmul__(self: Quantity[float], other: Decimal, /) -> Quantity[float]: ...
 
     @overload
     def __rmul__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
@@ -1019,7 +1130,10 @@ class Quantity(Generic[T]):
             return apply_ufunc('multiply', other, self)
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, other * self.unit)
-        return Quantity(cast(Scalar, cast(Scalar, other) * cast(Scalar, self.value)), self.unit)
+        return Quantity(
+            _scalar_arithmetic(operator.mul, cast(Scalar, other), cast(Scalar, self.value)),
+            self.unit,
+        )
 
     @overload
     def __truediv__(
@@ -1038,18 +1152,28 @@ class Quantity(Generic[T]):
     def __truediv__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[float]: ...
 
     @overload
-    def __truediv__(
+    def __truediv__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __truediv__(
+    def __truediv__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
 
     @overload
     def __truediv__(
         self: Quantity[float], other: Quantity[float] | float, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __truediv__(
+        self: Quantity[Decimal], other: Quantity[float] | float, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __truediv__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[float]: ...
 
     @overload
@@ -1077,12 +1201,17 @@ class Quantity(Generic[T]):
         if _is_quantity(other):
             assert isinstance(other.unit, Unit)
             return Quantity(
-                cast(Scalar, cast(Scalar, self.value) / cast(Scalar, other.value)),
+                _scalar_arithmetic(
+                    lambda a, b: a / b, cast(Scalar, self.value), cast(Scalar, other.value)
+                ),
                 self.unit / other.unit,
             )
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(self.value, self.unit / other)
-        return Quantity(cast(Scalar, cast(Scalar, self.value) / cast(Scalar, other)), self.unit)
+        return Quantity(
+            _scalar_arithmetic(lambda a, b: a / b, cast(Scalar, self.value), cast(Scalar, other)),
+            self.unit,
+        )
 
     @overload
     def __rtruediv__(
@@ -1105,14 +1234,16 @@ class Quantity(Generic[T]):
     ) -> Quantity[float]: ...
 
     @overload
-    def __rtruediv__(
+    def __rtruediv__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal],
         other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Decimal | int,
         /,
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __rtruediv__(self: Quantity[int], other: Decimal, /) -> Quantity[Decimal]: ...
+    def __rtruediv__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Decimal, /
+    ) -> Quantity[Decimal]: ...
 
     @overload
     def __rtruediv__(
@@ -1120,6 +1251,12 @@ class Quantity(Generic[T]):
         other: Unit | _LinearUnitSource | Factor | SymbolicConstant | float,
         /,
     ) -> Quantity[float]: ...
+
+    @overload
+    def __rtruediv__(self: Quantity[Decimal], other: float, /) -> Quantity[float]: ...
+
+    @overload
+    def __rtruediv__(self: Quantity[float], other: Decimal, /) -> Quantity[float]: ...
 
     @overload
     def __rtruediv__[N: Real](
@@ -1149,7 +1286,10 @@ class Quantity(Generic[T]):
             return apply_ufunc('true_divide', other, self)
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
             return Quantity(cast(Scalar, 1 / cast(Scalar, self.value)), other / self.unit)
-        return Quantity(cast(Scalar, cast(Scalar, other) / cast(Scalar, self.value)), self.unit**-1)
+        return Quantity(
+            _scalar_arithmetic(lambda a, b: a / b, cast(Scalar, other), cast(Scalar, self.value)),
+            self.unit**-1,
+        )
 
     @overload
     def __pow__(self: Quantity[Array], exponent: object, /) -> Quantity[NumpyValue]: ...
@@ -1162,6 +1302,11 @@ class Quantity(Generic[T]):
 
     @overload
     def __pow__(self: Quantity[int], exponent: Decimal, /) -> Quantity[Decimal]: ...
+
+    @overload
+    def __pow__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], exponent: int, /
+    ) -> Quantity[Real]: ...
 
     @overload
     def __pow__(self: Quantity[float], exponent: int, /) -> Quantity[float]: ...
@@ -1200,14 +1345,30 @@ class Quantity(Generic[T]):
     def __iadd__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __iadd__(
+    def __iadd__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __iadd__(
+    def __iadd__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __iadd__(self: Quantity[Decimal], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __iadd__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __iadd__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Quantity[int] | int, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __iadd__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
 
     @overload
     def __iadd__[L: Real, R: Real](
@@ -1242,14 +1403,30 @@ class Quantity(Generic[T]):
     def __isub__(self, other: Quantity[Array] | Array, /) -> Quantity[NumpyValue]: ...
 
     @overload
-    def __isub__(
+    def __isub__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __isub__(
+    def __isub__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __isub__(self: Quantity[Decimal], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __isub__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __isub__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], other: Quantity[int] | int, /
+    ) -> Quantity[Real]: ...
+
+    @overload
+    def __isub__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
 
     @overload
     def __isub__[L: Real, R: Real](
@@ -1287,17 +1464,25 @@ class Quantity(Generic[T]):
     def __imul__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[int]: ...
 
     @overload
-    def __imul__(
+    def __imul__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __imul__(
+    def __imul__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
 
     @overload
     def __imul__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __imul__(self: Quantity[Decimal], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
+    def __imul__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
+    ) -> Quantity[float]: ...
 
     @overload
     def __imul__[L: Real, R: Real](
@@ -1335,18 +1520,28 @@ class Quantity(Generic[T]):
     def __itruediv__(self: Quantity[int], other: Quantity[int] | int, /) -> Quantity[float]: ...
 
     @overload
-    def __itruediv__(
+    def __itruediv__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[Decimal], other: Quantity[Decimal | int] | Decimal | int, /
     ) -> Quantity[Decimal]: ...
 
     @overload
-    def __itruediv__(
+    def __itruediv__(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
 
     @overload
     def __itruediv__(
         self: Quantity[float], other: Quantity[float] | float, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __itruediv__(
+        self: Quantity[Decimal], other: Quantity[float] | float, /
+    ) -> Quantity[float]: ...
+
+    @overload
+    def __itruediv__(
+        self: Quantity[float], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[float]: ...
 
     @overload
@@ -1381,6 +1576,11 @@ class Quantity(Generic[T]):
 
     @overload
     def __ipow__(self: Quantity[int], exponent: Decimal, /) -> Quantity[Decimal]: ...
+
+    @overload
+    def __ipow__(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[int], exponent: int, /
+    ) -> Quantity[Real]: ...
 
     @overload
     def __ipow__(self: Quantity[float], exponent: int, /) -> Quantity[float]: ...

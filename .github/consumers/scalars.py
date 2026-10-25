@@ -75,6 +75,11 @@ assert type(speed_float.value) is float and speed_float.value == 1.5
 converted_float = speed_float.to(si.km / si.h).astype(float)
 assert_type(converted_float, Quantity[float])
 assert abs(converted_float.value - 5.4) < 1e-12
+assert_type(distance_float + distance_float, Quantity[float])
+assert_type(1 - (1.0 * si.one), Quantity[float])
+constant_mixed = 0.5 * SI.e
+assert_type(constant_mixed, Quantity[float])
+assert type(constant_mixed.value) is float and constant_mixed.value == 8.01088317e-20
 constant_float = SI.e.astype(float)
 assert_type(constant_float, Quantity[float])
 assert type(constant_float.value) is float and constant_float.unit == SI.e.unit

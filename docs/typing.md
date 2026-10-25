@@ -38,8 +38,10 @@ or a call-validation decorator.
 
 ## Float calculations
 
-Ordinary int/float multiplication and division retain a float-compatible result
-domain, and integer powers of float-compatible quantities do too. For example,
+Float addition/subtraction, ordinary int/float multiplication and division
+retain a float-compatible result domain, and integer powers of float-compatible
+quantities do too. Explicit int/int addition/subtraction keeps its wider exact
+result type. For example,
 `distance / duration` can return `Quantity[float]` directly when both inputs
 have that annotation. Fractional powers can produce complex
 magnitudes and keep a wider result type; `unitx.math.sqrt` is the real-valued
@@ -48,14 +50,16 @@ float boundary for scalar square roots.
 Use `q.astype(float)` to convert the magnitude explicitly while retaining the
 complete unit. It returns `Quantity[float]` for Python scalar input. This is a
 real numeric conversion, unlike `typing.cast`, which does not change a value.
-Choose float constants once at a calculation boundary rather than using a
-NumPy ufunc solely to coerce Decimal constants:
+Decimal constants can participate directly in float formulas; the implicit
+precision downgrade is described in [scalar behavior](scalars.md). Use an
+explicit float conversion at a result boundary when its annotation must be
+narrowed:
 
 ```pycon
 >>> from unitx.si import SI, si
 >>> length = 3.0 * si.m
->>> speed = SI.c.astype(float)
->>> duration = (length / speed).to(si.s).astype(float)
+>>> energy = (2.5 * si.V * SI.e).to(si.J).astype(float)
+>>> duration = (length / SI.c).to(si.s).astype(float)
 >>> type(duration.value) is float
 True
 
@@ -68,12 +72,18 @@ their native constructors control errors. NumPy magnitudes use their own
 `astype` operation and numeric dtypes, retaining ndarray/NumPy-scalar results.
 Only the dtype argument is supported; this method does not change units.
 
-Unit conversion and aligned addition/subtraction still have wider annotations.
-Python's float annotation also accepts integer values, so even an object
+Unit conversion retains wider annotations. Python's float annotation also
+accepts integer values, so even an object
 annotated `Quantity[float]` may store an int: `Quantity[float](1, 'cm').to('m')`
-really produces a Fraction. Use `q.to(target).astype(float)` when an output
-must have a float magnitude. Float/Decimal mixed arithmetic continues to
-follow Python's errors; select a common domain explicitly before calculating.
+really produces a Fraction. The float addition/subtraction overloads prioritize
+ordinary scientific float inputs: if an object annotated `Quantity[float]`
+actually stores an int, aligned addition can likewise produce a Fraction,
+despite the inferred float result. Concrete int/Fraction overloads preserve
+their wider result domains; runtime arithmetic remains exact for these inputs.
+Use `q.to(target).astype(float)` when an output must have a float magnitude.
+Mixed float/Decimal overloads likewise infer float for scientific formulas.
+If a float annotation hides an int, its interaction with Decimal can instead
+retain Decimal at runtime. Explicit int/Decimal inputs infer Decimal.
 
 ## Quantity subclasses
 

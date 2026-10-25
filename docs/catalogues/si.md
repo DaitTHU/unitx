@@ -70,6 +70,11 @@ recompute them. The catalogue does not promise arbitrary-precision constants.
 See [constant source](https://github.com/DaitTHU/unitx/blob/main/src/unitx/si/constants.py)
 for the stored definitions.
 
+Float formulas can use Decimal constants directly, for example `0.5 * SI.e`.
+Mixed built-in float/Decimal `+`, `-`, `*`, `/` calculations return float after
+Decimal evaluation. This implicit precision downgrade and its context/range
+limits are documented in [scalar behavior](../scalars.md#arithmetic-and-result-types).
+
 `unitx.pi` is a symbolic Factor base with a float approximation for numerical
 evaluation. It supports exact cancellation in unit scales. It is distinct
 from predefined `SI.hbar`, whose numerical magnitude is expressed in ordinary

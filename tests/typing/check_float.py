@@ -1,4 +1,4 @@
-"""Float scientific formulas without casts or implicit Decimal coercion."""
+"""Float scientific formulas with practical float arithmetic inference."""
 
 from decimal import Decimal
 from fractions import Fraction
@@ -44,8 +44,8 @@ def float_contracts(q: Quantity[float], integer: Quantity[int]) -> None:
     q **= 2
     assert_type(q, Quantity[float])
     assert_type(q.to(si.cm), Quantity[Real])
-    assert_type(q + integer, Quantity[Real])
-    assert_type(q - q, Quantity[Real])
+    assert_type(q + integer, Quantity[float])
+    assert_type(q - q, Quantity[float])
     assert_type(q.to(si.cm).astype(float), Quantity[float])
     assert_type(q.astype(int), Quantity[int])
     assert_type(q.astype(Decimal), Quantity[Decimal])
@@ -54,3 +54,30 @@ def float_contracts(q: Quantity[float], integer: Quantity[int]) -> None:
     assert_type(SI.e.astype(float), Quantity[float])
     assert_type(SI.re.astype(float), Quantity[float])
     assert_type(Quantity[float](1, 'cm').to(si.m), Quantity[Real])
+
+
+def add_one(x: Quantity[float]) -> Quantity[float]:
+    return 1 + x
+
+
+def float_addition(q: Quantity[float], integer: Quantity[int]) -> None:
+    assert_type(q + q, Quantity[float])
+    assert_type(q + 1, Quantity[float])
+    assert_type(1 + q, Quantity[float])
+    assert_type(integer + q, Quantity[float])
+    assert_type(q - 1, Quantity[float])
+    assert_type(1 - q, Quantity[float])
+    assert_type(integer - q, Quantity[float])
+    q += 1
+    q -= integer
+    assert_type(q, Quantity[float])
+
+
+def float_decimal(q: Quantity[float], d: Quantity[Decimal]) -> None:
+    assert_type(q * SI.e, Quantity[float])
+    assert_type(SI.e * q, Quantity[float])
+    assert_type(q / SI.e, Quantity[float])
+    assert_type(SI.e / q, Quantity[float])
+    assert_type(q + d, Quantity[float])
+    assert_type(d - q, Quantity[float])
+    assert_type(0.5 * SI.e, Quantity[float])
