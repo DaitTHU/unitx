@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-25
+
 ### Added
 
 - Support NumPy `average`, `quantile` and `percentile` for linear Quantities,
