@@ -1,9 +1,9 @@
-"""Exact mechanical CGS units and Gaussian electromagnetic quantities.
+"""Exact mechanical CGS units and four electromagnetic conventions.
 
-Import with `from unitx.cgs import cgs, gaussian`.
-`cgs` contains mechanical units; `gaussian` inherits them and adds mechanical
-Gaussian electromagnetic units, `gaussian.em` coefficients and explicit
-`gaussian.convert(quantity, target)` correspondence with SI.
+Import with `from unitx.cgs import cgs, gaussian, esu, emu, hl`.
+`cgs` contains mechanical units; each electromagnetic catalogue inherits them
+and adds units, `em` formula coefficients and explicit
+`convert(quantity, target)` correspondence with SI.
 
 Mechanical scales follow NIST SP 811, table 10, or the defining CGS algebra.
 Electromagnetic conventions follow Kruger (2019), section II; this library calls
@@ -15,6 +15,6 @@ https://arxiv.org/abs/1909.11264
 https://physics.nist.gov/cuu/pdf/all.pdf
 """
 
-from .units import cgs, gaussian
+from .units import cgs, emu, esu, gaussian, hl
 
-__all__ = ['cgs', 'gaussian']
+__all__ = ['cgs', 'gaussian', 'esu', 'emu', 'hl']

@@ -13,7 +13,7 @@ reading about an older version.
 | Choose and parse a unit catalogue | [Unit catalogues](catalogues/README.md) |
 | Find SI units, constants, prefixes and Unicode spellings | [SI reference](catalogues/si.md) |
 | Find Imperial units and their exact conventions | [Imperial reference](catalogues/imperial.md) |
-| Calculate with CGS units and convert Gaussian electromagnetism | [CGS reference](catalogues/cgs.md) |
+| Calculate with CGS units and convert Gaussian, ESU, EMU and H–L electromagnetism | [CGS reference](catalogues/cgs.md) |
 | Define an exact scale or register a new unit | [Custom units and registries](custom-units.md) |
 | Understand Fraction, Decimal, float and exact equality | [Scalar numerical behavior](scalars.md) |
 | Work with absolute temperatures | [Points and differences](affine.md) |

@@ -1,9 +1,9 @@
-# CGS and Gaussian electromagnetism
+# CGS electromagnetism: Gaussian, ESU, EMU and Heaviside–Lorentz
 
 Import the catalogue and the explicit electromagnetic conversion entry point:
 
 ```pycon
->>> from unitx.cgs import cgs, gaussian
+>>> from unitx.cgs import cgs, gaussian, esu, emu, hl
 >>> from unitx.si import si, SI
 >>> from fractions import Fraction
 >>> (3 * cgs.dyn).to(si.N).value
@@ -19,8 +19,10 @@ True
 
 `cgs` contains only the shared mechanical units. `gaussian` inherits `cgs` and
 adds Gaussian electromagnetic units, `convert()` and formula coefficients.
-Both are read-only UnitCatalog namespaces with independent parsing environments.
-Gaussian parsing explicitly includes the inherited mechanical definitions.
+The `esu`, `emu` and `hl` catalogues offer the same explicit conversion API for
+electrostatic, electromagnetic and Heaviside–Lorentz CGS, respectively.
+All five are read-only UnitCatalog namespaces with independent parsing environments.
+Each electromagnetic parser includes its inherited mechanical definitions.
 Pass their Unit objects to ordinary conversions; bare strings keep using the
 default environment. Importing the package adds no default spellings.
 
@@ -143,13 +145,109 @@ uses ordinary linear scaling. An explicit kind always checks both endpoints.
 
 Unknown kind names raise ValueError; unsupported object types raise TypeError.
 Unmatched routes and incompatible dimensions raise DimensionError. D, P and M,
-charge/current densities, other circuit quantities, EMU, full ESU,
-Heaviside–Lorentz and medium constitutive parameters are outside this API.
+charge/current densities, other circuit quantities and medium constitutive
+parameters are outside this API. ESU, EMU and Heaviside–Lorentz support the same
+eight kinds through their own catalogues, as described below.
 
 The result is a new ordinary Quantity. `.to()`, low-level linear conversion,
 equality, hashing, ordering, addition, array assignment and in-place arithmetic
 keep their existing dimension rules. For example, `(1 * gaussian.statC).to(si.C)`
 raises DimensionError; convert explicitly before comparing or writing.
+
+## ESU, EMU and Heaviside–Lorentz
+
+Each catalogue inherits `cgs` and supplies `convert(quantity, target, *, kind=None)`
+and `em`, with the same eight kinds and numerical domains as Gaussian.
+Electric ESU units reuse the Gaussian objects; magnetic EMU units reuse the
+Gaussian objects. Other definitions have their own formal identities.
+
+| Kind | ESU representative | EMU representative | H–L representative |
+| --- | --- | --- | --- |
+| `charge` | `esu.statC` | `emu.abC` | `hl.charge` |
+| `current` | `esu.statA` | `emu.abA` | `hl.current` |
+| `potential` | `esu.statV` | `emu.abV` | `hl.potential` |
+| `electric_field` | `esu.statV/esu.cm` | `emu.abV/emu.cm` | `hl.electric_field` |
+| `magnetic_flux_density` | `esu.magnetic_flux_density` | `emu.G` | `hl.magnetic_flux_density` |
+| `magnetic_flux` | `esu.magnetic_flux` | `emu.Mx` | `hl.magnetic_flux` |
+| `capacitance` | `esu.statF` | `emu.abF` | `hl.capacitance` |
+| `magnetic_field_strength` | `esu.magnetic_field_strength` | `emu.Oe` | `hl.magnetic_field_strength` |
+
+EMU `abC` is exactly `(g*cm)**(1/2)`, `abA = abC/s`, `abV = erg/abC`
+and `abF = abC/abV`. Their singular names are `abcoulomb`, `abampere`,
+`abvolt` and `abfarad`. The ESU magnetic definitions are
+`dyn*s/(statC*cm)`, that unit times `cm**2`, and `statA/cm`, respectively.
+H–L definitions have the same mechanical factors and dimensions as their
+Gaussian counterparts; electric and magnetic fields both use `dyn**(1/2)/cm`.
+
+For parsing, the three ESU magnetic units use the library-specific symbols
+`esuB`, `esuFlux`, `esuH`. The H–L symbols are `hlC`, `hlA`, `hlV`, `hlE`,
+`hlB`, `hlFlux`, `hlF`, `hlH`, in the table's order. These are explicit library
+spellings, not claims of standardized historical unit names. All new definitions
+accept prefixes on their registered spellings. Named-route inference uses each
+catalogue's definitions; the electric-field expressions for ESU and EMU require
+`kind='electric_field'`, while the named `hl.electric_field` can infer it.
+
+```pycon
+>>> esu.statC is gaussian.statC and emu.G is gaussian.G
+True
+>>> emu.parse('erg/abcoulomb') == emu.erg / emu.abC
+True
+>>> hl.parse('hlE') == hl.electric_field
+True
+>>> round(emu.convert(1 * emu.abA, si.A).value, 8)
+10.0
+>>> q_hl = hl.convert(1.0 * si.C, hl.charge)
+>>> import math
+>>> math.isclose(q_hl.value / charge.value, math.sqrt(4 * math.pi))
+True
+
+```
+
+The formula coefficients follow [Kruger, section II, table II](https://arxiv.org/html/1909.11264v2#S2.T2):
+
+| Coefficient | ESU | EMU | H–L |
+| --- | --- | --- | --- |
+| `k1` | 1 | c² | 1/(4π) |
+| `alpha` | 1 | 1 | 1/c |
+| `k2` | 1/c² | 1 | 1/(4πc) |
+
+With the same dimensioned λ = √kₑ as above, the SI → CGS multipliers are:
+
+| Kinds | ESU | EMU | H–L |
+| --- | --- | --- | --- |
+| charge, current | λ | λ/c | √(4π)λ |
+| potential, electric field | 1/λ | c/λ | 1/(√(4π)λ) |
+| magnetic B, flux | 1/λ | c/λ | c/(√(4π)λ) |
+| capacitance | λ² | λ²/c² | 4πλ² |
+| magnetic H | 4πλ | 4πλ/c | √(4π)λ/c |
+
+The magnetic H convention also agrees with the [Wegner unit-system table,
+section 2.b](https://www.thphys.uni-heidelberg.de/~wegner/e03.dyn/El03Gese.pdf):
+in vacuum ESU has `H=c**2*B`, whereas EMU, Gaussian and H–L have `H=B`.
+For a conducting sphere of radius R, the capacitance is R in ESU/Gaussian,
+R/c² in EMU and 4πR in H–L. The factors are dimensioned Quantities, so these
+relations work with ordinary unit-aware formulas.
+
+A Quantity stores a magnitude and mechanical Unit, with no electromagnetic
+system tag. Equal mechanical dimensions still permit ordinary `.to()` and
+same-dimension `convert()` scaling, even between different catalogues. That
+scaling does **not** implement physical correspondence between conventions.
+To convert an electromagnetic quantity between CGS systems, use SI explicitly:
+
+```pycon
+>>> q_gaussian = 2.0 * gaussian.statC
+>>> q_si = gaussian.convert(q_gaussian, si.C)
+>>> q_hl = hl.convert(q_si, hl.charge)
+>>> math.isclose(q_hl.value, 2 * math.sqrt(4 * math.pi))
+True
+
+```
+
+An explicit kind always checks for one SI endpoint and one endpoint with the
+chosen CGS dimensions. It rejects a direct CGS-to-CGS correspondence request.
+With an explicit kind, matching dimensions allow a mechanically equivalent
+expression or custom unit at the CGS endpoint; its interpretation comes from
+the selected catalogue and kind, not its spelling or provenance.
 
 ## Numerical domains and precision
 
@@ -191,7 +289,7 @@ unitx uses the explicit entry point above and its own limited kind table.
 
 ## Shared formulas with explicit coefficients
 
-`si.em` and `gaussian.em` group read-only `k1`, `alpha`, `k2` and `c`
+`si.em`, `gaussian.em`, `esu.em`, `emu.em` and `hl.em` group read-only `k1`, `alpha`, `k2` and `c`
 attributes, all ordinary Quantities. These are frozen coefficient objects,
 referenced by Final namespace attributes; they are not parsing environments.
 `k2 = k1/(alpha*c²)` is derived; in Gaussian it simplifies to `alpha = 1/c`.

@@ -4,10 +4,39 @@ import pytest
 
 np = pytest.importorskip('numpy')
 
-from unitx import Quantity  # noqa: E402
-from unitx.cgs import cgs, gaussian  # noqa: E402
+from unitx import Quantity, Unit  # noqa: E402
+from unitx.cgs import cgs, emu, esu, gaussian, hl  # noqa: E402
 from unitx.exceptions import DimensionError  # noqa: E402
 from unitx.si import si  # noqa: E402
+
+_Catalogue = type[esu] | type[emu] | type[hl]
+
+
+@pytest.mark.parametrize(
+    ('catalogue', 'source', 'target'),
+    [
+        (esu, si.C, esu.statC),
+        (esu, si.T, esu.magnetic_flux_density),
+        (emu, si.C, emu.abC),
+        (hl, si.C, hl.charge),
+        (hl, si.V / si.m, hl.electric_field),
+    ],
+)
+@pytest.mark.parametrize('dtype', ['int32', 'float32', 'float64', 'complex64', 'complex128'])
+def test_cgs_system_numpy_scaling(
+    catalogue: _Catalogue, source: Unit, target: Unit, dtype: str
+) -> None:
+    values = np.array([0, 1, -2], dtype=dtype)
+    values.flags.writeable = False
+    saved = values.copy()
+    result = catalogue.convert(Quantity(values, source), target)
+    multiplier = catalogue.convert(1 * source, target).value
+    expected = values * multiplier
+    assert result.value.dtype == expected.dtype
+    np.testing.assert_array_equal(result.value, expected)
+    np.testing.assert_array_equal(values, saved)
+    assert not np.shares_memory(result.value, values)
+    np.testing.assert_allclose(catalogue.convert(result, source).value, saved, rtol=2e-7)
 
 
 @pytest.mark.parametrize('dtype', ['int32', 'float32', 'float64', 'complex64', 'complex128'])

@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 from unitx import LogQuantity, LogUnit, Quantity, Unit
 from unitx._numerics import Array
-from unitx.cgs import gaussian
+from unitx.cgs import emu, esu, gaussian, hl
 from unitx.exceptions import DimensionError
 from unitx.si import si
 
@@ -16,6 +16,10 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     charge = gaussian.convert(Quantity(values, si.C), gaussian.statC)
     assert_type(charge, Quantity[Array])
     np.testing.assert_allclose(gaussian.convert(charge, si.C).value, values)
+    for catalogue, charge_unit in ((esu, esu.statC), (emu, emu.abC), (hl, hl.charge)):
+        converted = catalogue.convert(Quantity(values, si.C), charge_unit)
+        assert_type(converted, Quantity[Array])
+        np.testing.assert_allclose(catalogue.convert(converted, si.C).value, values)
     level = LogQuantity(values, si.dBm)
     assert_type(level, LogQuantity[NDArray[np.float64]])
     assert_type(level.unit, LogUnit)

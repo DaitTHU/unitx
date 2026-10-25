@@ -15,7 +15,7 @@ nav:
       - Overview: catalogues/README.md
       - SI: catalogues/si.md
       - Imperial: catalogues/imperial.md
-      - CGS and Gaussian: catalogues/cgs.md
+      - CGS electromagnetism: catalogues/cgs.md
   - Custom units and registries: custom-units.md
   - Scalar numerical behavior: scalars.md
   - Points and differences: affine.md

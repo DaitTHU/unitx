@@ -34,23 +34,26 @@ Numeric scaling and linear conversion stay outside the coordinate package.
 Ordinary linear operations therefore do not need coordinate implementations;
 NumPy kernels are still imported only at array boundaries.
 
-The CGS package keeps both the mechanical and Gaussian catalogues in
-`cgs/units.py`. The private `_GaussianConversion` base in `_electromagnetism/conversion.py`
+The CGS package keeps its mechanical and four electromagnetic catalogues in
+`cgs/units.py`. The private `_EMConversion` base in `_electromagnetism/conversion.py`
 owns the explicit physical conversion boundary and its magnitude overloads.
-The fixed rule table and its definition-identity index are constructed together
-on first physical conversion, after the catalogue definitions exist, then cached.
+The fixed rule tables and their definition-identity indexes are constructed on
+first use, after the catalogue definitions exist, then cached per catalogue.
+The charge and magnetic transforms derive from the formula coefficients;
+magnetic H additionally uses the declared rationalization convention.
 This avoids an import cycle without adding an active system or mutable registry.
-`gaussian` inherits the mechanical units from `cgs` and explicitly includes their
-definitions in its independent parser. It exposes units, conversion and formula
-coefficients through one namespace; mechanical `cgs` has no electromagnetic entries.
-SI and Gaussian formula coefficients are frozen `_EMCoefficients` objects in
-`si.em` and `gaussian.em`; their fields and defining equations live in
-`_electromagnetism/coefficients.py`. The shared vacuum-permeability input lives
-in SI bases so `SI.mu0` and `si.em` derive from one value without cyclic imports.
-`gaussian.convert()` selects a declared physical kind and checks complete
-dimensions before numerical scaling. Its rules do not enter ordinary linear
-conversion, comparison or array writing. Quantities store no active system or
-electromagnetic kind. See the [CGS guide](catalogues/cgs.md).
+`gaussian`, `esu`, `emu` and `hl` inherit mechanical units from `cgs` and explicitly
+include them in independent parsers. Each exposes units, conversion and formula
+coefficients; mechanical `cgs` has no electromagnetic entries. Shared electric
+ESU/Gaussian and magnetic EMU/Gaussian definitions retain the same identities.
+Formula coefficients are frozen `_EMCoefficients` objects; their defining
+equations live in `_electromagnetism/coefficients.py`. The shared vacuum-permeability
+input lives in SI bases so `SI.mu0` and `si.em` derive from one value.
+Each electromagnetic catalogue's `convert()` selects a declared physical kind
+and checks complete dimensions before numerical scaling. Its rules do not enter
+ordinary linear conversion, comparison or array writing. Quantities store no
+active system or electromagnetic kind. Cross-CGS correspondence goes explicitly
+through SI. See the [CGS guide](catalogues/cgs.md).
 
 ## Cohesive internal records
 

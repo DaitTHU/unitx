@@ -15,7 +15,8 @@ class _EMCoefficients:
     The wave-speed constraint gives `k2 = k1/(alpha*c**2)`.
 
     SI uses `k1 = 1/(4*pi*epsilon0)` and `alpha = 1`; Gaussian uses
-    `k1 = 1` and `alpha = 1/c`. Here `alpha` is a Lorentz-force coefficient,
+    `k1 = 1` and `alpha = 1/c`. ESU uses `(1, 1)`, EMU `(c**2, 1)` and
+    Heaviside–Lorentz `(1/(4*pi), 1/c)`. Here `alpha` is a Lorentz-force coefficient,
     distinct from the fine-structure constant `SI.alpha`. All fields are
     ordinary Quantities with float magnitudes. They select formula coefficients;
     inputs still need the matching electromagnetic representation.

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Extend `unitx.cgs` with independent `esu`, `emu` and `hl` catalogues, exact
+  mechanical unit definitions, formula coefficients and explicit SI correspondence
+  for the same eight electromagnetic kinds as Gaussian. Share ESU electric and
+  EMU magnetic definitions with Gaussian; represent Heaviside–Lorentz units with
+  descriptive attributes and documented library-specific parser spellings.
+
 ## [0.15.0] - 2026-10-25
 
 ### Added
