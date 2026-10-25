@@ -166,20 +166,16 @@ it can copy a noncontiguous input even when reshape could return a view.
 Its C/F/A/K orders follow NumPy. Prefer `moveaxis` for new code; `rollaxis` is
 also supported for compatibility with existing NumPy code.
 
-```pycon
->>> import numpy as np
->>> from unitx import Quantity
->>> samples = Quantity(np.arange(6).reshape(1, 2, 3), 'cm')
->>> matrix = np.squeeze(samples, axis=0)
->>> matrix.shape
-(2, 3)
->>> np.moveaxis(matrix, 0, -1).shape
-(3, 2)
->>> matrix.unit == samples.unit
-True
->>> np.shares_memory(matrix.value, samples.value)
-True
+```python
+import numpy as np
+from unitx import Quantity
 
+samples = Quantity(np.arange(6).reshape(1, 2, 3), 'cm')
+matrix = np.squeeze(samples, axis=0)
+assert matrix.shape == (2, 3)
+assert np.moveaxis(matrix, 0, -1).shape == (3, 2)
+assert matrix.unit == samples.unit
+assert np.shares_memory(matrix.value, samples.value)
 ```
 
 ## Selection and clipping
