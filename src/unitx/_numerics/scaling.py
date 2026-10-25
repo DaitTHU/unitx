@@ -7,14 +7,14 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any, cast
 
-from ._numerics import Magnitude, Scalar, is_numpy_object
-from .factor import Factor, one
+from ..factor import Factor, one
+from . import Magnitude, Scalar, is_numpy_object
 
 
 def scale_value(value: Magnitude, factor: Factor) -> Magnitude:
     """Apply a unit ratio in the magnitude's numerical domain."""
     if is_numpy_object(value):
-        from ._numpy import scale_magnitude
+        from .numpy import scale_magnitude
 
         return cast(Magnitude, scale_magnitude(value, factor))
     value = cast(Scalar, value)
@@ -51,7 +51,7 @@ def affine_value(value: Any, a: Any, b: Any) -> Any:
     if a == 1 and b == 0:
         return value
     if is_numpy_object(value):
-        from ._numpy import affine_magnitude
+        from .numpy import affine_magnitude
 
         return affine_magnitude(value, a, b)
     if isinstance(value, Decimal):

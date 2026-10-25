@@ -4,9 +4,9 @@ from collections.abc import Iterable
 from fractions import Fraction
 from typing import Literal
 
+from ._formatting.unicode import superscript
 from ._immutable import _Immutable
 from ._numerics import Fractionable, as_exponent, as_int_if_integral
-from ._unicode import superscript
 from .monomial import Monomial
 
 __all__ = ['DIMENSIONLESS', 'Dimension']

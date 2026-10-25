@@ -13,8 +13,8 @@ from collections.abc import Callable
 from fractions import Fraction
 from typing import TypeAlias, cast, overload
 
-from ._conversion import compatible
 from ._numerics import Array, Fractionable, Magnitude, is_numpy_object
+from ._numerics.conversion import compatible
 from .exceptions import DimensionError
 from .factor import Factor, SymbolicConstant
 from .quantity import Quantity
@@ -73,7 +73,7 @@ def _unary(
     if power is None and not q.unit.is_dimensionless():
         raise DimensionError('This function requires dimensionless input.')
     if is_numpy_object(q.value):
-        from ._numpy import apply_ufunc
+        from ._numerics.numpy import apply_ufunc
 
         return cast(Quantity[Array], apply_ufunc(numpy_name, q))
     unit = q.unit**power if power is not None else si.rad if angle else si.one
@@ -288,7 +288,7 @@ def hypot(*coordinates: _Input) -> _Result:
     if any(not compatible(q.unit, unit) for q in quantities):
         raise DimensionError('hypot requires compatible input dimensions.')
     if any(is_numpy_object(q.value) for q in quantities):
-        from ._numpy import apply_ufunc
+        from ._numerics.numpy import apply_ufunc
 
         result = Quantity(0, unit)
         for q in quantities:
@@ -316,7 +316,7 @@ def atan2(y: _Input, x: _Input, /) -> _Result:
     if not compatible(yq.unit, xq.unit):
         raise DimensionError('atan2 requires compatible input dimensions.')
     if is_numpy_object(yq.value) or is_numpy_object(xq.value):
-        from ._numpy import apply_ufunc
+        from ._numerics.numpy import apply_ufunc
 
         return cast(Quantity[Array], apply_ufunc('arctan2', yq, xq))
     a = float(cast(Fractionable, yq.value))

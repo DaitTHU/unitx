@@ -1,4 +1,7 @@
-"""Utility functions for numerical operations.
+"""Scalar protocols and numerical helpers, retaining the unitx._numerics entry.
+
+Scaling, conversion and optional NumPy support live in sibling submodules;
+this entry imports none of them.
 
 - `as_fraction`: Converts a number to a rational number (Fraction), handling
   inexact floating-point representations.
@@ -14,7 +17,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any, Never, Protocol, Self, TypeAlias
 
-from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning, InexactFloatWarning
+from ..exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning, InexactFloatWarning
 
 __all__ = [
     'Fractionable',

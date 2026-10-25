@@ -10,7 +10,7 @@ from typing import Any, Generic, Never, TypeVar, cast, overload
 
 from ._coordinates.points import _add_sub, _compare, _isclose
 from ._numerics import Array, Magnitude, Scalar, is_numpy_object
-from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._numerics.numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
 from ._operands import _Point, linear_unit
 from .dimension import Dimension
 from .logunit import LogUnit, _as_log_unit
@@ -32,7 +32,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
 
     def __init__(self, value: T, unit: str | Unit | LogUnit, /) -> None:
         if is_numpy_object(value):
-            from ._numpy import validate_magnitude
+            from ._numerics.numpy import validate_magnitude
 
             validate_magnitude(value)
             if getattr(value, 'dtype').kind == 'c':
@@ -66,27 +66,27 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         return f'{type(self).__name__}({self.value!r}, {unit})'
 
     def __str__(self) -> str:
-        from ._display import text_quantity
+        from ._formatting.render import text_quantity
 
         return text_quantity(self.value, self.unit)
 
     def __format__(self, format_spec: str) -> str:
-        from ._display import format_quantity
+        from ._formatting.render import format_quantity
 
         return format_quantity(self.value, self.unit, format_spec)
 
     def to_latex(self, format_spec: str = '', *, fraction: bool = True) -> str:
-        from ._display import quantity_body
+        from ._formatting.render import quantity_body
 
         return quantity_body(self.value, self.unit, format_spec, 'latex', fraction=fraction)
 
     def to_html(self, format_spec: str = '') -> str:
-        from ._display import html_span, quantity_body
+        from ._formatting.render import html_span, quantity_body
 
         return html_span(quantity_body(self.value, self.unit, format_spec, 'html'))
 
     def to_siunitx(self, format_spec: str = '') -> str:
-        from ._display import siunitx_quantity
+        from ._formatting.render import siunitx_quantity
 
         return siunitx_quantity(self.value, self.unit, format_spec)
 
@@ -363,7 +363,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def __iadd__(self, other: Quantity[Magnitude], /) -> LogQuantity[Magnitude]:
         result = self + other
         if is_numpy_object(self.value):
-            from ._numpy import write_inplace
+            from ._numerics.numpy import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -385,7 +385,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def __isub__(self, other: Any, /) -> Quantity[Magnitude] | LogQuantity[Magnitude]:
         result = self - other
         if is_numpy_object(self.value):
-            from ._numpy import write_inplace
+            from ._numerics.numpy import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -395,14 +395,14 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         raise TypeError(error_message)
 
     def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
-        from ._numpy import dispatch_ufunc
+        from ._numerics.numpy import dispatch_ufunc
 
         return dispatch_ufunc(ufunc, method, inputs, kwargs)
 
     def __array_function__(
         self, func: Any, types: tuple[type, ...], args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
-        from ._numpy import dispatch_function
+        from ._numerics.numpy import dispatch_function
 
         return dispatch_function(func, types, args, kwargs)
 
@@ -436,7 +436,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         return LogQuantity(self._array_value()[key], self.unit)
 
     def __setitem__(self: LogQuantity[Array], key: Any, value: LogQuantity[Magnitude]) -> None:
-        from ._numpy import assign_item
+        from ._numerics.numpy import assign_item
 
         assign_item(self, key, value)
 

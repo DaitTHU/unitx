@@ -107,7 +107,10 @@ def test_math_time_optional_imports() -> None:
     code = """
 import sys
 sys.path.insert(0, 'src')
+import importlib
 import unitx
+assert importlib.import_module('unitx.math') is unitx.math
+assert importlib.import_module('unitx.time') is unitx.time
 assert unitx.math.sqrt(4).value == 2
 assert isinstance(unitx.time.time().value, int)
 assert 'numpy' not in sys.modules

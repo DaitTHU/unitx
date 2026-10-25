@@ -128,7 +128,7 @@ def test_native_precision_and_errors() -> None:
 
 def test_literal_text_escaping() -> None:
     # Low-level escaping also handles characters excluded from registered tokens.
-    from unitx._display import latex_text, product
+    from unitx._formatting.render import latex_text, product
 
     token = '<script>&"\\{}$_#%^~'
     html = product([(token, Fraction(1))], 'html')

@@ -2,7 +2,7 @@ from fractions import Fraction
 
 import pytest
 
-from unitx._unicode import superscript
+from unitx._formatting.unicode import superscript
 
 
 @pytest.mark.parametrize(

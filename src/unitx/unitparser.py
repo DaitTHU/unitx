@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterator
 from fractions import Fraction
 
-from ._unicode import SUP_TO_DIGIT, SUPERSCRIPTS
+from ._formatting.unicode import SUP_TO_DIGIT, SUPERSCRIPTS
 from .exceptions import UnitSymbolError, UnitSyntaxError
 from .monomial import Monomial
 from .singleunit import SingleUnit

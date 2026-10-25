@@ -8,16 +8,30 @@ supply readings in their respective coordinate families.
 ## Source layout
 
 Public objects keep their existing modules, such as `unitx.unit`,
-`unitx.quantity` and `unitx.unitregistry`. Private registry support lives in
-`_registry/`: prefix data, root definitions and reconstruction lookup.
-Private coordinate support lives in `_coordinates/`: the two mappings,
-coordinate definitions and resolution, logarithmic evaluation and point helpers.
-Both private package initializers remain lightweight and import no implementations.
+`unitx.quantity` and `unitx.unitregistry`. The standard-library enhancements
+remain `unitx.math` and `unitx.time`, directly discoverable under their documented
+names. SI and Imperial retain their respective catalogue packages.
 
-Shared numeric scaling, linear conversion and operand interfaces stay outside
-the coordinate package. Ordinary linear operations therefore do not need to
-import coordinate implementations. SI and Imperial definitions remain in their
-respective catalogue packages.
+Private implementations are grouped by responsibility:
+
+| Package | Responsibility |
+| --- | --- |
+| `_numerics/` | Scalar protocols and number theory, exact scaling, linear conversion, optional NumPy kernels and annotations |
+| `_formatting/` | Unicode unit notation shared with the parser, and rich rendering |
+| `_registry/` | Prefix data, root definitions and reconstruction lookup |
+| `_coordinates/` | Affine/log mappings, coordinate definitions, resolution and point helpers |
+
+The `_numerics` package entry retains the existing scalar implementation and
+module identity. Imports such as `unitx._numerics.Scalar`, pickled numerical
+markers and numerical-module monkeypatches therefore retain their meaning.
+It does not import its scaling, conversion or optional NumPy submodules.
+Other private package initializers are lightweight and import no implementations;
+reading Unicode notation does not load the rich renderer. Small shared object
+and operand boundaries remain at the root rather than in a generic utilities bag.
+
+Numeric scaling and linear conversion stay outside the coordinate package.
+Ordinary linear operations therefore do not need coordinate implementations;
+NumPy kernels are still imported only at array boundaries.
 
 ## Cohesive internal records
 

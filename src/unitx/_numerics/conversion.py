@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from ._numerics import Magnitude
-from ._scaling import scale_value
-from .exceptions import DimensionError
-from .unit import Unit
+from ..exceptions import DimensionError
+from ..unit import Unit
+from . import Magnitude
+from .scaling import scale_value
 
 
 def compatible(source: Unit, target: Unit) -> bool:

@@ -11,9 +11,9 @@ from ._coordinates.affine import _AffineMapping
 from ._coordinates.definition import _CoordinateDefinition
 from ._immutable import _Immutable
 from ._numerics import Fractionable, Magnitude
+from ._numerics.scaling import _coordinate_scalar
 from ._operands import _LinearUnitSource, linear_unit
 from ._registry.reconstruction import _definition_by_id
-from ._scaling import _coordinate_scalar
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError, UnitSymbolError
 from .factor import Factor, SymbolicConstant, one
@@ -145,7 +145,7 @@ class AffineUnit(_Immutable, _LinearUnitSource):
     def symbol(self) -> str:
         if self._definition is not None:
             return self._definition.symbol
-        from ._display import _display_unit
+        from ._formatting.render import _display_unit
 
         display = _display_unit(self)
         if display is not self:
@@ -182,25 +182,25 @@ class AffineUnit(_Immutable, _LinearUnitSource):
         return self.symbol
 
     def __format__(self, format_spec: str) -> str:
-        from ._display import format_unit
+        from ._formatting.render import format_unit
 
         return format_unit(self, format_spec)
 
     def to_latex(self, *, fraction: bool = True) -> str:
         """Render the coordinate symbol as escaped LaTeX text."""
-        from ._display import unit_body
+        from ._formatting.render import unit_body
 
         return unit_body(self, 'latex', fraction=fraction)
 
     def to_html(self) -> str:
         """Render the coordinate symbol as escaped HTML."""
-        from ._display import html_span, unit_body
+        from ._formatting.render import html_span, unit_body
 
         return html_span(unit_body(self, 'html'))
 
     def to_siunitx(self) -> str:
         """Render the coordinate symbol with siunitx unit parsing disabled."""
-        from ._display import siunitx_unit
+        from ._formatting.render import siunitx_unit
 
         return siunitx_unit(self)
 
@@ -303,7 +303,7 @@ class AffineUnit(_Immutable, _LinearUnitSource):
     def __array_ufunc__(
         self, ufunc: object, method: str, *inputs: object, **kwargs: object
     ) -> object:
-        from ._numpy import dispatch_ufunc
+        from ._numerics.numpy import dispatch_ufunc
 
         return dispatch_ufunc(ufunc, method, inputs, kwargs)
 

@@ -9,7 +9,7 @@ from unitx.factor import Factor
 # Static-only fixtures run through Pyright in tests/test_typing.py.
 collect_ignore = ['tests/typing', 'tests/numpy_typing']
 if find_spec('numpy') is None:
-    collect_ignore.append('src/unitx/_numpy.py')
+    collect_ignore.append('src/unitx/_numerics/numpy.py')
 
 _DOCTEST_FILTER: dict[str, tuple[pytest.MarkDecorator, ...]] = {
     f'{obj.__module__}.{obj.__qualname__}': tuple(

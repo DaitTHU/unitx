@@ -52,7 +52,7 @@ domain; they are not a template for preserving every array or coordinate overloa
 
 ## NumPy magnitude types
 
-`_numerics.py` defines `Scalar`, `Array`, and `Magnitude = Array | Scalar`
+The `unitx._numerics` package defines `Scalar`, `Array`, and `Magnitude = Array | Scalar`
 without importing NumPy. Array is an input capability protocol, not a guarantee
 of other backend support. Construction and unit-only operators preserve
 Quantity[T], as does `.T`. Numerical array operations, conversions, indexing,
@@ -69,7 +69,7 @@ types are described by Quantity's public overloads. Custom scalar magnitudes
 must still return valid scalar results. This avoids recursively comparing
 NumPy's many arithmetic overloads against Scalar's own return protocol.
 
-`_numpy_typing.py` imports concrete NumPy types only for static analysis; core
+`_numerics/numpy_typing.py` imports concrete NumPy types only for static analysis; core
 runtime imports still do not load NumPy. Strict scalar-consumer checks also
 run with NumPy absent. Checking the full library's optional NumPy annotations
 requires NumPy; `pyright tests/typing` checks scalar consumers without it.

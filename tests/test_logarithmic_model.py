@@ -21,7 +21,7 @@ from unitx import (
     Registry,
     Unit,
 )
-from unitx._conversion import compatible, convert
+from unitx._numerics.conversion import compatible, convert
 from unitx.exceptions import DimensionError, SerializationError
 from unitx.logunit import LogKind
 from unitx.serialization import from_dict, to_dict

@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from fractions import Fraction
+from importlib import import_module
 from importlib.metadata import distribution
 from importlib.util import find_spec
 from pathlib import Path
@@ -34,6 +35,8 @@ assert installed.version == os.environ['EXPECTED_VERSION']
 assert Path(unitx.__file__).resolve() == (package_root / '__init__.py').resolve()
 assert (package_root / 'py.typed').is_file()
 assert find_spec('numpy') is None
+assert import_module('unitx.math') is math
+assert import_module('unitx.time') is time
 
 distance = Quantity(Decimal('1.25'), si.m)
 assert_type(distance.to(si.cm), Quantity[Decimal])

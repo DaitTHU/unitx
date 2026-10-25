@@ -21,9 +21,9 @@ from ._numerics import (
     as_int_if_integral,
     is_numpy_object,
 )
-from ._numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._numerics.numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._numerics.scaling import scale_value
 from ._operands import _LinearUnitSource, _Point, linear_unit
-from ._scaling import scale_value
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import DimensionError
 from .factor import Factor, SymbolicConstant, one
@@ -124,7 +124,7 @@ class Quantity(Generic[T]):
 
     def __init__(self, value: T, unit: str | Unit | _LinearUnitSource, /) -> None:
         if is_numpy_object(value):
-            from ._numpy import validate_magnitude
+            from ._numerics.numpy import validate_magnitude
 
             validate_magnitude(value)
         elif hasattr(value, '__array_interface__') or hasattr(value, '__array_ufunc__'):
@@ -150,12 +150,12 @@ class Quantity(Generic[T]):
         return f'{type(self).__name__}({self.value!r}, {self.unit!r})'
 
     def __str__(self) -> str:
-        from ._display import text_quantity
+        from ._formatting.render import text_quantity
 
         return text_quantity(self.value, self.unit)
 
     def __format__(self, format_spec: str) -> str:
-        from ._display import format_quantity
+        from ._formatting.render import format_quantity
 
         return format_quantity(self.value, self.unit, format_spec)
 
@@ -165,7 +165,7 @@ class Quantity(Generic[T]):
         format_spec applies to magnitude; numeric scientific notation is typeset
         mathematically while custom magnitude strings remain escaped text.
         """
-        from ._display import quantity_body
+        from ._formatting.render import quantity_body
 
         return quantity_body(self.value, self.unit, format_spec, 'latex', fraction=fraction)
 
@@ -175,13 +175,13 @@ class Quantity(Generic[T]):
         Native decimal/scientific notation is parsed by siunitx. Other values
         remain escaped expressions with numerical parsing explicitly disabled.
         """
-        from ._display import siunitx_quantity
+        from ._formatting.render import siunitx_quantity
 
         return siunitx_quantity(self.value, self.unit, format_spec)
 
     def to_html(self, format_spec: str = '') -> str:
         """Return escaped HTML preserving magnitude whitespace and line breaks."""
-        from ._display import html_span, quantity_body
+        from ._formatting.render import html_span, quantity_body
 
         return html_span(quantity_body(self.value, self.unit, format_spec, 'html'))
 
@@ -234,7 +234,7 @@ class Quantity(Generic[T]):
         Decimal('1.25')
         """
         unit = linear_unit(unit)
-        from ._conversion import convert
+        from ._numerics.conversion import convert
 
         return convert(self.value, self.unit, unit)
 
@@ -345,7 +345,7 @@ class Quantity(Generic[T]):
         if isinstance(other, _Point):
             return NotImplemented
         if self._has_numpy_operand(other):
-            from ._numpy import compare
+            from ._numerics.numpy import compare
 
             return compare(self, other, op)
         if not _is_quantity(other):
@@ -434,7 +434,7 @@ class Quantity(Generic[T]):
         if isinstance(other, _Point):
             return NotImplemented
         if self._has_numpy_operand(other):
-            from ._numpy import compare
+            from ._numerics.numpy import compare
 
             return compare(self, other, op)
         if not _is_quantity(other):
@@ -617,7 +617,7 @@ class Quantity(Generic[T]):
         True
         """
         if self._has_numpy_operand(other, rel_tol, abs_tol):
-            from ._numpy import isclose
+            from ._numerics.numpy import isclose
 
             return isclose(self, other, rel_tol, abs_tol, symmetric=True)
         if not isinstance(rel_tol, Fractionable):
@@ -679,7 +679,7 @@ class Quantity(Generic[T]):
 
     def __pos__(self, /) -> Quantity[Magnitude]:
         if is_numpy_object(self.value):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('positive', self)
         return Quantity(cast(Scalar, +cast(Scalar, self.value)), self.unit)
@@ -700,7 +700,7 @@ class Quantity(Generic[T]):
 
     def __neg__(self, /) -> Quantity[Magnitude]:
         if is_numpy_object(self.value):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('negative', self)
         return Quantity(cast(Scalar, -cast(Scalar, self.value)), self.unit)
@@ -775,7 +775,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('add', self, other)
         return self._add_sub(other, operator.add)
@@ -807,7 +807,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('add', other, self)
         return self._add_sub(other, operator.add, reverse=True)
@@ -847,7 +847,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('subtract', self, other)
         return self._add_sub(other, operator.sub)
@@ -879,7 +879,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('subtract', other, self)
         return self._add_sub(other, operator.sub, reverse=True)
@@ -929,7 +929,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('multiply', self, other)
         if _is_quantity(other):
@@ -979,7 +979,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('multiply', other, self)
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
@@ -1031,7 +1031,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('true_divide', self, other)
         if _is_quantity(other):
@@ -1097,7 +1097,7 @@ class Quantity(Generic[T]):
         if self._has_numpy_operand(other) and not isinstance(
             other, (Unit, Factor, SymbolicConstant)
         ):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('true_divide', other, self)
         if isinstance(other, (Unit, Factor, SymbolicConstant)):
@@ -1127,7 +1127,7 @@ class Quantity(Generic[T]):
 
     def __pow__(self, exponent: object, /) -> Quantity[Magnitude]:
         if self._has_numpy_operand(exponent):
-            from ._numpy import power
+            from ._numerics.numpy import power
 
             return power(self, exponent)
         if not isinstance(exponent, Fractionable):
@@ -1175,7 +1175,7 @@ class Quantity(Generic[T]):
     def __iadd__(self, other: object, /) -> Quantity[Magnitude] | _Point[Any]:
         result = cast('Quantity[Magnitude] | _Point[Any]', self.__add__(cast(Any, other)))
         if is_numpy_object(self.value):
-            from ._numpy import write_inplace
+            from ._numerics.numpy import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -1349,7 +1349,7 @@ class Quantity(Generic[T]):
         if result is NotImplemented:
             return NotImplemented
         if is_numpy_object(self.value):
-            from ._numpy import write_inplace
+            from ._numerics.numpy import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -1363,14 +1363,14 @@ class Quantity(Generic[T]):
         raise TypeError('Implicit unit removal is forbidden; use q.value_in(unit) or q.value.')
 
     def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
-        from ._numpy import dispatch_ufunc
+        from ._numerics.numpy import dispatch_ufunc
 
         return dispatch_ufunc(ufunc, method, inputs, kwargs)
 
     def __array_function__(
         self, func: Any, types: tuple[type, ...], args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
-        from ._numpy import dispatch_function
+        from ._numerics.numpy import dispatch_function
 
         return dispatch_function(func, types, args, kwargs)
 
@@ -1413,7 +1413,7 @@ class Quantity(Generic[T]):
         """
         if not is_numpy_object(self.value):
             raise TypeError('Indexed assignment requires a plain numeric ndarray magnitude.')
-        from ._numpy import assign_item
+        from ._numerics.numpy import assign_item
 
         assign_item(self, key, value)
 
@@ -1434,7 +1434,7 @@ class Quantity(Generic[T]):
 
     def __abs__(self) -> Quantity[Magnitude]:
         if is_numpy_object(self.value):
-            from ._numpy import apply_ufunc
+            from ._numerics.numpy import apply_ufunc
 
             return apply_ufunc('absolute', self)
         return Quantity(abs(cast(Any, self.value)), self.unit)
@@ -1442,14 +1442,14 @@ class Quantity(Generic[T]):
     def __matmul__(self, other: object) -> Quantity[NumpyValue]:
         if not self._has_numpy_operand(other):
             return NotImplemented
-        from ._numpy import apply_ufunc
+        from ._numerics.numpy import apply_ufunc
 
         return apply_ufunc('matmul', self, other)
 
     def __rmatmul__(self, other: object) -> Quantity[NumpyValue]:
         if not self._has_numpy_operand(other):
             return NotImplemented
-        from ._numpy import apply_ufunc
+        from ._numerics.numpy import apply_ufunc
 
         return apply_ufunc('matmul', other, self)
 

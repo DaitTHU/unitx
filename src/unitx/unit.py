@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Self, cast, overload
 
 from ._immutable import _Immutable
 from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_object
-from ._numpy_typing import NumpyValue
+from ._numerics.numpy_typing import NumpyValue
 from ._registry.prefixes import NO_PREFIX
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitSymbolError, UnitSyntaxError
@@ -250,13 +250,13 @@ class Unit(_Immutable):
 
     def __format__(self, format_spec: str) -> str:
         """Select a display format or apply Python string alignment to the unit."""
-        from ._display import format_unit
+        from ._formatting.render import format_unit
 
         return format_unit(self, format_spec)
 
     def to_latex(self, *, fraction: bool = True) -> str:
         """Return a LaTeX fragment with slash fractions or signed unit powers."""
-        from ._display import unit_body
+        from ._formatting.render import unit_body
 
         return unit_body(self, 'latex', fraction=fraction)
 
@@ -266,13 +266,13 @@ class Unit(_Immutable):
         Simple ASCII symbols use native literal unit syntax. Extra scale or
         other symbols use escaped LaTeX with unit parsing explicitly disabled.
         """
-        from ._display import siunitx_unit
+        from ._formatting.render import siunitx_unit
 
         return siunitx_unit(self)
 
     def to_html(self) -> str:
         """Return an escaped HTML fragment, independent of MathJax."""
-        from ._display import html_span, unit_body
+        from ._formatting.render import html_span, unit_body
 
         return html_span(unit_body(self, 'html'))
 
@@ -340,7 +340,7 @@ class Unit(_Immutable):
         from .quantity import Quantity
 
         if is_numpy_object(other):
-            from ._numpy import apply_ufunc, validate_magnitude
+            from ._numerics.numpy import apply_ufunc, validate_magnitude
 
             validate_magnitude(other)
             return apply_ufunc('true_divide', self, other)
@@ -399,7 +399,7 @@ class Unit(_Immutable):
     def __array_ufunc__(
         self, ufunc: object, method: str, *inputs: object, **kwargs: object
     ) -> object:
-        from ._numpy import dispatch_ufunc
+        from ._numerics.numpy import dispatch_ufunc
 
         return dispatch_ufunc(ufunc, method, inputs, kwargs)
 

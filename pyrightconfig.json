@@ -1,7 +1,7 @@
 {
   "include": [
     "examples/impedance.py",
-    "src/unitx/_display.py",
+    "src/unitx/_formatting",
     "src/unitx/math.py",
     "src/unitx/time.py",
     "src/unitx/serialization.py",
@@ -16,14 +16,10 @@
     "src/unitx/_coordinates/points.py",
     "src/unitx/dimension.py",
     "src/unitx/affinequantity.py",
-    "src/unitx/_conversion.py",
-    "src/unitx/_scaling.py",
+    "src/unitx/_numerics",
     "src/unitx/_coordinates/logarithms.py",
     "src/unitx/_registry/builtin_units.py",
     "src/unitx/quantity.py",
-    "src/unitx/_numpy.py",
-    "src/unitx/_numpy_typing.py",
-    "src/unitx/_numerics.py",
     "src/unitx/factor.py",
     "src/unitx/unit.py",
     "src/unitx/unitregistry.py",
@@ -43,7 +39,10 @@
     "tests/typing",
     "tests/numpy_typing"
   ],
-  "extraPaths": ["src", "examples"],
+  "extraPaths": [
+    "src",
+    "examples"
+  ],
   "pythonVersion": "3.12",
   "typeCheckingMode": "basic"
 }

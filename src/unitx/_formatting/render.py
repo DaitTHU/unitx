@@ -10,8 +10,8 @@ from numbers import Complex, Number, Real
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from ._coordinates.resolve import _Coordinate
-    from .unit import Unit
+    from .._coordinates.resolve import _Coordinate
+    from ..unit import Unit
 
 type Style = Literal['latex', 'html']
 
@@ -20,7 +20,7 @@ _DECIMAL_NUMBER = re.compile(r'([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(?:[eE]([+
 
 def _display_unit(unit: Unit | _Coordinate) -> Unit | _Coordinate:
     """Render an unnamed zero-origin linear coordinate through its complete Unit."""
-    from ._coordinates.resolve import _Coordinate
+    from .._coordinates.resolve import _Coordinate
 
     if (
         isinstance(unit, _Coordinate)
@@ -94,8 +94,8 @@ def siunitx_unit(unit: Unit | _Coordinate) -> str:
 
 
 def unit_body(unit: Unit | _Coordinate, style: Style, *, fraction: bool = True) -> str:
-    from ._coordinates.resolve import _Coordinate
-    from .factor import one
+    from .._coordinates.resolve import _Coordinate
+    from ..factor import one
 
     unit = _display_unit(unit)
     if isinstance(unit, _Coordinate):
@@ -130,7 +130,7 @@ def format_magnitude(value: object, spec: str) -> str:
 
 def rich_magnitude(value: object, text: str, spec: str, style: Style) -> str:
     """Typeset recognized scalars; keep custom values and array strings literal."""
-    from ._numerics import is_numpy_object
+    from .._numerics import is_numpy_object
 
     if type(value) is Fraction and not spec and style == 'latex':
         return rf'\frac{{{value.numerator}}}{{{value.denominator}}}'
@@ -159,8 +159,8 @@ def rich_magnitude(value: object, text: str, spec: str, style: Style) -> str:
 def quantity_body(
     value: object, unit: Unit | _Coordinate, spec: str, style: Style, *, fraction: bool = True
 ) -> str:
-    from ._coordinates.resolve import _Coordinate
-    from .factor import one
+    from .._coordinates.resolve import _Coordinate
+    from ..factor import one
 
     unit = _display_unit(unit)
     # Delegate formatting without coercing Decimal, Fraction, arrays or custom scalars.
@@ -184,12 +184,12 @@ def html_span(body: str) -> str:
 
 def siunitx_unit_parts(unit: Unit | _Coordinate) -> tuple[str, bool]:
     """Return a unit argument and whether siunitx should parse it."""
-    from ._coordinates.resolve import _Coordinate
+    from .._coordinates.resolve import _Coordinate
 
     unit = _display_unit(unit)
     if isinstance(unit, _Coordinate):
         return '{' + unit.to_latex() + '}', False
-    from .factor import one
+    from ..factor import one
 
     scaled = unit.scale != one
     components = [(str(base), exp) for base, exp in unit._monomial.components()]
@@ -204,8 +204,8 @@ def siunitx_unit_parts(unit: Unit | _Coordinate) -> tuple[str, bool]:
 
 
 def siunitx_quantity(value: object, unit: Unit | _Coordinate, spec: str) -> str:
-    from ._coordinates.resolve import _Coordinate
-    from .factor import one
+    from .._coordinates.resolve import _Coordinate
+    from ..factor import one
 
     unit = _display_unit(unit)
     text = format_magnitude(value, spec)
@@ -235,14 +235,14 @@ def text_quantity(value: object, unit: Unit | _Coordinate) -> str:
         return str(value)
     if unit_text.startswith('1/'):
         return f'{value}{unit_text[1:]}'
-    from ._unicode import DOT
+    from .._formatting.unicode import DOT
 
     separator = DOT if unit_text[0].isdecimal() else ' '
     return f'{value}{separator}{unit_text}'
 
 
 def format_quantity(value: object, unit: Unit | _Coordinate, format_spec: str) -> str:
-    from .factor import one
+    from ..factor import one
 
     unit = _display_unit(unit)
     if not format_spec:
@@ -269,7 +269,7 @@ def format_quantity(value: object, unit: Unit | _Coordinate, format_spec: str) -
     unit_text = str(unit)
     if unit_text == '1':
         return text
-    from ._coordinates.resolve import _Coordinate
+    from .._coordinates.resolve import _Coordinate
 
     if not isinstance(unit, _Coordinate) and unit.scale != one:
         return f'{text} ({unit_text})'

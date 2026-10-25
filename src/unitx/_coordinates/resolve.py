@@ -50,7 +50,7 @@ def as_coordinate(unit: str | Unit | _LinearUnitSource) -> _Coordinate:
 
 def convert_point(value: Any, source: Unit | _Coordinate, target: Unit | _Coordinate) -> Any:
     """Convert matching point or linear operands without crossing their semantics."""
-    from .._conversion import convert
+    from .._numerics.conversion import convert
 
     if isinstance(source, _Coordinate) and isinstance(target, _Coordinate):
         if type(source) is not type(target):

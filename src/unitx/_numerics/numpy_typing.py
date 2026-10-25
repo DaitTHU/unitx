@@ -6,7 +6,7 @@ types must never turn scalar overload inputs into Any or Unknown.
 
 from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
-from ._numerics import Array
+from . import Array
 
 
 class WritableArray(Array, Protocol):

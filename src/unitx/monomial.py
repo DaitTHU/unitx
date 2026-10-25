@@ -5,9 +5,9 @@ from fractions import Fraction
 from types import MappingProxyType
 from typing import Literal
 
+from ._formatting.unicode import DOT, superscript
 from ._immutable import _Immutable
 from ._numerics import Fractionable, as_exponent
-from ._unicode import DOT, superscript
 
 __all__ = ['Monomial']
 

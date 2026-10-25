@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Self, cast
 
 from .._immutable import _Immutable
 from .._numerics import Magnitude, is_numpy_object
-from .._scaling import _coordinate_scalar, _finite, affine_value, scale_value
+from .._numerics.scaling import _coordinate_scalar, _finite, affine_value, scale_value
 from ..dimension import Dimension
 from ..exceptions import DimensionError
 from ..factor import one

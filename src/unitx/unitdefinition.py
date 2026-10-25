@@ -7,9 +7,9 @@ from dataclasses import InitVar, dataclass, field
 from fractions import Fraction
 from uuid import UUID, uuid4
 
+from ._formatting.unicode import SUPERSCRIPTS
 from ._immutable import _Immutable
 from ._registry.prefixes import _PREFIXED_NAME_EXCEPTIONS, PREFIX_DEFINITIONS, PrefixDefinition
-from ._unicode import SUPERSCRIPTS
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitRegistryError
 from .factor import Factor, one

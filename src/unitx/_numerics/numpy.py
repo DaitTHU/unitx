@@ -16,18 +16,18 @@ from typing import Any, Literal, cast
 
 import numpy as np  # pyright: ignore[reportMissingImports]
 
-from ._conversion import compatible
-from ._coordinates.resolve import _Coordinate
-from ._coordinates.resolve import convert_point as convert
-from ._numerics import as_exponent
-from ._operands import _Point, linear_unit
-from .affinequantity import AffineQuantity
-from .dimension import DIMENSIONLESS
-from .exceptions import DimensionError
-from .factor import Factor, one
-from .logquantity import LogQuantity
-from .quantity import Quantity
-from .unit import Unit
+from .._coordinates.resolve import _Coordinate
+from .._coordinates.resolve import convert_point as convert
+from .._operands import _Point, linear_unit
+from ..affinequantity import AffineQuantity
+from ..dimension import DIMENSIONLESS
+from ..exceptions import DimensionError
+from ..factor import Factor, one
+from ..logquantity import LogQuantity
+from ..quantity import Quantity
+from ..unit import Unit
+from . import as_exponent
+from .conversion import compatible
 
 _UNSET = object()
 
@@ -529,7 +529,7 @@ def isclose(
     if any(
         isinstance(x, (Quantity, _Point)) and isinstance(x.unit, _Coordinate) for x in (left, right)
     ):
-        from ._coordinates.points import _isclose
+        from .._coordinates.points import _isclose
 
         return _isclose(left, right, rel_tol, abs_tol, equal_nan=equal_nan)
     if symmetric:
@@ -934,7 +934,7 @@ def affine_close_magnitude(
 
 
 def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
-    from ._coordinates.points import _addition_parts, _compare
+    from .._coordinates.points import _addition_parts, _compare
 
     if method != '__call__':
         raise TypeError('Affine points cannot be accumulated or reduced with arithmetic ufuncs.')

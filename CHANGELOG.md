@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Internal
+
+- Group numerical and formatting support in private packages.
+  Preserve public module paths, the `unitx._numerics` scalar entry point, and
+  lazy optional NumPy loading.
+
 ## [0.14.4] - 2026-10-24
 
 ### Fixed
