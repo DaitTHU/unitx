@@ -24,6 +24,7 @@ from unitx import (
     math,
     time,
 )
+from unitx.cgs import cgs, gaussian
 from unitx.factor import Factor
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
@@ -43,6 +44,19 @@ assert_type(distance.to(si.cm), Quantity[Decimal])
 assert distance.value_in(si.cm) == Decimal(125)
 assert Quantity(1, si.cm).value_in(si.m) == Fraction(1, 100)
 assert 2 * Unit(si.m, scale=Factor(3)) == 6 * si.m
+
+assert (1 * cgs.erg).value_in(si.J) == Fraction(1, 10**7)
+charge = gaussian.convert(1 * si.C, gaussian.statC)
+assert_type(charge, Quantity[int | Fraction | float])
+assert abs(gaussian.convert(charge, si.C).value - 1) < 1e-15
+assert_type(si.em.k1, Quantity[float])
+assert_type(gaussian.em.k2, Quantity[float])
+assert isinstance(si.c, Unit) and si.em.c == 1 * si.c
+assert gaussian.em.c is si.em.c
+assert issubclass(gaussian, cgs) and gaussian.dyn is cgs.dyn
+assert gaussian.parse('erg/statC') == cgs.erg / gaussian.statC
+assert from_dict(to_dict(gaussian.statC), registry=Registry([gaussian.statC])) == gaussian.statC
+assert pickle.loads(pickle.dumps(gaussian.G)) == gaussian.G
 
 root = math.sqrt(9 * si.m**2)
 assert_type(root, Quantity[float])

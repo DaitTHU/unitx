@@ -18,21 +18,21 @@ _WIEN_F = Decimal('2.8214393721220788934031913302944851953458817440731')
 
 
 class SI(_SI):
-    """
-    The `SI` class contains common physical constants in SI units,
-    like speed of light (_c_), Planck constant (_h_)...
+    """Physical constants as SI Quantities, with nominal measured values.
 
-    For example, the standard acceleration of gravity (_g_) is:
+    Defining constants follow the BIPM SI Brochure; measured inputs use CODATA
+    2022 central values. Derived values follow the active numerical context and
+    do not propagate uncertainty. `SI.alpha` is the fine-structure constant;
+    formula coefficients are grouped separately in `si.em`.
+    https://www.bipm.org/en/publications/si-brochure
+    https://physics.nist.gov/cuu/pdf/all.pdf
+
     >>> str(SI.g)
     '9.80665 m/s²'
-
-    These constants can be directly used in formulas or code.
-
-    Ref: https://physics.nist.gov/cuu/Constants/
     """
 
     hbar: Final = _SI.h / (2 * _PI)
-    """reduced Planck constant, ħ: Final = h / 2π"""
+    """Reduced Planck constant, `hbar = h/(2*pi)`."""
 
     # universal
 
@@ -43,13 +43,11 @@ class SI(_SI):
 
     # electromagnetic constants
 
-    mu0: Final = quantity(1.256_637_061_27e-6, 'H/m')
-    """vacuum magnetic permeability, μ₀ ≈ 4π×10⁻⁷ H/m"""
-    epsilon0: Final = (1 / (mu0 * _SI.c**2)).to('F/m')
+    epsilon0: Final = (1 / (_SI.mu0 * _SI.c**2)).to('F/m')
     """vacuum electric permittivity"""
     eps0: Final = epsilon0
     """vacuum electric permittivity"""
-    Z0: Final = (mu0 * _SI.c).to(si.ohm)  # simplify=True
+    Z0: Final = (_SI.mu0 * _SI.c).to(si.ohm)  # simplify=True
     """characteristic impedance of vacuum"""
     ke: Final = (1 / (4 * _PI * epsilon0)).to('N*m2/C2')
     """Coulomb constant"""
@@ -118,12 +116,12 @@ class SI(_SI):
 
 
 class Particle(ConstNamespace):
-    """
-    Common particle data, including mass and magnetic moment of
-    electron (e), muon (μ), tau (τ), proton (p), neutron (n),
-    deuteron (D), triton (T), helion (h) and alpha particle (α).
+    """Particle masses and magnetic moments as SI Quantities.
 
-    Separated from `SI` class for symbol and namespace clarity.
+    Nominal inputs follow the CODATA 2022 recommended particle data; g-factors
+    are derived using the indicated magneton and sign convention. No uncertainty
+    propagation is performed. Shared entries reuse the corresponding `SI` data.
+    https://physics.nist.gov/cuu/pdf/all.pdf
     """
 
     me: Final = SI.me
@@ -184,7 +182,10 @@ class au(ConstNamespace):
     numerical value in atomic units. This does not change conversion rules.
 
     The magnetic dipole scale is e ħ / mₑ = 2 μB, not the Bohr magneton.
-    Precision and uncertainties follow the underlying SI constants.
+    Precision follows the underlying SI constants; uncertainties are not propagated.
+
+    Physical inputs are the CODATA 2022 constants exposed by `SI`.
+    https://physics.nist.gov/cuu/pdf/all.pdf
     """
 
     # defined base
@@ -227,6 +228,9 @@ class nu(ConstNamespace):
 
     Attributes are physical scales, not registered Unit objects or an active
     conversion context. Precision follows the underlying SI constants.
+
+    Physical inputs are the CODATA 2022 constants exposed by `SI`.
+    https://physics.nist.gov/cuu/pdf/all.pdf
     """
 
     # defined base
@@ -268,6 +272,9 @@ class Planck(ConstNamespace):
     Attributes are physical scales, not registered Unit objects or an active
     conversion context. Precision follows the underlying SI constants;
     derived values do not carry an uncertainty model.
+
+    Physical inputs are the CODATA 2022 constants exposed by `SI`.
+    https://physics.nist.gov/cuu/pdf/all.pdf
     """
 
     # defined base

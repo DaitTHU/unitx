@@ -6,11 +6,16 @@ import numpy as np
 from numpy.typing import NDArray
 
 from unitx import LogQuantity, LogUnit, Quantity, Unit
+from unitx._numerics import Array
+from unitx.cgs import gaussian
 from unitx.exceptions import DimensionError
 from unitx.si import si
 
 
 def check_arrays(values: NDArray[np.float64]) -> None:
+    charge = gaussian.convert(Quantity(values, si.C), gaussian.statC)
+    assert_type(charge, Quantity[Array])
+    np.testing.assert_allclose(gaussian.convert(charge, si.C).value, values)
     level = LogQuantity(values, si.dBm)
     assert_type(level, LogQuantity[NDArray[np.float64]])
     assert_type(level.unit, LogUnit)

@@ -2,9 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `unitx.cgs` with a mechanical `cgs` catalogue and a `gaussian` catalogue
+  inheriting its units with an independent parser. Gaussian electromagnetic
+  definitions and `gaussian.convert()` for eight SI/Gaussian kinds share one
+  namespace. Read-only `si.em` and `gaussian.em` objects group the formula
+  coefficients with their defining equations and data sources.
+  Physical correspondence uses the library's CODATA 2022 constants; ordinary
+  dimension-strict conversion and arithmetic remain unchanged.
+
 ### Internal
 
-- Group numerical and formatting support in private packages.
+- Group numerical, formatting and electromagnetic support in private packages.
   Preserve public module paths, the `unitx._numerics` scalar entry point, and
   lazy optional NumPy loading.
 

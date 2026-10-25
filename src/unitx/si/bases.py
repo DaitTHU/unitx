@@ -1,4 +1,4 @@
-"""Shared coherent SI units and the seven defining constants."""
+"""Shared SI roots and physical inputs required during catalogue construction."""
 
 from typing import Final
 
@@ -10,72 +10,83 @@ from ..unitregistry import default_registry
 
 
 class _si(UnitCatalog, registry=default_registry):
+    """Coherent SI units, following the BIPM SI Brochure, ninth edition.
+
+    https://www.bipm.org/en/publications/si-brochure
+    """
+
     # SI base unit
 
     one: Final = Unit()
-    """unitless"""
+    """Dimensionless multiplicative identity, `1`."""
     s: Final = Unit('s')
-    """second, time"""
+    """Second; unperturbed Cs-133 ground-state hyperfine frequency is 9192631770 Hz exactly."""
     m: Final = Unit('m')
-    """metre/meter, length"""
+    """Metre; vacuum light speed is exactly 299792458 m/s."""
     kg: Final = Unit('kg')
-    """kilogram, mass"""
+    """Kilogram; Planck constant is exactly `6.62607015e-34 J*s`."""
     A: Final = Unit('A')
-    """ampere, electric current"""
+    """Ampere; elementary charge is exactly `1.602176634e-19 C`, with `C = A*s`."""
     K: Final = Unit('K')
-    """kelvin, thermodynamic temperature"""
+    """Kelvin; Boltzmann constant is exactly `1.380649e-23 J/K`."""
     mol: Final = Unit('mol')
-    """mole, amount of substance"""
+    """Mole; Avogadro constant is exactly `6.02214076e23 /mol`."""
     cd: Final = Unit('cd')
-    """candela, luminous intensity"""
+    """Candela; luminous efficacy at 540 THz is exactly `683 lm/W`."""
 
     # SI derived unit
 
     rad: Final = one.define('rad', name='radian', symbol_aliases='㎭')
-    """radian, plane angle"""
+    """Radian, plane angle given by arc length/radius; `1 rad = 1 m/m`."""
     sr: Final = one.define('sr', name='steradian', symbol_aliases='㏛')
-    """steradian, solid angle"""
+    """Steradian, solid angle given by area/radius squared; `1 sr = 1 m**2/m**2`."""
     Hz: Final = (s**-1).define('Hz', name='hertz', symbol_aliases='㎐')
-    """hertz, frequency"""
+    """Hertz, `1 Hz = 1/s`; frequency."""
     N: Final = (kg * m / s**2).define('N', name='newton')
-    """newton, force/weight"""
+    """Newton, `1 N = 1 kg*m/s**2`; force."""
     Pa: Final = (N / m**2).define('Pa', name='pascal', symbol_aliases='㎩')
-    """pascal, pressure/stress"""
+    """Pascal, `1 Pa = 1 N/m**2`; pressure or stress."""
     J: Final = (N * m).define('J', name='joule')
-    """joule, energy/work/heat"""
+    """Joule, `1 J = 1 N*m`; energy, work or heat."""
     W: Final = (J / s).define('W', name='watt')
-    """watt, power/radiant flux"""
+    """Watt, `1 W = 1 J/s`; power."""
     C: Final = (A * s).define('C', name='coulomb')
-    """coulomb, electric charge"""
+    """Coulomb, `1 C = 1 A*s`; electric charge."""
     V: Final = (W / A).define('V', name='volt')
-    """volt, electric potential/voltage/emf"""
+    """Volt, `1 V = 1 W/A`; electric potential difference."""
     F: Final = (C / V).define('F', name='farad')
-    """farad, capacitance"""
+    """Farad, `1 F = 1 C/V`; capacitance."""
     ohm: Final = (V / A).define('Ω', name='ohm', symbol_aliases='Ω')
-    """ohm, resistance/impedance/reactance"""
+    """Ohm, `1 ohm = 1 V/A`; resistance or impedance."""
     S: Final = (A / V).define('S', name='siemens')
-    """siemens, electrical conductance"""
+    """Siemens, `1 S = 1 A/V`; electrical conductance."""
     Wb: Final = (V * s).define('Wb', name='weber', symbol_aliases='㏝')
-    """weber, magnetic flux"""
+    """Weber, `1 Wb = 1 V*s`; magnetic flux."""
     T: Final = (Wb / m**2).define('T', name='tesla')
-    """tesla, magnetic flux density"""
+    """Tesla, `1 T = 1 Wb/m**2`; magnetic flux density."""
     H: Final = (Wb / A).define('H', name='henry')
-    """henry, inductance"""
+    """Henry, `1 H = 1 Wb/A`; inductance."""
     lm: Final = (cd * sr).define('lm', name='lumen', symbol_aliases='㏐')
-    """lumen, luminous flux"""
+    """Lumen, `1 lm = 1 cd*sr`; luminous flux."""
     lx: Final = (lm / m**2).define('lx', name='lux', symbol_aliases='㏓')
-    """lux, illuminance"""
+    """Lux, `1 lx = 1 lm/m**2`; illuminance."""
     Bq: Final = (s**-1).define('Bq', name='becquerel', symbol_aliases='㏃')
-    """becquerel, activity referred to a radionuclide"""
+    """Becquerel, `1 Bq = 1/s`; radionuclide activity."""
     Gy: Final = (J / kg).define('Gy', name='gray', symbol_aliases='㏉')
-    """gray, absorbed dose"""
+    """Gray, `1 Gy = 1 J/kg`; absorbed dose."""
     Sv: Final = (J / kg).define('Sv', name='sievert', symbol_aliases='㏜')
-    """sievert, equivalent dose"""
+    """Sievert, `1 Sv = 1 J/kg`; equivalent or effective dose."""
     kat: Final = (mol / s).define('kat', name='katal')
-    """katal, catalytic activity"""
+    """Katal, `1 kat = 1 mol/s`; catalytic activity."""
 
 
 class _SI(ConstNamespace):
+    """BIPM defining constants and shared CODATA 2022 catalogue inputs.
+
+    https://www.bipm.org/en/publications/si-brochure
+    https://physics.nist.gov/cuu/pdf/all.pdf
+    """
+
     DeltanuCs: Final = Quantity(9_192_631_770, _si.Hz)
     """hyperfine transition frequency ∆ν of Cs-133, definition of second."""
     c: Final = Quantity(299_792_458, _si.m / _si.s)
@@ -95,3 +106,6 @@ class _SI(ConstNamespace):
     """standard acceleration of gravity"""
     T0: Final = quantity(273.15, _si.K)  # defined here for si.degC
     """standard temperature"""
+
+    mu0: Final = quantity(1.256_637_061_27e-6, _si.H / _si.m)
+    """Vacuum permeability, CODATA 2022 central value in H/m; measured."""

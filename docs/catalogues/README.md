@@ -17,13 +17,14 @@ True
 | --- | --- | --- |
 | SI and common scientific units | `from unitx.si import si, SI` | [Units, constants, prefixes and Unicode spellings](si.md) |
 | Imperial, historical English and US units | `from unitx.imperial import imperial, imperial_historical, us` | [Length, mass, volume, force and pressure conventions](imperial.md) |
+| CGS and Gaussian electromagnetism | `from unitx.cgs import cgs, gaussian` | [Mechanical definitions and explicit SI correspondence](cgs.md) |
 
 ## The UnitCatalog entry point
 
-`si` and the immutable `imperial` namespace share the public `UnitCatalog` base.
+`si`, `imperial`, `cgs` and `gaussian` share the public `UnitCatalog` base.
 A catalogue exposes unit attributes and a `parse()` entry point, using its
 configured spelling environment. `si.parse()` uses the existing default
-environment; Imperial parsing uses its explicitly configured private environment.
+environment; Imperial and CGS parsing use independent environments.
 The base preserves the existing non-instantiable, read-only namespace behavior.
 UnitCatalog collects public unit attributes after the class body finishes.
 Existing objects can also be shared with `units=`. Use earlier unit objects to

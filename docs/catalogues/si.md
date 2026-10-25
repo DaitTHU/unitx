@@ -16,6 +16,20 @@ Quantities. `Particle` contains particle data, while `au`, `nu` and `Planck`
 contain physical unit scales expressed as SI Quantities.
 Importing unitx initializes this catalogue.
 
+`si.em` is a read-only coefficient view for common electromagnetic formulas:
+`k1 = 1/(4*pi*epsilon0)`, `alpha = 1`, `k2 = mu0/(4*pi)`, and vacuum light
+speed `c`. Its Quantities use float magnitudes derived from CODATA 2022 mu0
+and exact BIPM c. `alpha` here is the Lorentz-force coefficient; `SI.alpha`
+remains the fine-structure constant. See the
+[coefficient definitions and formulas](cgs.md#shared-formulas-with-explicit-coefficients).
+These attributes do not affect unit parsing or activate a physical conversion
+context. `si.c` remains the speed Unit; `si.em.c` is a physical Quantity.
+
+Unit definitions and prefixes follow the
+[BIPM SI Brochure](https://www.bipm.org/en/publications/si-brochure).
+Measured constants use [CODATA 2022](https://physics.nist.gov/cuu/pdf/all.pdf)
+central values. Non-SI entries retain the specific conventions documented below.
+
 ## Available groups
 
 The following are examples of namespace attributes, not an exhaustive list
