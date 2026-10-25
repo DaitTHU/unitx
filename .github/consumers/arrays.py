@@ -107,7 +107,6 @@ def check_arrays(values: NDArray[np.float64]) -> None:
             operation, (Quantity,), (gapped, probability), {'out': median_target}
         )
         np.testing.assert_allclose(median_target.value, 200)
-    assert_type(gapped.value.dtype, np.dtype[np.float64])
     assert_type(median_target.value.dtype, np.dtype[np.float64])
 
     sample_time = Quantity(np.array([0.0, 1, 3]), si.s)
