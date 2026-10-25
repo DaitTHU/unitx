@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-10-25
+
+### Added
+
+- Support NumPy `nanmin`, `nanmax`, `nanargmin` and `nanargmax`, preserving
+  units or point coordinates for extrema and returning bare indices. Retain
+  NumPy's all-NaN warnings/errors and stage output writes before mutation.
+- Support `nansum` with the existing sum unit, initial and mask rules, and
+  `nanprod` with unit powers determined by selected non-NaN element counts.
+  Dimensional product slices require equal counts; dimensionless products
+  normalize to coherent values and may have different counts.
+
 ## [0.16.1] - 2026-10-25
 
 ### Added
