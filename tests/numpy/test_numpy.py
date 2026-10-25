@@ -19,7 +19,7 @@ from unitx.factor import Factor, pi
 from unitx.quantity import Quantity
 from unitx.unit import Unit
 
-from ._notebooks import notebook_source
+from .._notebooks import notebook_source
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -264,7 +264,7 @@ def test_numpy_blackbody_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(plt, 'show', lambda: None)
     try:
-        path = Path(__file__).resolve().parents[1] / 'examples/blackbody.ipynb'
+        path = Path(__file__).resolve().parents[2] / 'examples/blackbody.ipynb'
         result = {'__name__': '__main__'}
         exec(compile(notebook_source(path), str(path), 'exec'), result)
         radiance = result['radiance']
@@ -670,12 +670,12 @@ def test_import_order(numpy_first: bool) -> None:
     if not numpy_first:
         lines.reverse()
     script = '\n'.join(lines) + "\na = np.arange(3)\nq = a * Unit('m')\nassert q.value is a\n"
-    env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[1] / 'src'))
+    env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[2] / 'src'))
     subprocess.run([sys.executable, '-c', script], env=env, check=True, timeout=20)
 
 
 def test_core_does_not_import_numpy() -> None:
-    src = Path(__file__).resolve().parents[1] / 'src'
+    src = Path(__file__).resolve().parents[2] / 'src'
     script = f"""
 import sys
 sys.path.insert(0, {str(src)!r})
@@ -736,7 +736,7 @@ def test_numpy_scalars_and_zero_dim_outputs() -> None:
 
 
 def test_scalar_paths_still_do_not_import_numpy_for_rejected_matmul() -> None:
-    src = Path(__file__).resolve().parents[1] / 'src'
+    src = Path(__file__).resolve().parents[2] / 'src'
     script = f"""
 import sys
 sys.path.insert(0, {str(src)!r})
