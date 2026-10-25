@@ -23,6 +23,7 @@ nav:
   - Mathematics and time: stdlib.md
   - NumPy:
       - Overview and support matrix: numpy.md
+      - Joining, splitting and indexing: numpy/indexing.md
       - Selection and clipping: numpy/selection.md
       - Reductions and statistics: numpy/statistics.md
       - Integration and differentiation: numpy/calculus.md

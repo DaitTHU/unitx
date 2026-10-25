@@ -98,6 +98,55 @@ def check_arrays(values: NDArray[np.float64]) -> None:
         np.testing.assert_array_equal(broadcasted.value, np.broadcast_to(values, (2, 3)))
         np.testing.assert_array_equal(bare, np.ones((2, 3)))
 
+        for actual, expected in (
+            (np.hstack((sample, sample)), np.hstack((values, values))),
+            (np.vstack((sample, sample)), np.vstack((values, values))),
+            (np.dstack((sample, sample)), np.dstack((values, values))),
+            (np.column_stack((sample, sample)), np.column_stack((values, values))),
+            (np.append(sample, sample), np.append(values, values)),
+            (np.insert(sample, 1, sample), np.insert(values, 1, values)),
+            (np.take(sample, [2, 0]), np.take(values, [2, 0])),
+            (
+                sample.__array_function__(
+                    np.take_along_axis, (type(sample),), (sample, np.array([2, 0]), 0), {}
+                ),
+                np.take_along_axis(values, np.array([2, 0]), axis=0),
+            ),
+            (np.compress([True, False, True], sample), values[[0, 2]]),
+            (np.extract([True, False, True], sample), values[[0, 2]]),
+            (np.delete(sample, 1), np.delete(values, 1)),
+            (np.diag(sample), np.diag(values)),
+            (np.diagflat(sample, k=1), np.diagflat(values, k=1)),
+            (np.diagonal(np.atleast_2d(sample)), np.diagonal(np.atleast_2d(values))),
+            (np.tril(sample), np.tril(values)),
+            (np.triu(sample), np.triu(values)),
+        ):
+            selected = cast(ArrayQuantity, actual)
+            assert type(selected) is type(sample) and selected.unit == sample.unit
+            np.testing.assert_array_equal(selected.value, expected)
+        for actual, expected in (
+            (np.split(sample, 3), np.split(values, 3)),
+            (np.array_split(sample, 2), np.array_split(values, 2)),
+            (np.hsplit(sample, 3), np.hsplit(values, 3)),
+            (np.vsplit(np.atleast_2d(sample), 1), np.vsplit(np.atleast_2d(values), 1)),
+            (np.dsplit(np.atleast_3d(sample), 1), np.dsplit(np.atleast_3d(values), 1)),
+        ):
+            for selected, raw in zip(cast(list[ArrayQuantity], actual), expected):
+                assert type(selected) is type(sample) and selected.unit == sample.unit
+                np.testing.assert_array_equal(selected.value, raw)
+        selection_target = cast(ArrayQuantity, np.take(sample, [0, 1]))
+        sample.__array_function__(
+            np.take, (type(sample),), (sample, [2, 0]), {'out': selection_target}
+        )
+        np.testing.assert_array_equal(selection_target.value, values[[2, 0]])
+        sample.__array_function__(
+            np.compress,
+            (type(sample),),
+            ([True, False, True], sample),
+            {'out': selection_target},
+        )
+        np.testing.assert_array_equal(selection_target.value, values[[0, 2]])
+
     bounded = cast(Quantity[Array], np.clip(distance, Quantity(500, si.cm), Quantity(25, si.m)))
     assert isinstance(bounded, Quantity) and bounded.unit == si.m
     np.testing.assert_allclose(bounded.value, [5, 20, 25])

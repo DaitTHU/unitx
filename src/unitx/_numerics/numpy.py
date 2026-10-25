@@ -600,6 +600,16 @@ def dispatch_function(
         return _interp(*args, **kwargs)
     if func in (np.atleast_1d, np.atleast_2d, np.atleast_3d, np.broadcast_arrays):
         return _multiple_arrays(func, *args, **kwargs)
+    if func in (np.hstack, np.vstack, np.dstack, np.column_stack):
+        return _stack_arrays(func, *args, **kwargs)
+    if func is np.append:
+        return _append(*args, **kwargs)
+    if func is np.insert:
+        return _insert(*args, **kwargs)
+    if func is np.compress:
+        return _compress(*args, **kwargs)
+    if func is np.extract:
+        return _extract(*args, **kwargs)
     if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
         if func not in _ARRAY_FUNCTIONS and func not in (
             np.isclose,
@@ -713,6 +723,32 @@ def _close_comparison(func: Any, *args: Any, **kwargs: Any) -> Any:
     return bool(np.all(result)) if func is np.allclose else result
 
 
+def _join_values(arrays: Any) -> tuple[list[Any], Unit | _Coordinate]:
+    """Align compatible samples to the first wrapped input's complete unit."""
+    arrays = tuple(arrays)
+    if not arrays or not all(_is_supported_operand(x) for x in arrays):
+        error_message = 'Joining requires numeric scalars, ndarrays, quantities or points.'
+        raise TypeError(error_message)
+    first = next((x for x in arrays if isinstance(x, (Quantity, _Point))), None)
+    if first is None:
+        error_message = 'Joining requires at least one Quantity or point.'
+        raise TypeError(error_message)
+    values = []
+    for x in arrays:
+        raw, unit = _operand_parts(x)
+        if unit.dimension != first.dimension:
+            error_message = 'All joined inputs must have compatible dimensions.'
+            raise DimensionError(error_message)
+        if isinstance(unit, _Coordinate) != isinstance(first.unit, _Coordinate):
+            error_message = 'Joining requires matching point/difference semantics.'
+            raise DimensionError(error_message)
+        if isinstance(unit, _Coordinate) and not unit._compatible_with(cast(Any, first.unit)):
+            error_message = 'Joining requires compatible points with the same convention.'
+            raise DimensionError(error_message)
+        values.append(_numeric_value(convert(raw, unit, first.unit)))
+    return values, first.unit
+
+
 def _join_arrays(
     func: Any,
     arrays: Any,
@@ -723,25 +759,89 @@ def _join_arrays(
     casting: str = 'same_kind',
 ) -> Any:
     if out is not None and dtype is not None:
-        raise TypeError('Cannot provide both dtype and out for concatenate/stack.')
-    arrays = tuple(arrays)
-    if not arrays or not all(_is_supported_operand(x) for x in arrays):
-        return NotImplemented
-    first = next((x for x in arrays if isinstance(x, (Quantity, _Point))), None)
-    if first is None:
-        return NotImplemented
-    values = []
-    for x in arrays:
-        raw, unit = _operand_parts(x)
-        if unit.dimension != first.dimension:
-            raise DimensionError('All concatenated inputs must have compatible dimensions.')
-        if isinstance(unit, _Coordinate) != isinstance(first.unit, _Coordinate):
-            raise DimensionError('Concatenation requires matching point/difference semantics.')
-        values.append(_numeric_value(convert(raw, unit, first.unit)))
+        error_message = 'Cannot provide both dtype and out for concatenate/stack.'
+        raise TypeError(error_message)
+    values, unit = _join_values(arrays)
     if dtype is not None and np.dtype(dtype).kind not in 'iufc':
-        raise TypeError('Only numeric output dtypes are supported.')
-    result = _wrap(func(values, axis=axis, dtype=dtype, casting=casting), first.unit)
+        error_message = 'Only numeric output dtypes are supported.'
+        raise TypeError(error_message)
+    result = _wrap(func(values, axis=axis, dtype=dtype, casting=casting), unit)
     return _write_output(result, out, casting=casting)
+
+
+def _stack_arrays(func: Any, arrays: Any, **kwargs: Any) -> Any:
+    values, unit = _join_values(arrays)
+    if kwargs.get('dtype') is not None:
+        _validate_dtype(kwargs['dtype'])
+    return _wrap(func(values, **kwargs), unit)
+
+
+def _append(arr: Any, values: Any, axis: Any = None) -> Any:
+    (a, b), unit = _join_values((arr, values))
+    return _wrap(np.append(a, b, axis=axis), unit)
+
+
+def _insert(arr: Any, obj: Any, values: Any, axis: Any = None) -> Any:
+    (a, b), unit = _join_values((arr, values))
+    return _wrap(np.insert(a, _snapshot_index(obj), b, axis=axis), unit)
+
+
+def _split_arrays(func: Any, q: Any, indices_or_sections: Any, *args: Any, **kwargs: Any) -> Any:
+    results = func(q.value, _snapshot_index(indices_or_sections), *args, **kwargs)
+    return [_wrap(value, q.unit) for value in results]
+
+
+def _take(
+    a: Any,
+    indices: Any,
+    axis: Any = None,
+    out: Any = None,
+    mode: Literal['raise', 'wrap', 'clip'] = 'raise',
+) -> Any:
+    result = np.take(a.value, _snapshot_index(indices), axis=axis, mode=mode)
+    return _write_output(_wrap(result, a.unit), out)
+
+
+def _take_along_axis(arr: Any, indices: Any, axis: Any = _UNSET) -> Any:
+    indices = _snapshot_index(indices)
+    # NumPy 2.1 requires axis; newer versions supply a default. Let the
+    # installed kernel own that version-specific signature behavior.
+    options = {} if axis is _UNSET else {'axis': axis}
+    return _wrap(np.take_along_axis(arr.value, indices, **options), arr.unit)
+
+
+def _boolean_condition(condition: Any) -> Any:
+    if isinstance(condition, (Quantity, _Point)) or (
+        isinstance(condition, np.ndarray) and type(condition) is not np.ndarray
+    ):
+        error_message = 'condition must be a bare boolean scalar, sequence or ndarray.'
+        raise TypeError(error_message)
+    if isinstance(condition, (list, tuple)) and not condition:
+        return np.array([], dtype=bool)
+    condition = np.asarray(condition)
+    if condition.dtype.kind != 'b':
+        error_message = 'condition must contain only bare booleans.'
+        raise TypeError(error_message)
+    return condition
+
+
+def _compress(condition: Any, a: Any, axis: Any = None, out: Any = None) -> Any:
+    if not isinstance(a, (Quantity, _Point)) or not _is_supported_operand(a):
+        error_message = 'compress requires a Quantity or point input.'
+        raise TypeError(error_message)
+    result = np.compress(_boolean_condition(condition), a.value, axis=axis)
+    return _write_output(_wrap(result, a.unit), out)
+
+
+def _extract(condition: Any, arr: Any) -> Any:
+    if not isinstance(arr, (Quantity, _Point)) or not _is_supported_operand(arr):
+        error_message = 'extract requires a Quantity or point input.'
+        raise TypeError(error_message)
+    return _wrap(np.extract(_boolean_condition(condition), arr.value), arr.unit)
+
+
+def _delete(arr: Any, obj: Any, axis: Any = None) -> Any:
+    return _wrap(np.delete(arr.value, _snapshot_index(obj), axis=axis), arr.unit)
 
 
 def _reshape(
@@ -1286,6 +1386,19 @@ _ARRAY_FUNCTIONS = {
     np.shape: partial(_array_metadata, np.shape),
     np.ndim: partial(_array_metadata, np.ndim),
     np.size: partial(_array_metadata, np.size),
+    np.split: partial(_split_arrays, np.split),
+    np.array_split: partial(_split_arrays, np.array_split),
+    np.hsplit: partial(_split_arrays, np.hsplit),
+    np.vsplit: partial(_split_arrays, np.vsplit),
+    np.dsplit: partial(_split_arrays, np.dsplit),
+    np.take: _take,
+    np.take_along_axis: _take_along_axis,
+    np.delete: _delete,
+    np.diagonal: partial(_array_transform, np.diagonal),
+    np.diag: partial(_array_transform, np.diag),
+    np.diagflat: partial(_array_transform, np.diagflat),
+    np.tril: partial(_array_transform, np.tril),
+    np.triu: partial(_array_transform, np.triu),
 }
 
 _QUANTITY_FUNCTIONS = {

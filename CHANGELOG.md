@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support NumPy `hstack`, `vstack`, `dstack`, `column_stack`, `append` and
+  `insert` with compatible unit or point-coordinate alignment. Support `split`,
+  `array_split`, `hsplit`, `vsplit`, `dsplit`, `take`, `take_along_axis`,
+  `compress`, `extract` and `delete`, preserving units, coordinates and NumPy's
+  storage rules. `take` and `compress` stage output writes before mutation.
+- Support NumPy `diagonal`, `diag`, `diagflat`, `tril` and `triu`. Filled zeros
+  are readings in the retained unit or coordinate, including for points.
+
 ## [0.16.4] - 2026-10-25
 
 ### Added

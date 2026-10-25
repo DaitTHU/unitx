@@ -124,7 +124,13 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | flip, fliplr, flipud, rot90, roll | Preserve unit or point coordinate | axis; k/axes for rot90; shift/axis for roll |
 | repeat, tile, copy | Preserve unit or point coordinate | repeats/axis; reps; order/subok for copy |
 | shape, ndim, size | Bare shape tuple or integer | size accepts axis |
-| concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
+| concatenate, stack | Align to the first Quantity's unit or point coordinate; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
+| hstack, vstack, dstack, column_stack | Align to the first Quantity's unit or point coordinate | hstack/vstack accept dtype and casting; no out |
+| append, insert | Align to the first Quantity's unit or point coordinate | axis; insert also accepts obj; no out |
+| split, array_split, hsplit, vsplit, dsplit | List of results in the input unit or point coordinate | indices_or_sections; split/array_split also accept axis |
+| take, take_along_axis | Preserve unit or point coordinate | indices, axis; take also accepts mode and out |
+| compress, extract, delete | Preserve unit or point coordinate | bare boolean condition; delete accepts obj; compress/delete accept axis; compress accepts out |
+| diagonal, diag, diagflat, tril, triu | Preserve unit or point coordinate, including filled zero readings | offset/axis1/axis2 for diagonal; k for the others; no out |
 | sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
 | min/amin/nanmin, max/amax/nanmax | Preserve unit or point coordinate | axis, keepdims, initial, where, out |
@@ -221,6 +227,12 @@ assert not np.shares_memory(independent.value, times.value)
 assert np.shape(np.flip(independent, axis=-1)) == (2, 3)
 assert np.ndim(independent) == 2 and np.size(independent, axis=0) == 2
 ```
+
+## Joining, splitting and indexing
+
+See [joining, splitting and indexing](numpy/indexing.md) for compatible inputs,
+point coordinates, structural indices, diagonal zero filling, views and output
+buffers.
 
 ## Selection and clipping
 
