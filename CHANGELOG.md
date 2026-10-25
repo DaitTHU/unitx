@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-10-25
+
+### Added
+
+- Support NumPy three-argument `where`, `clip` (including `min`/`max` bounds),
+  and elementwise `minimum`/`maximum` on linear quantities. Align compatible
+  units or point coordinates, preserve wrappers, and stage masked output writes.
+  Bare values remain dimensionless, including zero.
+
+### Fixed
+
+- Require compatible coordinate conventions when selecting point extrema,
+  including `min/max` initial values. Power and amplitude logarithmic readings
+  require explicit conversion before selection together.
+
+### Documentation
+
+- Complete the NumPy support matrix and boundary coverage for `min/max`
+  (including `amin/amax`), selection, clipping, and NumPy stub limitations.
+- Split detailed NumPy contracts into selection, statistics, calculus and
+  output-buffer guides, retaining the overview and existing section anchors.
+
 ## [0.15.1] - 2026-10-25
 
 ### Changed
