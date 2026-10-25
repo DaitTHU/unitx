@@ -336,16 +336,12 @@ Quantity threshold is converted to radians. Thresholds must be finite real
 scalars, with positive period and nonnegative discont. Scaled dimensionless
 units and degrees work with the default period. No output buffer is supported.
 
-```pycon
->>> import numpy as np
->>> from unitx import Quantity
->>> phase = Quantity(np.array([170.0, -170.0, -160.0]), 'deg')
->>> np.unwrap(phase).value.round(8).tolist()
-[170.0, 190.0, 200.0]
->>> turns, remainder = np.divmod(Quantity(np.array([250.0]), 'cm'), Quantity(1.0, 'm'))
->>> turns.value.tolist(), remainder.value.tolist()
-([2.0], [50.0])
-
+```python
+phase = Quantity(np.array([170.0, -170.0, -160.0]), 'deg')
+np.testing.assert_allclose(np.unwrap(phase).value, [170, 190, 200])
+turns, remainder = np.divmod(Quantity(np.array([250.0]), 'cm'), Quantity(1.0, 'm'))
+np.testing.assert_array_equal(turns.value, [2])
+np.testing.assert_array_equal(remainder.value, [50])
 ```
 
 ## Selection and clipping
