@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-25
+
 ### Added
 
 - Add `unitx.cgs` with a mechanical `cgs` catalogue and a `gaussian` catalogue
