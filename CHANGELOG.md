@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.5] - 2026-10-25
+
 ### Added
 
 - Support NumPy `hstack`, `vstack`, `dstack`, `column_stack`, `append` and
