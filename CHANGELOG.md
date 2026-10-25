@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-10-25
+
 ### Added
 
 - Support NumPy `squeeze`, `expand_dims`, `moveaxis`, `swapaxes`, `rollaxis`
