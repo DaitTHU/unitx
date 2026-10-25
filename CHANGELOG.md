@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.6] - 2026-10-25
+
 ### Added
 
 - Support NumPy sorting, partitioning, searching, set operations, `unique` and
