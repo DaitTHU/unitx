@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.4] - 2026-10-25
+
 ### Added
 
 - Support NumPy `atleast_1d/2d/3d`, `broadcast_to`, `broadcast_arrays`,
