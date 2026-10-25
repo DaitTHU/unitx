@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support NumPy `squeeze`, `expand_dims`, `moveaxis`, `swapaxes`, `rollaxis`
+  and `ravel`, preserving complete units or point coordinates. Retain NumPy's
+  axis rules, dtype, shared views, read-only storage and necessary copies.
+
 ## [0.16.2] - 2026-10-25
 
 ### Added

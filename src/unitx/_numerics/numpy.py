@@ -604,6 +604,12 @@ def dispatch_function(
             np.allclose,
             np.reshape,
             np.transpose,
+            np.squeeze,
+            np.expand_dims,
+            np.moveaxis,
+            np.swapaxes,
+            np.rollaxis,
+            np.ravel,
             np.argmin,
             np.argmax,
             np.nanargmin,
@@ -752,6 +758,30 @@ def _reshape(
 
 def _transpose(q: Any, axes: Any = None) -> Any:
     return _wrap(np.transpose(q.value, axes), q.unit)
+
+
+def _squeeze(q: Any, axis: Any = None) -> Any:
+    return _wrap(np.squeeze(q.value, axis=axis), q.unit)
+
+
+def _expand_dims(q: Any, axis: Any) -> Any:
+    return _wrap(np.expand_dims(q.value, axis), q.unit)
+
+
+def _moveaxis(q: Any, source: Any, destination: Any) -> Any:
+    return _wrap(np.moveaxis(q.value, source, destination), q.unit)
+
+
+def _swapaxes(q: Any, axis1: Any, axis2: Any) -> Any:
+    return _wrap(np.swapaxes(q.value, axis1, axis2), q.unit)
+
+
+def _rollaxis(q: Any, axis: Any, start: Any = 0) -> Any:
+    return _wrap(np.rollaxis(q.value, axis, start), q.unit)
+
+
+def _ravel(q: Any, order: Literal['C', 'F', 'A', 'K'] = 'C') -> Any:
+    return _wrap(np.ravel(q.value, order=order), q.unit)
 
 
 def _interp(
@@ -1216,6 +1246,12 @@ def _extremum(
 _QUANTITY_FUNCTIONS = {
     np.reshape: _reshape,
     np.transpose: _transpose,
+    np.squeeze: _squeeze,
+    np.expand_dims: _expand_dims,
+    np.moveaxis: _moveaxis,
+    np.swapaxes: _swapaxes,
+    np.rollaxis: _rollaxis,
+    np.ravel: _ravel,
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
     np.nanargmin: partial(_argmin_max, np.nanargmin),

@@ -38,8 +38,8 @@ use `np.asarray(q.value_in(target_unit))`.
 
 Construction, unit-only multiplication/division, and an identity conversion
 preserve the magnitude object. Factor/SymbolicConstant operands change the
-exact unit scale. Indexing, iteration, `.T`, reshape, and transpose follow
-NumPy's scalar/view/copy rules; `.flatten(order='C')` copies. Zero-dimensional
+exact unit scale. Indexing, iteration, `.T`, and the supported shape transformations
+follow NumPy's scalar/view/copy rules; `.flatten(order='C')` copies. Zero-dimensional
 arrays cannot be iterated. `.shape`, `.ndim`, `.dtype`, and `.size` are available
 for NumPy magnitudes. Python scalars do not acquire array attributes. Exposed
 values and views may share writable storage.
@@ -115,6 +115,9 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | NumPy function | Unit/result rule | Supported options |
 | --- | --- | --- |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
+| squeeze, expand_dims | Preserve unit or point coordinate | axis |
+| moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |
+| ravel | Preserve unit or point coordinate | order: C, F, A, K |
 | concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
 | sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
@@ -145,6 +148,39 @@ sum/nansum/add.reduce, prod/nanprod/multiply.reduce, and min/max/nanmin/nanmax. 
 Indexed assignment and augmented arithmetic on ndarrays follow the fixed-target
 rules below. Python and NumPy scalar magnitudes retain ordinary result/rebinding
 behavior for augmented arithmetic.
+
+## Shape transformations
+
+`squeeze`, `expand_dims`, `moveaxis`, `swapaxes`, `rollaxis`, and `ravel`
+operate on magnitudes without conversion. Like reshape and transpose, they
+retain the complete unit or point coordinate and return the same family:
+Quantity, AffineQuantity, or LogQuantity. Only the NumPy function forms are
+supported; these functions have no `out` option.
+
+Axis rules and errors follow NumPy, including negative and tuple axes where
+supported. Squeezing an ndarray whose axes all have length one produces a
+zero-dimensional ndarray magnitude. Views share storage and its writeability
+with the input.
+`ravel` returns a contiguous one-dimensional magnitude, copying only when needed;
+it can copy a noncontiguous input even when reshape could return a view.
+Its C/F/A/K orders follow NumPy. Prefer `moveaxis` for new code; `rollaxis` is
+also supported for compatibility with existing NumPy code.
+
+```pycon
+>>> import numpy as np
+>>> from unitx import Quantity
+>>> samples = Quantity(np.arange(6).reshape(1, 2, 3), 'cm')
+>>> matrix = np.squeeze(samples, axis=0)
+>>> matrix.shape
+(2, 3)
+>>> np.moveaxis(matrix, 0, -1).shape
+(3, 2)
+>>> matrix.unit == samples.unit
+True
+>>> np.shares_memory(matrix.value, samples.value)
+True
+
+```
 
 ## Selection and clipping
 

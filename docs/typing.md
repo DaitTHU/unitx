@@ -94,11 +94,16 @@ ufunc stubs preserve the wrapper at every intermediate call. For an explicit
 numerical boundary, use `np.expm1(np.asarray(q.value_in(si.one)))` after
 checking dimensions and normalizing the scale.
 
-The same NumPy stub limitation applies to `where`, `clip`,
+The same NumPy stub limitation applies to the supported shape transformations,
+`where`, `clip`,
 `minimum/maximum`, `average`, `quantile`, `percentile`, the supported `nan*`
 statistics, and `interp`: runtime results
 preserve the documented Quantity/point wrappers, but NumPy may annotate them
 as ndarrays or Any. NumPy's `out` annotations also accept only ndarrays.
+The `moveaxis` and `rollaxis` input annotations likewise require ndarrays
+and can reject a Quantity/point argument during static checking, despite
+working at runtime. Their installed type consumers check the dispatch protocol
+directly; runtime tests use ordinary NumPy calls.
 Runtime support and installed-consumer checks cover
 these calls; unitx does not replace NumPy's stubs.
 

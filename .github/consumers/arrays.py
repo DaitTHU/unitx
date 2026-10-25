@@ -5,11 +5,13 @@ from typing import assert_type, cast
 import numpy as np
 from numpy.typing import NDArray
 
-from unitx import LogQuantity, LogUnit, Quantity, Unit
+from unitx import AffineQuantity, LogQuantity, LogUnit, Quantity, Unit
 from unitx._numerics import Array
 from unitx.cgs import emu, esu, gaussian, hl
 from unitx.exceptions import DimensionError
 from unitx.si import si
+
+type ArrayQuantity = Quantity[Array] | AffineQuantity[Array] | LogQuantity[Array]
 
 
 def check_arrays(values: NDArray[np.float64]) -> None:
@@ -47,6 +49,24 @@ def check_arrays(values: NDArray[np.float64]) -> None:
 
     # NumPy's stubs lose the wrapper on these returns. State the supported
     # array result domain explicitly and verify the wrapper at runtime.
+    for sample in (distance, AffineQuantity(values, si.degC), level):
+        expanded = cast(ArrayQuantity, np.expand_dims(sample, (0, -1)))
+        # moveaxis/rollaxis stubs require ndarray input despite runtime dispatch.
+        moved = cast(
+            ArrayQuantity,
+            expanded.__array_function__(np.moveaxis, (type(expanded),), (expanded, 0, -1), {}),
+        )
+        swapped = cast(ArrayQuantity, np.swapaxes(moved, 0, 1))
+        rolled = cast(
+            ArrayQuantity,
+            swapped.__array_function__(np.rollaxis, (type(swapped),), (swapped, 2, 0), {}),
+        )
+        squeezed = np.squeeze(rolled)
+        result = cast(ArrayQuantity, np.ravel(squeezed))
+        assert type(result) is type(sample) and result.unit == sample.unit
+        np.testing.assert_array_equal(result.value, values)
+        assert np.shares_memory(result.value, sample.value)
+
     bounded = cast(Quantity[Array], np.clip(distance, Quantity(500, si.cm), Quantity(25, si.m)))
     assert isinstance(bounded, Quantity) and bounded.unit == si.m
     np.testing.assert_allclose(bounded.value, [5, 20, 25])
