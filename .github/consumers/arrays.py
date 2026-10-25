@@ -93,5 +93,14 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     assert_type(median_target.value.dtype, np.dtype[np.float64])
     np.testing.assert_allclose(median_target.value, 2000)
 
+    sample_time = Quantity(np.array([0.0, 1, 3]), si.s)
+    sample_current = Quantity(np.array([0.0, 2, 6]), si.A)
+    grid = Quantity(np.array([0.0, 500, 1000, 2000, 3000]), si.ms)
+    interpolated = cast(Quantity[Array], np.interp(grid, sample_time, sample_current))
+    assert isinstance(interpolated, Quantity) and interpolated.unit == si.A
+    np.testing.assert_allclose(interpolated.value, [0, 1, 2, 4, 6])
+    charge = cast(Quantity[Array], np.trapezoid(interpolated, grid))
+    np.testing.assert_allclose(charge.value_in(si.C), 9)
+
 
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))

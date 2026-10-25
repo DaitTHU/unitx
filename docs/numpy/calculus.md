@@ -1,8 +1,55 @@
-# Integration, differences and gradients
+# Interpolation, integration, differences and gradients
 
 ```python
 import numpy as np
 from unitx import Quantity, Unit
+```
+
+## Linear interpolation
+
+`np.interp(x, xp, fp, left=None, right=None, period=None)` evaluates a
+one-dimensional piecewise linear interpolant. Use linear Quantities, bare
+numeric scalars/ndarrays, or numeric lists/tuples. Bare inputs are dimensionless,
+including zero. AffineQuantity and LogQuantity points are unsupported; convert
+explicitly first. At least one of x, xp or fp must be a Quantity for NumPy to
+dispatch to unitx; a Quantity supplied only as left/right is insufficient.
+
+`x` and `xp` must have compatible dimensions, including any logarithmic degree.
+Query values convert to `xp.unit` before interpolation. `xp` must be a nonempty,
+finite, strictly increasing real 1-D array; duplicates, decreasing/unsorted
+coordinates and NaN/Inf are rejected. The check uses the float64 coordinates
+passed to NumPy, so coordinates that collapse together at that precision are
+also rejected. A single sample is allowed. Query x may be a real scalar or an
+array of any shape and need not be sorted. Results have the same shape as x.
+
+`fp` must be a real or complex 1-D array with the same length as xp. The result
+is always a Quantity retaining the complete `fp.unit`, including an exact
+extra scale. Supplied left/right values must be numeric scalars or scalar
+Quantities with fp's dimension; compatible units convert to `fp.unit`.
+Bare values remain dimensionless and do not implicitly acquire fp's unit.
+Defaults repeat the first/last fp value outside the sample interval, rather
+than extrapolating its slope. A scaled dimensionless fp retains its stored
+coordinates, while bare dimensionless boundaries convert to those coordinates.
+
+NumPy controls float64/complex128 evaluation, dtype acceptance, query NaN/Inf
+and sample-value NaN/Inf behavior. Fraction/Decimal scalars enter its floating
+domain; object, boolean, masked and subclass arrays are unsupported.
+The wrapper does not modify any input. Non-None `period` is unsupported, as are
+`out`, `dtype` and `where`. See
+[NumPy interp](https://numpy.org/doc/stable/reference/generated/numpy.interp.html)
+for the numerical definition; unitx additionally checks the coordinate order
+and the unit rules above.
+
+```python
+sample_time = Quantity(np.array([0.0, 1, 3]), 's')
+sample_current = Quantity(np.array([0.0, 2, 6]), 'A')
+time = Quantity(np.array([0.0, 500, 1000, 2000, 3000]), 'ms')
+current = np.interp(time, sample_time, sample_current)
+assert current.unit == sample_current.unit
+np.testing.assert_allclose(current.value, [0, 1, 2, 4, 6])
+assert np.trapezoid(current, time).isclose(Quantity(9, 'C'))
+np.testing.assert_allclose(np.gradient(current, time).value_in('A/s'), 2)
+np.testing.assert_allclose(np.diff(current).value, [1, 1, 2, 2])
 ```
 
 ## Trapezoidal integration

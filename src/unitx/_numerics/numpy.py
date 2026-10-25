@@ -596,6 +596,8 @@ def dispatch_function(
         return _where(*args, **kwargs)
     if func is np.clip:
         return _clip(*args, **kwargs)
+    if func is np.interp:
+        return _interp(*args, **kwargs)
     if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
         if func not in (
             np.isclose,
@@ -742,6 +744,49 @@ def _reshape(
 
 def _transpose(q: Any, axes: Any = None) -> Any:
     return _wrap(np.transpose(q.value, axes), q.unit)
+
+
+def _interp(
+    x: Any, xp: Any, fp: Any, left: Any = None, right: Any = None, period: Any = None
+) -> Any:
+    if period is not None:
+        error_message = 'period is not supported for Quantity interpolation.'
+        raise TypeError(error_message)
+    inputs = tuple(np.asarray(v) if isinstance(v, (list, tuple)) else v for v in (x, xp, fp))
+    if not all(_is_supported_operand(v) for v in inputs):
+        return NotImplemented
+    query, query_unit = _linear_parts(inputs[0])
+    coordinates, coordinate_unit = _linear_parts(inputs[1])
+    samples, sample_unit = _linear_parts(inputs[2])
+    if not compatible(query_unit, coordinate_unit):
+        error_message = 'x and xp must have compatible dimensions.'
+        raise DimensionError(error_message)
+    query = scale_magnitude(query, query_unit.factor / coordinate_unit.factor)
+    # Check the coordinates actually used by interp's double-precision kernel.
+    # Compare adjacent values directly to avoid integer diff overflow.
+    coordinates = np.asarray(coordinates).astype(np.float64, casting='safe', copy=False)
+    if coordinates.ndim != 1 or coordinates.size == 0:
+        error_message = 'xp must be a nonempty one-dimensional coordinate array.'
+        raise ValueError(error_message)
+    if not np.all(np.isfinite(coordinates)) or not np.all(coordinates[1:] > coordinates[:-1]):
+        error_message = 'xp must contain finite, strictly increasing coordinates.'
+        raise ValueError(error_message)
+    boundaries = {}
+    for name, boundary in (('left', left), ('right', right)):
+        if boundary is None:
+            continue
+        if not _is_supported_operand(boundary):
+            error_message = f'{name} must be a numeric scalar or scalar Quantity.'
+            raise TypeError(error_message)
+        value, unit = _linear_parts(boundary)
+        if np.ndim(value) != 0:
+            error_message = f'{name} must be a numeric scalar or scalar Quantity.'
+            raise TypeError(error_message)
+        if not compatible(unit, sample_unit):
+            error_message = f'{name} has an incompatible dimension.'
+            raise DimensionError(error_message)
+        boundaries[name] = scale_magnitude(value, unit.factor / sample_unit.factor)
+    return Quantity(np.interp(query, coordinates, samples, **boundaries), sample_unit)
 
 
 def _trapezoid(y: Any, x: Any = None, dx: Any = 1.0, axis: int = -1) -> Any:

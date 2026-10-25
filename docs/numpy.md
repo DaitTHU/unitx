@@ -128,6 +128,7 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | quantile, percentile | Preserve sample unit; dimensionless q and weights | axis, out, method, keepdims, weights; overwrite_input=False; linear Quantity only |
 | cumsum | Preserve unit | axis, dtype, out |
 | argmin, argmax | Bare indices | axis, keepdims, out |
+| interp | Align x to xp's unit; retain fp's unit | finite strictly increasing 1-D xp; scalar left/right, period=None; no out |
 | trapezoid | Multiply ordinate and coordinate units | x, scalar dx, axis; no out |
 | diff | Preserve input unit | n, axis, prepend, append; no out |
 | gradient | Divide input unit by each coordinate unit | scalar spacings or coordinate arrays, axis, edge_order; no out |
@@ -157,7 +158,7 @@ for fixed storage, indexed assignment, aliases and augmented operations.
 ## Differences and gradients
 
 See [integration, differences and gradients](numpy/calculus.md) for
-`trapezoid`, `diff`, `gradient`, coordinate spacing and result units.
+`interp`, `trapezoid`, `diff`, `gradient`, coordinate spacing and result units.
 
 ## Masked sums and statistics
 

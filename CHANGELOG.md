@@ -8,6 +8,10 @@
   preserving sample units and normalizing dimensionless weights/probabilities.
   `average(returned=True)` includes a dimensionless Quantity weight sum;
   weighted quantiles require `method="inverted_cdf"` and stage `out` writes.
+- Support nonperiodic NumPy `interp` for linear quantities with finite,
+  strictly increasing one-dimensional sample coordinates. Align query and
+  boundary units, preserve sample-value units, and compose with existing
+  integration, difference and gradient functions.
 
 ## [0.15.2] - 2026-10-25
 
