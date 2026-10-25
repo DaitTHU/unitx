@@ -313,13 +313,13 @@ def test_imperial_catalogue() -> None:
     from unitx.imperial import imperial as namespace
 
     assert namespace is imperial
-    assert imperial.parse('ft/s') == imperial.ft / si.s
-    assert imperial.parse('[fluid ounce]') == imperial.fl_oz
-    assert imperial.parse('feet') == imperial.ft
-    assert imperial.parse('cm') == si.cm
-    assert imperial.parse('gal') == imperial.gal
+    assert imperial.unit('ft/s') == imperial.ft / si.s
+    assert imperial.unit('[fluid ounce]') == imperial.fl_oz
+    assert imperial.unit('feet') == imperial.ft
+    assert imperial.unit('cm') == si.cm
+    assert imperial.unit('gal') == imperial.gal
     assert Unit('gal') == si.Gal
-    assert imperial.parse('ton').factor == 2240 * imperial.lb.factor
+    assert imperial.unit('ton').factor == 2240 * imperial.lb.factor
     assert (20 * imperial.fl_oz).to(imperial.pt).value == 1
     assert (3 * imperial.ft + 1 * si.m).value_in(si.m) == Fraction('1.9144')
     with localcontext() as context:
@@ -328,7 +328,7 @@ def test_imperial_catalogue() -> None:
     with pytest.raises(UnitSymbolError):
         Unit('ft')
     with pytest.raises(UnitSymbolError):
-        imperial.parse('kft')
+        imperial.unit('kft')
     with pytest.raises(AttributeError):
         namespace.ft = si.m
 
@@ -344,8 +344,9 @@ def test_unit_catalog_shared_entry() -> None:
 
     assert issubclass(si, UnitCatalog)
     assert issubclass(namespace, UnitCatalog)
-    assert si.parse('kg m/s2') == si.N.factor * si.kg * si.m / si.s**2
-    assert namespace.parse('ft/s') == imperial.ft / si.s
+    assert not hasattr(UnitCatalog, 'parse')
+    assert si.unit('kg m/s2') == si.N.factor * si.kg * si.m / si.s**2
+    assert namespace.unit('ft/s') == imperial.ft / si.s
     with pytest.raises(TypeError):
         namespace()
     with pytest.raises(AttributeError):
@@ -356,10 +357,10 @@ def test_unit_catalog_custom_entry() -> None:
     class laboratory(UnitCatalog, units=(si.m,)):
         span = (2 * si.m).define('span', 'laboratory span')
 
-    assert laboratory.parse('span/m').factor == 2
-    assert laboratory.parse('span') == laboratory.span
+    assert laboratory.unit('span/m').factor == 2
+    assert laboratory.unit('span') == laboratory.span
     with pytest.raises(UnitSymbolError):
-        laboratory.parse('s')
+        laboratory.unit('s')
 
 
 def test_registry_prefix_default() -> None:
@@ -398,10 +399,10 @@ def test_imperial_prefix_permissions() -> None:
             ):
                 assert definition.prefixable is False
                 with pytest.raises(UnitSymbolError):
-                    catalogue.parse('k' + definition.symbol)
-    assert imperial.parse('point') == imperial.point
-    assert imperial_historical.parse('[barleycorn]') == imperial_historical.barleycorn
-    assert us.parse('[cord]') == us.cord
+                    catalogue.unit('k' + definition.symbol)
+    assert imperial.unit('point') == imperial.point
+    assert imperial_historical.unit('[barleycorn]') == imperial_historical.barleycorn
+    assert us.unit('[cord]') == us.cord
     assert (1 * us.us_gal).value_in(si.L) == Fraction('3.785411784')
 
 

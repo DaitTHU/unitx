@@ -91,23 +91,23 @@ def test_cgs_rational_dimensions() -> None:
 )
 def test_gaussian_spelling(symbol: str, name: str) -> None:
     unit = getattr(gaussian, symbol)
-    assert gaussian.parse(symbol) == gaussian.parse(name) == unit
-    assert gaussian.parse('m' + symbol).factor == unit.factor / 1000
-    assert gaussian.parse('milli' + name) == gaussian.parse('m' + symbol)
+    assert gaussian.unit(symbol) == gaussian.unit(name) == unit
+    assert gaussian.unit('m' + symbol).factor == unit.factor / 1000
+    assert gaussian.unit('milli' + name) == gaussian.unit('m' + symbol)
     if symbol in ('dyn', 'erg', 'Ba', 'P', 'St'):
-        assert cgs.parse(symbol) == cgs.parse(name) == unit
-        assert cgs.parse('m' + symbol) == gaussian.parse('m' + symbol)
+        assert cgs.unit(symbol) == cgs.unit(name) == unit
+        assert cgs.unit('m' + symbol) == gaussian.unit('m' + symbol)
     with pytest.raises(UnitSymbolError):
         Unit(symbol)
 
 
 def test_cgs_parser_scope() -> None:
-    assert cgs.parse('erg/cm') == cgs.erg / cgs.cm
-    assert cgs.parse('gal') == Unit('gal') == si.Gal
-    assert cgs.parse('cP').factor == cgs.P.factor / 100
-    assert cgs.parse('cSt').factor == cgs.St.factor / 100
+    assert cgs.unit('erg/cm') == cgs.erg / cgs.cm
+    assert cgs.unit('gal') == Unit('gal') == si.Gal
+    assert cgs.unit('cP').factor == cgs.P.factor / 100
+    assert cgs.unit('cSt').factor == cgs.St.factor / 100
     with pytest.raises(UnitSymbolError):
-        cgs.parse('Fr')
+        cgs.unit('Fr')
 
 
 def test_gaussian_inherits_mechanical_units() -> None:
@@ -115,16 +115,16 @@ def test_gaussian_inherits_mechanical_units() -> None:
     assert gaussian._registry is not cgs._registry
     for symbol in ('cm', 'g', 's', 'Gal', 'dyn', 'erg', 'Ba', 'P', 'St'):
         assert getattr(gaussian, symbol) is getattr(cgs, symbol)
-        assert gaussian.parse(symbol) == cgs.parse(symbol)
-    assert gaussian.parse('erg/statC') == cgs.erg / gaussian.statC
-    assert gaussian.parse('g^(1/2) cm^(3/2)/s').factor == gaussian.statC.factor
+        assert gaussian.unit(symbol) == cgs.unit(symbol)
+    assert gaussian.unit('erg/statC') == cgs.erg / gaussian.statC
+    assert gaussian.unit('g^(1/2) cm^(3/2)/s').factor == gaussian.statC.factor
 
 
 @pytest.mark.parametrize('symbol', ['statC', 'statA', 'statV', 'statF', 'G', 'Mx', 'Oe'])
 def test_cgs_invalid_electromagnetic_unit(symbol: str) -> None:
     assert not hasattr(cgs, symbol)
     with pytest.raises(UnitSymbolError):
-        cgs.parse(symbol)
+        cgs.unit(symbol)
 
 
 @pytest.mark.parametrize('catalogue', [cgs, gaussian])
@@ -185,7 +185,7 @@ def test_gaussian_round_trip(
 
 
 def test_gaussian_named_scale() -> None:
-    target = Unit(gaussian.parse('mstatC'), scale=Factor(7))
+    target = Unit(gaussian.unit('mstatC'), scale=Factor(7))
     source = Unit(si.mC, scale=Factor(3))
     result = gaussian.convert(2 * source, target)
     reference = gaussian.convert(2 * source, gaussian.statC)
@@ -297,13 +297,13 @@ def test_gaussian_em_namespace() -> None:
     assert type(SI.c.value) is int
     assert type(SI.mu0.value) is Decimal
     assert SI.mu0.value == Decimal('0.00000125663706127')
-    assert si.parse('Em').factor == si.m.factor * 10**18
+    assert si.unit('Em').factor == si.m.factor * 10**18
 
 
 def test_si_em_invalid_spelling() -> None:
     # Namespace attributes do not become parser spellings.
     with pytest.raises(UnitSymbolError):
-        si.parse('em')
+        si.unit('em')
 
 
 @pytest.mark.parametrize('catalogue', [si, gaussian])

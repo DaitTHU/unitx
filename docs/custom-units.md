@@ -156,7 +156,7 @@ user-assigned identity strings.
 
 Only definition construction consults the scope. Bare `Unit('m')`,
 `Quantity(3, 'm')` and `.to('cm')` always use the default environment. A private
-unit expression must be parsed with `registry.parse()` or `catalogue.parse()`;
+unit expression must be parsed with `registry.parse()` or `catalogue.unit()`;
 when defining one unit from another, use its bound Unit object directly.
 
 Explicit block selection follows ContextVar semantics: asyncio tasks inherit
@@ -194,7 +194,7 @@ commits all its definitions as one transaction.
 There is no public freeze or read-only snapshot API. Read-only use is an
 application discipline. UnitCatalog prevents rebinding its attributes; it does
 not freeze its associated Registry. With `registry=shared`, later registrations
-in `shared` are also visible through the catalogue's `parse()` method.
+in `shared` are also visible through the catalogue's `unit()` method.
 `Registry([unit, ...])` creates independent bindings for explicitly supplied
 definitions, retaining their identities, aliases and prefix policies; it does
 not copy an entire registry or disable future registration. Already constructed
@@ -327,14 +327,14 @@ A catalogue combines a read-only namespace with its own parser:
 >>> class laboratory(UnitCatalog, units=(si.m,)):
 ...     span: Final = (2 * si.m).define('span', 'laboratory span')
 ...     double_span: Final = (2 * span).define('doubleSpan', 'double span')
->>> laboratory.parse('span/m') == laboratory.span / si.m
+>>> laboratory.unit('span/m') == laboratory.span / si.m
 True
 >>> (1 * laboratory.double_span).value_in(si.m)
 4
 
 ```
 
-`UnitCatalog` supplies namespace immutability, collection, and `parse()`.
+`UnitCatalog` supplies namespace immutability, collection, and `unit()`.
 Its class body exposes unit objects as attributes. Use Final
 annotations on published attributes for static rebinding diagnostics.
 

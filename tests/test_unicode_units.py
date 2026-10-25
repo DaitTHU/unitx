@@ -57,13 +57,13 @@ def test_unit_unicode_prefix(alias: str, canonical: str) -> None:
 
 def test_affine_quantity_unicode_coordinate() -> None:
     assert AffineQuantity(0, '℃').value_in('K') == Fraction(5463, 20)
-    assert AffineQuantity(32, imperial.parse('℉')) == AffineQuantity(0, '℃')
+    assert AffineQuantity(32, imperial.unit('℉')) == AffineQuantity(0, '℃')
     assert AffineQuantity(273, 'K') == AffineQuantity(273, 'K')
 
 
 def test_imperial_unicode_coordinate() -> None:
-    unit = imperial.parse('℉')
-    assert unit == imperial.parse('degF')
-    assert hash(unit) == hash(imperial.parse('°F'))
+    unit = imperial.unit('℉')
+    assert unit == imperial.unit('degF')
+    assert hash(unit) == hash(imperial.unit('°F'))
     assert pickle.loads(pickle.dumps(unit)) == unit
-    assert imperial.parse('℉/s') == unit / si.s
+    assert imperial.unit('℉/s') == unit / si.s

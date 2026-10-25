@@ -43,7 +43,7 @@ def test_us_survey_foot_distinct_convention() -> None:
     ratio = (1 * us.us_survey_foot).value_in(imperial.ft)
     assert ratio == Fraction(500000, 499999)
     assert ratio != 1
-    assert us.parse('[US cable length]') == us.us_cable
+    assert us.unit('[US cable length]') == us.us_cable
     assert (1 * us.us_cable).value_in(us.us_survey_foot) != 720
 
 
@@ -96,8 +96,8 @@ def test_imperial_decimal_context(precision: int) -> None:
     ],
 )
 def test_us_spelling_scope(text: str, unit: Unit) -> None:
-    assert us.parse(text) == unit
-    assert us.parse(text + ' / s') == unit / si.s
+    assert us.unit(text) == unit
+    assert us.unit(text + ' / s') == unit / si.s
     with pytest.raises(UnitSymbolError):
         Unit(text)
 
@@ -108,7 +108,7 @@ def test_us_spelling_scope(text: str, unit: Unit) -> None:
 )
 def test_imperial_invalid_prefix(catalogue: type[UnitCatalog], text: str) -> None:
     with pytest.raises(UnitSymbolError):
-        catalogue.parse(text)
+        catalogue.unit(text)
 
 
 @pytest.mark.parametrize('unit', [us.circular_mil, us.inH2O, us.inHg, us.us_survey_foot])

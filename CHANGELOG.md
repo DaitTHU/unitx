@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Rename `UnitCatalog.parse(expression)` to `UnitCatalog.unit(expression)` across
+  built-in and custom catalogues. Remove the old method; keep `Registry.parse()`
+  and `UnitParser.parse()` unchanged. Update examples, typing consumers and
+  migration guidance.
+
 ### Added
 
 - Extend `unitx.cgs` with independent `esu`, `emu` and `hl` catalogues, exact

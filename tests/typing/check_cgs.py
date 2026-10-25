@@ -8,8 +8,8 @@ from unitx import Quantity, Unit
 from unitx.cgs import cgs, emu, esu, gaussian, hl
 from unitx.si import si
 
-assert_type(cgs.parse('erg/cm'), Unit)
-assert_type(gaussian.parse('erg/statC'), Unit)
+assert_type(cgs.unit('erg/cm'), Unit)
+assert_type(gaussian.unit('erg/statC'), Unit)
 assert_type(gaussian.dyn, Unit)
 assert_type(gaussian.statC, Unit)
 assert_type(3 * cgs.dyn, Quantity[int])
@@ -23,9 +23,9 @@ assert_type(si.em.c, Quantity[float])
 assert_type(si.c, Unit)
 assert_type(gaussian.em.alpha, Quantity[float])
 assert_type(gaussian.em.k2, Quantity[float])
-assert_type(esu.parse('esuB'), Unit)
-assert_type(emu.parse('abcoulomb'), Unit)
-assert_type(hl.parse('hlC'), Unit)
+assert_type(esu.unit('esuB'), Unit)
+assert_type(emu.unit('abcoulomb'), Unit)
+assert_type(hl.unit('hlC'), Unit)
 assert_type(esu.statC, Unit)
 assert_type(emu.abA, Unit)
 assert_type(hl.charge, Unit)

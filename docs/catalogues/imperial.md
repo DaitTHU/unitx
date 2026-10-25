@@ -8,9 +8,9 @@ Use a catalogue directly in formulas. No registry setup is needed:
 >>> from unitx.si import si, SI
 >>> (3 * imperial.ft).value_in(si.m)
 Fraction(1143, 1250)
->>> imperial.parse('ft/s') == imperial.ft / si.s
+>>> imperial.unit('ft/s') == imperial.ft / si.s
 True
->>> SI.c.value_in(imperial.parse('ft/s'))
+>>> SI.c.value_in(imperial.unit('ft/s'))
 Fraction(374740572500, 381)
 
 ```
@@ -42,15 +42,15 @@ The exact foot convention follows [NIST's international foot definition](https:/
 conversion conventions are also tabulated in
 [NIST SP 811](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b8).
 
-`imperial.parse()` accepts the catalogue's units and their names, plus explicitly
+`imperial.unit()` accepts the catalogue's units and their names, plus explicitly
 shared SI definitions: metre, second, gram, kelvin, newton, pascal, litre and
 hour, including their permitted prefixes and aliases. Products, exact rational
 powers, `[name]` references and parser precedence work as in `Unit(...)`.
 It does not consult private registrations in the default table.
 
-Use Unit objects or `imperial.parse()` results as conversion targets. A bare
+Use Unit objects or `imperial.unit()` results as conversion targets. A bare
 string still uses the default environment. In particular, `Unit('gal')` denotes
-SI galileo (acceleration); `imperial.parse('gal')` denotes Imperial gallon.
+SI galileo (acceleration); `imperial.unit('gal')` denotes Imperial gallon.
 Physical constants remain available from `SI` and can be explicitly converted
 to these units. This catalogue does not provide a second constant namespace.
 
@@ -64,7 +64,7 @@ Fraction(1200, 3937)
 Fraction(27432, 125)
 >>> (1 * us.us_gal).value_in(si.L)
 Fraction(473176473, 125000000)
->>> us.parse('[inch of water]') == us.inH2O
+>>> us.unit('[inch of water]') == us.inH2O
 True
 >>> (1 * imperial_historical.ramsden_chain).value_in(imperial.ft)
 100

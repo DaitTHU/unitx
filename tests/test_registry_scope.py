@@ -138,16 +138,16 @@ def test_registry_defining_catalogue_nesting() -> None:
         after = si.m.define('wafter', 'with after')
     assert outer.parse('wbefore') == before
     assert outer.parse('wafter') == after
-    assert catalogue.parse('wfirst') == catalogue.first
-    assert catalogue.parse('wlast') == catalogue.last
+    assert catalogue.unit('wfirst') == catalogue.first
+    assert catalogue.unit('wlast') == catalogue.last
     assert inner.parse('wtime') == catalogue.duration
     assert inner.parse('wcurrent') == catalogue.after_nested
-    assert catalogue.nested.parse('wmass') == catalogue.nested.mass
+    assert catalogue.nested.unit('wmass') == catalogue.nested.mass
     assert outer.parse('wfirst') == catalogue.first
     assert inner.parse('wmass') == catalogue.nested.mass
-    assert catalogue.parse('wtime') == catalogue.duration
+    assert catalogue.unit('wtime') == catalogue.duration
     with pytest.raises(UnitSymbolError):
-        catalogue.parse('wmass')
+        catalogue.unit('wmass')
 
 
 def test_registry_defining_catalogue_failure() -> None:
@@ -219,7 +219,7 @@ def test_registry_defining_failure_restores_catalogue() -> None:
         length = si.m.define('wlength', 'with length')
 
     assert registry.parse('wtime') == catalogue.duration
-    assert catalogue.parse('wlength') == catalogue.length
-    assert catalogue.parse('wtime') == catalogue.duration
+    assert catalogue.unit('wlength') == catalogue.length
+    assert catalogue.unit('wtime') == catalogue.duration
     with pytest.raises(UnitSymbolError):
         registry.parse('wlength')

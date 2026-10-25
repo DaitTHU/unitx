@@ -144,7 +144,7 @@ For catalogue quantities, select the required definitions explicitly:
 >>> from unitx.imperial import imperial
 >>> from unitx.si import si
 >>> receiver = Registry([imperial.ft, si.s])
->>> original = 3 * imperial.parse('ft/s')
+>>> original = 3 * imperial.unit('ft/s')
 >>> from_dict(to_dict(original), registry=receiver) == original
 True
 

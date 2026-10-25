@@ -3,7 +3,7 @@
 ```pycon
 >>> from unitx import Quantity, Unit
 >>> from unitx.si import SI, si
->>> si.parse('metre') == si.m == Unit('metre')
+>>> si.unit('metre') == si.m == Unit('metre')
 True
 >>> SI.c == 299792458 * si.m / si.s
 True
@@ -220,7 +220,7 @@ True
 True
 >>> from unitx import AffineQuantity
 >>> from unitx.imperial import imperial
->>> AffineQuantity(32, imperial.parse('℉')) == AffineQuantity(0, '℃')
+>>> AffineQuantity(32, imperial.unit('℉')) == AffineQuantity(0, '℃')
 True
 
 ```

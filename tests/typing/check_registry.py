@@ -8,7 +8,7 @@ from unitx.si import si
 from unitx.unitparser import UnitParser
 
 assert_type(imperial.ft, Unit)
-assert_type(imperial.parse('ft/s'), Unit)
+assert_type(imperial.unit('ft/s'), Unit)
 assert_type(3 * imperial.ft, Quantity[int])
 private = Registry([si.m, si.s])
 assert_type(private.include(si.m, si.s), None)
@@ -17,7 +17,7 @@ assert_type(private.define(Decimal('0.5') * si.m, 'span', 'private span'), Unit)
 UnitParser('m', registry=private).parse()
 from_dict(to_dict(3 * imperial.ft), registry=Registry([imperial.ft]))
 
-assert_type(si.parse('m/s'), Unit)
+assert_type(si.unit('m/s'), Unit)
 
 
 class laboratory(UnitCatalog, units=(si.m,)):
@@ -25,7 +25,7 @@ class laboratory(UnitCatalog, units=(si.m,)):
 
 
 assert_type(laboratory.span, Unit)
-assert_type(laboratory.parse('span'), Unit)
+assert_type(laboratory.unit('span'), Unit)
 assert_type(3 * laboratory.span, Quantity[int])
 
 
@@ -34,7 +34,7 @@ class scoped_laboratory(UnitCatalog, units=(si.m,)):
 
 
 assert_type(scoped_laboratory.length, Unit)
-assert_type(scoped_laboratory.parse('scspan'), Unit)
+assert_type(scoped_laboratory.unit('scspan'), Unit)
 assert_type(3 * scoped_laboratory.length, Quantity[int])
 
 with private.defining() as selected:

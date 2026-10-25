@@ -46,10 +46,10 @@ def test_unit_catalog_collects_final_definitions() -> None:
     assert survey.definition._key is survey.initial_key
     assert hash(survey.span) == survey.initial_hash
     assert pickle.loads(survey.saved) == survey.span
-    assert survey.parse('span') == survey.span
+    assert survey.unit('span') == survey.span
     for text in ('unused', 'hidden', 'kspan'):
         with pytest.raises(UnitSymbolError):
-            survey.parse(text)
+            survey.unit(text)
     receiver = Registry([survey.span])
     with pytest.raises(UnitSymbolError):
         receiver.parse('kspan')
@@ -62,7 +62,7 @@ def test_unit_catalog_no_immediate_parsing() -> None:
         with pytest.raises(UnitSymbolError):
             Unit('collectionSpan')
 
-    assert survey.parse('collectionDouble') == survey.doubled
+    assert survey.unit('collectionDouble') == survey.doubled
     assert 1 * survey.doubled == 2 * si.m
 
 
@@ -75,9 +75,9 @@ def test_unit_catalog_shared_registry_updates() -> None:
     with pytest.raises(AttributeError):
         survey.span = si.m
     with pytest.raises(UnitSymbolError):
-        survey.parse('s')
+        survey.unit('s')
     registry.include(si.s)
-    assert survey.parse('span/s') == survey.span / si.s
+    assert survey.unit('span/s') == survey.span / si.s
 
 
 def test_unit_catalog_json_before_collection() -> None:
@@ -124,8 +124,8 @@ def test_unit_catalog_publication_explicit_units() -> None:
     }
     exec('class survey(UnitCatalog, registry=shared):\n    length = metre', namespace)
     survey = namespace['survey']
-    assert survey.parse('unpublishedStep') == external
-    assert survey.parse('m') == si.m
+    assert survey.unit('unpublishedStep') == external
+    assert survey.unit('m') == si.m
     assert to_dict(external) == saved
 
 
@@ -140,7 +140,7 @@ def test_unit_catalog_module_recreation_independent() -> None:
     second = namespace['survey'].span
     assert first != second and first.dimension != second.dimension
     assert pickle.loads(saved) == first
-    assert namespace['survey'].parse('span') == second
+    assert namespace['survey'].unit('span') == second
 
 
 @pytest.mark.parametrize('dependency', ['reference', 'delta', 'nested_reference'])

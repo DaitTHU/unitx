@@ -54,14 +54,14 @@ assert_type(gaussian.em.k2, Quantity[float])
 assert isinstance(si.c, Unit) and si.em.c == 1 * si.c
 assert gaussian.em.c is si.em.c
 assert issubclass(gaussian, cgs) and gaussian.dyn is cgs.dyn
-assert gaussian.parse('erg/statC') == cgs.erg / gaussian.statC
+assert gaussian.unit('erg/statC') == cgs.erg / gaussian.statC
 assert from_dict(to_dict(gaussian.statC), registry=Registry([gaussian.statC])) == gaussian.statC
 assert pickle.loads(pickle.dumps(gaussian.G)) == gaussian.G
 for catalogue, charge_unit in ((esu, esu.statC), (emu, emu.abC), (hl, hl.charge)):
     converted = catalogue.convert(1 * si.C, charge_unit)
     assert_type(converted, Quantity[int | Fraction | float])
     assert abs(catalogue.convert(converted, si.C).value - 1) < 1e-15
-    assert catalogue.parse(charge_unit.expression()) == charge_unit
+    assert catalogue.unit(charge_unit.expression()) == charge_unit
     assert pickle.loads(pickle.dumps(charge_unit)) == charge_unit
     assert from_dict(to_dict(charge_unit), registry=Registry([charge_unit])) == charge_unit
 
@@ -120,8 +120,8 @@ class laboratory(UnitCatalog, units=(span,)):
     length: Final = span
 
 
-assert_type(laboratory.parse('installedSpan'), Unit)
-assert laboratory.parse('installedSpan') == span
+assert_type(laboratory.unit('installedSpan'), Unit)
+assert laboratory.unit('installedSpan') == span
 quantity = 3 * span
 assert from_dict(to_dict(quantity), registry=registry) == quantity
 for value in (quantity, celsius, level):

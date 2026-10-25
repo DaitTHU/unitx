@@ -1,5 +1,14 @@
 # Migration notes
 
+## Upgrading to 0.15.1
+
+Catalogue lookup is now `catalogue.unit(expression)`. Replace calls such as
+`si.parse('m/s')`, `imperial.parse('ft/s')` and `gaussian.parse('statC')` with
+`si.unit('m/s')`, `imperial.unit('ft/s')` and `gaussian.unit('statC')`.
+The old catalogue `parse()` method is removed. The input remains a string,
+resolved in the catalogue's own environment, and the result is a linear Unit.
+`Registry.parse()` and `UnitParser.parse()` retain their names and behavior.
+
 ## Upgrading to 0.14.0
 
 ### Coordinate families and algebraic dimensions
@@ -42,7 +51,7 @@ validates the whole batch before changing the environment.
 
 Use `from unitx.imperial import imperial` for the ready-to-use Imperial
 catalogue, following the existing `from unitx.si import si` structure.
-Its `parse()` uses the catalogue environment. Default `Quantity(..., 'm')` and
+Its `unit()` uses the catalogue environment. Default `Quantity(..., 'm')` and
 `.to('cm')` retain their existing behavior; extra catalogue imports do not
 change default spellings.
 

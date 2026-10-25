@@ -48,13 +48,13 @@ def test_unit_catalog_definition_identity() -> None:
         before = hash(span)
         lookup = {span: 'distance'}
 
-    assert example.lookup[example.parse('scspan')] == 'distance'
+    assert example.lookup[example.unit('scspan')] == 'distance'
     assert hash(example.span) == example.before
-    assert example.parse('scspan/s') == example.span / si.s
+    assert example.unit('scspan/s') == example.span / si.s
     assert (1 * example.speed).value_in(si.m / si.s) == 2
     unbound = si.m.define('scafter', 'after scope')
     with pytest.raises(UnitSymbolError):
-        example.parse('scafter')
+        example.unit('scafter')
     with pytest.raises(UnitSymbolError):
         Unit('scspan')
     assert 1 * unbound == 1 * si.m
@@ -74,10 +74,10 @@ def test_unit_catalog_nested_failure() -> None:
 
         last = si.kg.define('sclast', 'scope last')
 
-    assert outer.parse('scfirst') == outer.first
-    assert outer.parse('sclast') == outer.last
+    assert outer.unit('scfirst') == outer.first
+    assert outer.unit('sclast') == outer.last
     with pytest.raises(UnitSymbolError):
-        outer.parse('scinner')
+        outer.unit('scinner')
     si.m.define('scoutside', 'scope outside')
     for environment in (outer._registry, default_registry):
         with pytest.raises(UnitSymbolError):
@@ -95,11 +95,11 @@ def test_unit_catalog_nested_scope() -> None:
 
         last = si.kg.define('sclast', 'scope last')
 
-    assert outer.parse('scsame') == outer.first
-    assert outer.inner.parse('scsame') == outer.inner.duration
+    assert outer.unit('scsame') == outer.first
+    assert outer.inner.unit('scsame') == outer.inner.duration
     assert outer.first != outer.inner.duration
     with pytest.raises(UnitSymbolError):
-        outer.inner.parse('sclast')
+        outer.inner.unit('sclast')
 
 
 def test_unit_catalog_explicit_registry_target() -> None:
@@ -110,8 +110,8 @@ def test_unit_catalog_explicit_registry_target() -> None:
         two = si.s.define('sctwo', 'scope two')
 
     assert explicit.parse('scone') == ambient.one
-    assert ambient.parse('sctwo') == ambient.two
-    assert ambient.parse('scone') == ambient.one
+    assert ambient.unit('sctwo') == ambient.two
+    assert ambient.unit('scone') == ambient.one
     with pytest.raises(UnitSymbolError):
         explicit.parse('sctwo')
 
@@ -124,7 +124,7 @@ def test_unit_catalog_parsing_stays_default() -> None:
 
     assert binary.default_bel == si.B.dimension
     assert binary.default_length == 300
-    assert binary.parse('B') == binary.byte
+    assert binary.unit('B') == binary.byte
     assert binary.byte.dimension == si.one.dimension and si.B.dimension != si.one.dimension
 
 
@@ -135,7 +135,7 @@ def test_unit_catalog_helper_scope() -> None:
     class example(UnitCatalog):
         length = make(2 * si.m)
 
-    assert example.parse('schelper') == example.length
+    assert example.unit('schelper') == example.length
     outside = make(2 * si.m)
     assert outside != example.length
     assert 1 * outside == 1 * example.length
@@ -148,7 +148,7 @@ def test_unit_catalog_shared_registry() -> None:
         length = si.m.define('scshared', 'scope shared')
 
     assert registry.parse('scshared/s') == example.length / si.s
-    assert example.parse('s') == si.s
+    assert example.unit('s') == si.s
 
 
 def test_unit_catalog_subclass_environment() -> None:
@@ -160,11 +160,11 @@ def test_unit_catalog_subclass_environment() -> None:
 
     # Attribute inheritance does not silently inherit parser bindings.
     assert child.length == base.length
-    assert child.parse('sctime') == child.duration
+    assert child.unit('sctime') == child.duration
     with pytest.raises(UnitSymbolError):
-        child.parse('scspan')
+        child.unit('scspan')
     with pytest.raises(UnitSymbolError):
-        child.parse('m')
+        child.unit('m')
 
 
 def test_unit_catalog_assignment_collects_definition() -> None:
@@ -172,9 +172,9 @@ def test_unit_catalog_assignment_collects_definition() -> None:
         metre = si.m
 
     assert example.metre == si.m
-    assert example.parse('m') == si.m
+    assert example.unit('m') == si.m
     with pytest.raises(UnitSymbolError):
-        example.parse('metreAttribute')
+        example.unit('metreAttribute')
 
 
 def test_affine_unit_define_bound_reference() -> None:
@@ -200,7 +200,7 @@ def test_unit_catalog_affine_coordinate() -> None:
         step = si.K.define('scK', 'scope kelvin')
         temperature = AffineUnit(Quantity(10, step)).define('scT', 'scope temperature')
 
-    assert AffineQuantity(0, example.parse('scT')).value_in(si.K) == 10
+    assert AffineQuantity(0, example.unit('scT')).value_in(si.K) == 10
     assert from_dict(to_dict(0 @ example.temperature), registry=example._registry) == (
         0 @ example.temperature
     )
@@ -230,7 +230,7 @@ def test_unit_catalog_local_recreation_identity() -> None:
     assert first._registry is not second._registry
     third = build(si.s)
     assert third.length.dimension == si.s.dimension
-    assert first.parse('screpeat') == first.length
+    assert first.unit('screpeat') == first.length
 
 
 def test_unit_catalog_method_does_not_reactivate() -> None:
@@ -242,7 +242,7 @@ def test_unit_catalog_method_does_not_reactivate() -> None:
     length = example.make()
     assert 1 * length == 1 * si.m
     with pytest.raises(UnitSymbolError):
-        example.parse('scmethod')
+        example.unit('scmethod')
 
 
 def test_unit_catalog_collects_thread_result() -> None:
@@ -256,9 +256,9 @@ def test_unit_catalog_collects_thread_result() -> None:
             duration = _executor.submit(make).result()
         length = si.m.define('sclength', 'scope length')
 
-    assert example.parse('sclength') == example.length
+    assert example.unit('sclength') == example.length
     assert 1 * example.duration == 1 * si.s
-    assert example.parse('scthread') == example.duration
+    assert example.unit('scthread') == example.duration
     with pytest.raises(UnitSymbolError):
         Unit('scthread')
 
@@ -291,15 +291,15 @@ def test_unit_catalog_preserves_prefix_permissions() -> None:
         enabled = si.m.define('enabled', prefixable=True)
         coordinate = AffineUnit(2 * si.K).define('reading')
 
-    assert catalogue.parse('span') == catalogue.span
-    assert catalogue.parse('[span]') == catalogue.span
-    assert catalogue.parse('helper') == catalogue.helper
-    assert catalogue.parse('kenabled').factor == 1000
-    assert catalogue.parse('cm') == si.cm
+    assert catalogue.unit('span') == catalogue.span
+    assert catalogue.unit('[span]') == catalogue.span
+    assert catalogue.unit('helper') == catalogue.helper
+    assert catalogue.unit('kenabled').factor == 1000
+    assert catalogue.unit('cm') == si.cm
     assert catalogue.coordinate.name == 'reading'
     for text in ('kspan', 'khelper', 'kreading'):
         with pytest.raises(UnitSymbolError):
-            catalogue.parse(text)
+            catalogue.unit(text)
     with pytest.raises(UnitSymbolError):
         Registry([make()]).parse('khelper')
 
@@ -316,7 +316,7 @@ def test_unit_catalog_explicit_block_prefix_default() -> None:
     assert target.parse('kenabled').factor == 1000
     for text in ('kbefore', 'kafter'):
         with pytest.raises(UnitSymbolError):
-            catalogue.parse(text)
+            catalogue.unit(text)
 
 
 @pytest.mark.parametrize('source', [si.dB, si.dB**2, si.dB / si.Np, 2 * si.dB])

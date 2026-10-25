@@ -67,7 +67,7 @@ def test_cgs_system_round_trip(
     if kind != 'electric_field' or catalogue is hl:
         assert catalogue.convert(Quantity(value, source), target) == result
         assert catalogue.convert(result, source) == restored
-        scaled = Unit(catalogue.parse('m' + target.symbol), scale=Factor(7))
+        scaled = Unit(catalogue.unit('m' + target.symbol), scale=Factor(7))
         assert catalogue.convert(Quantity(value, source), scaled).value == pytest.approx(
             result.value * 1000 / 7, rel=3e-15, abs=0
         )
@@ -107,7 +107,7 @@ def test_cgs_system_catalogue(catalogue: type[UnitCatalog]) -> None:
     for name in ('cm', 'g', 's', 'Gal', 'dyn', 'erg', 'Ba', 'P', 'St'):
         unit = getattr(catalogue, name)
         assert unit is getattr(cgs, name)
-        assert catalogue.parse(unit.symbol) == unit
+        assert catalogue.unit(unit.symbol) == unit
     with pytest.raises(AttributeError):
         catalogue.em = si.em
     assert not hasattr(cgs, 'em')
@@ -126,7 +126,7 @@ def test_cgs_system_shared_units() -> None:
     ('catalogue', 'unit'), [(catalogue, target) for catalogue, _, target, _ in _ROUTES]
 )
 def test_cgs_system_reconstruction(catalogue: _Catalogue, unit: Unit) -> None:
-    assert catalogue.parse(unit.expression()) == unit
+    assert catalogue.unit(unit.expression()) == unit
     with pytest.raises(UnitSymbolError):
         Unit(unit.symbol)
     for value in (unit, Unit(unit, scale=Factor(3)), Fraction(2, 3) * unit):

@@ -10,7 +10,7 @@ Import the catalogue and the explicit electromagnetic conversion entry point:
 Fraction(3, 100000)
 >>> (3 * cgs.dyn * (2 * cgs.cm)).to(cgs.erg).value
 6
->>> cgs.parse('erg/cm') == cgs.erg / cgs.cm
+>>> cgs.unit('erg/cm') == cgs.erg / cgs.cm
 True
 >>> (1 * si.J).value_in(cgs.g * cgs.cm**2 / cgs.s**2)
 10000000
@@ -29,7 +29,7 @@ default environment. Importing the package adds no default spellings.
 ```pycon
 >>> gaussian.cm is cgs.cm and gaussian.erg is cgs.erg
 True
->>> gaussian.parse('erg/statC') == cgs.erg / gaussian.statC
+>>> gaussian.unit('erg/statC') == cgs.erg / gaussian.statC
 True
 >>> hasattr(cgs, 'statC')
 False
@@ -51,7 +51,7 @@ False
 | `St` | stokes | cm²/s | 10⁻⁴ m²/s |
 
 New entries accept SI prefixes on their canonical symbol and singular name,
-for example `cgs.parse('cP')`, `cgs.parse('cSt')` and `cgs.parse('millidyne')`.
+for example `cgs.unit('cP')`, `cgs.unit('cSt')` and `cgs.unit('millidyne')`.
 They have no additional aliases. Reused SI definitions retain all their existing
 spellings and prefix policies, including `gal` for galileo. `cm`, `g`, `s` and
 `Gal` are the same objects as the SI entries. New definitions retain their own
@@ -190,9 +190,9 @@ catalogue's definitions; the electric-field expressions for ESU and EMU require
 ```pycon
 >>> esu.statC is gaussian.statC and emu.G is gaussian.G
 True
->>> emu.parse('erg/abcoulomb') == emu.erg / emu.abC
+>>> emu.unit('erg/abcoulomb') == emu.erg / emu.abC
 True
->>> hl.parse('hlE') == hl.electric_field
+>>> hl.unit('hlE') == hl.electric_field
 True
 >>> round(emu.convert(1 * emu.abA, si.A).value, 8)
 10.0

@@ -8,7 +8,7 @@ Use catalogues directly in formulas; no Registry setup is needed:
 >>> from unitx.imperial import imperial
 >>> (3 * imperial.ft).value_in(si.m)
 Fraction(1143, 1250)
->>> imperial.parse('ft/s') == imperial.ft / si.s
+>>> imperial.unit('ft/s') == imperial.ft / si.s
 True
 
 ```
@@ -22,8 +22,8 @@ True
 ## The UnitCatalog entry point
 
 `si`, `imperial`, `cgs`, `gaussian`, `esu`, `emu` and `hl` share the public `UnitCatalog` base.
-A catalogue exposes unit attributes and a `parse()` entry point, using its
-configured spelling environment. `si.parse()` uses the existing default
+A catalogue exposes unit attributes and a `unit()` entry point, using its
+configured spelling environment. `si.unit()` uses the existing default
 environment; Imperial and CGS parsing use independent environments.
 The base preserves the existing non-instantiable, read-only namespace behavior.
 UnitCatalog collects public unit attributes after the class body finishes.
@@ -44,7 +44,7 @@ a catalogue never adds its spellings to that environment. For example, default
 ```pycon
 >>> Unit('gal') == si.Gal
 True
->>> imperial.parse('gal') == imperial.gal
+>>> imperial.unit('gal') == imperial.gal
 True
 >>> (1 * imperial.gal).value_in(si.L)
 Fraction(454609, 100000)
