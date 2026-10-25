@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-10-25
+
 ### Changed
 
 - Rename `UnitCatalog.parse(expression)` to `UnitCatalog.unit(expression)` across
