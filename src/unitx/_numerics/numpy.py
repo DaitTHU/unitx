@@ -403,7 +403,7 @@ def _dispatch_ufunc(
         }:
             return NotImplemented
         handler = _sum if ufunc is np.add else _prod
-        return handler(inputs[0], **{'axis': 0, **kwargs})
+        return handler(ufunc.reduce, inputs[0], **{'axis': 0, **kwargs})
     if method == 'accumulate' and ufunc is np.add:
         if kwargs.keys() - {'axis', 'dtype'}:
             return NotImplemented
@@ -606,6 +606,8 @@ def dispatch_function(
             np.transpose,
             np.argmin,
             np.argmax,
+            np.nanargmin,
+            np.nanargmax,
             np.median,
             np.mean,
             np.std,
@@ -618,6 +620,8 @@ def dispatch_function(
             np.max,
             np.amin,
             np.amax,
+            np.nanmin,
+            np.nanmax,
         ):
             raise TypeError(
                 'This NumPy function is undefined for affine points; convert explicitly.'
@@ -961,6 +965,7 @@ def _quantile(
 
 
 def _sum(
+    func: Any,
     q: Any,
     axis: Any = None,
     dtype: Any = None,
@@ -975,33 +980,34 @@ def _sum(
     initial_value = None
     if initial is not None:
         if not _is_supported_operand(initial):
-            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+            error_message = 'initial must be a numeric scalar or scalar Quantity.'
+            raise TypeError(error_message)
         initial_value, initial_unit = _linear_parts(initial)
         if np.ndim(initial_value) != 0:
-            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+            error_message = 'initial must be a numeric scalar or scalar Quantity.'
+            raise TypeError(error_message)
         if not compatible(initial_unit, unit):
             # Bare zero is the additive identity in any dimension. A Quantity
             # zero still has its declared dimension and must be compatible.
             if isinstance(initial, (Quantity, _Point)) or initial != 0:
-                raise DimensionError('initial has an incompatible dimension.')
+                error_message = 'initial has an incompatible dimension.'
+                raise DimensionError(error_message)
         else:
             initial_value = scale_magnitude(initial_value, initial_unit.factor / unit.factor)
     result = _wrap(
-        np.add.reduce(
-            value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where
-        ),
+        func(value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where),
         unit,
     )
     return _write_output(result, out)
 
 
 def _prod(
+    func: Any,
     q: Any,
     axis: Any = None,
     dtype: Any = None,
     out: Any = None,
     keepdims: bool = False,
-    *,
     initial: Any = 1,
     where: Any = True,
 ) -> Any:
@@ -1010,10 +1016,12 @@ def _prod(
     initial_value, initial_unit = None, Unit()
     if initial is not None:
         if not _is_supported_operand(initial):
-            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+            error_message = 'initial must be a numeric scalar or scalar Quantity.'
+            raise TypeError(error_message)
         initial_value, initial_unit = _linear_parts(initial)
         if np.ndim(initial_value) != 0:
-            raise TypeError('initial must be a numeric scalar or scalar Quantity.')
+            error_message = 'initial must be a numeric scalar or scalar Quantity.'
+            raise TypeError(error_message)
 
     value, unit = _linear_parts(q)
     mask = np.broadcast_to(where, np.shape(value))
@@ -1021,7 +1029,7 @@ def _prod(
     if unit.dimension == DIMENSIONLESS:
         value = scale_magnitude(value, unit.factor, where=mask)
         unit = Unit()
-    result = np.multiply.reduce(
+    result = func(
         value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where
     )
     if unit.dimension != DIMENSIONLESS:
@@ -1029,16 +1037,17 @@ def _prod(
         axes = range(len(shape)) if axis is None else axis if isinstance(axis, tuple) else (axis,)
         # NumPy has already validated axes, including its scalar 0/-1 special case.
         count = math.prod(shape[i] for i in axes) if shape else 1
+        if func is np.nanprod:
+            mask = mask & ~np.isnan(value)
         if np.ndim(where) == 0:
             count = count if bool(where) else 0
-        else:
+        if np.ndim(where) != 0 or func is np.nanprod:
             counts = np.sum(mask, axis=axis)
             if np.size(counts):
                 count = int(np.asarray(counts).flat[0])
                 if np.any(counts != count):
-                    raise DimensionError(
-                        'Product reductions require equal element counts per result.'
-                    )
+                    error_message = 'Product reductions require equal element counts per result.'
+                    raise DimensionError(error_message)
             # With no output elements, retain the nominal reduction extent.
         unit = unit**count
     assert isinstance(unit, Unit) and isinstance(initial_unit, Unit)
@@ -1191,7 +1200,6 @@ def _extremum(
     axis: Any = None,
     out: Any = None,
     keepdims: bool = False,
-    *,
     initial: Any = _UNSET,
     where: Any = True,
 ) -> Any:
@@ -1210,15 +1218,19 @@ _QUANTITY_FUNCTIONS = {
     np.transpose: _transpose,
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
+    np.nanargmin: partial(_argmin_max, np.nanargmin),
+    np.nanargmax: partial(_argmin_max, np.nanargmax),
     np.median: partial(_median, np.median),
     np.nanmedian: partial(_median, np.nanmedian),
     np.cumsum: _cumsum,
-    np.prod: _prod,
+    np.prod: partial(_prod, np.multiply.reduce),
+    np.nanprod: partial(_prod, np.nanprod),
     np.std: partial(_std_var, np.std),
     np.var: partial(_std_var, np.var),
     np.nanstd: partial(_std_var, np.nanstd),
     np.nanvar: partial(_std_var, np.nanvar),
-    np.sum: _sum,
+    np.sum: partial(_sum, np.add.reduce),
+    np.nansum: partial(_sum, np.nansum),
     np.mean: partial(_mean, np.mean),
     np.nanmean: partial(_mean, np.nanmean),
     np.average: _average,
@@ -1230,4 +1242,6 @@ _QUANTITY_FUNCTIONS = {
     np.max: partial(_extremum, np.max),
     np.amin: partial(_extremum, np.amin),
     np.amax: partial(_extremum, np.amax),
+    np.nanmin: partial(_extremum, np.nanmin),
+    np.nanmax: partial(_extremum, np.nanmax),
 }

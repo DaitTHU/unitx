@@ -71,8 +71,10 @@ def test_numpy_add_sub_and_comparison() -> None:
     'func',
     [
         np.sum,
+        np.nansum,
         np.cumsum,
         np.prod,
+        np.nanprod,
         np.exp,
         np.log,
         np.sin,

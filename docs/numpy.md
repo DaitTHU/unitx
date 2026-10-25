@@ -116,18 +116,18 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | --- | --- | --- |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
-| sum | Preserve unit | axis, dtype, keepdims, initial, where, out |
+| sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
-| min/amin, max/amax | Preserve unit or point coordinate | axis, keepdims, initial, where, out |
+| min/amin/nanmin, max/amax/nanmax | Preserve unit or point coordinate | axis, keepdims, initial, where, out |
 | where | Select between compatible quantities or points | condition, x, y, all positional; no out |
 | clip | Preserve input unit or point coordinate | a_min/a_max or min/max, out; ufunc call options |
-| prod | Product unit rules below | axis, dtype, keepdims, initial, where, out |
+| prod, nanprod | Product unit rules below; nanprod counts selected non-NaN elements | axis, dtype, keepdims, initial, where, out |
 | median, nanmedian | Preserve unit or point coordinate | axis, keepdims, out; overwrite_input=False |
 | std/nanstd, var/nanvar | Difference unit / square difference unit | axis, dtype, ddof, keepdims, where, out |
 | average | Preserve sample unit; returned weight sum is a dimensionless Quantity | axis, weights, returned, keepdims; linear Quantity only |
 | quantile, percentile, nanquantile, nanpercentile | Preserve sample unit; dimensionless q and weights | axis, out, method, keepdims, weights; overwrite_input=False; linear Quantity only |
 | cumsum | Preserve unit | axis, dtype, out |
-| argmin, argmax | Bare indices | axis, keepdims, out |
+| argmin/nanargmin, argmax/nanargmax | Bare indices | axis, keepdims, out |
 | interp | Align x to xp's unit; retain fp's unit | finite strictly increasing 1-D xp; scalar left/right, period=None; no out |
 | trapezoid | Multiply ordinate and coordinate units | x, scalar dx, axis; no out |
 | diff | Preserve input unit | n, axis, prepend, append; no out |
@@ -138,9 +138,9 @@ Supply the first magnitude argument positionally; concatenate/stack take a
 sequence. Options follow each supported signature, including positional out
 checks. Function and reduction outputs follow the rules below;
 overwrite_input=True is rejected. Reduction/statistical `where` is supported
-for sum, mean/nanmean, std/nanstd, var/nanvar, add.reduce, prod, multiply.reduce,
-and min/max; `initial` is supported for sum/add.reduce, prod/multiply.reduce,
-and min/max. Precomputed `mean`,
+for sum/nansum, mean/nanmean, std/nanstd, var/nanvar, add.reduce, prod/nanprod,
+multiply.reduce, and min/max/nanmin/nanmax; `initial` is supported for
+sum/nansum/add.reduce, prod/nanprod/multiply.reduce, and min/max/nanmin/nanmax. Precomputed `mean`,
 `correction`, and other unsupported keywords raise TypeError.
 Indexed assignment and augmented arithmetic on ndarrays follow the fixed-target
 rules below. Python and NumPy scalar magnitudes retain ordinary result/rebinding
@@ -150,6 +150,7 @@ behavior for augmented arithmetic.
 
 See [selection and clipping](numpy/selection.md) for `where`, `clip`,
 `minimum/maximum`, and `min/max`, including coordinate and bound rules.
+The NaN extrema and index functions share those coordinate rules and omit NaNs.
 
 ## Indexed assignment and augmented arithmetic
 

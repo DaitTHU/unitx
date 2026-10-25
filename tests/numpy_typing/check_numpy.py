@@ -125,8 +125,16 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     q.__array_ufunc__(
         np.add, 'reduce', q, out=(scalar_target,), where=mask, initial=Quantity(2, 'cm')
     )
-    for operation in (np.sum, np.mean, np.std, np.nanmean, np.nanstd):
+    for operation in (np.sum, np.nansum, np.mean, np.std, np.nanmean, np.nanstd):
         q.__array_function__(operation, (Quantity,), (q,), {'where': mask, 'out': scalar_target})
+    for operation in (np.nanmin, np.nanmax):
+        q.__array_function__(
+            operation, (Quantity,), (q,), {'initial': Quantity(0, 'cm'), 'out': scalar_target}
+        )
+    for operation in (np.nanargmin, np.nanargmax):
+        indices = np.empty((), dtype=np.intp)
+        q.__array_function__(operation, (Quantity,), (q,), {'out': indices})
+        assert_type(indices.dtype, np.dtype[np.intp])
     q.__array_function__(np.nanmedian, (Quantity,), (q,), {'out': scalar_target})
     for operation in (np.var, np.nanvar):
         q.__array_function__(
@@ -144,6 +152,7 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
         (q,),
         {'initial': Quantity(2, 's'), 'out': Quantity(np.empty(()), 'm2 s')},
     )
+    q.__array_function__(np.nanprod, (Quantity,), (q,), {'where': mask, 'out': product_target})
     assert_type(product_target.value.dtype, np.dtype[np.float64])
     assert_type(scalar_target.value.dtype, np.dtype[np.float64])
     assert_type(widened.value, Array)

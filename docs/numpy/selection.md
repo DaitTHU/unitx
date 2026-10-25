@@ -50,9 +50,27 @@ Empty reductions, axes, NaNs and `keepdims` follow NumPy. These reductions
 write the exact result shape to `out`; elementwise selection and clipping
 allow the ufunc output broadcasting rules.
 
+`np.nanmin/max` share the same unit, point, mask, initial and output rules,
+while omitting NaNs. An all-NaN slice returns NaN and emits RuntimeWarning;
+an empty reduction still needs an initial value. A warning promoted to an
+exception leaves `out` unchanged.
+
+`np.argmin/argmax` and `np.nanargmin/nanargmax` return bare indices and accept
+one integer axis or `axis=None`, `keepdims`, and a bare integer ndarray `out`
+of exactly the result shape. They also accept affine and logarithmic points
+and operate on stored readings. The NaN variants omit NaNs and raise
+ValueError for all-NaN slices before writing `out`. NumPy's caveat remains:
+`nanargmin` results cannot be trusted for slices containing only NaNs and
+positive infinity; the corresponding `nanargmax` case is NaNs and negative
+infinity. unitx delegates these numerical choices to NumPy.
+
 See NumPy's [where](https://numpy.org/doc/stable/reference/generated/numpy.where.html),
 [clip](https://numpy.org/doc/stable/reference/generated/numpy.clip.html) and
 [minimum](https://numpy.org/doc/stable/reference/generated/numpy.minimum.html)
 references for the underlying numerical behavior.
+See also [nanmin](https://numpy.org/doc/stable/reference/generated/numpy.nanmin.html),
+[nanargmin](https://numpy.org/doc/stable/reference/generated/numpy.nanargmin.html)
+and [nanargmax](https://numpy.org/doc/stable/reference/generated/numpy.nanargmax.html)
+for NaN and infinity behavior.
 
 [NumPy overview and support matrix](../numpy.md) · [Documentation index](../README.md)

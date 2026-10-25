@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('axis,count', [(None, 24), (0, 2), (-1, 4), ((), 1), ((0, -1), 8)])
 def test_numpy_product_axes(
     operation: Callable[..., object], axis: None | int | tuple[int, ...], count: int
@@ -43,7 +43,7 @@ def test_numpy_product_defaults() -> None:
     np.testing.assert_array_equal(result.value, [8, 15])
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('value', [2, np.float32(2), np.array(2.0)])
 @pytest.mark.parametrize('axis', [None, 0, -1, ()])
 def test_numpy_product_scalar(
@@ -56,7 +56,7 @@ def test_numpy_product_scalar(
     assert isinstance(result.value, np.number)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize(
     'shape,axis,count', [((0,), None, 0), ((0, 3), 0, 0), ((0, 3), 1, 3), ((2, 0), 0, 2)]
 )
@@ -73,7 +73,7 @@ def test_numpy_product_empty(
     np.testing.assert_array_equal(result.value, np.full(np.shape(result.value), 2))
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize(
     'where,count',
     [
@@ -94,7 +94,7 @@ def test_numpy_product_where(
     np.testing.assert_array_equal(result.value, operation(q.value, axis=1, where=where))
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize(
     'initial', [0, 2, 2j, Decimal('0.5'), Fraction(1, 2), np.float32(2), np.array(2)]
 )
@@ -113,14 +113,14 @@ def test_numpy_product_initial(
         assert result.value == operation(q.value, initial=seed)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_initial_none(operation: Callable[..., object]) -> None:
     assert operation(Quantity(np.array([2, 3]), 'm'), initial=None).value == 6
     with pytest.raises(ValueError, match='zero-size'):
         operation(Quantity(np.array([]), 'm'), initial=None)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('unit', ['km/m', 'deg', ''])
 def test_numpy_product_dimensionless(operation: Callable[..., object], unit: str) -> None:
     q = Quantity(np.array([[2.0, 3, 4], [5, 6, 7]]), unit)
@@ -135,7 +135,7 @@ def test_numpy_product_dimensionless(operation: Callable[..., object], unit: str
     np.testing.assert_array_equal(empty.value, [1, 1])
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_masked_scale(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([1e300, 2.0]), 'km/m')
     with np.errstate(over='raise'):
@@ -143,7 +143,7 @@ def test_numpy_product_masked_scale(operation: Callable[..., object]) -> None:
     assert result.unit == Unit() and result.value == 2000
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_out_conversion(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([[2.0, 3, 4], [5, 6, 7]])[:, ::-1], Factor(2) * Unit('cm'))
     mask = np.array([True, False, True])
@@ -159,7 +159,7 @@ def test_numpy_product_out_conversion(operation: Callable[..., object]) -> None:
     np.testing.assert_array_equal(buffer, 1)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_out_alias(operation: Callable[..., object]) -> None:
     storage = np.array([[2.0, 3], [4, 5]])
     q = Quantity(storage, 'm')
@@ -178,7 +178,7 @@ def test_numpy_product_out_positional() -> None:
     assert target.value == 6
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_dtype(operation: Callable[..., object]) -> None:
     for dtype in (np.uint8, np.float32, np.complex128):
         q = Quantity(np.array([20, 20], dtype=dtype), 'm')
@@ -188,7 +188,7 @@ def test_numpy_product_dtype(operation: Callable[..., object]) -> None:
         assert result.value == expected and result.unit == Unit('m2')
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize(
     'axis,mask',
     [(1, np.array([[True, False, False], [True, True, False]])), ((), np.array([[True], [False]]))],
@@ -204,7 +204,7 @@ def test_numpy_product_invalid_counts(
     np.testing.assert_array_equal(target.value, -123)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('initial', [True, '1', [1], np.array([1]), Quantity(np.array([1]), 's')])
 def test_numpy_product_invalid_initial(
     operation: Callable[..., object],
@@ -216,7 +216,7 @@ def test_numpy_product_invalid_initial(
     assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('where', [[True, False], np.array([1, 0]), Quantity(np.array([1, 0]), '')])
 def test_numpy_product_invalid_where(
     operation: Callable[..., object], where: list[bool] | NDArray[np.generic] | Quantity[Magnitude]
@@ -225,7 +225,7 @@ def test_numpy_product_invalid_where(
         operation(Quantity(np.array([2, 3]), 'm'), where=where)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_invalid_dimension(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([2.0, 3.0]), 'm')
     for unit in ('m', 's'):
@@ -235,7 +235,7 @@ def test_numpy_product_invalid_dimension(operation: Callable[..., object]) -> No
         assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_invalid_buffer(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([2.0, 3.0]), 'm')
     for target in (np.array(-123.0), Quantity(1, 'm2')):
@@ -243,7 +243,7 @@ def test_numpy_product_invalid_buffer(operation: Callable[..., object]) -> None:
             operation(q, out=target)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_invalid_shape(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([2.0, 3.0]), 'm')
     target = Quantity(np.full(2, -123.0), 'm2')
@@ -252,7 +252,7 @@ def test_numpy_product_invalid_shape(operation: Callable[..., object]) -> None:
     np.testing.assert_array_equal(target.value, -123)
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_invalid_cast(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([2.0, 3.0]), 'cm')
     target = Quantity(np.array(-123), 'm2')
@@ -261,7 +261,7 @@ def test_numpy_product_invalid_cast(operation: Callable[..., object]) -> None:
     assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_invalid_readonly(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([2.0, 3.0]), 'm')
     target = Quantity(np.array(-123.0), 'm2')
@@ -271,7 +271,7 @@ def test_numpy_product_invalid_readonly(operation: Callable[..., object]) -> Non
     assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('unit', ['m', 'km/m'])
 def test_numpy_product_invalid_broadcast(operation: Callable[..., object], unit: str) -> None:
     q = Quantity(np.array(2.0), unit)
@@ -281,7 +281,7 @@ def test_numpy_product_invalid_broadcast(operation: Callable[..., object], unit:
     assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('axis', [2, (0, 0), (0, 1)])
 def test_numpy_product_invalid_axis(
     operation: Callable[..., object], axis: int | tuple[int, ...]
@@ -292,7 +292,7 @@ def test_numpy_product_invalid_axis(
     assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 @pytest.mark.parametrize('dtype', [object, str, bool])
 def test_numpy_product_invalid_dtype(operation: Callable[..., object], dtype: DTypeLike) -> None:
     target = Quantity(np.array(-123.0), 'm2')
@@ -301,7 +301,7 @@ def test_numpy_product_invalid_dtype(operation: Callable[..., object], dtype: DT
     assert target.value == -123
 
 
-@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce])
+@pytest.mark.parametrize('operation', [np.prod, np.multiply.reduce, np.nanprod])
 def test_numpy_product_invalid_kernel(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([1e300, 1e300]), 'm')
     target = Quantity(np.array(-123.0), 'm2')

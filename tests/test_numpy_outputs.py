@@ -88,7 +88,7 @@ def test_numpy_join_out_alias() -> None:
     np.testing.assert_array_equal(storage, [3, 4, 5, 0, 1, 2])
 
 
-@pytest.mark.parametrize('operation', [np.argmin, np.argmax])
+@pytest.mark.parametrize('operation', [np.argmin, np.argmax, np.nanargmin, np.nanargmax])
 def test_numpy_index_out(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([[3, 1, 4], [2, 7, 0]]), 'm')
     storage = np.full((3, 2), -123, dtype=np.intp)

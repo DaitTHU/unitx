@@ -191,6 +191,22 @@ described here and uses the installed NumPy kernel.
 
 ## NaN statistics
 
+`nansum` omits NaN samples and otherwise shares `sum`'s unit, `axis`, `dtype`,
+`keepdims`, `where`, scalar `initial` and staged `out` rules. All-NaN, empty
+and fully masked slices return zero in the input unit, or the converted
+initial when supplied. Affine and logarithmic point sums remain undefined.
+
+`nanprod` shares `prod`'s options and initial-unit rules. For dimensional
+input U, its unit is `U**N * initial.unit`, where N counts elements selected
+by `where` that are **not NaN**. Zero and infinity still count. All result
+slices must have equal N, even when a zero initial makes their magnitudes
+equal; otherwise DimensionError is raised before writing `out`. All-NaN,
+empty and fully masked slices have N = 0, with value 1 and unit `Unit()`
+before applying initial. When the output has no elements, use `prod`'s
+nominal-extent convention. Dimensionless inputs normalize to coherent values
+first, so unequal non-NaN counts are allowed. Point products remain undefined.
+NaN initial values are passed through to NumPy; they are not omitted.
+
 `nanmean`, `nanmedian`, `nanstd`, `nanvar`, `nanquantile`, and `nanpercentile`
 omit NaN samples. Their units, supported options, parameter normalization and
 staged `out` writes match the corresponding functions above. Sample units,
@@ -235,11 +251,25 @@ assert variances.unit == Unit('m2')
 np.testing.assert_allclose(variances.value, [2, 2])
 medians = np.nanpercentile(gapped, 50, axis=1)
 np.testing.assert_allclose(medians.value, [2, 6])
+totals = np.nansum(gapped, axis=1)
+assert totals.unit == Unit('m')
+np.testing.assert_array_equal(totals.value, [4, 12])
+areas = np.nanprod(gapped, axis=1)
+assert areas.unit == Unit('m2')
+np.testing.assert_array_equal(areas.value, [3, 35])
+minima = np.nanmin(gapped, axis=1)
+assert minima.unit == Unit('m')
+np.testing.assert_array_equal(minima.value, [1, 5])
+np.testing.assert_array_equal(np.nanargmax(gapped, axis=1), [2, 2])
 ```
 
 See [NumPy nanmean](https://numpy.org/doc/stable/reference/generated/numpy.nanmean.html),
 [nanstd](https://numpy.org/doc/stable/reference/generated/numpy.nanstd.html) and
 [nanquantile](https://numpy.org/doc/stable/reference/generated/numpy.nanquantile.html)
 for the numerical definitions and warnings.
+The [nansum](https://numpy.org/doc/stable/reference/generated/numpy.nansum.html)
+and [nanprod](https://numpy.org/doc/stable/reference/generated/numpy.nanprod.html)
+kernels determine NaN identities and accumulator behavior, with unitx's
+additional single-unit rules above.
 
 [NumPy overview and support matrix](../numpy.md) · [Documentation index](../README.md)

@@ -94,11 +94,27 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     np.testing.assert_allclose(median_target.value, 2000)
 
     gapped = Quantity(np.array([1.0, np.nan, 3]), si.m)
-    for operation in (np.nanmean, np.nanmedian, np.nanstd, np.nanvar):
+    for operation in (
+        np.nanmean,
+        np.nanmedian,
+        np.nanstd,
+        np.nanvar,
+        np.nanmin,
+        np.nanmax,
+        np.nansum,
+    ):
         result = cast(Quantity[Array], operation(gapped))
         assert isinstance(result, Quantity)
         assert result.unit == (si.m**2 if operation is np.nanvar else si.m)
         np.testing.assert_allclose(result.value, operation(gapped.value))
+    product = cast(Quantity[Array], np.nanprod(gapped))
+    assert isinstance(product, Quantity) and product.unit == si.m**2
+    np.testing.assert_allclose(product.value, 3)
+    for operation in (np.nanargmin, np.nanargmax):
+        indices = np.empty((), dtype=np.intp)
+        assert operation(gapped, out=indices) is indices
+        assert_type(indices.dtype, np.dtype[np.intp])
+        np.testing.assert_array_equal(indices, operation(gapped.value))
     for operation, probability in ((np.nanquantile, 0.5), (np.nanpercentile, 50)):
         result = cast(Quantity[Array], operation(gapped, probability))
         assert isinstance(result, Quantity) and result.unit == si.m

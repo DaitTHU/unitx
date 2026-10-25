@@ -125,7 +125,7 @@ length target. `Unit` factors participate in the conversion. Every numeric
 result, including a coherent or scaled dimensionless result, requires a Quantity
 target; writing it to a bare ndarray would discard its unit. Boolean predicates
 and comparisons instead accept only a bare boolean ndarray output.
-`argmin` and `argmax` accept only a bare integer ndarray output, with the
+`argmin`, `argmax`, `nanargmin` and `nanargmax` accept only a bare integer ndarray output, with the
 same exact shape requirement as other function outputs.
 
 Final casting uses `casting='same_kind'` by default, or the explicitly requested

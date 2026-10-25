@@ -21,8 +21,18 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
 
 
-REDUCTIONS = [np.sum, np.add.reduce, np.mean, np.std, np.var, np.nanmean, np.nanstd, np.nanvar]
-SUMS = [np.sum, np.add.reduce]
+REDUCTIONS = [
+    np.sum,
+    np.nansum,
+    np.add.reduce,
+    np.mean,
+    np.std,
+    np.var,
+    np.nanmean,
+    np.nanstd,
+    np.nanvar,
+]
+SUMS = [np.sum, np.add.reduce, np.nansum]
 
 
 @pytest.mark.parametrize('operation', REDUCTIONS)
@@ -139,7 +149,7 @@ def test_numpy_sum_defaults(operation: Callable[..., object]) -> None:
     assert result.value.dtype == np.dtype(np.int32)
     np.testing.assert_array_equal(result.value, [3, 12])
     # np.sum's existing positional signature includes initial and where.
-    if operation is np.sum:
+    if operation in (np.sum, np.nansum):
         result = operation(q, 1, None, None, True, Quantity(2, 'm'), True)
         np.testing.assert_array_equal(result.value, [[5], [14]])
 
