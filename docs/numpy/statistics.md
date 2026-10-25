@@ -100,4 +100,92 @@ axis, empty-product, initial, and mask behavior follows
 and [ufunc.reduce](https://numpy.org/doc/stable/reference/generated/numpy.ufunc.reduce.html),
 with the additional single-unit and explicit-output rules described here.
 
+## Weighted averages and quantiles
+
+`np.average`, `np.quantile`, and `np.percentile` accept a linear `Quantity` as
+their first, positional argument. Results retain its complete unit, including
+an exact extra scale or a scaled dimensionless unit. AffineQuantity and
+LogQuantity points are unsupported; convert explicitly before using these
+functions. The `nan*` variants remain unsupported.
+
+Weights and the `q` parameter must be dimensionless: use bare numeric scalars,
+plain numeric ndarrays, numeric lists/tuples, or dimensionless Quantities.
+Quantity parameters convert to coherent dimensionless values before entering
+NumPy; a logarithmic difference such as dB is not an ordinary dimensionless
+parameter. Boolean, object, masked and subclass arrays remain unsupported.
+Fraction/Decimal scalars follow the usual NumPy floating conversion boundary;
+object arrays of them are unsupported. These rules do not change the sample
+Quantity's construction rules.
+
+### Average
+
+`np.average(samples, axis=None, weights=None, returned=False, *, keepdims=False)`
+computes `sum(samples * weights) / sum(weights)` in stored sample coordinates.
+It supports negative and tuple axes. With `axis=None`, weights must have the
+same shape as the samples. With explicit axes, weights may have the full sample
+shape or the shape of the selected axes, in the given axis order. For example,
+samples of shape `(2, 3, 4)` accept weights of shape `(3,)` with `axis=1`,
+or `(4, 2)` with `axis=(2, 0)`. Arbitrary broadcastable shapes are not accepted.
+NumPy validates shapes and raises ZeroDivisionError for a zero weight sum.
+Negative weights follow NumPy's average rules.
+
+With `returned=True`, the result is `(average, sum_of_weights)`: the first is
+a Quantity in the sample unit; the second is a Quantity in `Unit()`, with the
+same shape as the average (including `keepdims`). Weight sums use the normalized
+dimensionless weights. Without weights, this is the number of averaged elements
+per slice. NumPy determines both magnitude dtypes. `average` has no `out`,
+`dtype`, `where` or `initial` option.
+
+```python
+samples = Quantity(np.array([[1.0, 2, 3], [4, 5, 6]]), 'm')
+weights = Quantity(np.array([1.0, 2, 1]), Unit('m/cm'))  # coherent weights: 100, 200, 100
+means, weight_sums = np.average(samples, axis=1, weights=weights, returned=True)
+assert means.unit == samples.unit and weight_sums.unit == Unit()
+np.testing.assert_allclose(means.value, [2, 5])
+np.testing.assert_allclose(weight_sums.value, [400, 400])
+```
+
+### Quantile and percentile
+
+Both functions accept `axis`, `out`, `overwrite_input=False`, `method`,
+`keepdims`, and keyword-only `weights`. `quantile` uses `q` in `[0, 1]`;
+`percentile` uses `q` in `[0, 100]` **after dimensionless normalization**.
+For example, `Quantity(0.5, '')` requests the median with quantile and the
+0.5th percentile with percentile. Scalar `q` reduces the selected sample axes;
+a vector `q` adds a leading axis indexing the requested levels. `keepdims=True`
+retains reduced sample axes with extent one.
+
+Without weights, NumPy's supported `method` choices are available, defaulting
+to `linear`: interpolate adjacent sorted samples at position `q * (N - 1)`
+for quantile. With weights, explicitly select `method="inverted_cdf"`, which
+selects a sample using the weighted empirical cumulative distribution. Other
+methods, including the default `linear`, reject weights. Weight shapes follow
+the average rules above: full sample shape, or the selected-axis shape with
+explicit `axis` (a 1-D vector for one axis). NumPy validates probability ranges,
+methods and nonnegative quantile weights, and determines numerical dtypes,
+NaN/Inf behavior, empty-sample results and warnings. Complex samples are rejected.
+These calls do not omit NaNs automatically.
+
+`out` follows the existing [output rules](writes.md#output-buffers): a Quantity
+with a compatible unit, fixed ndarray storage, exact result shape, and
+`same_kind` casting. Computation, conversion, shape or casting errors leave
+the target unchanged, including when it aliases samples, probabilities or
+weights. `overwrite_input=True` is rejected; otherwise sample storage is not
+modified except through an explicitly supplied overlapping `out`. `dtype`,
+`where`, `initial` and the old `interpolation` keyword are unsupported.
+
+```python
+quartiles = np.quantile(samples, [0.25, 0.75], axis=1, keepdims=True)
+assert quartiles.unit == samples.unit and quartiles.shape == (2, 2, 1)
+np.testing.assert_allclose(quartiles.value[..., 0], [[1.5, 4.5], [2.5, 5.5]])
+medians = np.percentile(samples, 50, axis=1, weights=[1, 2, 1], method='inverted_cdf')
+np.testing.assert_allclose(medians.value, [2, 5])
+```
+
+See [NumPy average](https://numpy.org/doc/stable/reference/generated/numpy.average.html),
+[quantile](https://numpy.org/doc/stable/reference/generated/numpy.quantile.html) and
+[percentile](https://numpy.org/doc/stable/reference/generated/numpy.percentile.html)
+for the numerical definitions. unitx adds the unit, parameter and output rules
+described here and uses the installed NumPy kernel.
+
 [NumPy overview and support matrix](../numpy.md) · [Documentation index](../README.md)

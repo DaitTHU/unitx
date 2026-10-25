@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support NumPy `average`, `quantile` and `percentile` for linear Quantities,
+  preserving sample units and normalizing dimensionless weights/probabilities.
+  `average(returned=True)` includes a dimensionless Quantity weight sum;
+  weighted quantiles require `method="inverted_cdf"` and stage `out` writes.
+
 ## [0.15.2] - 2026-10-25
 
 ### Added

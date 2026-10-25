@@ -75,6 +75,8 @@ Use this table as the supported API boundary. Jump to [writes](#indexed-assignme
 [differences](#differences-and-gradients), [masked statistics](#masked-sums-and-statistics),
 [products](#product-reductions), [out](#output-buffers), or
 [multiple outputs](#multiple-output-decompositions) for detailed keyword and storage rules.
+See [weighted averages and quantiles](numpy/statistics.md#weighted-averages-and-quantiles)
+for dimensionless weights, probabilities and method choices.
 
 Unit-bearing results are Quantities, including dimensionless values and scalar
 reductions. Predicates and indices are bare results. Unsupported functions,
@@ -122,6 +124,8 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | prod | Product unit rules below | axis, dtype, keepdims, initial, where, out |
 | median | Preserve unit | axis, keepdims, out; overwrite_input=False |
 | std, var | Preserve unit / square unit | axis, dtype, ddof, keepdims, where, out |
+| average | Preserve sample unit; returned weight sum is a dimensionless Quantity | axis, weights, returned, keepdims; linear Quantity only |
+| quantile, percentile | Preserve sample unit; dimensionless q and weights | axis, out, method, keepdims, weights; overwrite_input=False; linear Quantity only |
 | cumsum | Preserve unit | axis, dtype, out |
 | argmin, argmax | Bare indices | axis, keepdims, out |
 | trapezoid | Multiply ordinate and coordinate units | x, scalar dx, axis; no out |

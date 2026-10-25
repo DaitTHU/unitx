@@ -67,5 +67,31 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     assert_type(target.value, NDArray[np.float64])
     np.testing.assert_allclose(target.value, [500, 2000, 2500])
 
+    weights = Quantity(np.array([1.0, 2, 1]), Unit('m/cm'))
+    average, weight_sum = cast(
+        tuple[Quantity[Array], Quantity[Array]],
+        np.average(distance, weights=weights, returned=True),
+    )
+    assert isinstance(average, Quantity) and average.unit == si.m
+    assert isinstance(weight_sum, Quantity) and weight_sum.unit == Unit()
+    np.testing.assert_allclose(average.value, 17.5)
+    np.testing.assert_allclose(weight_sum.value, 400)
+    quartiles = cast(Quantity[Array], np.quantile(distance, [0.25, 0.75]))
+    percentiles = cast(
+        Quantity[Array], np.percentile(distance, Quantity(np.array([0.25, 0.75]), Unit('m/cm')))
+    )
+    assert quartiles.unit == percentiles.unit == si.m
+    np.testing.assert_allclose(quartiles.value, [10, 25])
+    np.testing.assert_allclose(percentiles.value, quartiles.value)
+    median_target = Quantity(np.empty(()), si.cm)
+    distance.__array_function__(
+        np.quantile,
+        (Quantity,),
+        (distance, 0.5),
+        {'weights': weights, 'method': 'inverted_cdf', 'out': median_target},
+    )
+    assert_type(median_target.value.dtype, np.dtype[np.float64])
+    np.testing.assert_allclose(median_target.value, 2000)
+
 
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))

@@ -836,6 +836,64 @@ def _mean(
     return _write_output(result, out)
 
 
+def _statistic_parameter(value: Any, name: str) -> Any:
+    """Normalize dimensionless weights or probabilities for NumPy statistics."""
+    if isinstance(value, Quantity):
+        if value.dimension != DIMENSIONLESS:
+            error_message = f'{name} must be dimensionless.'
+            raise DimensionError(error_message)
+        return scale_magnitude(value.value, value.unit.factor)
+    if isinstance(value, (list, tuple)):
+        value = np.asarray(value)
+    if not _is_supported_operand(value) or isinstance(value, _Point):
+        error_message = f'{name} must be numeric dimensionless values.'
+        raise TypeError(error_message)
+    return _numeric_value(value)
+
+
+def _average(
+    a: Any,
+    axis: Any = None,
+    weights: Any = None,
+    returned: bool = False,
+    *,
+    keepdims: bool = False,
+) -> Any:
+    if weights is not None:
+        weights = _statistic_parameter(weights, 'weights')
+    value = _numeric_value(a.value)
+    if returned:
+        average, weight_sum = np.average(
+            value, axis=axis, weights=weights, returned=True, keepdims=keepdims
+        )
+        return Quantity(average, a.unit), Quantity(weight_sum, Unit())
+    return Quantity(np.average(value, axis=axis, weights=weights, keepdims=keepdims), a.unit)
+
+
+def _quantile(
+    func: Any,
+    a: Any,
+    q: Any,
+    axis: Any = None,
+    out: Any = None,
+    overwrite_input: bool = False,
+    method: str = 'linear',
+    keepdims: bool = False,
+    *,
+    weights: Any = None,
+) -> Any:
+    if overwrite_input:
+        error_message = 'overwrite_input is not supported for Quantity.'
+        raise TypeError(error_message)
+    q = _statistic_parameter(q, 'q')
+    if weights is not None:
+        weights = _statistic_parameter(weights, 'weights')
+    result = func(
+        _numeric_value(a.value), q, axis=axis, method=method, keepdims=keepdims, weights=weights
+    )
+    return _write_output(Quantity(result, a.unit), out)
+
+
 def _sum(
     q: Any,
     axis: Any = None,
@@ -1093,6 +1151,9 @@ _QUANTITY_FUNCTIONS = {
     np.var: partial(_std_var, np.var),
     np.sum: _sum,
     np.mean: _mean,
+    np.average: _average,
+    np.quantile: partial(_quantile, np.quantile),
+    np.percentile: partial(_quantile, np.percentile),
     np.min: partial(_extremum, np.min),
     np.max: partial(_extremum, np.max),
     np.amin: partial(_extremum, np.amin),

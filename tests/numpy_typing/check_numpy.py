@@ -119,6 +119,8 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     scalar_target = Quantity(np.empty(()), 'cm')
     q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))
     q.__array_function__(np.sum, (Quantity,), (q,), {'out': scalar_target})
+    for operation in (np.quantile, np.percentile):
+        q.__array_function__(operation, (Quantity,), (q, 0.5), {'out': scalar_target})
     mask = np.array([True, False, True])
     q.__array_ufunc__(
         np.add, 'reduce', q, out=(scalar_target,), where=mask, initial=Quantity(2, 'cm')
