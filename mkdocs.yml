@@ -21,7 +21,12 @@ nav:
   - Points and differences: affine.md
   - Logarithmic quantities: logarithmic.md
   - Mathematics and time: stdlib.md
-  - NumPy: numpy.md
+  - NumPy:
+      - Overview and support matrix: numpy.md
+      - Selection and clipping: numpy/selection.md
+      - Reductions and statistics: numpy/statistics.md
+      - Integration and differentiation: numpy/calculus.md
+      - Writes and output buffers: numpy/writes.md
   - Display and formatting: display.md
   - Scalar data exchange: serialization.md
   - Typing: typing.md

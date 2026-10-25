@@ -63,7 +63,7 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
-          python -m doctest README.md docs/*.md docs/catalogues/*.md
+          python -m doctest README.md docs/*.md docs/catalogues/*.md docs/numpy/*.md
 
   numpy:
     name: NumPy ${{ matrix.numpy }} (Python ${{ matrix.python-version }})
@@ -89,7 +89,7 @@ jobs:
       - name: Run tests and typing
         run: |
           pytest -q
-          python -m doctest README.md docs/*.md docs/catalogues/*.md
+          python -m doctest README.md docs/*.md docs/catalogues/*.md docs/numpy/*.md
 
   installed:
     name: Installed wheel (Python 3.12)

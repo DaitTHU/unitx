@@ -117,6 +117,26 @@ def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
     )
 
 
+def _selection_parts(left: Any, right: Any) -> tuple[Any, Any, Unit | _Coordinate]:
+    """Align selection operands without crossing point/difference boundaries."""
+    if not all(_is_supported_operand(x) for x in (left, right)):
+        error_message = 'Selection requires numeric scalars, ndarrays, quantities or points.'
+        raise TypeError(error_message)
+    if isinstance(left, _Point) or isinstance(right, _Point):
+        if not isinstance(left, _Point) or not isinstance(right, _Point):
+            error_message = 'Selection cannot mix points and differences.'
+            raise TypeError(error_message)
+        if not left.unit._compatible_with(right.unit):
+            error_message = 'Selection requires compatible points with the same convention.'
+            raise DimensionError(error_message)
+        return (
+            _numeric_value(left.value),
+            convert(_numeric_value(right.value), right.unit, left.unit),
+            left.unit,
+        )
+    return _align_operands(left, right)
+
+
 def _validate_where(kwargs: dict[str, Any]) -> None:
     mask = kwargs.get('where', True)
     if (
@@ -407,6 +427,9 @@ def _dispatch_ufunc(
             return NotImplemented
         a, b, unit = _align_operands(*inputs)
         return _wrap(ufunc(a, b, **kwargs), unit)
+    if ufunc in (np.minimum, np.maximum):
+        a, b, unit = _selection_parts(*inputs)
+        return _wrap(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.hypot, np.arctan2):
         a, b, unit = _align_operands(*inputs)
         if unit.dimension != unit.dimension.physical:
@@ -569,6 +592,10 @@ def dispatch_function(
 ) -> Any:
     if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
+    if func is np.where:
+        return _where(*args, **kwargs)
+    if func is np.clip:
+        return _clip(*args, **kwargs)
     if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
         if func not in (
             np.isclose,
@@ -583,6 +610,8 @@ def dispatch_function(
             np.var,
             np.min,
             np.max,
+            np.amin,
+            np.amax,
         ):
             raise TypeError(
                 'This NumPy function is undefined for affine points; convert explicitly.'
@@ -607,6 +636,51 @@ def dispatch_function(
     if handler is None:
         return NotImplemented
     return handler(*args, **kwargs)
+
+
+def _where(condition: Any, x: Any, y: Any, /) -> Any:
+    _validate_where({'where': condition})
+    a, b, unit = _selection_parts(x, y)
+    return _wrap(np.where(condition, a, b), unit)
+
+
+def _clip(
+    a: Any,
+    /,
+    a_min: Any = _UNSET,
+    a_max: Any = _UNSET,
+    out: Any = None,
+    *,
+    min: Any = _UNSET,
+    max: Any = _UNSET,
+    **kwargs: Any,
+) -> Any:
+    if not isinstance(a, (Quantity, _Point)) or not _is_supported_operand(a):
+        error_message = 'clip requires a Quantity or point input.'
+        raise TypeError(error_message)
+    if a_min is _UNSET and a_max is _UNSET:
+        a_min = None if min is _UNSET else min
+        a_max = None if max is _UNSET else max
+    elif a_min is _UNSET or a_max is _UNSET or min is not _UNSET or max is not _UNSET:
+        error_message = 'Supply both a_min/a_max, or use only min/max.'
+        raise TypeError(error_message)
+    if kwargs.keys() - {'where', 'dtype', 'casting', 'order', 'subok'}:
+        error_message = 'Unsupported clip keyword.'
+        raise TypeError(error_message)
+    _validate_where(kwargs)
+    if 'dtype' in kwargs and np.dtype(kwargs['dtype']).kind not in 'iufc':
+        error_message = 'clip requires a numeric output dtype.'
+        raise TypeError(error_message)
+    lower = None if a_min is None else _selection_parts(a, a_min)[1]
+    upper = None if a_max is None else _selection_parts(a, a_max)[1]
+    result = _wrap(np.clip(_numeric_value(a.value), lower, upper, **kwargs), a.unit)
+    return _write_output(
+        result,
+        out,
+        where=kwargs.get('where', True),
+        casting=kwargs.get('casting', 'same_kind'),
+        broadcast=True,
+    )
 
 
 def _close_comparison(func: Any, *args: Any, **kwargs: Any) -> Any:
@@ -982,12 +1056,8 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
     if ufunc in (np.isfinite, np.isnan, np.isinf):
         return ufunc(q.value, **kwargs)
     if ufunc in (np.minimum, np.maximum):
-        if not all(
-            isinstance(x, (Quantity, _Point)) and isinstance(x.unit, _Coordinate) for x in inputs
-        ):
-            raise TypeError('Selection requires compatible affine points.')
-        a, b = inputs
-        return _wrap(ufunc(a.value, convert(b.value, b.unit, a.unit), **kwargs), a.unit)
+        a, b, unit = _selection_parts(*inputs)
+        return _wrap(ufunc(a, b, **kwargs), unit)
     raise TypeError('This ufunc is undefined for affine points; convert to physical units first.')
 
 
@@ -1005,10 +1075,9 @@ def _extremum(
     kwargs = dict(axis=axis, keepdims=keepdims, where=where)
     if initial is not _UNSET:
         if not isinstance(initial, (Quantity, _Point)):
-            raise TypeError('initial must carry the result coordinate/unit.')
-        if isinstance(initial.unit, _Coordinate) != isinstance(q.unit, _Coordinate):
-            raise DimensionError('initial must have matching point/difference semantics.')
-        kwargs['initial'] = convert(initial.value, initial.unit, q.unit)
+            error_message = 'initial must carry the result coordinate/unit.'
+            raise TypeError(error_message)
+        kwargs['initial'] = _selection_parts(q, initial)[1]
     return _write_output(_wrap(func(q.value, **kwargs), q.unit), out)
 
 
@@ -1026,4 +1095,6 @@ _QUANTITY_FUNCTIONS = {
     np.mean: _mean,
     np.min: partial(_extremum, np.min),
     np.max: partial(_extremum, np.max),
+    np.amin: partial(_extremum, np.amin),
+    np.amax: partial(_extremum, np.amax),
 }

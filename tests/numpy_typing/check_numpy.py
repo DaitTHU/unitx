@@ -113,6 +113,9 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     # NumPy versions infer different shape parameters for this plain output array.
     assert_type(exponents.dtype, np.dtype[np.int32])
     q.__array_function__(np.cumsum, (Quantity,), (q,), {'out': widened})
+    q.__array_function__(np.clip, (Quantity,), (q, Quantity(0, 'm'), None), {'out': widened})
+    q.__array_ufunc__(np.minimum, '__call__', q, Quantity(1, 'm'), out=(widened,))
+    q.__array_function__(np.where, (Quantity,), (a > 0, q, Quantity(0, 'm')), {})
     scalar_target = Quantity(np.empty(()), 'cm')
     q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))
     q.__array_function__(np.sum, (Quantity,), (q,), {'out': scalar_target})

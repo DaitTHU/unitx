@@ -94,6 +94,12 @@ ufunc stubs preserve the wrapper at every intermediate call. For an explicit
 numerical boundary, use `np.expm1(np.asarray(q.value_in(si.one)))` after
 checking dimensions and normalizing the scale.
 
+The same NumPy stub limitation applies to `where`, `clip`, and
+`minimum/maximum`: runtime results preserve Quantity/point wrappers, but
+NumPy may annotate them as ndarrays or Any. NumPy's `out` annotations also
+accept only ndarrays. Runtime support and installed-consumer checks cover
+these calls; unitx does not replace NumPy's stubs.
+
 Use `.value` or `.value_in(unit)` at Matplotlib plotting boundaries too.
 `.to()` returns a new Quantity; write `q = q.to(unit)` to retain the conversion.
 It has no `inplace` option. NumPy-free scalar consumers retain working type hints.

@@ -36,7 +36,7 @@ use the separate Pyright consumers rather than annotating expected results.
 Run the executable Markdown examples as well:
 
 ```sh
-python -m doctest README.md docs/*.md docs/catalogues/*.md
+python -m doctest README.md docs/*.md docs/catalogues/*.md docs/numpy/*.md
 ```
 
 Use tracked public guides for release validation; local ignored design notes

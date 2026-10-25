@@ -1,6 +1,6 @@
 """Check array runtime and inferred types using the installed wheel."""
 
-from typing import assert_type
+from typing import assert_type, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -44,6 +44,28 @@ def check_arrays(values: NDArray[np.float64]) -> None:
         error_message = 'An incompatible assignment must fail.'
         raise AssertionError(error_message)
     np.testing.assert_array_equal(distance.value, saved)
+
+    # NumPy's stubs lose the wrapper on these returns. State the supported
+    # array result domain explicitly and verify the wrapper at runtime.
+    bounded = cast(Quantity[Array], np.clip(distance, Quantity(500, si.cm), Quantity(25, si.m)))
+    assert isinstance(bounded, Quantity) and bounded.unit == si.m
+    np.testing.assert_allclose(bounded.value, [5, 20, 25])
+    cleaned = cast(
+        Quantity[Array], np.where(distance > Quantity(0, si.m), bounded, Quantity(0, si.m))
+    )
+    assert isinstance(cleaned, Quantity) and cleaned.unit == si.m
+    np.testing.assert_allclose(cleaned.value, [0, 20, 25])
+    selected = cast(Quantity[Array], np.minimum(distance, Quantity(2500, si.cm)))
+    assert isinstance(selected, Quantity) and selected.unit == si.m
+    np.testing.assert_allclose(selected.value, [0, 20, 25])
+    target = Quantity(np.empty(values.shape), si.cm)
+    # NumPy's out annotations only admit ndarrays; exercise the supported
+    # protocol directly and retain the target's concrete storage type.
+    distance.__array_function__(
+        np.clip, (Quantity,), (distance, Quantity(5, si.m), Quantity(25, si.m)), {'out': target}
+    )
+    assert_type(target.value, NDArray[np.float64])
+    np.testing.assert_allclose(target.value, [500, 2000, 2500])
 
 
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))
