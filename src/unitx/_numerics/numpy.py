@@ -598,18 +598,12 @@ def dispatch_function(
         return _clip(*args, **kwargs)
     if func is np.interp:
         return _interp(*args, **kwargs)
+    if func in (np.atleast_1d, np.atleast_2d, np.atleast_3d, np.broadcast_arrays):
+        return _multiple_arrays(func, *args, **kwargs)
     if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
-        if func not in (
+        if func not in _ARRAY_FUNCTIONS and func not in (
             np.isclose,
             np.allclose,
-            np.reshape,
-            np.transpose,
-            np.squeeze,
-            np.expand_dims,
-            np.moveaxis,
-            np.swapaxes,
-            np.rollaxis,
-            np.ravel,
             np.argmin,
             np.argmax,
             np.nanargmin,
@@ -782,6 +776,32 @@ def _rollaxis(q: Any, axis: Any, start: Any = 0) -> Any:
 
 def _ravel(q: Any, order: Literal['C', 'F', 'A', 'K'] = 'C') -> Any:
     return _wrap(np.ravel(q.value, order=order), q.unit)
+
+
+def _array_transform(func: Any, q: Any, *args: Any, **kwargs: Any) -> Any:
+    """Transform storage without changing values, units or coordinates."""
+    return _wrap(func(q.value, *args, **kwargs), q.unit)
+
+
+def _array_metadata(func: Any, q: Any, *args: Any, **kwargs: Any) -> Any:
+    return func(q.value, *args, **kwargs)
+
+
+def _multiple_arrays(func: Any, *arrays: Any, **kwargs: Any) -> Any:
+    """Rearrange each operand independently, retaining bare and wrapped inputs."""
+    if not all(_is_supported_operand(x) for x in arrays):
+        return NotImplemented
+    values = tuple(
+        x.value if isinstance(x, (Quantity, _Point)) else _numeric_value(x) for x in arrays
+    )
+    result = func(*values, **kwargs)
+    if func is not np.broadcast_arrays and len(arrays) == 1:
+        source = arrays[0]
+        return _wrap(result, source.unit) if isinstance(source, (Quantity, _Point)) else result
+    return type(result)(
+        _wrap(raw, source.unit) if isinstance(source, (Quantity, _Point)) else raw
+        for raw, source in zip(result, arrays)
+    )
 
 
 def _interp(
@@ -1243,7 +1263,7 @@ def _extremum(
     return _write_output(_wrap(func(q.value, **kwargs), q.unit), out)
 
 
-_QUANTITY_FUNCTIONS = {
+_ARRAY_FUNCTIONS = {
     np.reshape: _reshape,
     np.transpose: _transpose,
     np.squeeze: _squeeze,
@@ -1252,6 +1272,24 @@ _QUANTITY_FUNCTIONS = {
     np.swapaxes: _swapaxes,
     np.rollaxis: _rollaxis,
     np.ravel: _ravel,
+    np.matrix_transpose: partial(_array_transform, np.matrix_transpose),
+    np.linalg.matrix_transpose: partial(_array_transform, np.linalg.matrix_transpose),
+    np.broadcast_to: partial(_array_transform, np.broadcast_to),
+    np.flip: partial(_array_transform, np.flip),
+    np.fliplr: partial(_array_transform, np.fliplr),
+    np.flipud: partial(_array_transform, np.flipud),
+    np.rot90: partial(_array_transform, np.rot90),
+    np.roll: partial(_array_transform, np.roll),
+    np.repeat: partial(_array_transform, np.repeat),
+    np.tile: partial(_array_transform, np.tile),
+    np.copy: partial(_array_transform, np.copy),
+    np.shape: partial(_array_metadata, np.shape),
+    np.ndim: partial(_array_metadata, np.ndim),
+    np.size: partial(_array_metadata, np.size),
+}
+
+_QUANTITY_FUNCTIONS = {
+    **_ARRAY_FUNCTIONS,
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
     np.nanargmin: partial(_argmin_max, np.nanargmin),

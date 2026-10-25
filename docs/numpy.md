@@ -118,6 +118,12 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |
 | ravel | Preserve unit or point coordinate | order: C, F, A, K |
+| matrix_transpose, linalg.matrix_transpose | Swap the last two axes; preserve unit or point coordinate | At least two dimensions; transpose's permute_dims alias is also supported |
+| atleast_1d, atleast_2d, atleast_3d | Preserve each input's unit or point coordinate independently | One or more positional numeric scalars/ndarrays, quantities or points |
+| broadcast_to, broadcast_arrays | Preserve each input's unit or point coordinate independently | shape, subok; broadcasting does not align units |
+| flip, fliplr, flipud, rot90, roll | Preserve unit or point coordinate | axis; k/axes for rot90; shift/axis for roll |
+| repeat, tile, copy | Preserve unit or point coordinate | repeats/axis; reps; order/subok for copy |
+| shape, ndim, size | Bare shape tuple or integer | size accepts axis |
 | concatenate, stack | Convert to first Quantity's unit; bare arrays remain dimensionless | axis, dtype, casting, out; dtype and out are mutually exclusive |
 | sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
@@ -166,6 +172,32 @@ it can copy a noncontiguous input even when reshape could return a view.
 Its C/F/A/K orders follow NumPy. Prefer `moveaxis` for new code; `rollaxis` is
 also supported for compatibility with existing NumPy code.
 
+`matrix_transpose` and `linalg.matrix_transpose` swap the last two axes of an
+array with at least two dimensions. `permute_dims` is NumPy's alias of
+`transpose` and supports the same axes argument.
+
+`atleast_1d/2d/3d` and `broadcast_arrays` accept multiple positional inputs.
+Each Quantity or point retains its own complete unit or coordinate; bare
+numeric scalars/ndarrays produce bare ndarrays. Inputs may have different
+dimensions or coordinate families because these functions only rearrange
+storage. Bare list/tuple inputs and unsupported array types remain unsupported.
+One input to `atleast_*` returns one result; multiple inputs return NumPy's
+sequence container. `broadcast_arrays` always returns a sequence, even for one
+input. Shape incompatibilities follow NumPy.
+
+`broadcast_to` returns a read-only view. `broadcast_arrays` retains NumPy's
+view flags and warnings; broadcast elements may alias the same storage, so
+use `copy` before writing. `flip`, `fliplr`, `flipud`, and `rot90` retain
+NumPy's views, including negative strides. `roll`, `repeat`, and `tile` follow
+NumPy's allocation rules. `copy(order='K', subok=False)` creates independent,
+writable storage, including when the source is read-only. `subok` on copy and
+broadcasting is forwarded to NumPy for the plain supported magnitudes; it does
+not enable ndarray subclasses.
+
+`shape`, `ndim`, and `size` inspect the magnitude and return bare metadata,
+including for scalar quantities. All these function forms preserve the wrapper
+family when returning unit-bearing values and have no `out` option.
+
 ```python
 import numpy as np
 from unitx import Quantity
@@ -176,6 +208,18 @@ assert matrix.shape == (2, 3)
 assert np.moveaxis(matrix, 0, -1).shape == (3, 2)
 assert matrix.unit == samples.unit
 assert np.shares_memory(matrix.value, samples.value)
+
+times = Quantity(np.array([0.0, 1.0, 2.0]), 's')
+distance_grid, time_grid = np.broadcast_arrays(matrix, times)
+assert distance_grid.unit == matrix.unit and time_grid.unit == times.unit
+assert time_grid.shape == (2, 3)
+readonly = np.broadcast_to(times, (2, 3))
+assert not readonly.value.flags.writeable
+independent = np.copy(readonly)
+assert independent.value.flags.writeable
+assert not np.shares_memory(independent.value, times.value)
+assert np.shape(np.flip(independent, axis=-1)) == (2, 3)
+assert np.ndim(independent) == 2 and np.size(independent, axis=0) == 2
 ```
 
 ## Selection and clipping

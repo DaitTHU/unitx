@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support NumPy `atleast_1d/2d/3d`, `broadcast_to`, `broadcast_arrays`,
+  `matrix_transpose` (including `linalg.matrix_transpose`), `flip/fliplr/flipud`,
+  `rot90`, `roll`, `repeat`, `tile` and `copy`. Preserve complete units or point
+  coordinates, NumPy's views/copies, writeability and warnings. Multiple inputs
+  retain their own units or coordinates independently; bare inputs stay bare.
+- Support NumPy `shape`, `ndim` and `size` as bare array metadata, including
+  scalar quantities. Document and verify the existing `permute_dims` alias.
+
 ## [0.16.3] - 2026-10-25
 
 ### Added

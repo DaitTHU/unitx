@@ -67,6 +67,37 @@ def check_arrays(values: NDArray[np.float64]) -> None:
         np.testing.assert_array_equal(result.value, values)
         assert np.shares_memory(result.value, sample.value)
 
+        for actual, expected in (
+            (np.atleast_1d(sample), np.atleast_1d(values)),
+            (np.atleast_2d(sample), np.atleast_2d(values)),
+            (np.atleast_3d(sample), np.atleast_3d(values)),
+            (np.broadcast_to(sample, (2, 3)), np.broadcast_to(values, (2, 3))),
+            (np.flip(sample), np.flip(values)),
+            (np.flipud(sample), np.flipud(values)),
+            (np.roll(sample, 1), np.roll(values, 1)),
+            (np.repeat(sample, 2), np.repeat(values, 2)),
+            (np.tile(sample, (2, 1)), np.tile(values, (2, 1))),
+            (np.copy(sample), np.copy(values)),
+        ):
+            manipulated = cast(ArrayQuantity, actual)
+            assert type(manipulated) is type(sample) and manipulated.unit == sample.unit
+            np.testing.assert_array_equal(manipulated.value, expected)
+        assert_type(np.shape(sample), tuple[int, ...])
+        assert_type(np.ndim(sample), int)
+        assert_type(np.size(sample), int)
+        assert np.shape(sample) == (3,) and np.ndim(sample) == 1 and np.size(sample) == 3
+        for operation in (np.matrix_transpose, np.linalg.matrix_transpose, np.fliplr, np.rot90):
+            manipulated = cast(ArrayQuantity, operation(np.atleast_2d(sample)))
+            assert type(manipulated) is type(sample) and manipulated.unit == sample.unit
+            np.testing.assert_array_equal(manipulated.value, operation(np.atleast_2d(values)))
+        broadcasted, bare = cast(
+            tuple[ArrayQuantity, NDArray[np.float64]],
+            np.broadcast_arrays(sample, np.ones((2, 1))),
+        )
+        assert type(broadcasted) is type(sample) and broadcasted.unit == sample.unit
+        np.testing.assert_array_equal(broadcasted.value, np.broadcast_to(values, (2, 3)))
+        np.testing.assert_array_equal(bare, np.ones((2, 3)))
+
     bounded = cast(Quantity[Array], np.clip(distance, Quantity(500, si.cm), Quantity(25, si.m)))
     assert isinstance(bounded, Quantity) and bounded.unit == si.m
     np.testing.assert_allclose(bounded.value, [5, 20, 25])
