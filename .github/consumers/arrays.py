@@ -93,6 +93,23 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     assert_type(median_target.value.dtype, np.dtype[np.float64])
     np.testing.assert_allclose(median_target.value, 2000)
 
+    gapped = Quantity(np.array([1.0, np.nan, 3]), si.m)
+    for operation in (np.nanmean, np.nanmedian, np.nanstd, np.nanvar):
+        result = cast(Quantity[Array], operation(gapped))
+        assert isinstance(result, Quantity)
+        assert result.unit == (si.m**2 if operation is np.nanvar else si.m)
+        np.testing.assert_allclose(result.value, operation(gapped.value))
+    for operation, probability in ((np.nanquantile, 0.5), (np.nanpercentile, 50)):
+        result = cast(Quantity[Array], operation(gapped, probability))
+        assert isinstance(result, Quantity) and result.unit == si.m
+        np.testing.assert_allclose(result.value, 2)
+        gapped.__array_function__(
+            operation, (Quantity,), (gapped, probability), {'out': median_target}
+        )
+        np.testing.assert_allclose(median_target.value, 200)
+    assert_type(gapped.value.dtype, np.dtype[np.float64])
+    assert_type(median_target.value.dtype, np.dtype[np.float64])
+
     sample_time = Quantity(np.array([0.0, 1, 3]), si.s)
     sample_current = Quantity(np.array([0.0, 2, 6]), si.A)
     grid = Quantity(np.array([0.0, 500, 1000, 2000, 3000]), si.ms)

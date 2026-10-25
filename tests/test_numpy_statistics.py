@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
 
 
-REDUCTIONS = [np.sum, np.add.reduce, np.mean, np.std, np.var]
+REDUCTIONS = [np.sum, np.add.reduce, np.mean, np.std, np.var, np.nanmean, np.nanstd, np.nanvar]
 SUMS = [np.sum, np.add.reduce]
 
 
@@ -41,7 +41,7 @@ def test_numpy_statistics_where(
     for keepdims in (False, True):
         result = operation(q, axis=axis, keepdims=keepdims, where=mask)
         expected = operation(values, axis=axis, keepdims=keepdims, where=mask)
-        assert result.unit == (q.unit**2 if operation is np.var else q.unit)
+        assert result.unit == (q.unit**2 if operation in (np.var, np.nanvar) else q.unit)
         np.testing.assert_allclose(result.value, expected)
         assert np.asarray(result.value).dtype == np.asarray(expected).dtype
 
@@ -52,12 +52,12 @@ def test_numpy_statistics_scalar(
     operation: Callable[..., object], value: int | np.float32 | NDArray[np.generic]
 ) -> None:
     result = operation(Quantity(value, 'km/m'), where=np.bool_(True))
-    assert result.unit == Unit('km2/m2' if operation is np.var else 'km/m')
+    assert result.unit == Unit('km2/m2' if operation in (np.var, np.nanvar) else 'km/m')
     assert result.value == operation(value, where=True)
     assert isinstance(result.value, np.number)
 
 
-@pytest.mark.parametrize('operation', [np.mean, np.std, np.var])
+@pytest.mark.parametrize('operation', [np.mean, np.std, np.var, np.nanmean, np.nanstd, np.nanvar])
 @pytest.mark.parametrize('shape,mask', [((0, 3), True), ((2, 3), False), ((2, 3), np.array(False))])
 def test_numpy_statistics_empty(
     operation: Callable[..., object], shape: tuple[int, ...], mask: bool | NDArray[np.generic]
@@ -65,7 +65,7 @@ def test_numpy_statistics_empty(
     q = Quantity(np.ones(shape), 'm')
     with pytest.warns(RuntimeWarning):
         result = operation(q, axis=0, where=mask)
-    assert result.unit == Unit('m2' if operation is np.var else 'm')
+    assert result.unit == Unit('m2' if operation in (np.var, np.nanvar) else 'm')
     np.testing.assert_array_equal(np.isnan(result.value), np.ones(3, dtype=bool))
 
 
@@ -75,11 +75,13 @@ def test_numpy_statistics_masked_nan(operation: Callable[..., object]) -> None:
     mask = np.array([[True, False, True], [False, True, True]])
     with np.errstate(all='raise'):
         result = operation(q, axis=1, where=mask)
-    expected = [2, 6] if operation is np.mean else [4, 12] if operation in SUMS else [1, 1]
+    expected = (
+        [2, 6] if operation in (np.mean, np.nanmean) else [4, 12] if operation in SUMS else [1, 1]
+    )
     np.testing.assert_allclose(result.value, expected)
 
 
-@pytest.mark.parametrize('operation', [np.std, np.var])
+@pytest.mark.parametrize('operation', [np.std, np.var, np.nanstd, np.nanvar])
 def test_numpy_statistics_ddof(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([[1 + 2j, 3j, 5], [2j, 4, 6j]]), 'm')
     mask = np.array([[True, True, False], [True, True, True]])
@@ -147,9 +149,9 @@ def test_numpy_statistics_out(operation: Callable[..., object]) -> None:
     storage = np.arange(12.0).reshape(2, 6)
     q = Quantity(storage, Factor(2) * Unit('m'))
     # The output overlaps the input and is noncontiguous.
-    target = Quantity(storage[:, 0], 'cm2' if operation is np.var else 'cm')
+    target = Quantity(storage[:, 0], 'cm2' if operation in (np.var, np.nanvar) else 'cm')
     mask = np.array([True, False, True, False, True, False])
-    unit = q.unit**2 if operation is np.var else q.unit
+    unit = q.unit**2 if operation in (np.var, np.nanvar) else q.unit
     expected = Quantity(operation(storage.copy(), axis=1, where=mask), unit).value_in(target.unit)
     magnitude, dtype, target_unit = target.value, target.value.dtype, target.unit
     assert operation(q, axis=1, out=target, where=mask) is target
@@ -163,7 +165,7 @@ def test_numpy_statistics_mask_alias(operation: Callable[..., object]) -> None:
     q = Quantity(storage, 'm')
     mask = storage.view(np.bool_)[:: storage.itemsize]
     mask[:] = [True, False, True, False, True, True]
-    target = Quantity(storage[:1].reshape(()), 'm2' if operation is np.var else 'm')
+    target = Quantity(storage[:1].reshape(()), 'm2' if operation in (np.var, np.nanvar) else 'm')
     expected = operation(storage.copy(), where=mask.copy())
     assert operation(q, axis=None, out=target, where=mask) is target
     np.testing.assert_allclose(target.value, expected)
@@ -173,7 +175,7 @@ def test_numpy_statistics_mask_alias(operation: Callable[..., object]) -> None:
 @pytest.mark.parametrize('dtype', [np.int32, np.float32, np.complex128])
 def test_numpy_statistics_dtype(operation: Callable[..., object], dtype: DTypeLike) -> None:
     q = Quantity(np.arange(6, dtype=dtype).reshape(2, 3), 'm')
-    if operation is np.std and dtype is np.int32:
+    if operation in (np.std, np.nanstd) and dtype is np.int32:
         # NumPy's integer variance buffer cannot hold the floating square root.
         with pytest.raises(TypeError):
             operation(q.value, axis=1, dtype=dtype, where=np.array([True, False, True]))
@@ -192,7 +194,7 @@ def test_numpy_statistics_invalid_where(
     operation: Callable[..., object],
     where: int | list[bool] | NDArray[np.generic] | Quantity[Magnitude],
 ) -> None:
-    target = Quantity(np.array(-123.0), 'm2' if operation is np.var else 'm')
+    target = Quantity(np.array(-123.0), 'm2' if operation in (np.var, np.nanvar) else 'm')
     with pytest.raises(TypeError, match='unitless boolean mask'):
         operation(Quantity(np.array([2.0, 3]), 'm'), out=target, where=where)
     assert target.value == -123
@@ -236,7 +238,7 @@ def test_numpy_sum_invalid_initial(
 def test_numpy_statistics_invalid_kernel(
     operation: Callable[..., object], options: dict[str, object]
 ) -> None:
-    target = Quantity(np.array(-123.0), 'm2' if operation is np.var else 'm')
+    target = Quantity(np.array(-123.0), 'm2' if operation in (np.var, np.nanvar) else 'm')
     with pytest.raises((ValueError, TypeError)):
         operation(Quantity(np.array([2.0, 3]), 'm'), out=target, **options)
     assert target.value == -123
@@ -245,11 +247,14 @@ def test_numpy_statistics_invalid_kernel(
 @pytest.mark.parametrize('operation', REDUCTIONS)
 def test_numpy_statistics_invalid_output(operation: Callable[..., object]) -> None:
     q = Quantity(np.array([[2.0, 3], [5, 7]]), 'm')
-    unit = 'm2' if operation is np.var else 'm'
+    unit = 'm2' if operation in (np.var, np.nanvar) else 'm'
     for target, error in (
         (Quantity(np.array(-123.0), 's'), DimensionError),
         (Quantity(np.full(3, -123.0), unit), ValueError),
-        (Quantity(np.full(2, -123), 'cm2' if operation is np.var else 'cm'), TypeError),
+        (
+            Quantity(np.full(2, -123), 'cm2' if operation in (np.var, np.nanvar) else 'cm'),
+            TypeError,
+        ),
     ):
         with pytest.raises(error):
             operation(q, axis=1, where=np.array([True, False]), out=target)
@@ -273,11 +278,12 @@ def test_numpy_sum_invalid_conversion(operation: Callable[..., object]) -> None:
 
 def test_numpy_statistics_invalid_options() -> None:
     q = Quantity(np.arange(3.0), 'm')
-    for operation in (np.mean, np.std, np.var, np.add.accumulate):
+    for operation in (np.mean, np.std, np.var, np.nanmean, np.nanstd, np.nanvar, np.add.accumulate):
         with pytest.raises(TypeError):
             operation(q, initial=Quantity(1, 'm'))
     with pytest.raises(TypeError):
         np.add.accumulate(q, where=True)
-    for option in ({'mean': Quantity(1, 'm')}, {'correction': 1}):
-        with pytest.raises(TypeError):
-            np.var(q, **option)
+    for operation in (np.std, np.var, np.nanstd, np.nanvar):
+        for option in ({'mean': Quantity(1, 'm')}, {'correction': 1}):
+            with pytest.raises(TypeError):
+                operation(q, **option)

@@ -610,6 +610,10 @@ def dispatch_function(
             np.mean,
             np.std,
             np.var,
+            np.nanmedian,
+            np.nanmean,
+            np.nanstd,
+            np.nanvar,
             np.min,
             np.max,
             np.amin,
@@ -854,11 +858,17 @@ def _argmin_max(
 
 
 def _median(
-    q: Any, axis: Any = None, out: Any = None, overwrite_input: bool = False, keepdims: bool = False
+    func: Any,
+    q: Any,
+    axis: Any = None,
+    out: Any = None,
+    overwrite_input: bool = False,
+    keepdims: bool = False,
 ) -> Any:
     if overwrite_input:
-        raise TypeError('overwrite_input is not supported for Quantity.')
-    return _write_output(_wrap(np.median(q.value, axis=axis, keepdims=keepdims), q.unit), out)
+        error_message = 'overwrite_input is not supported for Quantity.'
+        raise TypeError(error_message)
+    return _write_output(_wrap(func(q.value, axis=axis, keepdims=keepdims), q.unit), out)
 
 
 def _cumsum(q: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any:
@@ -867,6 +877,7 @@ def _cumsum(q: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any
 
 
 def _mean(
+    func: Any,
     q: Any,
     axis: Any = None,
     dtype: Any = None,
@@ -877,7 +888,7 @@ def _mean(
 ) -> Any:
     _validate_dtype(dtype)
     _validate_where({'where': where})
-    result = _wrap(np.mean(q.value, axis=axis, dtype=dtype, keepdims=keepdims, where=where), q.unit)
+    result = _wrap(func(q.value, axis=axis, dtype=dtype, keepdims=keepdims, where=where), q.unit)
     return _write_output(result, out)
 
 
@@ -931,11 +942,21 @@ def _quantile(
         error_message = 'overwrite_input is not supported for Quantity.'
         raise TypeError(error_message)
     q = _statistic_parameter(q, 'q')
+    value = _numeric_value(a.value)
     if weights is not None:
         weights = _statistic_parameter(weights, 'weights')
-    result = func(
-        _numeric_value(a.value), q, axis=axis, method=method, keepdims=keepdims, weights=weights
-    )
+        if func in (np.nanquantile, np.nanpercentile):
+            # NumPy 2.1 mishandles tuple axes with weights; its NaN kernels
+            # also index reduced-axis weights without broadcasting in 2.1/2.5.
+            if isinstance(axis, tuple):
+                error_message = 'Weighted NaN quantiles require one integer axis or axis=None.'
+                raise TypeError(error_message)
+            if np.ndim(value) > 1 and axis is not None and np.shape(weights) != np.shape(value):
+                error_message = (
+                    'NaN quantiles require full-shape weights for multidimensional samples.'
+                )
+                raise ValueError(error_message)
+    result = func(value, q, axis=axis, method=method, keepdims=keepdims, weights=weights)
     return _write_output(Quantity(result, a.unit), out)
 
 
@@ -1038,7 +1059,7 @@ def _std_var(
     _validate_dtype(dtype)
     _validate_where({'where': where})
     delta = q.unit.delta_unit if isinstance(q.unit, _Coordinate) else q.unit
-    unit = delta**2 if func is np.var else delta
+    unit = delta**2 if func in (np.var, np.nanvar) else delta
     result = _wrap(
         func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims, where=where), unit
     )
@@ -1189,16 +1210,22 @@ _QUANTITY_FUNCTIONS = {
     np.transpose: _transpose,
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
-    np.median: _median,
+    np.median: partial(_median, np.median),
+    np.nanmedian: partial(_median, np.nanmedian),
     np.cumsum: _cumsum,
     np.prod: _prod,
     np.std: partial(_std_var, np.std),
     np.var: partial(_std_var, np.var),
+    np.nanstd: partial(_std_var, np.nanstd),
+    np.nanvar: partial(_std_var, np.nanvar),
     np.sum: _sum,
-    np.mean: _mean,
+    np.mean: partial(_mean, np.mean),
+    np.nanmean: partial(_mean, np.nanmean),
     np.average: _average,
     np.quantile: partial(_quantile, np.quantile),
     np.percentile: partial(_quantile, np.percentile),
+    np.nanquantile: partial(_quantile, np.nanquantile),
+    np.nanpercentile: partial(_quantile, np.nanpercentile),
     np.min: partial(_extremum, np.min),
     np.max: partial(_extremum, np.max),
     np.amin: partial(_extremum, np.amin),

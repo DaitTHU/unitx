@@ -95,7 +95,8 @@ numerical boundary, use `np.expm1(np.asarray(q.value_in(si.one)))` after
 checking dimensions and normalizing the scale.
 
 The same NumPy stub limitation applies to `where`, `clip`,
-`minimum/maximum`, `average`, `quantile`, `percentile`, and `interp`: runtime results
+`minimum/maximum`, `average`, `quantile`, `percentile`, the supported `nan*`
+statistics, and `interp`: runtime results
 preserve the documented Quantity/point wrappers, but NumPy may annotate them
 as ndarrays or Any. NumPy's `out` annotations also accept only ndarrays.
 Runtime support and installed-consumer checks cover

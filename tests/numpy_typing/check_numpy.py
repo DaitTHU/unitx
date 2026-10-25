@@ -119,17 +119,19 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
     scalar_target = Quantity(np.empty(()), 'cm')
     q.__array_ufunc__(np.add, 'reduce', q, out=(scalar_target,))
     q.__array_function__(np.sum, (Quantity,), (q,), {'out': scalar_target})
-    for operation in (np.quantile, np.percentile):
+    for operation in (np.quantile, np.percentile, np.nanquantile, np.nanpercentile):
         q.__array_function__(operation, (Quantity,), (q, 0.5), {'out': scalar_target})
     mask = np.array([True, False, True])
     q.__array_ufunc__(
         np.add, 'reduce', q, out=(scalar_target,), where=mask, initial=Quantity(2, 'cm')
     )
-    for operation in (np.sum, np.mean, np.std):
+    for operation in (np.sum, np.mean, np.std, np.nanmean, np.nanstd):
         q.__array_function__(operation, (Quantity,), (q,), {'where': mask, 'out': scalar_target})
-    q.__array_function__(
-        np.var, (Quantity,), (q,), {'where': mask, 'out': Quantity(np.empty(()), 'm2')}
-    )
+    q.__array_function__(np.nanmedian, (Quantity,), (q,), {'out': scalar_target})
+    for operation in (np.var, np.nanvar):
+        q.__array_function__(
+            operation, (Quantity,), (q,), {'where': mask, 'out': Quantity(np.empty(()), 'm2')}
+        )
     q.__array_function__(np.diff, (Quantity,), (q,), {'prepend': Quantity(2, 'cm')})
     q.__array_function__(np.gradient, (Quantity,), (q, Quantity(2, 's')), {'axis': 0})
     product_target = Quantity(np.empty(()), 'm2')

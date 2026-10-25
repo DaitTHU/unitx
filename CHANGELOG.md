@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support NumPy `nanmean`, `nanmedian`, `nanstd`, `nanvar`, `nanquantile` and
+  `nanpercentile`, retaining the corresponding statistical unit and coordinate
+  rules. Omit NaN samples with NumPy's dtype, mask, weight and warning behavior;
+  preserve staged output writes, including when warnings become exceptions.
+  Weighted NaN quantiles support one integer axis or `axis=None`, with full-shape
+  weights for multidimensional samples, due to NumPy 2.1/2.5 kernel limitations.
+
 ## [0.16.0] - 2026-10-25
 
 ### Added

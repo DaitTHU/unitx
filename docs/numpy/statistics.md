@@ -106,7 +106,8 @@ with the additional single-unit and explicit-output rules described here.
 their first, positional argument. Results retain its complete unit, including
 an exact extra scale or a scaled dimensionless unit. AffineQuantity and
 LogQuantity points are unsupported; convert explicitly before using these
-functions. The `nan*` variants remain unsupported.
+functions. `nanquantile` and `nanpercentile` share these boundaries and omit
+NaN samples as described [below](#nan-statistics).
 
 Weights and the `q` parameter must be dimensionless: use bare numeric scalars,
 plain numeric ndarrays, numeric lists/tuples, or dimensionless Quantities.
@@ -187,5 +188,58 @@ See [NumPy average](https://numpy.org/doc/stable/reference/generated/numpy.avera
 [percentile](https://numpy.org/doc/stable/reference/generated/numpy.percentile.html)
 for the numerical definitions. unitx adds the unit, parameter and output rules
 described here and uses the installed NumPy kernel.
+
+## NaN statistics
+
+`nanmean`, `nanmedian`, `nanstd`, `nanvar`, `nanquantile`, and `nanpercentile`
+omit NaN samples. Their units, supported options, parameter normalization and
+staged `out` writes match the corresponding functions above. Sample units,
+including exact extra scales and scaled dimensionless units, stay unchanged;
+`nanvar` squares the complete input unit.
+
+`nanmean` and `nanmedian` also accept AffineQuantity and LogQuantity points,
+returning points in the same coordinate. `nanstd` returns the coordinate's
+full difference unit, and `nanvar` its square. Logarithmic point statistics
+operate on stored readings; convert to physical quantities explicitly for
+power or amplitude statistics. `nanquantile` and `nanpercentile` accept only
+linear Quantities, following quantile and percentile.
+
+`nanmean`, `nanstd`, and `nanvar` accept bare boolean `where` masks; NaN samples
+are omitted from the selected elements. For `nanstd` and `nanvar`, N in
+`N - ddof` is the selected non-NaN count. Precomputed `mean`, `correction` and
+`initial` remain unsupported. `nanmedian`, `nanquantile` and `nanpercentile`
+reject `overwrite_input=True`, and do not accept `where` or `dtype`.
+Weighted NaN quantiles require `method="inverted_cdf"`; a NaN sample and its
+associated weight are omitted together. Weights themselves are not cleaned.
+Weighted NaN quantiles accept one integer axis or `axis=None`; tuple axes
+are unsupported. For multidimensional samples, supply weights with the full
+sample shape; reduced-axis weight shapes are rejected. NumPy 2.1 mishandles
+weighted tuple axes, and NumPy 2.1 and 2.5's NaN kernels do not reliably handle
+reduced-axis weights. Broadcast weights explicitly to the full sample shape
+before calling. One-dimensional samples accept a matching weight vector as
+usual. Unweighted NaN quantiles and ordinary quantile/percentile retain tuple
+axis support; ordinary quantile/percentile also retain reduced-axis weights.
+
+NumPy determines dtype, complex-sample support, Inf behavior, empty/all-NaN
+results and RuntimeWarnings. unitx does not suppress these warnings. If a
+warning is promoted to an exception, the staged output target stays unchanged.
+Ordinary statistics continue to propagate NaNs.
+
+```python
+gapped = Quantity(np.array([[1.0, np.nan, 3], [np.nan, 5, 7]]), 'm')
+means = np.nanmean(gapped, axis=1)
+assert means.unit == gapped.unit
+np.testing.assert_allclose(means.value, [2, 6])
+variances = np.nanvar(gapped, axis=1, ddof=1)
+assert variances.unit == Unit('m2')
+np.testing.assert_allclose(variances.value, [2, 2])
+medians = np.nanpercentile(gapped, 50, axis=1)
+np.testing.assert_allclose(medians.value, [2, 6])
+```
+
+See [NumPy nanmean](https://numpy.org/doc/stable/reference/generated/numpy.nanmean.html),
+[nanstd](https://numpy.org/doc/stable/reference/generated/numpy.nanstd.html) and
+[nanquantile](https://numpy.org/doc/stable/reference/generated/numpy.nanquantile.html)
+for the numerical definitions and warnings.
 
 [NumPy overview and support matrix](../numpy.md) · [Documentation index](../README.md)

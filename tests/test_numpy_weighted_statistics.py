@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
 
 
-QUANTILES = [np.quantile, np.percentile]
+QUANTILES = [np.quantile, np.percentile, np.nanquantile, np.nanpercentile]
 STATISTICS = [np.average, *QUANTILES]
 METHODS = [
     'inverted_cdf',
@@ -49,7 +49,7 @@ def test_numpy_weighted_statistics_axes(
     values = np.arange(48.0).reshape(2, 3, 8)[..., ::2]
     values.flags.writeable = False
     samples = Quantity(values, unit)
-    levels = [0.25, 0.75] if operation is np.quantile else [25, 75]
+    levels = [0.25, 0.75] if operation in (np.quantile, np.nanquantile) else [25, 75]
     args = () if operation is np.average else (levels,)
     for keepdims in (False, True):
         result = operation(samples, *args, axis=axis, keepdims=keepdims)
@@ -76,9 +76,19 @@ def test_numpy_weighted_statistics_weights(
     samples = Quantity(values, 'm')
     scaled_weights = Quantity(weights, Unit('m/cm'))
     args = (
-        () if operation is np.average else ([0.2, 0.8] if operation is np.quantile else [20, 80],)
+        ()
+        if operation is np.average
+        else ([0.2, 0.8] if operation in (np.quantile, np.nanquantile) else [20, 80],)
     )
     options = {} if operation is np.average else {'method': 'inverted_cdf'}
+    if operation in (np.nanquantile, np.nanpercentile) and isinstance(axis, tuple):
+        with pytest.raises(TypeError, match='one integer axis'):
+            operation(samples, *args, axis=axis, weights=scaled_weights, **options)
+        return
+    if operation in (np.nanquantile, np.nanpercentile) and shape != values.shape:
+        with pytest.raises(ValueError, match='full-shape weights'):
+            operation(samples, *args, axis=axis, weights=scaled_weights, **options)
+        return
     result = operation(samples, *args, axis=axis, weights=scaled_weights, keepdims=True, **options)
     expected = operation(values, *args, axis=axis, weights=weights * 100, keepdims=True, **options)
     assert result.unit == samples.unit
@@ -116,7 +126,11 @@ def test_numpy_weighted_statistics_scalar(
     value: int | Fraction | Decimal | np.float32 | NDArray[np.generic],
 ) -> None:
     samples = Quantity(value, 'm')
-    args = () if operation is np.average else (0.5 if operation is np.quantile else 50,)
+    args = (
+        ()
+        if operation is np.average
+        else (0.5 if operation in (np.quantile, np.nanquantile) else 50,)
+    )
     result = operation(samples, *args)
     assert result.unit == samples.unit and result.value == 2
     assert isinstance(result.value, np.number)
@@ -129,7 +143,7 @@ def test_numpy_weighted_statistics_scalar(
 @pytest.mark.parametrize('method', METHODS)
 def test_numpy_quantile_methods(operation: Callable[..., object], method: str) -> None:
     samples = Quantity(np.array([5, 1, 9, 3]), 'm')
-    levels = [0, 0.25, 0.6, 1] if operation is np.quantile else [0, 25, 60, 100]
+    levels = [0, 0.25, 0.6, 1] if operation in (np.quantile, np.nanquantile) else [0, 25, 60, 100]
     result = operation(samples, levels, method=method)
     np.testing.assert_allclose(result.value, operation(samples.value, levels, method=method))
     assert result.unit == samples.unit
@@ -140,13 +154,17 @@ def test_numpy_quantile_methods(operation: Callable[..., object], method: str) -
 def test_numpy_quantile_probabilities(operation: Callable[..., object]) -> None:
     samples = Quantity(np.array([0.0, 10]), 'km/m')
     # Normalize first; percentile still interprets the normalized value as a percentage.
-    levels = np.array([0.0, 0.5, 1.0]) if operation is np.quantile else np.array([0, 50, 100.0])
+    levels = (
+        np.array([0.0, 0.5, 1.0])
+        if operation in (np.quantile, np.nanquantile)
+        else np.array([0, 50, 100.0])
+    )
     q = Quantity(levels / 100, Unit('m/cm'))
     result = operation(samples, q)
     assert result.unit == samples.unit
     np.testing.assert_allclose(result.value, [0, 5, 10])
     # Scalar, 0-D and ordinary sequence spellings are accepted as parameters.
-    level = 0.5 if operation is np.quantile else 50
+    level = 0.5 if operation in (np.quantile, np.nanquantile) else 50
     for q in (level, np.array(level), Fraction(level), Decimal(level), Quantity(level, '')):
         assert operation(samples, q).value == 5
     np.testing.assert_array_equal(operation(samples, (level,)).value, [5])
@@ -156,7 +174,7 @@ def test_numpy_quantile_probabilities(operation: Callable[..., object]) -> None:
 @pytest.mark.parametrize('alias', ['samples', 'q', 'weights'])
 def test_numpy_quantile_out_alias(operation: Callable[..., object], alias: str) -> None:
     storage = np.array([3.0, 1, 2, 4, 0.25, 0.75, 1, 2, 1, 1])
-    if operation is np.percentile:
+    if operation in (np.percentile, np.nanpercentile):
         storage[4:6] *= 100
     samples = Quantity(storage[:4], Factor(2) * Unit('m'))
     q = Quantity(storage[4:6], '')
@@ -183,7 +201,7 @@ def test_numpy_quantile_out_alias(operation: Callable[..., object], alias: str) 
 @pytest.mark.parametrize('operation', QUANTILES)
 def test_numpy_quantile_out_axes(operation: Callable[..., object]) -> None:
     samples = Quantity(np.arange(24.0).reshape(2, 3, 4), 'm')
-    levels = [0.25, 0.75] if operation is np.quantile else [25, 75]
+    levels = [0.25, 0.75] if operation in (np.quantile, np.nanquantile) else [25, 75]
     storage = np.full((2, 1, 3, 1, 2), -123.0)
     target = Quantity(storage[..., 0], 'cm')
     result = operation(samples, levels, (2, 0), target, False, 'linear', True)
@@ -332,15 +350,13 @@ def test_numpy_quantile_invalid_complex(operation: Callable[..., object]) -> Non
 
 @pytest.mark.parametrize('operation', QUANTILES)
 def test_numpy_quantile_nan(operation: Callable[..., object]) -> None:
-    result = operation(Quantity(np.array([1.0, np.nan, 3]), 'm'), 0.5)
-    assert result.unit == Unit('m') and np.isnan(result.value)
-
-
-@pytest.mark.parametrize('operation', [np.nanmean, np.nanquantile, np.nanpercentile])
-def test_numpy_statistics_invalid_nan_function(operation: Callable[..., object]) -> None:
-    args = () if operation is np.nanmean else (0.5,)
-    with pytest.raises(TypeError):
-        operation(Quantity(np.array([1.0, np.nan, 3]), 'm'), *args)
+    level = 0.5 if operation in (np.quantile, np.nanquantile) else 50
+    result = operation(Quantity(np.array([1.0, np.nan, 3]), 'm'), level)
+    assert result.unit == Unit('m')
+    if operation in (np.nanquantile, np.nanpercentile):
+        assert result.value == 2
+    else:
+        assert np.isnan(result.value)
 
 
 @pytest.mark.parametrize('operation', STATISTICS)
