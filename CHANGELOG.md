@@ -9,6 +9,9 @@
   units or point coordinates for values and return bare indices/masks/counts.
 - Support NumPy `zeros_like`, `empty_like`, `real` and `imag` for scientific
   array workflows, preserving units and native dtype/storage behavior.
+- Add `Quantity.astype(dtype)` for explicit magnitude conversion without
+  changing units. Refine float-compatible scalar multiplication, division and
+  integer-power annotations so ordinary formulas need fewer casts.
 
 ## [0.16.5] - 2026-10-25
 

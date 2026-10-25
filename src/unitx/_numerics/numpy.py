@@ -58,6 +58,11 @@ def validate_magnitude(value: Any) -> None:
         raise TypeError('Only plain numeric ndarrays and NumPy numeric scalars are supported.')
 
 
+def astype_magnitude(value: Any, dtype: Any) -> Any:
+    _validate_dtype(dtype)
+    return value.astype(dtype)
+
+
 def _is_supported_operand(value: Any) -> bool:
     if isinstance(value, (Quantity, _Point)):
         value = value.value

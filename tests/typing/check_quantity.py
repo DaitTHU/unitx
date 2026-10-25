@@ -246,7 +246,7 @@ def test_quantity_dimensionless() -> None:
 
 
 def test_quantity_powers() -> None:
-    assert_type(Quantity(2, 'm') ** 2, Quantity[Number])
+    assert_type(Quantity(2, 'm') ** 2, Quantity[float])
     assert_type(Quantity(-2, 'm') ** Fraction(1, 2), Quantity[Number])
     assert_type(Quantity(Decimal(2), 'm') ** Decimal('0.5'), Quantity[Decimal])
 

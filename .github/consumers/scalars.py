@@ -28,7 +28,7 @@ from unitx.cgs import cgs, emu, esu, gaussian, hl
 from unitx.factor import Factor
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
-from unitx.si import si
+from unitx.si import SI, si
 
 installed = distribution('unitx')
 package_root = Path(str(installed.locate_file('unitx')))
@@ -64,6 +64,20 @@ for catalogue, charge_unit in ((esu, esu.statC), (emu, emu.abC), (hl, hl.charge)
     assert catalogue.unit(charge_unit.expression()) == charge_unit
     assert pickle.loads(pickle.dumps(charge_unit)) == charge_unit
     assert from_dict(to_dict(charge_unit), registry=Registry([charge_unit])) == charge_unit
+
+distance_float = 3.0 * si.m
+duration_float = 2.0 * si.s
+speed_float = distance_float / duration_float
+assert_type(speed_float, Quantity[float])
+assert_type(2 * speed_float, Quantity[float])
+assert_type(speed_float**2, Quantity[float])
+assert type(speed_float.value) is float and speed_float.value == 1.5
+converted_float = speed_float.to(si.km / si.h).astype(float)
+assert_type(converted_float, Quantity[float])
+assert abs(converted_float.value - 5.4) < 1e-12
+constant_float = SI.e.astype(float)
+assert_type(constant_float, Quantity[float])
+assert type(constant_float.value) is float and constant_float.unit == SI.e.unit
 
 root = math.sqrt(9 * si.m**2)
 assert_type(root, Quantity[float])

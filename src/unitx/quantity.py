@@ -268,6 +268,35 @@ class Quantity(Generic[T]):
         unit = linear_unit(unit)
         return Quantity(self.value_in(unit), unit)
 
+    @overload
+    def astype(self: Quantity[Array], dtype: object, /) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def astype[S: (int, float, complex, Fraction, Decimal)](
+        self: Quantity[Scalar], dtype: type[S], /
+    ) -> Quantity[S]: ...
+
+    def astype(self, dtype: object, /) -> Quantity[Magnitude]:
+        """Convert the magnitude's numeric type while preserving the complete unit.
+
+        Python scalars accept `int`, `float`, `complex`, `Fraction` or `Decimal`.
+        NumPy magnitudes delegate to their native `astype` and require numeric
+        output dtypes. Conversion can round, overflow or raise native errors;
+        neither this quantity nor its magnitude is modified.
+
+        >>> Quantity(Decimal('1.25'), 'm').astype(float)
+        Quantity(1.25, Unit('m'))
+        """
+        if is_numpy_object(self.value):
+            from ._numerics.numpy import astype_magnitude
+
+            return Quantity(astype_magnitude(self.value, dtype), self.unit)
+        if not any(dtype is candidate for candidate in (int, float, complex, Fraction, Decimal)):
+            error_message = 'Scalar astype requires int, float, complex, Fraction or Decimal.'
+            raise TypeError(error_message)
+        constructor = cast(Callable[[Any], Scalar], dtype)
+        return Quantity(constructor(self.value), self.unit)
+
     def to_ratio(self, *, kind: LogKind) -> Quantity[Magnitude]:
         """Restore a power or amplitude ratio from a logarithmic difference."""
         from ._coordinates.logarithms import to_ratio
@@ -911,6 +940,9 @@ class Quantity(Generic[T]):
     ) -> Quantity[Decimal]: ...
 
     @overload
+    def __mul__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
     def __mul__[L: Real, R: Real](
         self: Quantity[L], other: Quantity[R] | R, /
     ) -> Quantity[Real]: ...
@@ -965,6 +997,9 @@ class Quantity(Generic[T]):
     def __rmul__(self: Quantity[int], other: Decimal, /) -> Quantity[Decimal]: ...
 
     @overload
+    def __rmul__(self: Quantity[float], other: float, /) -> Quantity[float]: ...
+
+    @overload
     def __rmul__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
 
     @overload
@@ -1011,6 +1046,11 @@ class Quantity(Generic[T]):
     def __truediv__(
         self: Quantity[int], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[Decimal]: ...
+
+    @overload
+    def __truediv__(
+        self: Quantity[float], other: Quantity[float] | float, /
+    ) -> Quantity[float]: ...
 
     @overload
     def __truediv__[L: Real, R: Real](
@@ -1075,6 +1115,13 @@ class Quantity(Generic[T]):
     def __rtruediv__(self: Quantity[int], other: Decimal, /) -> Quantity[Decimal]: ...
 
     @overload
+    def __rtruediv__(
+        self: Quantity[float],
+        other: Unit | _LinearUnitSource | Factor | SymbolicConstant | float,
+        /,
+    ) -> Quantity[float]: ...
+
+    @overload
     def __rtruediv__[N: Real](
         self: Quantity[N], other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Real, /
     ) -> Quantity[Real]: ...
@@ -1115,6 +1162,9 @@ class Quantity(Generic[T]):
 
     @overload
     def __pow__(self: Quantity[int], exponent: Decimal, /) -> Quantity[Decimal]: ...
+
+    @overload
+    def __pow__(self: Quantity[float], exponent: int, /) -> Quantity[float]: ...
 
     @overload
     def __pow__[N: Real](self: Quantity[N], exponent: Real, /) -> Quantity[Number]: ...
@@ -1247,6 +1297,9 @@ class Quantity(Generic[T]):
     ) -> Quantity[Decimal]: ...
 
     @overload
+    def __imul__(self: Quantity[float], other: Quantity[float] | float, /) -> Quantity[float]: ...
+
+    @overload
     def __imul__[L: Real, R: Real](
         self: Quantity[L], other: Quantity[R] | R, /
     ) -> Quantity[Real]: ...
@@ -1292,6 +1345,11 @@ class Quantity(Generic[T]):
     ) -> Quantity[Decimal]: ...
 
     @overload
+    def __itruediv__(
+        self: Quantity[float], other: Quantity[float] | float, /
+    ) -> Quantity[float]: ...
+
+    @overload
     def __itruediv__[L: Real, R: Real](
         self: Quantity[L], other: Quantity[R] | R, /
     ) -> Quantity[Real]: ...
@@ -1323,6 +1381,9 @@ class Quantity(Generic[T]):
 
     @overload
     def __ipow__(self: Quantity[int], exponent: Decimal, /) -> Quantity[Decimal]: ...
+
+    @overload
+    def __ipow__(self: Quantity[float], exponent: int, /) -> Quantity[float]: ...
 
     @overload
     def __ipow__[N: Real](self: Quantity[N], exponent: Real, /) -> Quantity[Number]: ...

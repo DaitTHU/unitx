@@ -81,6 +81,26 @@ def test_numpy_complex_component_invalid_point(operation: Callable[..., Any], po
         operation(point)
 
 
+@pytest.mark.parametrize('dtype', [int, float, complex, np.float32])
+@pytest.mark.parametrize('value', [np.array([1, 2], dtype=np.int16), np.float32(2)])
+def test_quantity_astype_numpy(value: Any, dtype: Any) -> None:
+    q = Quantity(value, Factor(2) * pi * Unit('cm'))
+    result = q.astype(dtype)
+    expected = value.astype(dtype)
+    assert result.unit is q.unit and type(result.value) is type(expected)
+    assert result.value.dtype == expected.dtype
+    np.testing.assert_array_equal(result.value, expected)
+    assert not np.shares_memory(result.value, value)
+
+
+@pytest.mark.parametrize('dtype', [object, bool, str])
+def test_quantity_astype_numpy_invalid(dtype: Any) -> None:
+    q = Quantity(np.array([1.0, 2.0]), 'm')
+    with pytest.raises(TypeError, match='numeric output dtypes'):
+        q.astype(dtype)
+    np.testing.assert_array_equal(q.value, [1, 2])
+
+
 def test_numpy_complex_integration() -> None:
     omega = Quantity(np.array([1.0, 2.0, 4.0]), 'Hz')
     weights = np.zeros_like(omega)

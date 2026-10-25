@@ -164,7 +164,7 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     zero = cast(Quantity[Array], np.zeros_like(distance))
     assert empty.unit == zero.unit == distance.unit
     np.testing.assert_array_equal(zero.value, np.zeros_like(values))
-    complex_distance = Quantity(values.astype(complex), distance.unit)
+    complex_distance = distance.astype(complex)
     real = cast(Quantity[Array], np.real(complex_distance))
     imag = cast(Quantity[Array], np.imag(complex_distance))
     assert real.unit == imag.unit == distance.unit

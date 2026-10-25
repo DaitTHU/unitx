@@ -36,6 +36,45 @@ seconds. An `Annotated` label alone does not teach a type checker dimensional
 algebra. unitx does not currently supply dimension-parameterized quantities
 or a call-validation decorator.
 
+## Float calculations
+
+Ordinary int/float multiplication and division retain a float-compatible result
+domain, and integer powers of float-compatible quantities do too. For example,
+`distance / duration` can return `Quantity[float]` directly when both inputs
+have that annotation. Fractional powers can produce complex
+magnitudes and keep a wider result type; `unitx.math.sqrt` is the real-valued
+float boundary for scalar square roots.
+
+Use `q.astype(float)` to convert the magnitude explicitly while retaining the
+complete unit. It returns `Quantity[float]` for Python scalar input. This is a
+real numeric conversion, unlike `typing.cast`, which does not change a value.
+Choose float constants once at a calculation boundary rather than using a
+NumPy ufunc solely to coerce Decimal constants:
+
+```pycon
+>>> from unitx.si import SI, si
+>>> length = 3.0 * si.m
+>>> speed = SI.c.astype(float)
+>>> duration = (length / speed).to(si.s).astype(float)
+>>> type(duration.value) is float
+True
+
+```
+
+`SI` keeps its existing integer and Decimal constants. Conversion to float
+rounds, can overflow, and does not preserve Decimal precision. Scalar
+`astype` accepts `int`, `float`, `complex`, `Fraction` and `Decimal`;
+their native constructors control errors. NumPy magnitudes use their own
+`astype` operation and numeric dtypes, retaining ndarray/NumPy-scalar results.
+Only the dtype argument is supported; this method does not change units.
+
+Unit conversion and aligned addition/subtraction still have wider annotations.
+Python's float annotation also accepts integer values, so even an object
+annotated `Quantity[float]` may store an int: `Quantity[float](1, 'cm').to('m')`
+really produces a Fraction. Use `q.to(target).astype(float)` when an output
+must have a float magnitude. Float/Decimal mixed arithmetic continues to
+follow Python's errors; select a common domain explicitly before calculating.
+
 ## Quantity subclasses
 
 Preserving the magnitude parameter T does not preserve a Quantity subclass.
