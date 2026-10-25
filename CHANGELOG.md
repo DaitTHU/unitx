@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.16.7] - 2026-10-26
+
+### Added
+
+- Support NumPy hyperbolic and inverse hyperbolic functions, `exp2`,
+  `logaddexp/logaddexp2`, `fmin/fmax`, stored-coordinate rounding, `sign`,
+  `copysign`, compatible-unit remainders, floor division and `divmod`.
+  Preserve staged single- and multiple-output writes.
+- Support `real_if_close`, `angle`, `unwrap` and degree/radian conversions
+  with explicit phase units, plus `ones_like` retaining units or coordinates.
+- Permit built-in float/Decimal mixing in linear Quantity `+`, `-`, `*`, `/`
+  and augmented arithmetic. Convert floats via `Decimal(repr(x))`, align and
+  calculate under the active Decimal context, then return float. Document the
+  implicit precision downgrade; pure Decimal arithmetic and exact comparisons
+  retain their existing contracts.
+- Infer float addition/subtraction results for ordinary float scientific
+  formulas, while preserving the wider concrete integer/Fraction paths and
+  documenting the hidden-integer inference exception.
+
 ## [0.16.6] - 2026-10-25
 
 ### Added
