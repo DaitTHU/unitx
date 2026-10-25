@@ -148,6 +148,29 @@ def check_arrays(values: NDArray[np.float64]) -> None:
         np.testing.assert_array_equal(selection_target.value, values[[0, 2]])
 
     bounded = cast(Quantity[Array], np.clip(distance, Quantity(500, si.cm), Quantity(25, si.m)))
+    sorted_distance = cast(Quantity[Array], np.sort(distance))
+    np.testing.assert_array_equal(sorted_distance.value, np.sort(values))
+    np.testing.assert_array_equal(np.argsort(distance), np.argsort(values))
+    np.testing.assert_array_equal(np.searchsorted(sorted_distance, Quantity(2000, si.cm)), 1)
+    unique_values, counts = np.unique(distance, return_counts=True)
+    unique_distance = cast(Quantity[Array], unique_values)
+    assert unique_distance.unit == distance.unit
+    np.testing.assert_array_equal(unique_distance.value, values)
+    np.testing.assert_array_equal(counts, [1, 1, 1])
+    np.testing.assert_array_equal(
+        np.isin(distance, Quantity(np.array([2000.0, 3000]), si.cm)), [False, True, True]
+    )
+    empty = cast(Quantity[Array], np.empty_like(distance))
+    zero = cast(Quantity[Array], np.zeros_like(distance))
+    assert empty.unit == zero.unit == distance.unit
+    np.testing.assert_array_equal(zero.value, np.zeros_like(values))
+    complex_distance = Quantity(values.astype(complex), distance.unit)
+    real = cast(Quantity[Array], np.real(complex_distance))
+    imag = cast(Quantity[Array], np.imag(complex_distance))
+    assert real.unit == imag.unit == distance.unit
+    np.testing.assert_array_equal(real.value, values)
+    np.testing.assert_array_equal(imag.value, np.zeros_like(values))
+
     assert isinstance(bounded, Quantity) and bounded.unit == si.m
     np.testing.assert_allclose(bounded.value, [5, 20, 25])
     cleaned = cast(

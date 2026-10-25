@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support NumPy sorting, partitioning, searching, set operations, `unique` and
+  its Array API result variants, and nonzero indices/counts. Retain complete
+  units or point coordinates for values and return bare indices/masks/counts.
+- Support NumPy `zeros_like`, `empty_like`, `real` and `imag` for scientific
+  array workflows, preserving units and native dtype/storage behavior.
+
 ## [0.16.5] - 2026-10-25
 
 ### Added

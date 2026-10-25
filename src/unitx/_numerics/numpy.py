@@ -610,6 +610,12 @@ def dispatch_function(
         return _compress(*args, **kwargs)
     if func is np.extract:
         return _extract(*args, **kwargs)
+    if func is np.lexsort:
+        return _lexsort(*args, **kwargs)
+    if func is np.searchsorted:
+        return _searchsorted(*args, **kwargs)
+    if func in (np.isin, np.intersect1d, np.union1d, np.setdiff1d, np.setxor1d):
+        return _set_operation(func, *args, **kwargs)
     if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
         if func not in _ARRAY_FUNCTIONS and func not in (
             np.isclose,
@@ -842,6 +848,47 @@ def _extract(condition: Any, arr: Any) -> Any:
 
 def _delete(arr: Any, obj: Any, axis: Any = None) -> Any:
     return _wrap(np.delete(arr.value, _snapshot_index(obj), axis=axis), arr.unit)
+
+
+def _lexsort(keys: Any, axis: Any = -1) -> Any:
+    keys = tuple(keys)
+    if not keys or not all(_is_supported_operand(key) for key in keys):
+        error_message = 'lexsort requires numeric arrays, quantities or points as keys.'
+        raise TypeError(error_message)
+    values = tuple(_operand_parts(key)[0] for key in keys)
+    return np.lexsort(values, axis=axis)
+
+
+def _searchsorted(a: Any, v: Any, side: Any = 'left', sorter: Any = None) -> Any:
+    left, right, _ = _selection_parts(a, v)
+    if sorter is not None:
+        sorter = _snapshot_index(sorter)
+    return np.searchsorted(left, right, side=side, sorter=sorter)
+
+
+def _set_operation(func: Any, ar1: Any, ar2: Any, *args: Any, **kwargs: Any) -> Any:
+    left, right, unit = _selection_parts(ar1, ar2)
+    result = func(left, right, *args, **kwargs)
+    if func is np.isin:
+        return result
+    if isinstance(result, tuple):
+        return (_wrap(result[0], unit), *result[1:])
+    return _wrap(result, unit)
+
+
+def _unique(func: Any, q: Any, *args: Any, **kwargs: Any) -> Any:
+    result = func(q.value, *args, **kwargs)
+    if isinstance(result, tuple):
+        values = _wrap(result[0], q.unit)
+        if func is np.unique:
+            return (values, *result[1:])
+        return cast(Any, result)._replace(values=values)
+    return _wrap(result, q.unit)
+
+
+def _partition(func: Any, q: Any, kth: Any, *args: Any, **kwargs: Any) -> Any:
+    result = func(q.value, _snapshot_index(kth), *args, **kwargs)
+    return result if func is np.argpartition else _wrap(result, q.unit)
 
 
 def _reshape(
@@ -1399,10 +1446,27 @@ _ARRAY_FUNCTIONS = {
     np.diagflat: partial(_array_transform, np.diagflat),
     np.tril: partial(_array_transform, np.tril),
     np.triu: partial(_array_transform, np.triu),
+    np.sort: partial(_array_transform, np.sort),
+    np.argsort: partial(_array_metadata, np.argsort),
+    np.partition: partial(_partition, np.partition),
+    np.argpartition: partial(_partition, np.argpartition),
+    np.unique: partial(_unique, np.unique),
+    np.unique_all: partial(_unique, np.unique_all),
+    np.unique_counts: partial(_unique, np.unique_counts),
+    np.unique_inverse: partial(_unique, np.unique_inverse),
+    np.unique_values: partial(_unique, np.unique_values),
+    np.nonzero: partial(_array_metadata, np.nonzero),
+    np.flatnonzero: partial(_array_metadata, np.flatnonzero),
+    np.argwhere: partial(_array_metadata, np.argwhere),
+    np.count_nonzero: partial(_array_metadata, np.count_nonzero),
+    np.zeros_like: partial(_array_transform, np.zeros_like),
+    np.empty_like: partial(_array_transform, np.empty_like),
 }
 
 _QUANTITY_FUNCTIONS = {
     **_ARRAY_FUNCTIONS,
+    np.real: partial(_array_transform, np.real),
+    np.imag: partial(_array_transform, np.imag),
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
     np.nanargmin: partial(_argmin_max, np.nanargmin),

@@ -454,9 +454,8 @@ def test_unsupported_outputs_do_not_mutate() -> None:
     np.testing.assert_array_equal(result.value[[0, 2]], [0, 4])
     with pytest.raises(TypeError):
         np.add(q, q, where=Quantity(np.array([1, 0, 1]), ''))
-    for f in (np.linalg.norm, np.sort):
-        with pytest.raises(TypeError):
-            f(q)
+    with pytest.raises(TypeError):
+        np.linalg.norm(q)
     with pytest.raises(DimensionError):
         np.sum(q, initial=1)
     with pytest.raises(TypeError):

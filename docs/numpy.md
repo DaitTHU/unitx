@@ -131,6 +131,14 @@ functions, including exp/log. Python scalar numerical semantics remain native.
 | take, take_along_axis | Preserve unit or point coordinate | indices, axis; take also accepts mode and out |
 | compress, extract, delete | Preserve unit or point coordinate | bare boolean condition; delete accepts obj; compress/delete accept axis; compress accepts out |
 | diagonal, diag, diagflat, tril, triu | Preserve unit or point coordinate, including filled zero readings | offset/axis1/axis2 for diagonal; k for the others; no out |
+| sort, partition | Preserve unit or point coordinate | axis, kind, order; sort accepts stable; partition requires bare integer kth |
+| argsort, argpartition, lexsort | Bare integer indices; lexsort keys keep independent units | axis; argsort/argpartition follow their sort/partition options |
+| searchsorted | Bare insertion indices; align compatible samples | side, bare integer sorter |
+| unique, unique_all/counts/inverse/values | Wrapped values; bare indices and counts | unique accepts return_index/inverse/counts, axis, equal_nan, version-available sorted |
+| isin, intersect1d, union1d, setdiff1d, setxor1d | Align compatible inputs; isin returns a mask, sets return wrapped values | Native assume_unique, invert, kind and return_indices where applicable |
+| nonzero, flatnonzero, argwhere, count_nonzero | Bare indices or counts of nonzero readings | count_nonzero accepts axis and keepdims |
+| zeros_like, empty_like | Preserve unit or point coordinate | dtype, order, subok, shape, device; plain numeric outputs only |
+| real, imag | Preserve linear Quantity unit; views follow NumPy | No options; points are unsupported |
 | sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
 | min/amin/nanmin, max/amax/nanmax | Preserve unit or point coordinate | axis, keepdims, initial, where, out |
@@ -233,6 +241,52 @@ assert np.ndim(independent) == 2 and np.size(independent, axis=0) == 2
 See [joining, splitting and indexing](numpy/indexing.md) for compatible inputs,
 point coordinates, structural indices, diagonal zero filling, views and output
 buffers.
+
+## Sorting, searching and sets
+
+`sort` and `partition` operate on the stored readings, without changing units
+or point coordinates. `argsort`, `argpartition`, and `lexsort` return bare
+indices. Each `lexsort` key retains its own unit or coordinate: keys need not
+have compatible physical dimensions. Supply keys as numeric scalars/ndarrays
+or wrapped samples, not implicit list magnitudes.
+
+`searchsorted`, `isin`, and the four binary set functions align inputs to the
+first wrapped sample's unit or coordinate. They share the joining rules:
+bare numbers/ndarrays are dimensionless, points and differences cannot mix,
+and point families and logarithmic conventions must match. Unit alignment
+uses the numerical conversion rules above, including floating rounding and
+overflow; set membership has NumPy's equality semantics, without tolerance.
+
+`unique` wraps only its values; its optional index, inverse and count outputs
+stay bare. `unique_all`, `unique_counts`, and `unique_inverse` retain NumPy's
+namedtuple type and fields, with only `values` wrapped. `unique_values` returns
+one wrapped array. Native NaN behavior and output ordering follow the selected
+function. NumPy 2.3 introduced `unique(sorted=...)`; older NumPy rejects that
+keyword. `nonzero`, `flatnonzero`, `argwhere`, and `count_nonzero` use stored
+readings, including coordinate zero for points. None of these functions has
+an `out` option. Indices such as `kth` and `sorter` must be bare integers.
+
+## Allocation and complex components
+
+`zeros_like(q)` and `empty_like(q)` allocate numeric storage while preserving
+the complete unit or point coordinate. Native dtype, order, shape overrides,
+writeability and errors apply. Zero-filled points mean zero in their retained
+coordinate, as for diagonal construction. `empty_like` leaves values
+uninitialized. Boolean, object, string and other unsupported magnitude dtypes
+remain rejected; `subok` does not enable ndarray subclasses.
+
+`real(q)` and `imag(q)` operate on linear quantities, including complex
+magnitudes, and retain the full unit. Real/imaginary views share storage with
+the original wherever NumPy does, including writeability. Points are not
+supported for these component operations.
+
+```python
+samples = Quantity(np.array([1.0 + 2.0j, 3.0 + 4.0j]), 'V')
+buffer = np.empty_like(samples, shape=(3, 2))
+buffer[:] = samples
+np.testing.assert_array_equal(np.real(buffer).value[0], [1, 3])
+np.testing.assert_array_equal(np.imag(buffer).value[0], [2, 4])
+```
 
 ## Selection and clipping
 
