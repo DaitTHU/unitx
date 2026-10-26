@@ -43,6 +43,13 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     normalized = cast(Quantity[Array], np.sinh(Quantity(values, si.one)))
     assert normalized.unit == si.one
     np.testing.assert_allclose(normalized.value, np.sinh(values))
+    force = Quantity(np.eye(3), si.N)
+    displacement = Quantity(values, si.m)
+    work = cast(Quantity[Array], np.tensordot(force, displacement, axes=1))
+    assert work.unit == si.N * si.m
+    np.testing.assert_array_equal(work.value, values)
+    contracted = cast(Quantity[Array], np.einsum('ij,j->i', force, displacement))
+    np.testing.assert_array_equal(contracted.value, values)
     distance = Quantity(values.copy(), si.m)
     assert_type(distance, Quantity[NDArray[np.float64]])
     assert_type(distance.unit, Unit)

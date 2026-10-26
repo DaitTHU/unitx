@@ -105,6 +105,7 @@ methods, mixed array types, and keywords fail explicitly.
 | isfinite, isnan, isinf, signbit | Bare boolean results |
 | modf | Fractional and integral parts in the input unit |
 | frexp | Mantissa in the input unit; bare integer binary exponent |
+| vecdot | Conjugate first input; product unit; axis/axes options |
 | add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims, initial, where for reduce |
 | multiply.reduce | Product unit rules below; accepts axis, dtype, keepdims, initial, where, out |
 
@@ -121,6 +122,9 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 
 | NumPy function | Unit/result rule | Supported options |
 | --- | --- | --- |
+| dot, inner, outer, vdot, linalg.vecdot, tensordot, einsum, kron, cross, convolve, correlate, linalg.multi_dot | Product units; [contraction rules](numpy/contractions.md) | Native shape/axis/mode/path rules; out on dot, outer, einsum, multi_dot |
+| einsum_path | Bare path and diagnostic string | Native subscript/optimization options |
+| trace | Preserve linear unit | offset, axis1, axis2, dtype, out |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |

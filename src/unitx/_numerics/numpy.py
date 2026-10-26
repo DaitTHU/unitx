@@ -419,7 +419,10 @@ def _dispatch_ufunc(
         return _wrap(getattr(ufunc, method)(a, **kwargs), unit)
     if method != '__call__':
         return NotImplemented
-    if kwargs.keys() - {'where', 'dtype', 'casting', 'order', 'subok'}:
+    allowed = {'where', 'dtype', 'casting', 'order', 'subok'}
+    if ufunc is np.vecdot:
+        allowed |= {'axis', 'axes'}
+    if kwargs.keys() - allowed:
         return NotImplemented
     _validate_where(kwargs)
     # Explicit dtype=object/str/etc must not escape the supported numerical domain.
@@ -475,7 +478,7 @@ def _dispatch_ufunc(
         if ratio == one:
             return ufunc(a, b, **kwargs)
         return ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs)
-    if ufunc in (np.multiply, np.divide, np.true_divide, np.matmul):
+    if ufunc in (np.multiply, np.divide, np.true_divide, np.matmul, np.vecdot):
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
         assert isinstance(u, Unit) and isinstance(v, Unit)
@@ -567,6 +570,7 @@ def _dispatch_ufunc(
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit())
+
     return NotImplemented
 
 
@@ -653,6 +657,25 @@ def dispatch_function(
 ) -> Any:
     if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
+    if func in (
+        np.dot,
+        np.inner,
+        np.outer,
+        np.vdot,
+        np.linalg.vecdot,
+        np.tensordot,
+        np.kron,
+        np.cross,
+        np.convolve,
+        np.correlate,
+    ):
+        return _binary_product(func, *args, **kwargs)
+    if func in (np.einsum, np.einsum_path):
+        return _einsum(func, *args, **kwargs)
+    if func is np.linalg.multi_dot:
+        return _multi_dot(*args, **kwargs)
+    if func is np.trace:
+        return _trace(*args, **kwargs)
     if func is np.where:
         return _where(*args, **kwargs)
     if func is np.clip:
@@ -723,6 +746,75 @@ def dispatch_function(
     if handler is None:
         return NotImplemented
     return handler(*args, **kwargs)
+
+
+def _product_parts(operands: Any) -> tuple[list[Any], Unit]:
+    values = []
+    unit = Unit()
+    for operand in operands:
+        if not _is_supported_operand(operand):
+            error_message = 'Products require numeric scalars, ndarrays or linear quantities.'
+            raise TypeError(error_message)
+        value, source = _linear_parts(operand)
+        values.append(value)
+        unit *= source
+    return values, unit
+
+
+def _binary_product(func: Any, a: Any, b: Any, *args: Any, **kwargs: Any) -> Any:
+    values, unit = _product_parts((a, b))
+    out = None
+    if func in (np.dot, np.outer):
+        if args:
+            if len(args) != 1 or 'out' in kwargs:
+                error_message = 'Supply out once.'
+                raise TypeError(error_message)
+            out, args = args[0], ()
+        else:
+            out = kwargs.pop('out', None)
+    value = (
+        _call_with_warnings(func, *values, *args, **kwargs)
+        if func is np.cross
+        else func(*values, *args, **kwargs)
+    )
+    return _write_output(_wrap(value, unit), out)
+
+
+def _einsum(func: Any, *operands: Any, **kwargs: Any) -> Any:
+    if not operands:
+        error_message = 'einsum requires operands and subscripts.'
+        raise TypeError(error_message)
+    if isinstance(operands[0], str):
+        indices = range(1, len(operands))
+    else:
+        if len(operands) < 2:
+            error_message = 'einsum requires operands and subscripts.'
+            raise TypeError(error_message)
+        indices = range(0, len(operands) - 1, 2)
+    arguments = list(operands)
+    values, unit = _product_parts(arguments[i] for i in indices)
+    for i, value in zip(indices, values):
+        arguments[i] = value
+    if func is np.einsum_path:
+        return func(*arguments, **kwargs)
+    out = kwargs.pop('out', None)
+    _validate_dtype(kwargs.get('dtype'))
+    result = _wrap(func(*arguments, **kwargs), unit)
+    return _write_output(result, out, casting=kwargs.get('casting', 'safe'))
+
+
+def _multi_dot(arrays: Any, *, out: Any = None) -> Any:
+    values, unit = _product_parts(arrays)
+    return _write_output(_wrap(np.linalg.multi_dot(values), unit), out)
+
+
+def _trace(
+    a: Any, offset: int = 0, axis1: int = 0, axis2: int = 1, dtype: Any = None, out: Any = None
+) -> Any:
+    values, unit = _product_parts((a,))
+    _validate_dtype(dtype)
+    value = np.trace(values[0], offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
+    return _write_output(_wrap(value, unit), out)
 
 
 def _where(condition: Any, x: Any, y: Any, /) -> Any:
@@ -996,18 +1088,22 @@ def _round(q: Any, decimals: int = 0, out: Any = None) -> Any:
 
 
 def _fix(q: Any, out: Any = None) -> Any:
-    # Newer NumPy deprecates fix. Forward its warning at the user's call site,
+    return _write_output(_wrap(_call_with_warnings(np.fix, q.value), q.unit), out)
+
+
+def _call_with_warnings(func: Any, *args: Any, **kwargs: Any) -> Any:
+    # Forward NumPy deprecations at the user's call site,
     # respecting their filters, before committing any output.
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always', DeprecationWarning)
-        value = np.fix(q.value)
+        value = func(*args, **kwargs)
     for warning in caught:
         warnings.warn(
             warning.message,
             warning.category,
             skip_file_prefixes=(*_WARNING_SKIP_PREFIXES, *np.__path__),
         )
-    return _write_output(_wrap(value, q.unit), out)
+    return value
 
 
 def _angle(q: Any, deg: bool = False) -> Any:

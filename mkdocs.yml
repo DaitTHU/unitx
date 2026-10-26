@@ -27,6 +27,7 @@ nav:
       - Selection and clipping: numpy/selection.md
       - Reductions and statistics: numpy/statistics.md
       - Integration and differentiation: numpy/calculus.md
+      - Vector and tensor products: numpy/contractions.md
       - Writes and output buffers: numpy/writes.md
   - Matplotlib plots: matplotlib.md
   - Display and formatting: display.md
