@@ -25,6 +25,12 @@ Pytest collects runtime tests and source doctests. `tests/test_typing.py` runs
 Pyright against scalar and optional NumPy consumers, including scalar checks
 with NumPy absent. The [typing guide](docs/typing.md) explains the boundaries.
 CI covers Python 3.12–3.15, built-in/SymPy factorization and minimum/current NumPy.
+Before publishing optional-backend or documentation changes, also run the full
+pytest suite and Markdown doctests in a clean environment installed with
+`.[test]` and no NumPy. Confirm `find_spec('numpy') is None`. This checks source
+doctest collection as well as examples; installed-wheel scalar consumers do
+not replace it. NumPy backend modules must remain excluded from source doctest
+collection when NumPy is absent.
 An additional CI job builds the distributions and checks their wheel with the
 consumers in `.github/consumers/`. It copies those scripts and their independent
 Pyright configuration outside the checkout, first checking scalar runtime and

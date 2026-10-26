@@ -8,8 +8,10 @@ from unitx.factor import Factor
 
 # Static-only fixtures run through Pyright in tests/test_typing.py.
 collect_ignore = ['tests/typing', 'tests/numpy_typing']
+collect_ignore_glob = []
 if find_spec('numpy') is None:
-    collect_ignore.append('src/unitx/_numerics/numpy.py')
+    # All optional NumPy backend modules share this filename prefix.
+    collect_ignore_glob.append('src/unitx/_numerics/numpy*.py')
 if find_spec('matplotlib') is None:
     collect_ignore.append('src/unitx/matplotlib.py')
 
