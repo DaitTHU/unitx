@@ -29,6 +29,7 @@ nav:
       - Integration and differentiation: numpy/calculus.md
       - Vector and tensor products: numpy/contractions.md
       - Linear algebra: numpy/linalg.md
+      - FFT and frequency axes: numpy/fft.md
       - Writes and output buffers: numpy/writes.md
   - SciPy support: scipy.md
   - Matplotlib plots: matplotlib.md

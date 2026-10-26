@@ -135,6 +135,9 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | linalg.cholesky | Exact square root of the input unit | upper; native positive-definite/stacked rules |
 | linalg.svd, linalg.svdvals | Input-unit singular values; dimensionless U and Vh | Native full_matrices, compute_uv, hermitian on svd |
 | linalg.eig, linalg.eigh, linalg.eigvals, linalg.eigvalsh | Input-unit eigenvalues; dimensionless eigenvectors when returned | Native stacked/complex rules; UPLO on Hermitian routines |
+| fft.fft/ifft, fft.fft2/ifft2, fft.fftn/ifftn, fft.rfft/irfft, fft.rfft2/irfft2, fft.rfftn/irfftn, fft.hfft/ihfft | Preserve the complete linear input unit | Native n/s, axis/axes and norm; staged out; [FFT rules](numpy/fft.md) |
+| fft.fftshift, fft.ifftshift | Preserve unit or point coordinate | Native axes and odd/even length behavior; no out |
+| fft.fftfreq, fft.rfftfreq | Quantity spacing produces reciprocal-unit Quantity frequencies; bare spacing retains NumPy's bare result | Native n, scalar d and device; works through Quantity arithmetic |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |

@@ -668,6 +668,8 @@ def dispatch_function(
 ) -> Any:
     if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
+    if func in _FFT_FUNCTIONS:
+        return _fft(func, *args, **kwargs)
     if func in (
         np.dot,
         np.inner,
@@ -761,6 +763,42 @@ def dispatch_function(
     if handler is None:
         return NotImplemented
     return handler(*args, **kwargs)
+
+
+def _fft(func: Any, a: Any, *args: Any, **kwargs: Any) -> Any:
+    if not _is_supported_operand(a):
+        error_message = 'FFT requires numeric scalars, ndarrays or linear quantities.'
+        raise TypeError(error_message)
+    values, unit = _linear_parts(a)
+    # Every supported transform has three options followed by out, after a:
+    # n/axis/norm for 1-D transforms, or s/axes/norm for multidimensional ones.
+    if len(args) > 4 or (len(args) == 4 and 'out' in kwargs):
+        error_message = 'Supply at most three FFT options and one output buffer.'
+        raise TypeError(error_message)
+    if len(args) == 4:
+        args, out = args[:3], args[3]
+    else:
+        out = kwargs.pop('out', None)
+    result = Quantity(_call_with_warnings(func, values, *args, **kwargs), unit)
+    return _write_output(result, out)
+
+
+_FFT_FUNCTIONS = {
+    np.fft.fft,
+    np.fft.ifft,
+    np.fft.fft2,
+    np.fft.ifft2,
+    np.fft.fftn,
+    np.fft.ifftn,
+    np.fft.rfft,
+    np.fft.irfft,
+    np.fft.rfft2,
+    np.fft.irfft2,
+    np.fft.rfftn,
+    np.fft.irfftn,
+    np.fft.hfft,
+    np.fft.ihfft,
+}
 
 
 def _linalg_parts(value: Any) -> tuple[Any, Unit]:
@@ -1836,6 +1874,8 @@ def _extremum(
 
 
 _ARRAY_FUNCTIONS = {
+    np.fft.fftshift: partial(_array_transform, np.fft.fftshift),
+    np.fft.ifftshift: partial(_array_transform, np.fft.ifftshift),
     np.reshape: _reshape,
     np.transpose: _transpose,
     np.squeeze: _squeeze,

@@ -1,6 +1,6 @@
 """Check array runtime and inferred types using the installed wheel."""
 
-from typing import assert_type, cast
+from typing import Any, assert_type, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -359,7 +359,50 @@ def check_sinc() -> None:
     np.testing.assert_allclose(result.value, np.sinc(x.value_in(si.one)))
 
 
+def check_fft() -> None:
+    x = Quantity(np.arange(6.0).reshape(2, 3), si.m)
+    for name in (
+        'fft',
+        'ifft',
+        'rfft',
+        'irfft',
+        'hfft',
+        'ihfft',
+        'fft2',
+        'ifft2',
+        'fftn',
+        'ifftn',
+        'rfft2',
+        'irfft2',
+        'rfftn',
+        'irfftn',
+    ):
+        operation = getattr(np.fft, name)
+        result = cast(Quantity[Array], operation(x))
+        assert result.unit == x.unit
+        np.testing.assert_allclose(result.value, operation(x.value))
+    signal = Quantity(np.array([1.0, 2, 3, 4, 5]), si.m)
+    spectrum = cast(Quantity[Array], np.fft.rfft(signal))
+    restored = cast(Quantity[Array], np.fft.irfft(spectrum, n=signal.size))
+    np.testing.assert_allclose(restored.value_in(si.m), signal.value)
+    spacing = 2 * si.ms
+    # Some NumPy versions' frequency-helper stubs reject Quantity spacing.
+    frequency = cast(Quantity[Array], cast(Any, np.fft.rfftfreq)(signal.size, d=spacing))
+    assert frequency.unit == si.ms**-1
+    np.testing.assert_allclose(frequency.value_in(si.Hz), [0, 100, 200])
+    full = cast(Quantity[Array], cast(Any, np.fft.fftfreq)(signal.size, d=spacing))
+    centered = cast(Quantity[Array], np.fft.fftshift(full))
+    np.testing.assert_allclose(centered.value_in(si.Hz), [-200, -100, 0, 100, 200])
+    unshifted = cast(Quantity[Array], np.fft.ifftshift(centered))
+    np.testing.assert_allclose(unshifted.value, full.value)
+    output = Quantity(np.empty(3, dtype=complex), si.cm)
+    assert signal.__array_function__(np.fft.rfft, (Quantity,), (signal,), {'out': output}) is output
+    np.testing.assert_allclose(output.value_in(si.m), spectrum.value)
+    assert (spectrum * spacing).unit == si.m * si.ms
+
+
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))
 check_linalg()
 check_factorizations()
 check_sinc()
+check_fft()

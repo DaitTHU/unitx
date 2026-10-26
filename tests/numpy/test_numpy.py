@@ -455,7 +455,8 @@ def test_unsupported_outputs_do_not_mutate() -> None:
     with pytest.raises(TypeError):
         np.add(q, q, where=Quantity(np.array([1, 0, 1]), ''))
     with pytest.raises(TypeError):
-        np.fft.fft(q)
+        np.fft.fft(q, out=buffer)
+    np.testing.assert_array_equal(buffer, [-123] * 3)
     with pytest.raises(DimensionError):
         np.sum(q, initial=1)
     with pytest.raises(TypeError):
