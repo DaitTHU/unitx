@@ -22,6 +22,7 @@ from unitx import (
     Unit,
     UnitCatalog,
     math,
+    statistics,
     time,
 )
 from unitx.cgs import cgs, emu, esu, gaussian, hl
@@ -40,6 +41,17 @@ assert find_spec('numpy') is None
 assert import_module('unitx.math') is math
 assert import_module('unitx.time') is time
 assert callable(simpson)
+assert import_module('unitx.statistics') is statistics
+average = statistics.mean([1 * si.m, 200 * si.cm, 3 * si.m])
+assert_type(average, Quantity[int | float | Fraction | Decimal])
+assert average == 2 * si.m
+assert statistics.fmean([20 @ si.degC, 30 @ si.degC]) == 25 @ si.degC
+assert statistics.variance([1 * si.m, 2 * si.m, 3 * si.m]) == 1 * si.m**2
+assert statistics.pvariance([20 @ si.degC, 30 @ si.degC]) == 25 * si.K**2
+assert statistics.stdev([1 * si.m, 2 * si.m, 3 * si.m]) == 1 * si.m
+assert statistics.pstdev([20 @ si.degC, 30 @ si.degC]) == 5 * si.K
+assert statistics.covariance([1 * si.m, 2 * si.m], [1 * si.s, 3 * si.s]) == 1 * si.m * si.s
+assert statistics.correlation([1, 2, 3], [20 @ si.degC, 30 @ si.degC, 40 @ si.degC]).value == 1
 assert_type(SI.re, Quantity[Decimal])
 assert_type(SI.c**2, Quantity[int])
 assert type(SI.re.value) is Decimal

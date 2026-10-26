@@ -21,6 +21,7 @@ nav:
   - Points and differences: affine.md
   - Logarithmic quantities: logarithmic.md
   - Mathematics and time: stdlib.md
+  - Scalar statistics: statistics.md
   - NumPy:
       - Overview and support matrix: numpy.md
       - Joining, splitting and indexing: numpy/indexing.md

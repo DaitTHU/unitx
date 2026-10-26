@@ -19,6 +19,7 @@ reading about an older version.
 | Work with absolute temperatures | [Points and differences](affine.md) |
 | Work with logarithmic differences and readings | [Logarithmic quantities](logarithmic.md) |
 | Call unit-aware mathematical functions or read a clock | [Standard-library enhancements](stdlib.md) |
+| Compute scalar means, dispersion and paired statistics | [Scalar statistics](statistics.md) |
 | Calculate with arrays, masks, reductions and output buffers | [NumPy support](numpy.md) |
 | Use Bessel functions and Simpson integration | [SciPy support](scipy.md) |
 | Plot quantities with automatic axis conversion | [Matplotlib plots](matplotlib.md) |
@@ -54,7 +55,7 @@ to a zero-origin coordinate such as K.
 
 The package root exports `Quantity`, `AffineQuantity`, `Unit`, `AffineUnit`,
 `LogUnit`, `LogQuantity`, `Dimension`, `DIMENSIONLESS`, `UnitCatalog`, `Registry`, `one`, `ten`, `pi`, the `si`,
-`imperial`, `cgs`, `math`, and `time` modules. Import the unit and constant namespaces with
+`imperial`, `cgs`, `math`, `statistics`, and `time` modules. Import the unit and constant namespaces with
 `from unitx.si import si, SI`. `Factor` and other building blocks
 remain available from their own modules; names beginning with `_` are internal.
 

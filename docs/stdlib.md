@@ -2,7 +2,8 @@
 
 `unitx.math` provides a finite set of unit-aware real functions. `unitx.time`
 provides integer nanosecond clock readings and explicit duration adapters.
-Both work without NumPy installed.
+`unitx.statistics` provides scalar means, dispersion and paired statistics.
+These modules work without NumPy installed.
 
 ## Supported modules
 
@@ -10,6 +11,7 @@ Both work without NumPy installed.
 | --- | --- |
 | `unitx.math` | Unit-aware real mathematical functions with scalar and optional NumPy backends |
 | `unitx.time` | Integer ns clocks, scalar sleep, timedelta and aware datetime conversion |
+| `unitx.statistics` | [Scalar means, dispersion, covariance and correlation](statistics.md) |
 
 These are explicit adapters, not complete replacements for Python's modules.
 For numerical precision see [scalar behavior](scalars.md); for annotations
