@@ -167,6 +167,49 @@ directly; runtime tests use ordinary NumPy calls.
 Runtime support and installed-consumer checks cover
 these calls; unitx does not replace NumPy's stubs.
 
+### NumPy component inference
+
+For NumPy magnitudes, `q.real` and `q.imag` preserve the complete unit and
+the magnitude's native component type. NumPy's `real` and `imag` annotations
+recognize these properties, so ordinary NumPy calls retain precise Quantity
+types too:
+
+```python
+import numpy as np
+from numpy.typing import NDArray
+from typing import assert_type
+from unitx import Quantity
+
+
+def components(q: Quantity[NDArray[np.complex128]]) -> None:
+    assert_type(q.real, Quantity[NDArray[np.float64]])
+    assert_type(np.real(q), Quantity[NDArray[np.float64]])
+    assert_type(np.imag(q), Quantity[NDArray[np.float64]])
+```
+
+Strict consumers verify complex64/complex128 arrays and NumPy scalars with
+minimum/current NumPy. This is a structural property protocol already present
+in NumPy's annotations; adding return annotations to `__array_function__` alone
+does not refine arbitrary calls such as `np.reshape(q, shape)`, `np.trapezoid`
+or `np.linalg.norm(q)`. Type checkers resolve each function's declared overloads,
+rather than executing its dispatch implementation. When those overloads lose
+the wrapper, a local `typing.cast` can state a separately verified return type.
+It neither validates units nor converts the magnitude.
+
+An exact ndarray-only return is a separate issue: even scalar/array arithmetic
+can return a NumPy scalar for a zero-dimensional ndarray. General `NDArray`
+annotations do not establish that an input has a nonzero number of axes.
+Conversions can also promote integer dtypes to floating types. Therefore the
+wider numerical result annotations are intentional; annotating all arithmetic
+as the input dtype or `Self` would hide real changes. A future typed adapter
+would require its own explicit signatures; unitx does not install global NumPy
+stub replacements or type-checker plugins.
+
+See NumPy's [component annotations](https://github.com/numpy/numpy/blob/v2.4.4/numpy/lib/_type_check_impl.pyi)
+and Python's [overload resolution rules](https://typing.python.org/en/latest/spec/overload.html).
+
+### External-library boundaries
+
 The optional [Matplotlib adapter](matplotlib.md) can handle the plotting
 boundary directly, so `ax.plot(t, q)` needs no manual magnitude extraction.
 Other external-library boundaries still use `.value` or `.value_in(unit)`.

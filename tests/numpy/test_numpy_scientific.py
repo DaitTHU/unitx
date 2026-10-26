@@ -1,6 +1,7 @@
 """Array allocation and complex components in numerical calculations."""
 
 from collections.abc import Callable
+from operator import attrgetter
 from typing import Any
 
 import pytest
@@ -48,7 +49,7 @@ def test_numpy_allocation_invalid_dtype(operation: Callable[..., Any], dtype: An
         operation(Quantity(np.array([1, 2]), 'm'), dtype=dtype)
 
 
-@pytest.mark.parametrize('operation', [np.real, np.imag])
+@pytest.mark.parametrize('operation', [np.real, np.imag, attrgetter('real'), attrgetter('imag')])
 @pytest.mark.parametrize(
     'value', [np.complex128(1 + 2j), np.array(1 + 2j), np.array([1 + 2j, 3 + 4j]), np.empty((0, 2))]
 )
@@ -63,10 +64,11 @@ def test_numpy_complex_component(operation: Callable[..., Any], value: Any) -> N
     np.testing.assert_array_equal(result.value, expected)
 
 
-def test_numpy_complex_component_shared_write() -> None:
+@pytest.mark.parametrize('attributes', [False, True])
+def test_numpy_complex_component_shared_write(attributes: bool) -> None:
     q = Quantity(np.array([1 + 2j]), 'V/C')
-    real = np.real(q)
-    imag = np.imag(q)
+    real = q.real if attributes else np.real(q)
+    imag = q.imag if attributes else np.imag(q)
     real[0] = Quantity(3, q.unit)
     imag[0] = Quantity(4, q.unit)
     np.testing.assert_array_equal(q.value, [3 + 4j])

@@ -31,7 +31,14 @@ from ._numerics import (
     as_int_if_integral,
     is_numpy_object,
 )
-from ._numerics.numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._numerics.numpy_typing import (
+    HasImag,
+    HasReal,
+    NumpyArray,
+    NumpyDType,
+    NumpyValue,
+    WritableArray,
+)
 from ._numerics.scaling import scale_value
 from ._operands import _LinearUnitSource, _Point, linear_unit
 from .dimension import DIMENSIONLESS, Dimension
@@ -1689,6 +1696,16 @@ class Quantity(Generic[T]):
     @property
     def T[A: Array](self: Quantity[A]) -> Quantity[A]:
         return Quantity(self._array_value().T, self.unit)
+
+    @property
+    def real[A: Array](self: Quantity[HasReal[A]]) -> Quantity[A]:
+        """The NumPy magnitude's real component, retaining its unit and view."""
+        return Quantity(self._array_value().real, self.unit)
+
+    @property
+    def imag[A: Array](self: Quantity[HasImag[A]]) -> Quantity[A]:
+        """The NumPy magnitude's imaginary component, retaining its unit and view."""
+        return Quantity(self._array_value().imag, self.unit)
 
     def __getitem__(self: Quantity[Array], key: Any) -> Quantity[NumpyValue]:
         return Quantity(self._array_value()[key], self.unit)

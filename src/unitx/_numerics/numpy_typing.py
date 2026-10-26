@@ -4,9 +4,21 @@ Inputs still use the NumPy-independent Array protocol. Missing optional NumPy
 types must never turn scalar overload inputs into Any or Unknown.
 """
 
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar
 
 from . import Array
+
+Component = TypeVar('Component', bound=Array, covariant=True)
+
+
+class HasReal(Array, Protocol[Component]):
+    @property
+    def real(self) -> Component: ...
+
+
+class HasImag(Array, Protocol[Component]):
+    @property
+    def imag(self) -> Component: ...
 
 
 class WritableArray(Array, Protocol):
