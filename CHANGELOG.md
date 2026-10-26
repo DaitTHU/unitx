@@ -1,6 +1,25 @@
 # Changelog
 
-## [Unreleased]
+## [0.16.8] - 2026-10-26
+
+### Added
+
+- Support NumPy vector, tensor and discrete products: `dot`, `inner`, `outer`,
+  `vdot`, `vecdot`/`linalg.vecdot`, `tensordot`, `einsum`, `einsum_path`, `kron`,
+  `cross`, `trace`, `convolve`, `correlate` and `linalg.multi_dot`. Preserve
+  product units, native conjugation and applicable staged output writes.
+- Support `scipy.special.jv` directly for dimensionless Quantity inputs and
+  add the explicit `unitx.scipy.simpson` integration adapter. Add the optional
+  `scipy` extra and minimum/current SciPy validation; core imports remain free
+  of NumPy/SciPy runtime dependencies.
+
+### Fixed
+
+- Infer integer magnitudes for small nonnegative literal powers, and float
+  magnitudes for small negative literal powers, using Quantity overloads.
+  Computed Decimal constants such as `SI.re` now retain their numerical type
+  through their original formulas without constant-level casts or numerical
+  changes. General integer exponents retain a wider result domain.
 
 ## [0.16.7] - 2026-10-26
 
