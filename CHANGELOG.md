@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Correct NumPy selection and statistics guides to describe supported extrema
+  methods and dimensionless multiply.accumulate/reduceat.
+
+### Changed
+
+- Check installed-wheel runtime and types with minimum and current NumPy,
+  Matplotlib and SciPy in CI, preserving scalar checks without NumPy.
+- Add complete coordinate-statistics, circuit-solve and sampled-spectrum
+  regression flows across units and output-buffer boundaries.
+
 ## [0.16.13] - 2026-10-27
 
 ### Added

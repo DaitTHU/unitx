@@ -96,8 +96,10 @@ shape and unchanged targets on computation, unit, shape, or casting errors.
 `cumprod` and `nancumprod` support dimensionless input, normalizing its complete
 scale first. Dimensional cumulative products remain unsupported because partial
 products generally require different units at different positions.
-`multiply.accumulate` remains unsupported. `nancumsum` preserves linear units
-and uses NumPy's NaN handling. The supported
+`multiply.accumulate` and `multiply.reduceat` support dimensionless input with
+the same scale normalization; dimensional inputs remain unsupported. See
+[ufunc methods](writes.md#ufunc-methods) for options and output buffers.
+`nancumsum` preserves linear units and uses NumPy's NaN handling. The supported
 axis, empty-product, initial, and mask behavior follows
 [NumPy prod](https://numpy.org/doc/stable/reference/generated/numpy.prod.html)
 and [ufunc.reduce](https://numpy.org/doc/stable/reference/generated/numpy.ufunc.reduce.html),

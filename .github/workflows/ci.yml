@@ -92,8 +92,20 @@ jobs:
           python -m doctest README.md docs/*.md docs/catalogues/*.md docs/numpy/*.md
 
   installed:
-    name: Installed wheel (Python 3.12)
+    name: Installed wheel (NumPy ${{ matrix.dependencies }}, Python 3.12)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dependencies: minimum
+            numpy: 'numpy==2.1.*'
+            matplotlib: 'matplotlib==3.9.*'
+            scipy: 'scipy==1.14.*'
+          - dependencies: current
+            numpy: 'numpy>=2.1'
+            matplotlib: 'matplotlib>=3.9'
+            scipy: 'scipy>=1.14'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v7
@@ -133,7 +145,7 @@ jobs:
           python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" scalars.py
 
       - name: Install optional NumPy
-        run: python -m pip install 'numpy>=2.1'
+        run: python -m pip install '${{ matrix.numpy }}'
 
       - name: Check installed NumPy runtime and types
         working-directory: ${{ runner.temp }}/unitx-consumers
@@ -142,7 +154,7 @@ jobs:
           python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" arrays.py
 
       - name: Install optional Matplotlib
-        run: python -m pip install 'matplotlib>=3.9'
+        run: python -m pip install '${{ matrix.matplotlib }}'
 
       - name: Check installed Matplotlib runtime and types
         working-directory: ${{ runner.temp }}/unitx-consumers
@@ -151,7 +163,7 @@ jobs:
           python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" plots.py
 
       - name: Install optional SciPy
-        run: python -m pip install 'scipy>=1.14'
+        run: python -m pip install '${{ matrix.scipy }}'
 
       - name: Check installed SciPy runtime and types
         working-directory: ${{ runner.temp }}/unitx-consumers

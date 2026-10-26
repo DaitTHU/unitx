@@ -31,15 +31,20 @@ pytest suite and Markdown doctests in a clean environment installed with
 doctest collection as well as examples; installed-wheel scalar consumers do
 not replace it. NumPy backend modules must remain excluded from source doctest
 collection when NumPy is absent.
-An additional CI job builds the distributions and checks their wheel with the
-consumers in `.github/consumers/`. It copies those scripts and their independent
-Pyright configuration outside the checkout, first checking scalar runtime and
-types without NumPy, then installing NumPy and checking array runtime and types.
-It then installs Matplotlib and checks the optional axis converter with the
-installed plotting consumer, then checks the optional SciPy integration consumer. The NumPy minimum job also checks Matplotlib 3.9;
-the current job uses current Matplotlib. These jobs also exercise minimum/current
-SciPy for the finite jv and Simpson integration support.
-The release workflow runs the same consumers before uploading distributions.
+Installed-wheel CI jobs cover minimum and current optional dependencies using
+the consumers in `.github/consumers/`. Each job copies those scripts and their
+independent Pyright configuration outside the checkout, first checking scalar
+runtime and types without NumPy, then installing NumPy and checking array
+runtime and types. It then installs Matplotlib and checks the optional axis
+converter, followed by the SciPy integration consumer. The minimum job uses
+NumPy 2.1, Matplotlib 3.9 and SciPy 1.14; the current job uses current versions.
+The release workflow runs the same consumers with current dependencies before
+uploading distributions. Source tests also cover both dependency combinations.
+
+`tests/numpy/test_numpy_workflows.py` checks complete coordinate-statistics,
+circuit-solve and sampled-spectrum flows. It verifies physical results across
+unit choices, reconstruction/energy identities and staged output writes,
+including overlapping storage and unchanged buffers on failure.
 Test functions and helpers have annotated parameters and return values. The
 dedicated Ruff command checks those signatures; static inference regressions
 use the separate Pyright consumers rather than annotating expected results.

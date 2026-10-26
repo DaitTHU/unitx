@@ -3,6 +3,7 @@
 from typing import assert_type
 
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from unitx import Quantity
@@ -10,7 +11,9 @@ from unitx.matplotlib import register
 from unitx.si import si
 
 assert_type(register(), None)
-axes = Figure().add_subplot()
+# Matplotlib 3.9 leaves add_subplot's **kwargs unannotated.
+axes = Figure().add_subplot()  # pyright: ignore[reportUnknownMemberType]
+assert_type(axes, Axes)
 time = Quantity(np.array([0.0, 1, 2]), si.s)
 distance = Quantity(np.array([1.0, 2, 3]), si.m)
 # Matplotlib leaves **kwargs and Axis.set_units' unit parameter unannotated.
