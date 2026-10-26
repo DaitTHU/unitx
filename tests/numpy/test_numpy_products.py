@@ -330,6 +330,7 @@ def test_numpy_product_foreign_protocol() -> None:
     q = Quantity(np.array([2, 3]), 'm')
     assert np.prod(q, out=Foreign()) == 'foreign dispatched'
     assert np.multiply.reduce(q, out=Foreign()) == 'foreign dispatched'
-    for operation in (np.cumprod, np.multiply.accumulate):
-        with pytest.raises(TypeError):
-            operation(q)
+    with pytest.raises(DimensionError):
+        np.cumprod(q)
+    with pytest.raises(TypeError):
+        np.multiply.accumulate(q)

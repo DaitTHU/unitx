@@ -13,11 +13,12 @@ from ._notebooks import notebook_source
 NOTEBOOKS = sorted((Path(__file__).resolve().parents[1] / 'examples').glob('*.ipynb'))
 
 
-def test_numpy_fft_documentation() -> None:
+@pytest.mark.parametrize('guide', ['fft', 'histograms'])
+def test_numpy_documentation(guide: str) -> None:
     pytest.importorskip('numpy')
-    path = Path(__file__).resolve().parents[1] / 'docs/numpy/fft.md'
+    path = Path(__file__).resolve().parents[1] / f'docs/numpy/{guide}.md'
     blocks = re.findall(r'^```python\n(.*?)^```', path.read_text(encoding='utf-8'), re.M | re.S)
-    assert blocks, 'Keep runnable Python examples in the FFT guide.'
+    assert blocks, 'Keep runnable Python examples in the NumPy guides.'
     namespace = {'__name__': '__main__'}
     for index, source in enumerate(blocks, start=1):
         exec(compile(source, f'{path}:python block {index}', 'exec'), namespace)

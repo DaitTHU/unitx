@@ -138,6 +138,11 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | fft.fft/ifft, fft.fft2/ifft2, fft.fftn/ifftn, fft.rfft/irfft, fft.rfft2/irfft2, fft.rfftn/irfftn, fft.hfft/ihfft | Preserve the complete linear input unit | Native n/s, axis/axes and norm; staged out; [FFT rules](numpy/fft.md) |
 | fft.fftshift, fft.ifftshift | Preserve unit or point coordinate | Native axes and odd/even length behavior; no out |
 | fft.fftfreq, fft.rfftfreq | Quantity spacing produces reciprocal-unit Quantity frequencies; bare spacing retains NumPy's bare result | Native n, scalar d and device; works through Quantity arithmetic |
+| ptp | Complete difference unit, including points | axis, out, keepdims |
+| cov, corrcoef | Squared difference unit / dimensionless coefficients | Native matrix/options; [covariance rules](numpy/histograms.md) |
+| histogram, histogram2d, histogramdd, histogram_bin_edges, digitize, bincount | Coordinate edges, weight counts, inverse-coordinate density, or bare indices | [Histogram rules](numpy/histograms.md) |
+| nancumsum | Preserve linear unit | axis, dtype, out |
+| cumprod, nancumprod | Normalize dimensionless inputs; dimensional cumulative products unsupported | axis, dtype, out |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |
@@ -175,7 +180,7 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | clip | Preserve input unit or point coordinate | a_min/a_max or min/max, out; ufunc call options |
 | prod, nanprod | Product unit rules below; nanprod counts selected non-NaN elements | axis, dtype, keepdims, initial, where, out |
 | median, nanmedian | Preserve unit or point coordinate | axis, keepdims, out; overwrite_input=False |
-| std/nanstd, var/nanvar | Difference unit / square difference unit | axis, dtype, ddof, keepdims, where, out |
+| std/nanstd, var/nanvar | Difference unit / square difference unit | axis, dtype, ddof/correction, mean, keepdims, where, out |
 | average | Preserve sample unit; returned weight sum is a dimensionless Quantity | axis, weights, returned, keepdims; linear Quantity only |
 | quantile, percentile, nanquantile, nanpercentile | Preserve sample unit; dimensionless q and weights | axis, out, method, keepdims, weights; overwrite_input=False; linear Quantity only |
 | cumsum | Preserve unit | axis, dtype, out |
@@ -192,8 +197,10 @@ checks. Function and reduction outputs follow the rules below;
 overwrite_input=True is rejected. Reduction/statistical `where` is supported
 for sum/nansum, mean/nanmean, std/nanstd, var/nanvar, add.reduce, prod/nanprod,
 multiply.reduce, and min/max/nanmin/nanmax; `initial` is supported for
-sum/nansum/add.reduce, prod/nanprod/multiply.reduce, and min/max/nanmin/nanmax. Precomputed `mean`,
-`correction`, and other unsupported keywords raise TypeError.
+sum/nansum/add.reduce, prod/nanprod/multiply.reduce, and min/max/nanmin/nanmax.
+std/var/nanstd/nanvar accept precomputed `mean` and dimensionless `correction`;
+the mean must preserve sample quantity/point semantics and is converted to the
+sample reference. NumPy controls shape and ddof/correction conflicts.
 Indexed assignment and augmented arithmetic on ndarrays follow the fixed-target
 rules below. Python and NumPy scalar magnitudes retain ordinary result/rebinding
 behavior for augmented arithmetic.

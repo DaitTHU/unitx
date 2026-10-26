@@ -294,6 +294,6 @@ def test_numpy_statistics_invalid_options() -> None:
     with pytest.raises(TypeError):
         np.add.accumulate(q, where=True)
     for operation in (np.std, np.var, np.nanstd, np.nanvar):
-        for option in ({'mean': Quantity(1, 'm')}, {'correction': 1}):
-            with pytest.raises(TypeError):
+        for option in ({'mean': Quantity(1, 's')}, {'correction': Quantity(1, 's')}):
+            with pytest.raises(DimensionError):
                 operation(q, **option)

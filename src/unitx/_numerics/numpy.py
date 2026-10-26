@@ -670,6 +670,21 @@ def dispatch_function(
         return NotImplemented
     if func in _FFT_FUNCTIONS:
         return _fft(func, *args, **kwargs)
+    if func in (np.cov, np.corrcoef):
+        return _covariance(func, *args, **kwargs)
+    if func in (
+        np.histogram,
+        np.histogram_bin_edges,
+        np.histogram2d,
+        np.histogramdd,
+        np.digitize,
+        np.bincount,
+    ):
+        from .numpy_histograms import dispatch
+
+        return dispatch(func, *args, **kwargs)
+    if func is np.ptp:
+        return _ptp(*args, **kwargs)
     if func in (
         np.dot,
         np.inner,
@@ -1540,6 +1555,87 @@ def _cumsum(q: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any
     return _write_output(_wrap(np.cumsum(q.value, axis=axis, dtype=dtype), q.unit), out)
 
 
+def _delta_unit(unit: Unit | _Coordinate) -> Unit:
+    return unit.delta_unit if isinstance(unit, _Coordinate) else unit
+
+
+def _ptp(a: Any, axis: Any = None, out: Any = None, keepdims: bool = False) -> Any:
+    if not _is_supported_operand(a):
+        error_message = 'Statistics require numeric scalars, ndarrays, quantities or points.'
+        raise TypeError(error_message)
+    values, unit = _operand_parts(a)
+    result = Quantity(np.ptp(values, axis=axis, keepdims=keepdims), _delta_unit(unit))
+    return _write_output(result, out)
+
+
+def _cumulative(func: Any, a: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any:
+    _validate_dtype(dtype)
+    values, unit = _linear_parts(a)
+    if func in (np.cumprod, np.nancumprod):
+        if unit.dimension != DIMENSIONLESS:
+            error_message = 'Cumulative products support only dimensionless input.'
+            raise DimensionError(error_message)
+        values, unit = scale_magnitude(values, unit.factor), Unit()
+    result = Quantity(func(values, axis=axis, dtype=dtype), unit)
+    return _write_output(result, out)
+
+
+def _covariance(
+    func: Any,
+    m: Any = _UNSET,
+    y: Any = None,
+    rowvar: bool = True,
+    bias: Any = _UNSET,
+    ddof: Any = _UNSET,
+    fweights: Any = None,
+    aweights: Any = None,
+    *,
+    dtype: Any = None,
+    x: Any = _UNSET,
+) -> Any:
+    # corrcoef names its first parameter x; cov names it m.
+    if x is not _UNSET:
+        if m is not _UNSET or func is np.cov:
+            error_message = 'Supply the first covariance input once.'
+            raise TypeError(error_message)
+        m = x
+    if m is _UNSET:
+        error_message = 'A covariance input is required.'
+        raise TypeError(error_message)
+    _validate_dtype(dtype)
+    if not _is_supported_operand(m) or (y is not None and not _is_supported_operand(y)):
+        error_message = 'Covariance requires numeric scalars, ndarrays, quantities or points.'
+        raise TypeError(error_message)
+    mv, mu = _operand_parts(m)
+    unit = _delta_unit(mu)
+    yv = None
+    if y is not None:
+        yv, yu = _operand_parts(y)
+        if func is np.cov:
+            delta = _delta_unit(yu)
+            if not compatible(unit, delta):
+                error_message = 'A joint covariance matrix requires compatible difference units.'
+                raise DimensionError(error_message)
+            yv = scale_magnitude(yv, delta.factor / unit.factor)
+    options = {'rowvar': rowvar, 'dtype': dtype}
+    if bias is not _UNSET:
+        options['bias'] = bias
+    if ddof is not _UNSET:
+        options['ddof'] = _statistic_parameter(ddof, 'ddof') if ddof is not None else None
+    if func is np.cov:
+        options['fweights'] = (
+            None if fweights is None else _statistic_parameter(fweights, 'fweights')
+        )
+        options['aweights'] = (
+            None if aweights is None else _statistic_parameter(aweights, 'aweights')
+        )
+    elif fweights is not None or aweights is not None:
+        error_message = 'corrcoef does not accept weights.'
+        raise TypeError(error_message)
+    result = _call_with_warnings(func, mv, yv, **options)
+    return Quantity(result, unit**2 if func is np.cov else Unit())
+
+
 def _mean(
     func: Any,
     q: Any,
@@ -1720,17 +1816,29 @@ def _std_var(
     axis: Any = None,
     dtype: Any = None,
     out: Any = None,
-    ddof: Any = 0,
+    ddof: Any = _UNSET,
     keepdims: bool = False,
     *,
     where: Any = True,
+    mean: Any = _UNSET,
+    correction: Any = _UNSET,
 ) -> Any:
     _validate_dtype(dtype)
     _validate_where({'where': where})
     delta = q.unit.delta_unit if isinstance(q.unit, _Coordinate) else q.unit
     unit = delta**2 if func in (np.var, np.nanvar) else delta
+    options = {}
+    if ddof is not _UNSET:
+        options['ddof'] = _statistic_parameter(ddof, 'ddof')
+    if correction is not _UNSET:
+        options['correction'] = _statistic_parameter(correction, 'correction')
+    if mean is not _UNSET:
+        options['mean'] = _selection_parts(q, mean)[1]
     result = _wrap(
-        func(q.value, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims, where=where), unit
+        _call_with_warnings(
+            func, q.value, axis=axis, dtype=dtype, keepdims=keepdims, where=where, **options
+        ),
+        unit,
     )
     return _write_output(result, out)
 
@@ -1947,6 +2055,9 @@ _QUANTITY_FUNCTIONS = {
     np.median: partial(_median, np.median),
     np.nanmedian: partial(_median, np.nanmedian),
     np.cumsum: _cumsum,
+    np.nancumsum: partial(_cumulative, np.nancumsum),
+    np.cumprod: partial(_cumulative, np.cumprod),
+    np.nancumprod: partial(_cumulative, np.nancumprod),
     np.prod: partial(_prod, np.multiply.reduce),
     np.nanprod: partial(_prod, np.nanprod),
     np.std: partial(_std_var, np.std),

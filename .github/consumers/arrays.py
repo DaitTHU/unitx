@@ -401,8 +401,61 @@ def check_fft() -> None:
     assert (spectrum * spacing).unit == si.m * si.ms
 
 
+def check_statistics() -> None:
+    q = Quantity(np.array([0.0, 1, 2, 3]), si.m)
+    span = cast(Quantity[Array], np.ptp(q))
+    assert span == 3 * si.m
+    covariance = cast(Quantity[Array], np.cov(q, q.to(si.cm)))
+    assert covariance.unit == si.m**2
+    coefficient = cast(Quantity[Array], np.corrcoef(q, Quantity(q.value, si.s)))
+    assert coefficient.unit == si.one
+    np.testing.assert_allclose(coefficient.value, np.ones((2, 2)))
+    density, edges = cast(
+        tuple[Quantity[Array], Quantity[Array]], np.histogram(q, bins=2, density=True)
+    )
+    assert density.unit == si.m**-1 and edges.unit == si.m
+    integral = cast(Quantity[Array], np.sum(density * np.diff(edges)))
+    np.testing.assert_allclose(integral.value, 1)
+    time = Quantity(q.value, si.s)
+    h2, xe, ye = cast(
+        tuple[Quantity[Array], Quantity[Array], Quantity[Array]],
+        np.histogram2d(q, time, bins=2, density=True),
+    )
+    hd, axes = cast(
+        tuple[Quantity[Array], list[Quantity[Array]]],
+        np.histogramdd((q, time), bins=2, density=True),
+    )
+    assert h2.unit == hd.unit == (si.m * si.s) ** -1
+    assert xe.unit == axes[0].unit == si.m and ye.unit == axes[1].unit == si.s
+    np.testing.assert_allclose(h2.value, hd.value)
+    generated = cast(Quantity[Array], np.histogram_bin_edges(q, bins=2))
+    np.testing.assert_array_equal(generated.value, edges.value)
+    indices = np.digitize(q, edges)
+    assert indices.dtype.kind in 'iu'
+    weighted = cast(
+        Quantity[Array], np.bincount(np.array([0, 1, 0, 1]), weights=Quantity(np.ones(4), si.kg))
+    )
+    assert weighted.unit == si.kg
+    np.testing.assert_array_equal(weighted.value, [2, 2])
+    gapped = Quantity(np.array([1.0, np.nan, 3]), si.m)
+    accumulated = cast(Quantity[Array], np.nancumsum(gapped))
+    np.testing.assert_array_equal(accumulated.value, [1, 1, 4])
+    for operation in (np.cumprod, np.nancumprod):
+        result = cast(Quantity[Array], operation(Quantity(np.array([1.0, 2, 3]), Unit('cm/m'))))
+        assert result.unit == si.one
+        np.testing.assert_allclose(result.value, [0.01, 0.0002, 0.000006])
+    avg = cast(Quantity[Array], np.mean(q))
+    result = cast(
+        Quantity[Array],
+        q.__array_function__(np.var, (Quantity,), (q,), {'mean': avg, 'correction': 1}),
+    )
+    assert result.unit == si.m**2
+    np.testing.assert_allclose(result.value, np.var(q.value, ddof=1))
+
+
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))
 check_linalg()
 check_factorizations()
 check_sinc()
 check_fft()
+check_statistics()

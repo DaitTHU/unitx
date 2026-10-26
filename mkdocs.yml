@@ -27,6 +27,7 @@ nav:
       - Joining, splitting and indexing: numpy/indexing.md
       - Selection and clipping: numpy/selection.md
       - Reductions and statistics: numpy/statistics.md
+      - Histograms and covariance: numpy/histograms.md
       - Integration and differentiation: numpy/calculus.md
       - Vector and tensor products: numpy/contractions.md
       - Linear algebra: numpy/linalg.md

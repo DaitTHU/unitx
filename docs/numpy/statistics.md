@@ -93,8 +93,11 @@ assert weighted.unit == Unit('m2 s')
 
 Both entry points support the output [output rules](writes.md#output-buffers), including exact result
 shape and unchanged targets on computation, unit, shape, or casting errors.
-`cumprod` and `multiply.accumulate` remain unsupported: partial products
-generally require different units at different positions. The supported
+`cumprod` and `nancumprod` support dimensionless input, normalizing its complete
+scale first. Dimensional cumulative products remain unsupported because partial
+products generally require different units at different positions.
+`multiply.accumulate` remains unsupported. `nancumsum` preserves linear units
+and uses NumPy's NaN handling. The supported
 axis, empty-product, initial, and mask behavior follows
 [NumPy prod](https://numpy.org/doc/stable/reference/generated/numpy.prod.html)
 and [ufunc.reduce](https://numpy.org/doc/stable/reference/generated/numpy.ufunc.reduce.html),
@@ -222,8 +225,10 @@ linear Quantities, following quantile and percentile.
 
 `nanmean`, `nanstd`, and `nanvar` accept bare boolean `where` masks; NaN samples
 are omitted from the selected elements. For `nanstd` and `nanvar`, N in
-`N - ddof` is the selected non-NaN count. Precomputed `mean`, `correction` and
-`initial` remain unsupported. `nanmedian`, `nanquantile` and `nanpercentile`
+`N - ddof` is the selected non-NaN count. Precomputed `mean` preserves sample
+quantity/point semantics and converts to the input reference. Dimensionless
+`correction` follows NumPy's ddof conflict rules. `initial` remains unsupported.
+`nanmedian`, `nanquantile` and `nanpercentile`
 reject `overwrite_input=True`, and do not accept `where` or `dtype`.
 Weighted NaN quantiles require `method="inverted_cdf"`; a NaN sample and its
 associated weight are omitted together. Weights themselves are not cleaned.
