@@ -20,17 +20,16 @@ promotion and numerical behavior. Options follow the installed NumPy version,
 including its warnings for deprecated combinations. Odd-length real-transform
 round trips require the original length on the inverse call. The first
 transform input can be positional or supplied as `a=`.
-
 ```python
->>> import numpy as np
->>> from unitx import Quantity
->>> from unitx.si import si
->>> x = Quantity(np.array([1.0, 2.0, 3.0, 4.0, 5.0]), si.m)
->>> spectrum = np.fft.rfft(x)
->>> assert spectrum.unit == si.m
->>> recovered = np.fft.irfft(spectrum, n=x.size)
->>> np.testing.assert_allclose(recovered.value_in(si.m), x.value)
+import numpy as np
+from unitx import Quantity
+from unitx.si import si
 
+x = Quantity(np.array([1.0, 2.0, 3.0, 4.0, 5.0]), si.m)
+spectrum = np.fft.rfft(x)
+assert spectrum.unit == si.m
+recovered = np.fft.irfft(spectrum, n=x.size)
+np.testing.assert_allclose(recovered.value_in(si.m), x.value)
 ```
 
 `fftshift` and `ifftshift` only reorder samples and also support points.
@@ -48,12 +47,10 @@ cast with `same_kind` before writing. The target dtype does not select the
 FFT kernel dtype. This is the existing [staged output policy](writes.md#output-buffers),
 including support for overlapping input/output storage and failure invariance
 for shape, unit, casting, read-only, computation and conversion errors.
-
 ```python
->>> output = Quantity(np.empty(3, dtype=complex), si.cm)
->>> assert np.fft.rfft(x, out=output) is output
->>> np.testing.assert_allclose(output.value_in(si.m), spectrum.value)
-
+output = Quantity(np.empty(3, dtype=complex), si.cm)
+assert np.fft.rfft(x, out=output) is output
+np.testing.assert_allclose(output.value_in(si.m), spectrum.value)
 ```
 
 `out` is accepted positionally or by keyword, but only once. `out=None`
@@ -69,17 +66,15 @@ is exactly `spacing.unit**-1`; a time interval produces frequencies in cycles
 per time, and a spatial interval produces cycles per length. These are not
 angular frequencies: multiply by `2*pi` explicitly when needed. Bare spacing
 retains NumPy's ordinary ndarray result. NumPy controls n and device handling.
-
 ```python
->>> spacing = 2 * si.ms
->>> frequency = np.fft.rfftfreq(x.size, d=spacing)
->>> assert frequency.unit == si.ms**-1
->>> np.testing.assert_allclose(frequency.value_in(si.Hz), [0, 100, 200])
->>> centered = np.fft.fftshift(np.fft.fftfreq(x.size, d=spacing))
->>> np.testing.assert_allclose(centered.value_in(si.Hz), [-200, -100, 0, 100, 200])
->>> integral_spectrum = spectrum * spacing
->>> assert integral_spectrum.unit == si.m * si.ms
-
+spacing = 2 * si.ms
+frequency = np.fft.rfftfreq(x.size, d=spacing)
+assert frequency.unit == si.ms**-1
+np.testing.assert_allclose(frequency.value_in(si.Hz), [0, 100, 200])
+centered = np.fft.fftshift(np.fft.fftfreq(x.size, d=spacing))
+np.testing.assert_allclose(centered.value_in(si.Hz), [-200, -100, 0, 100, 200])
+integral_spectrum = spectrum * spacing
+assert integral_spectrum.unit == si.m * si.ms
 ```
 
 For the default forward normalization, `spacing * np.fft.fft(x)` includes
