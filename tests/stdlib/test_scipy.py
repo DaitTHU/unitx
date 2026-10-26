@@ -38,10 +38,17 @@ def test_scipy_jv_outputs() -> None:
     with pytest.raises(TypeError):
         special.jv(0, q, out=invalid)
     np.testing.assert_array_equal(invalid.value, 7)
+
+
+@pytest.mark.parametrize(
+    'order, argument', [(0, Quantity(1, 'm')), (Quantity(1, 's'), Quantity(1, ''))]
+)
+def test_scipy_jv_invalid_dimension(order: Any, argument: Any) -> None:
     with pytest.raises(DimensionError):
-        special.jv(0, Quantity(1, 'm'))
-    with pytest.raises(DimensionError):
-        special.jv(Quantity(1, 's'), q)
+        special.jv(order, argument)
+
+
+def test_scipy_jv_invalid_point() -> None:
     with pytest.raises(TypeError):
         special.jv(0, AffineQuantity(1, 'K'))
 
@@ -74,13 +81,32 @@ def test_scipy_simpson_spacing() -> None:
     np.testing.assert_allclose(result.value, integrate.simpson(y.value, dx=2))
 
 
-@pytest.mark.parametrize('value', [AffineQuantity(np.ones(3), 'K'), [1.0, 2.0, 3.0]])
-def test_scipy_simpson_invalid_samples(value: Any) -> None:
-    with pytest.raises(TypeError):
-        simpson(value)
+def test_scipy_simpson_invalid_samples() -> None:
+    with pytest.raises(TypeError, match='requires numeric samples'):
+        simpson([1.0, 2.0, 3.0])
 
 
-@pytest.mark.parametrize('spacing', [np.ones(3), 1j, AffineQuantity(1, 'K')])
-def test_scipy_simpson_invalid_spacing(spacing: Any) -> None:
-    with pytest.raises(TypeError):
-        simpson(Quantity(np.ones(3), 'W'), dx=spacing)
+@pytest.mark.parametrize('argument', ['y', 'x', 'dx'])
+def test_scipy_simpson_invalid_point(argument: str) -> None:
+    kwargs = {argument: AffineQuantity(1, 'K')}
+    if argument != 'y':
+        kwargs['y'] = Quantity(np.ones(3), 'W')
+    with pytest.raises(TypeError, match='requires linear quantities'):
+        simpson(**kwargs)
+
+
+def test_scipy_simpson_invalid_spacing() -> None:
+    with pytest.raises(TypeError, match='dx must be scalar'):
+        simpson(Quantity(np.ones(3), 'W'), dx=np.ones(3))
+
+
+@pytest.mark.parametrize('kwargs', [dict(dx=1j), dict(x=np.ones(3) * 1j)])
+def test_scipy_simpson_invalid_complex_coordinates(kwargs: dict[str, Any]) -> None:
+    with pytest.raises(TypeError, match='coordinates must be real'):
+        simpson(Quantity(np.ones(3), 'W'), **kwargs)
+
+
+@pytest.mark.parametrize('argument', ['x', 'dx'])
+def test_scipy_simpson_invalid_coordinates(argument: str) -> None:
+    with pytest.raises(TypeError, match='coordinates must be real numeric'):
+        simpson(Quantity(np.ones(3), 'W'), **{argument: [1.0, 2.0, 3.0]})

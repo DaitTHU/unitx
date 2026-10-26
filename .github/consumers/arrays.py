@@ -48,7 +48,11 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     work = cast(Quantity[Array], np.tensordot(force, displacement, axes=1))
     assert work.unit == si.N * si.m
     np.testing.assert_array_equal(work.value, values)
-    contracted = cast(Quantity[Array], np.einsum('ij,j->i', force, displacement))
+    # NumPy 2.1's native einsum overloads contain unknown dtype parameters.
+    contracted = cast(
+        Quantity[Array],
+        np.einsum('ij,j->i', force, displacement),  # pyright: ignore[reportUnknownMemberType]
+    )
     np.testing.assert_array_equal(contracted.value, values)
     distance = Quantity(values.copy(), si.m)
     assert_type(distance, Quantity[NDArray[np.float64]])

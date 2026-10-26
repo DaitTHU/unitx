@@ -178,7 +178,13 @@ def test_numpy_product_invalid_shape() -> None:
     with pytest.raises(ValueError):
         np.dot(Quantity(np.ones((2, 3)), 'm'), np.ones(4), out=target)
     np.testing.assert_array_equal(target.value, 7)
+
+
+def test_numpy_einsum_invalid_dtype() -> None:
     with pytest.raises(TypeError):
         np.einsum('i->', Quantity(np.ones(3), 'm'), dtype=object)
+
+
+def test_numpy_dot_invalid_operand() -> None:
     with pytest.raises(TypeError):
         np.dot(Quantity(np.ones(3), 'm'), [1, 2, 3])

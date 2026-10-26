@@ -11,7 +11,9 @@ from unitx.scipy import simpson
 from unitx.si import si
 
 special = import_module('scipy.special')
-value = special.jv(0, 2.0 * si.one)
+# Native SciPy stubs do not describe the Quantity wrapper. Validate this
+# declared boundary at runtime; simpson's inferred type is checked below.
+value: Quantity[Array] = special.jv(0, 2.0 * si.one)
 assert isinstance(value, Quantity) and value.unit == si.one
 np.testing.assert_allclose(value.value, special.jv(0, 2.0))
 y = Quantity(np.arange(5.0) ** 2, si.W)
