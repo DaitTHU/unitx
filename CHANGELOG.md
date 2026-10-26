@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.11] - 2026-10-26
+
+### Added
+
+- Support NumPy's complex, real and Hermitian FFT families for linear
+  quantities, preserving complete units, native transform options and staged
+  output writes. Add `fftshift`/`ifftshift` for quantities and points.
+- Document and verify `fftfreq`/`rfftfreq` with Quantity sampling intervals:
+  their existing arithmetic produces reciprocal-unit frequency axes without
+  an additional public adapter.
+
 ## [0.16.10] - 2026-10-26
 
 ### Added
