@@ -15,6 +15,22 @@ type ArrayQuantity = Quantity[Array] | AffineQuantity[Array] | LogQuantity[Array
 
 
 def check_arrays(values: NDArray[np.float64]) -> None:
+    signal = Quantity(np.asarray([3 + 4j], dtype=np.complex128), si.V)
+    assert_type(signal.real, Quantity[NDArray[np.float64]])
+    assert_type(signal.imag, Quantity[NDArray[np.float64]])
+    real = np.real(signal)
+    imag = np.imag(signal)
+    assert_type(real, Quantity[NDArray[np.float64]])
+    assert_type(imag, Quantity[NDArray[np.float64]])
+    assert real.unit == imag.unit == si.V
+    np.testing.assert_array_equal(real.value, [3])
+    np.testing.assert_array_equal(imag.value, [4])
+    norm = cast(Quantity[Array], np.linalg.norm(signal))
+    assert norm.unit == si.V
+    np.testing.assert_allclose(norm.value, 5)
+    count = cast(Quantity[Array], np.linalg.norm(signal, ord=0))
+    assert count.unit == si.one
+    np.testing.assert_allclose(count.value, 1)
     charge = gaussian.convert(Quantity(values, si.C), gaussian.statC)
     assert_type(charge, Quantity[Array])
     np.testing.assert_allclose(gaussian.convert(charge, si.C).value, values)

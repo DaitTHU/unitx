@@ -685,6 +685,8 @@ def dispatch_function(
         return _einsum(func, *args, **kwargs)
     if func is np.linalg.multi_dot:
         return _multi_dot(*args, **kwargs)
+    if func is np.linalg.norm:
+        return _norm(*args, **kwargs)
     if func is np.trace:
         return _trace(*args, **kwargs)
     if func is np.where:
@@ -757,6 +759,15 @@ def dispatch_function(
     if handler is None:
         return NotImplemented
     return handler(*args, **kwargs)
+
+
+def _norm(x: Any, ord: Any = None, axis: Any = None, keepdims: bool = False) -> Any:
+    values, unit = _linear_parts(x)
+    if isinstance(ord, (Quantity, _Point, Unit, _Coordinate)):
+        error_message = 'Norm order must be a bare number or a matrix norm string.'
+        raise TypeError(error_message)
+    result = np.linalg.norm(values, ord=ord, axis=axis, keepdims=keepdims)
+    return Quantity(result, Unit() if ord == 0 else unit)
 
 
 def _product_parts(operands: Any) -> tuple[list[Any], Unit]:

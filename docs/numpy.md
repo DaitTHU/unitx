@@ -125,6 +125,7 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | dot, inner, outer, vdot, linalg.vecdot, tensordot, einsum, kron, cross, convolve, correlate, linalg.multi_dot | Product units; [contraction rules](numpy/contractions.md) | Native shape/axis/mode/path rules; out on dot, outer, einsum, multi_dot |
 | einsum_path | Bare path and diagnostic string | Native subscript/optimization options |
 | trace | Preserve linear unit | offset, axis1, axis2, dtype, out |
+| linalg.norm | Preserve linear unit; ord=0 returns a dimensionless nonzero count | ord, axis, keepdims; native vector/matrix rules |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |
@@ -293,7 +294,10 @@ remain rejected; `subok` does not enable ndarray subclasses.
 `real(q)` and `imag(q)` operate on linear quantities, including complex
 magnitudes, and retain the full unit. Real/imaginary views share storage with
 the original wherever NumPy does, including writeability. Points are not
-supported for these component operations.
+supported for these component operations. For NumPy magnitudes, `q.real` and
+`q.imag` provide the same components and preserve NumPy's native result types.
+These properties also let NumPy's `real`/`imag` type hints retain the Quantity
+wrapper and component dtype; see [typing](typing.md#numpy-component-inference).
 
 ```python
 samples = Quantity(np.array([1.0 + 2.0j, 3.0 + 4.0j]), 'V')
@@ -301,6 +305,25 @@ buffer = np.empty_like(samples, shape=(3, 2))
 buffer[:] = samples
 np.testing.assert_array_equal(np.real(buffer).value[0], [1, 3])
 np.testing.assert_array_equal(np.imag(buffer).value[0], [2, 4])
+```
+
+## Norms
+
+`np.linalg.norm(q, ord=None, axis=None, keepdims=False)` accepts linear
+quantities. Vector norms and matrix norms (including Frobenius, nuclear and
+spectral norms) retain the complete input unit. NumPy controls supported orders,
+axes, shape, dtype, NaNs and numerical errors. The vector `ord=0` operation
+counts nonzero entries and returns a dimensionless Quantity. Points are
+unsupported; a norm of coordinate readings would depend on their origin.
+
+Dividing by the norm produces a dimensionless normalized quantity:
+
+```python
+voltage = Quantity(np.array([3.0, 4.0]), 'V')
+length = np.linalg.norm(voltage)
+assert length.unit == Unit('V') and length.value == 5
+direction = voltage / length
+np.testing.assert_allclose(direction.value_in(''), [0.6, 0.8])
 ```
 
 ## Mathematical and complex functions
