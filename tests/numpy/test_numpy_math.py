@@ -14,6 +14,48 @@ from unitx.si import si
 np = pytest.importorskip('numpy')
 
 
+@pytest.mark.parametrize('dtype', [np.int64, np.float32, np.float64, np.complex128])
+@pytest.mark.parametrize('unit', [si.one, Unit('cm/m'), Factor(2) * pi * si.one])
+def test_numpy_sinc(dtype: Any, unit: Unit) -> None:
+    values = np.array([[0, 1, -1], [2, 3, 4]], dtype=dtype)
+    if dtype is np.complex128:
+        values[1] += 0.5j
+    q = Quantity(values, unit)
+    q.value.flags.writeable = False
+    result = np.sinc(q)
+    expected = np.sinc(q.value_in(si.one))
+    assert result.unit == si.one and result.value.dtype == expected.dtype
+    np.testing.assert_allclose(result.value, expected)
+    assert result.value[0, 0] == 1
+
+
+@pytest.mark.parametrize('value', [0, 0.5, np.float32(0.5), np.array(0.5), np.empty(0)])
+def test_numpy_sinc_scalar_and_empty(value: Any) -> None:
+    result = np.sinc(Quantity(value, si.one))
+    expected = np.sinc(value)
+    assert result.unit == si.one and type(result.value) is type(expected)
+    np.testing.assert_array_equal(result.value, expected)
+
+
+@pytest.mark.parametrize('unit', [si.m, si.dB])
+def test_numpy_sinc_invalid_dimension(unit: Unit) -> None:
+    with pytest.raises(DimensionError, match='dimensionless'):
+        np.sinc(Quantity(np.array([1.0]), unit))
+
+
+@pytest.mark.parametrize('constructor,unit', [(AffineQuantity, 'degC'), (LogQuantity, 'dBm')])
+def test_numpy_sinc_invalid_point(constructor: Any, unit: str) -> None:
+    with pytest.raises(TypeError):
+        np.sinc(constructor(np.array([1.0]), unit))
+
+
+def test_numpy_sinc_unit_invariance() -> None:
+    q = Quantity(np.linspace(-200, 200, 41), Unit('cm/m'))
+    result = np.sinc(q)
+    assert result.unit == si.one
+    np.testing.assert_allclose(result.value, np.sinc(q.to(si.one)).value)
+
+
 @pytest.mark.parametrize(
     'operation',
     [np.sinh, np.cosh, np.tanh, np.arcsinh, np.arccosh, np.arctanh, np.exp2],

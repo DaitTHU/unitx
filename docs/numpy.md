@@ -160,6 +160,7 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | angle | Phase of a linear Quantity in rad or deg | deg; points are unsupported |
 | round/around, fix | Round stored magnitudes; preserve unit or point coordinate | decimals/out for round; out for fix |
 | unwrap | Unwrap a dimensionless linear phase; preserve its input unit | discont, axis, period; bare thresholds are radians |
+| sinc | Normalize the complete dimensionless input scale; return dimensionless Quantity | NumPy's sin(pi*x)/(pi*x), including its value 1 at zero; no out |
 | sum, nansum | Preserve unit | axis, dtype, keepdims, initial, where, out |
 | mean, nanmean | Preserve unit or point coordinate | axis, dtype, keepdims, where, out |
 | min/amin/nanmin, max/amax/nanmax | Preserve unit or point coordinate | axis, keepdims, initial, where, out |
@@ -340,6 +341,19 @@ Hyperbolic functions, their inverses, `exp2` and both `logaddexp` variants
 normalize dimensionless inputs to coherent values. Inverse hyperbolic results
 are dimensionless; inverse trigonometric results remain in radians.
 NumPy controls real/complex domains, dtype, broadcasting, NaNs and warnings.
+
+`sinc(x)` accepts linear dimensionless Quantities and normalizes their full
+unit scale before calling NumPy's `sin(pi*x)/(pi*x)` kernel, with value 1 at
+zero. It returns a coherent dimensionless Quantity; points and logarithmic
+differences are unsupported. Equivalent dimensionless units produce the same
+function values:
+
+```python
+x = Quantity(np.array([-50.0, 0.0, 50.0]), 'cm/m')
+y = np.sinc(x)
+assert y.unit == Unit()
+np.testing.assert_allclose(y.value, [2 / np.pi, 1, 2 / np.pi])
+```
 
 `floor`, `ceil`, `trunc`, `rint`, `round`/`around` and `fix` round the **stored
 magnitude**, retaining the complete unit or point coordinate. Thus rounding

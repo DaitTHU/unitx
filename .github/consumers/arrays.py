@@ -329,5 +329,13 @@ def check_linalg() -> None:
     assert tensor_inverse.unit == tensor.unit**-1 and result.unit == si.V / si.ohm
 
 
+def check_sinc() -> None:
+    x = Quantity(np.array([0.0, 50.0, 100.0]), Unit('cm/m'))
+    result = cast(Quantity[Array], np.sinc(x))
+    assert result.unit == si.one
+    np.testing.assert_allclose(result.value, np.sinc(x.value_in(si.one)))
+
+
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))
 check_linalg()
+check_sinc()

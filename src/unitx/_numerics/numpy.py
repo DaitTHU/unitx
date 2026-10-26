@@ -1256,6 +1256,14 @@ def _angle(q: Any, deg: bool = False) -> Any:
     return _wrap(np.angle(q.value, deg=deg), Unit('deg') if deg else Unit('rad'))
 
 
+def _sinc(x: Any) -> Any:
+    values, unit = _linear_parts(x)
+    if unit.dimension != DIMENSIONLESS:
+        error_message = 'sinc requires dimensionless linear input.'
+        raise DimensionError(error_message)
+    return Quantity(np.sinc(scale_magnitude(values, unit.factor)), Unit())
+
+
 def _unwrap(p: Any, discont: Any = None, axis: int = -1, *, period: Any = 2 * math.pi) -> Any:
     if p.dimension != DIMENSIONLESS:
         error_message = 'unwrap requires dimensionless linear phase input.'
@@ -1831,6 +1839,7 @@ _QUANTITY_FUNCTIONS = {
     np.real_if_close: partial(_array_transform, np.real_if_close),
     np.angle: _angle,
     np.unwrap: _unwrap,
+    np.sinc: _sinc,
     np.argmin: partial(_argmin_max, np.argmin),
     np.argmax: partial(_argmin_max, np.argmax),
     np.nanargmin: partial(_argmin_max, np.nanargmin),
