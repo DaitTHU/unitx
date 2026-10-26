@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.10] - 2026-10-26
+
+### Added
+
+- Support `np.sinc` for linear dimensionless quantities, normalizing their
+  complete unit scale before NumPy's normalized sinc calculation.
+- Support NumPy QR, Cholesky and singular-value decompositions, plus
+  `eig`/`eigh`/`eigvals`/`eigvalsh`. Preserve per-component units and NumPy's
+  named result fields; support stacked/complex inputs and native options.
+  QR supports reduced, complete and r modes; packed raw arrays cannot express
+  one uniform physical unit.
+
 ## [0.16.9] - 2026-10-26
 
 ### Added
