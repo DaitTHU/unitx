@@ -47,6 +47,15 @@ have that annotation. Fractional powers can produce complex
 magnitudes and keep a wider result type; `unitx.math.sqrt` is the real-valued
 float boundary for scalar square roots.
 
+Integer magnitudes raised to literal exponents 0 through 25 retain
+`Quantity[int]`; literal exponents -20 through -1 return `Quantity[float]`.
+These finite Literal overloads follow the approach used by
+[typeshed's integer annotations](https://github.com/python/typeshed/blob/main/stdlib/builtins.pyi).
+An unrestricted integer exponent keeps a wider real result type because its
+sign is unknown. This also lets computed Decimal constants such as `SI.re`
+retain their type through formulas containing positive integer powers, without
+casts or changes to their numerical calculation.
+
 Use `q.astype(float)` to convert the magnitude explicitly while retaining the
 complete unit. It returns `Quantity[float]` for Python scalar input. This is a
 real numeric conversion, unlike `typing.cast`, which does not change a value.

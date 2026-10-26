@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import assert_type
 
-from unitx.quantity import Quantity, Scalar
+from unitx.quantity import Quantity
 from unitx.si import SI, Particle, Planck, au, nu, si
 from unitx.unit import Unit
 
@@ -28,8 +28,12 @@ def test_si_constant_types() -> None:
     assert_type(SI.c, Quantity[int])
     assert_type(SI.h, Quantity[Decimal])
     assert_type(SI.hbar, Quantity[Decimal])
-    # Integer powers currently have a conservative numeric return type.
-    assert_type(SI.kappa, Quantity[Scalar])
+    # Computed constants retain their stored Decimal domain.
+    assert_type(SI.kappa, Quantity[Decimal])
+    assert_type(SI.epsilon0, Quantity[Decimal])
+    assert_type(SI.re, Quantity[Decimal])
+    assert_type(SI.sigma, Quantity[Decimal])
+    assert_type(SI.c1L, Quantity[Decimal])
     assert_type(SI.b, Quantity[Decimal])
     assert_type(SI.b_, Quantity[Decimal])
     assert_type(SI.e, Quantity[Decimal])
@@ -39,11 +43,11 @@ def test_si_constant_types() -> None:
 def test_scale_namespace_types() -> None:
     assert_type(Particle.me, Quantity[Decimal])
     assert_type(au.charge, Quantity[Decimal])
-    # These expressions inherit the existing conservative scalar overloads.
-    assert_type(au.length, Quantity[Scalar])
+    # Derived scales retain their known numerical domain.
+    assert_type(au.length, Quantity[Decimal])
     assert_type(nu.velocity, Quantity[int])
     assert_type(nu.length, Quantity[Decimal])
-    assert_type(nu.charge, Quantity[Scalar])
+    assert_type(nu.charge, Quantity[Decimal])
     assert_type(Planck.mass, Quantity[Decimal])
     assert_type(Planck.length, Quantity[Decimal])
-    assert_type((3 * au.length).value_in(si.m), Scalar)
+    assert_type((3 * au.length).value_in(si.m), Decimal)

@@ -68,7 +68,8 @@ uncertainty model to them. Derived constants are numerical values calculated
 when the catalogue loads; increasing Decimal precision later does not
 recompute them. The catalogue does not promise arbitrary-precision constants.
 See [constant source](https://github.com/DaitTHU/unitx/blob/main/src/unitx/si/constants.py)
-for the stored definitions.
+for the stored definitions. Known computed Decimal constants, including `SI.re`,
+retain `Quantity[Decimal]` annotations through the underlying Quantity operations.
 
 Float formulas can use Decimal constants directly, for example `0.5 * SI.e`.
 Mixed built-in float/Decimal `+`, `-`, `*`, `/` calculations return float after

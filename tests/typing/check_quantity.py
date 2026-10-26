@@ -246,7 +246,7 @@ def test_quantity_dimensionless() -> None:
 
 
 def test_quantity_powers() -> None:
-    assert_type(Quantity(2, 'm') ** 2, Quantity[Real])
+    assert_type(Quantity(2, 'm') ** 2, Quantity[int])
     assert_type(Quantity(-2, 'm') ** Fraction(1, 2), Quantity[Number])
     assert_type(Quantity(Decimal(2), 'm') ** Decimal('0.5'), Quantity[Decimal])
 
@@ -347,3 +347,15 @@ def test_display_types() -> None:
     assert_type(q.unit.to_latex(), str)
     assert_type(q.unit.to_html(), str)
     assert_type(Unit('m', scale=Factor(2)).to_latex(), str)
+
+
+def test_quantity_integer_power_literals(q: Quantity[int], exponent: int) -> None:
+    assert_type(q**0, Quantity[int])
+    assert_type(q**4, Quantity[int])
+    assert_type(q**25, Quantity[int])
+    assert_type(q**-1, Quantity[float])
+    assert_type(q**-20, Quantity[float])
+    assert_type(q**exponent, Quantity[Real])
+    squared = q
+    squared **= 2
+    assert_type(squared, Quantity[int])

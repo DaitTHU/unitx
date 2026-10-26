@@ -38,6 +38,9 @@ assert (package_root / 'py.typed').is_file()
 assert find_spec('numpy') is None
 assert import_module('unitx.math') is math
 assert import_module('unitx.time') is time
+assert_type(SI.re, Quantity[Decimal])
+assert_type(SI.c**2, Quantity[int])
+assert type(SI.re.value) is Decimal
 
 distance = Quantity(Decimal('1.25'), si.m)
 assert_type(distance.to(si.cm), Quantity[Decimal])

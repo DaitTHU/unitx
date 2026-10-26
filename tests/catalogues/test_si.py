@@ -385,3 +385,8 @@ def test_si_unit_roundtrip(attribute: str) -> None:
 @pytest.mark.parametrize('name', ['volt-ampere reactive', 'kilovolt-ampere reactive'])
 def test_si_reactive_power_name(name: str) -> None:
     assert Unit('[' + name + '] / s') == Unit(name) / si.s
+
+
+@pytest.mark.parametrize('name', ['re', 'epsilon0', 'kappa', 'alpha', 'sigma', 'c1L'])
+def test_si_computed_constant_decimal(name: str) -> None:
+    assert type(getattr(SI, name).value) is Decimal
