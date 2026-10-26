@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [0.17.0] - 2026-10-27
+
+Stabilize the documented NumPy integration developed throughout 0.16.x, with
+complete scientific workflows and minimum/current installed compatibility.
+The supported model remains one unit per array with explicit numerical exits.
 
 ### Fixed
 
