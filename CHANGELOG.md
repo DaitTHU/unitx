@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.16.9] - 2026-10-26
+
+### Added
+
+- Support `np.linalg.norm` for linear quantities, retaining the complete input
+  unit for vector and matrix norms. Vector `ord=0` returns a dimensionless
+  nonzero count. Preserve NumPy's order, axis, dtype and keepdims behavior;
+  reject affine/logarithmic points.
+
+### Fixed
+
+- Add NumPy-magnitude `Quantity.real` and `Quantity.imag` properties with native
+  component result types and views. NumPy's structural component annotations
+  now infer `np.real(q)` and `np.imag(q)` as Quantity objects with the matching
+  real dtype, including complex64/complex128 arrays and NumPy scalars.
+- Clarify the remaining NumPy function-dispatch inference limits and why
+  general numerical array results can include NumPy scalars or promoted dtypes.
+
 ## [0.16.8] - 2026-10-26
 
 ### Added
