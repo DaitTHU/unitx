@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.16.12] - 2026-10-26
+
+### Added
+
+- Add the NumPy-free `unitx.statistics` scalar adapter with mean, fmean,
+  sample/population variance and standard deviation, covariance and linear/ranked
+  correlation. Preserve units, point/difference semantics and native scalar
+  numerical domains; document the explicit floating statistical kernels.
+- Support NumPy ptp, cov/corrcoef, histogram families and bin edges, digitize,
+  weighted bincount, nancumsum and dimensionless cumulative products. Preserve
+  coordinate edges, weight units and inverse-coordinate density units.
+- Support precomputed means and correction on NumPy std/var and NaN variants,
+  with compatible quantity/point conversion and staged outputs.
+
 ## [0.16.11] - 2026-10-26
 
 ### Added
