@@ -8,6 +8,11 @@
   unit for vector and matrix norms. Vector `ord=0` returns a dimensionless
   nonzero count. Preserve NumPy's order, axis, dtype and keepdims behavior;
   reject affine/logarithmic points.
+- Complete the roadmap's linear-system and matrix-measure group with `solve`,
+  `tensorsolve`, `lstsq`, `inv`, `pinv`, `tensorinv`, `matrix_power`, `det`,
+  `vector_norm`, `matrix_norm`, `cond` and `matrix_rank`. Preserve each result's
+  unit, including least-squares residuals/singular values, and support explicit
+  absolute and dimensionless relative cutoff quantities.
 
 ### Fixed
 
