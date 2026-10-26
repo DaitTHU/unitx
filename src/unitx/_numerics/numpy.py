@@ -668,6 +668,18 @@ def dispatch_function(
 ) -> Any:
     if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
+    if func in (
+        np.full_like,
+        np.linspace,
+        np.geomspace,
+        np.logspace,
+        np.meshgrid,
+        np.pad,
+        np.lib.stride_tricks.sliding_window_view,
+    ):
+        from .numpy_creation import FUNCTIONS
+
+        return FUNCTIONS[func](*args, **kwargs)
     if func in _FFT_FUNCTIONS:
         return _fft(func, *args, **kwargs)
     if func in (np.cov, np.corrcoef):

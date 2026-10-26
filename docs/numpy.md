@@ -304,6 +304,9 @@ an `out` option. Indices such as `kth` and `sorter` must be bare integers.
 
 ## Allocation and complex components
 
+See [allocation, grids and padding](numpy/creation.md) for `full_like`,
+`linspace`, `geomspace`, `logspace`, `meshgrid`, `pad` and sliding-window views.
+
 `zeros_like(q)`, `ones_like(q)` and `empty_like(q)` allocate numeric storage while preserving
 the complete unit or point coordinate. Native dtype, order, shape overrides,
 writeability and errors apply. Zero- and one-filled points mean readings of zero and one in their retained

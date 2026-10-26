@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Complete NumPy allocation and grid support with full_like, compatible-unit
+  linspace/geomspace, dimensionless logspace, independent-unit meshgrid,
+  built-in padding modes and sliding-window views. Preserve point coordinates,
+  difference steps, native dtype and storage behavior.
+
 ## [0.16.12] - 2026-10-26
 
 ### Added

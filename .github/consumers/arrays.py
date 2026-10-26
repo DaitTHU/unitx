@@ -459,3 +459,33 @@ check_factorizations()
 check_sinc()
 check_fft()
 check_statistics()
+
+
+def check_creation() -> None:
+    a = Quantity(0.0, si.m)
+    b = Quantity(100.0, si.cm)
+    samples, spacing = cast(
+        tuple[Quantity[Array], Quantity[Array]], np.linspace(a, b, 5, retstep=True)
+    )
+    assert samples.unit == spacing.unit == si.m
+    np.testing.assert_allclose(spacing.value, 0.25)
+    filled = cast(Quantity[Array], np.full_like(samples, Quantity(50.0, si.cm)))
+    np.testing.assert_allclose(filled.value, 0.5)
+    logarithmic = cast(Quantity[Array], np.geomspace(Quantity(1.0, si.m), Quantity(100.0, si.m), 3))
+    np.testing.assert_allclose(logarithmic.value, [1, 10, 100])
+    exponent = Quantity(2.0, si.one)
+    loggrid = cast(Quantity[Array], np.logspace(0.0, exponent, 3))
+    assert loggrid.unit == si.one
+    np.testing.assert_allclose(loggrid.value, [1, 10, 100])
+    grids = cast(
+        tuple[Quantity[Array], Quantity[Array]],
+        np.meshgrid(samples, Quantity(np.arange(2.0), si.s)),
+    )
+    assert grids[0].unit == si.m and grids[1].unit == si.s
+    padded = cast(Quantity[Array], np.pad(samples, 1, mode='edge'))
+    windows = cast(Quantity[Array], np.lib.stride_tricks.sliding_window_view(padded, 3))
+    assert windows.unit == si.m
+    assert not cast(NDArray[np.generic], windows.value).flags.writeable
+
+
+check_creation()
