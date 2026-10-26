@@ -14,17 +14,21 @@ from unitx.si import si
 type ArrayQuantity = Quantity[Array] | AffineQuantity[Array] | LogQuantity[Array]
 
 
-def check_arrays(values: NDArray[np.float64]) -> None:
-    signal = Quantity(np.asarray([3 + 4j], dtype=np.complex128), si.V)
+def check_components(signal: Quantity[NDArray[np.complex128]]) -> None:
     assert_type(signal.real, Quantity[NDArray[np.float64]])
     assert_type(signal.imag, Quantity[NDArray[np.float64]])
     real = np.real(signal)
     imag = np.imag(signal)
     assert_type(real, Quantity[NDArray[np.float64]])
     assert_type(imag, Quantity[NDArray[np.float64]])
-    assert real.unit == imag.unit == si.V
-    np.testing.assert_array_equal(real.value, [3])
-    np.testing.assert_array_equal(imag.value, [4])
+    assert real.unit == imag.unit == signal.unit
+    np.testing.assert_array_equal(real.value, signal.value.real)
+    np.testing.assert_array_equal(imag.value, signal.value.imag)
+
+
+def check_arrays(values: NDArray[np.float64]) -> None:
+    signal = Quantity(np.asarray([3 + 4j], dtype=np.complex128), si.V)
+    check_components(signal)
     norm = cast(Quantity[Array], np.linalg.norm(signal))
     assert norm.unit == si.V
     np.testing.assert_allclose(norm.value, 5)
