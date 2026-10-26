@@ -106,6 +106,10 @@ methods, mixed array types, and keywords fail explicitly.
 | modf | Fractional and integral parts in the input unit |
 | frexp | Mantissa in the input unit; bare integer binary exponent |
 | vecdot | Conjugate first input; product unit; axis/axes options |
+| matvec, vecmat (NumPy >= 2.2) | Product units; native matrix/vector shapes and vecmat conjugation; ordinary call options and out |
+| ldexp | Input unit; dimensionless integer binary exponents; reconstructs frexp |
+| nextafter, spacing | Stored-magnitude floating neighbors/spacing in the complete input unit; nextafter aligns compatible linear operands |
+| heaviside | Sign of any linear input, dimensionless value at zero; coherent dimensionless result |
 | add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims, initial, where for reduce |
 | multiply.reduce | Product unit rules below; accepts axis, dtype, keepdims, initial, where, out |
 | subtract, remainder, fmod: reduce/accumulate/reduceat | Preserve linear unit; initial must be compatible |
@@ -126,6 +130,13 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 
 | NumPy function | Unit/result rule | Supported options |
 | --- | --- | --- |
+| block, choose, select | Align compatible quantities or points | Nested blocks; choose mode/out; select bare default is a stored reading; [compatibility details](numpy/compatibility.md) |
+| cumulative_sum, cumulative_prod | Linear sum / coherent dimensionless product | axis, dtype, include_initial, staged out |
+| ediff1d | Difference unit, including points | Compatible difference to_begin/to_end |
+| nan_to_num | Preserve unit or point coordinate | copy; replacements are readings or compatible wrapped values; copy=False stages writes |
+| all, any, array_equal, array_equiv, isreal, iscomplex, isrealobj, iscomplexobj, isposinf, isneginf | Bare predicates | [Predicate rules](numpy/compatibility.md) |
+| resize, trim_zeros, unstack, astype, shares_memory, may_share_memory, sort_complex, i0 | Storage, metadata or coherent numerical results | [Compatibility sweep](numpy/compatibility.md) |
+| linalg.matmul, linalg.outer, linalg.cross, linalg.tensordot, linalg.trace, linalg.diagonal | Product/input units; diagonal also preserves points | Native strict Array API shapes and keywords |
 | full_like, linspace, geomspace, logspace, meshgrid, pad, lib.stride_tricks.sliding_window_view | Units, coordinates, difference steps and independent axes | [Allocation and grid rules](numpy/creation.md) |
 | copyto, put, put_along_axis, putmask, place, fill_diagonal | Convert into fixed target units/coordinates; stage writes | [Batch write rules](numpy/writes.md#batch-writes) |
 | dot, inner, outer, vdot, linalg.vecdot, tensordot, einsum, kron, cross, convolve, correlate, linalg.multi_dot | Product units; [contraction rules](numpy/contractions.md) | Native shape/axis/mode/path rules; out on dot, outer, einsum, multi_dot |

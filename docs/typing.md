@@ -166,7 +166,13 @@ and can reject a Quantity/point argument during static checking, despite
 working at runtime. Their installed type consumers check the dispatch protocol
 directly; runtime tests use ordinary NumPy calls.
 Runtime support and installed-consumer checks cover
-these calls; unitx does not replace NumPy's stubs.
+these calls; unitx does not replace NumPy's stubs. This also applies to
+allocation/grids, padding, sliding windows, fixed-unit write functions, ufunc
+methods and the compatibility sweep. In particular, NumPy's write/destination
+annotations may require an ndarray even when the runtime target is a Quantity;
+installed consumers exercise the public dispatch protocol in those cases.
+The adapters preserve units and concrete destination storage at runtime, but
+do not add blanket static inference for NumPy's function APIs.
 
 ### NumPy component inference
 

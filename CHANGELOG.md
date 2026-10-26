@@ -4,6 +4,11 @@
 
 ### Added
 
+- Finish the NumPy compatibility sweep: block/choose/select, nan_to_num,
+  ediff1d, cumulative_sum/prod, array equality/truth and complex/infinity
+  predicates, storage sharing, resize/trim/unstack/astype, i0, binary floating
+  helpers, strict linalg Array API functions and version-available matvec/vecmat.
+  Document the inventory audit, version gates and explicit remaining boundaries.
 - Add fixed-unit NumPy copyto, put, put_along_axis, putmask, place and
   fill_diagonal, plus applicable ufunc reduce, accumulate, reduceat, outer and
   at methods. Stage conversion, casts and repeated-index updates before writes.

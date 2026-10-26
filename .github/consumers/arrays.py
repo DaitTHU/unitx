@@ -508,3 +508,31 @@ def check_writes_and_methods() -> None:
 
 
 check_writes_and_methods()
+
+
+def check_compatibility() -> None:
+    q = Quantity(np.array([1.0, np.nan, 3.0]), si.m)
+    clean = cast(
+        Quantity[Array],
+        q.__array_function__(np.nan_to_num, (Quantity,), (q,), {'nan': Quantity(200.0, si.cm)}),
+    )
+    prefix = cast(Quantity[Array], np.cumulative_sum(clean, include_initial=True))
+    np.testing.assert_array_equal(prefix.value, [0, 1, 3, 6])
+    assert np.array_equal(clean, clean.to(si.cm))
+    blocks = cast(Quantity[Array], np.block([[clean], [clean.to(si.cm)]]))
+    assert blocks.unit == si.m and blocks.shape == (2, 3)
+    mantissa, exponent = cast(tuple[Quantity[Array], NDArray[np.int32]], np.frexp(clean))
+    restored = cast(Quantity[Array], np.ldexp(mantissa, exponent))
+    np.testing.assert_array_equal(restored.value, clean.value)
+    assert np.shares_memory(clean, clean[1:])
+    selected = cast(Quantity[Array], np.choose(np.array([0, 1, 0]), [clean, clean.to(si.cm)]))
+    np.testing.assert_array_equal(selected.value, clean.value)
+    unstacked = cast(tuple[Quantity[Array], ...], np.unstack(blocks))
+    assert unstacked[0].unit == si.m
+    identity = Quantity(np.eye(2), si.m)
+    product = cast(Quantity[Array], np.linalg.matmul(identity, identity))
+    diagonal = cast(Quantity[Array], np.linalg.diagonal(product))
+    assert diagonal.unit == si.m**2
+
+
+check_compatibility()

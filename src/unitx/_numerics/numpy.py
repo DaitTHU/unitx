@@ -32,6 +32,9 @@ from . import as_exponent
 from .conversion import compatible
 
 _UNSET = object()
+_MATRIX_VECTOR_UFUNCS = tuple(
+    value for name in ('matvec', 'vecmat') if isinstance(value := getattr(np, name, None), np.ufunc)
+)
 
 _COMPARISON_UFUNCS = {
     operator.eq: np.equal,
@@ -465,7 +468,14 @@ def _dispatch_ufunc(
         if ratio == one:
             return ufunc(a, b, **kwargs)
         return ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs)
-    if ufunc in (np.multiply, np.divide, np.true_divide, np.matmul, np.vecdot):
+    if ufunc in (
+        np.multiply,
+        np.divide,
+        np.true_divide,
+        np.matmul,
+        np.vecdot,
+        *_MATRIX_VECTOR_UFUNCS,
+    ):
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
         assert isinstance(u, Unit) and isinstance(v, Unit)
@@ -497,6 +507,24 @@ def _dispatch_ufunc(
         np.rint,
     ):
         return _wrap(ufunc(a, **kwargs), unit)
+    if ufunc is np.ldexp:
+        exponent, exponent_unit = _linear_parts(inputs[1])
+        if exponent_unit.dimension != DIMENSIONLESS:
+            error_message = 'ldexp requires dimensionless integer exponents.'
+            raise DimensionError(error_message)
+        exponent = scale_magnitude(exponent, exponent_unit.factor)
+        return _wrap(ufunc(a, exponent, **kwargs), unit)
+    if ufunc is np.nextafter:
+        a, b, unit = _align_operands(*inputs)
+        return _wrap(ufunc(a, b, **kwargs), unit)
+    if ufunc is np.spacing:
+        return _wrap(ufunc(a, **kwargs), unit)
+    if ufunc is np.heaviside:
+        b, v = _linear_parts(inputs[1])
+        if v.dimension != DIMENSIONLESS:
+            error_message = 'heaviside requires a dimensionless value at zero.'
+            raise DimensionError(error_message)
+        return _wrap(ufunc(a, scale_magnitude(b, v.factor), **kwargs), Unit())
     if ufunc is np.sign:
         return _wrap(ufunc(a, **kwargs), Unit())
     if ufunc in (np.degrees, np.rad2deg, np.radians, np.deg2rad):
@@ -654,6 +682,35 @@ def dispatch_function(
 ) -> Any:
     if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
+    if func in (
+        np.block,
+        np.nan_to_num,
+        np.ediff1d,
+        np.cumulative_sum,
+        np.cumulative_prod,
+        np.array_equal,
+        np.array_equiv,
+        np.isreal,
+        np.iscomplex,
+        np.isrealobj,
+        np.iscomplexobj,
+        np.shares_memory,
+        np.may_share_memory,
+        np.all,
+        np.any,
+        np.choose,
+        np.select,
+        np.unstack,
+        np.i0,
+        np.isposinf,
+        np.isneginf,
+        np.resize,
+        np.trim_zeros,
+        np.astype,
+    ):
+        from .numpy_misc import dispatch
+
+        return dispatch(func, *args, **kwargs)
     if func in (np.copyto, np.put, np.put_along_axis, np.putmask, np.place, np.fill_diagonal):
         from .numpy_writes import FUNCTIONS
 
@@ -689,6 +746,10 @@ def dispatch_function(
         return _ptp(*args, **kwargs)
     if func in (
         np.dot,
+        np.linalg.matmul,
+        np.linalg.outer,
+        np.linalg.cross,
+        np.linalg.tensordot,
         np.inner,
         np.outer,
         np.vdot,
@@ -2017,6 +2078,7 @@ _ARRAY_FUNCTIONS = {
     np.take_along_axis: _take_along_axis,
     np.delete: _delete,
     np.diagonal: partial(_array_transform, np.diagonal),
+    np.linalg.diagonal: partial(_array_transform, np.linalg.diagonal),
     np.diag: partial(_array_transform, np.diag),
     np.diagflat: partial(_array_transform, np.diagflat),
     np.tril: partial(_array_transform, np.tril),
@@ -2044,6 +2106,8 @@ _ARRAY_FUNCTIONS = {
 
 _QUANTITY_FUNCTIONS = {
     **_ARRAY_FUNCTIONS,
+    np.linalg.trace: partial(_array_transform, np.linalg.trace),
+    np.sort_complex: partial(_array_transform, np.sort_complex),
     np.real: partial(_array_transform, np.real),
     np.imag: partial(_array_transform, np.imag),
     np.real_if_close: partial(_array_transform, np.real_if_close),

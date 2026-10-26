@@ -34,6 +34,7 @@ nav:
       - Linear algebra: numpy/linalg.md
       - FFT and frequency axes: numpy/fft.md
       - Writes and output buffers: numpy/writes.md
+      - Compatibility and remaining boundaries: numpy/compatibility.md
   - SciPy support: scipy.md
   - Matplotlib plots: matplotlib.md
   - Display and formatting: display.md
