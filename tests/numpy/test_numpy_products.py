@@ -332,5 +332,5 @@ def test_numpy_product_foreign_protocol() -> None:
     assert np.multiply.reduce(q, out=Foreign()) == 'foreign dispatched'
     with pytest.raises(DimensionError):
         np.cumprod(q)
-    with pytest.raises(TypeError):
+    with pytest.raises(DimensionError):
         np.multiply.accumulate(q)

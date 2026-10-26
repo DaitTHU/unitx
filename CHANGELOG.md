@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add fixed-unit NumPy copyto, put, put_along_axis, putmask, place and
+  fill_diagonal, plus applicable ufunc reduce, accumulate, reduceat, outer and
+  at methods. Stage conversion, casts and repeated-index updates before writes.
 - Complete NumPy allocation and grid support with full_like, compatible-unit
   linspace/geomspace, dimensionless logspace, independent-unit meshgrid,
   built-in padding modes and sliding-window views. Preserve point coordinates,

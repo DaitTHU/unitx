@@ -377,11 +377,13 @@ def test_empty_zero_dim_and_ufunc_methods() -> None:
     q = Quantity(np.array(2.0), 'm')
     assert_quantity(np.add.reduce(q), 2, 'm')
     assert_quantity(np.add.accumulate(Quantity(np.array([1, 2]), 'm')), [1, 3], 'm')
-    with pytest.raises(TypeError):
+    with pytest.raises(IndexError):
         np.add.at(q, 0, q)
-    for method in (np.multiply.accumulate, np.add.outer):
-        with pytest.raises(TypeError):
-            method(q, q) if method == np.add.outer else method(q)
+    np.add.at(q, (), q)
+    assert_quantity(q, 4, 'm')
+    assert_quantity(np.add.outer(q, q), 8, 'm')
+    with pytest.raises(DimensionError):
+        np.multiply.accumulate(q)
 
 
 def test_reshape_join_predicates_and_positions() -> None:
@@ -659,7 +661,7 @@ def test_ufunc_out_protocol() -> None:
 
     assert np.add(q, q, out=Foreign()) == 'foreign dispatched'
     target = Quantity(np.full(3, -123.0), 'm')
-    with pytest.raises(TypeError):
+    with pytest.raises(DimensionError):
         np.multiply.accumulate(q, out=target)
     np.testing.assert_array_equal(target.value, [-123] * 3)
 
@@ -703,7 +705,7 @@ def test_unknown_protocol_inputs_allow_other_dispatch() -> None:
     assert q + other == 'foreign dispatched'
     assert q * other == 'foreign dispatched'
     assert q.__array_function__(np.sum, (Quantity, Foreign), (q,), {}) is NotImplemented
-    assert q.__array_ufunc__(np.multiply, 'accumulate', q) is NotImplemented
+    assert q.__array_ufunc__(np.bitwise_or, 'accumulate', q) is NotImplemented
     with pytest.raises(TypeError, match='Unsupported array backend'):
         Quantity(other, 'm')
 

@@ -81,12 +81,13 @@ def test_numpy_selection_invalid_dimension(operation: Callable[..., Any], other:
 
 
 @pytest.mark.parametrize('operation', [np.minimum, np.maximum])
-def test_numpy_selection_invalid_method(operation: Callable[..., Any]) -> None:
+def test_numpy_selection_methods(operation: Callable[..., Any]) -> None:
     q = Quantity(np.arange(3.0), 'm')
-    with pytest.raises(TypeError):
-        operation.reduce(q)
-    with pytest.raises(TypeError):
-        operation.accumulate(q)
+    reduced = operation.reduce(q)
+    accumulated = operation.accumulate(q)
+    assert reduced.unit == accumulated.unit == q.unit
+    np.testing.assert_array_equal(reduced.value, operation.reduce(q.value))
+    np.testing.assert_array_equal(accumulated.value, operation.accumulate(q.value))
 
 
 def test_numpy_clip_bounds_and_options() -> None:

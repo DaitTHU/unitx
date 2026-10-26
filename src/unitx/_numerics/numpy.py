@@ -208,6 +208,10 @@ def write_inplace(target: Quantity[Any] | _Point[Any], result: Quantity[Any] | _
 
 
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    if method != '__call__':
+        from .numpy_writes import dispatch_method
+
+        return dispatch_method(ufunc, method, inputs, kwargs)
     if ufunc in (np.modf, np.frexp, np.divmod) and method == '__call__':
         return _dispatch_multi_output(ufunc, inputs, kwargs)
     outputs = kwargs.get('out', ())
@@ -400,24 +404,6 @@ def _dispatch_ufunc(
     inputs = tuple(linear_unit(x) if isinstance(x, _Coordinate) else x for x in inputs)
     if any(isinstance(x, _Point) for x in inputs):
         return _affine_ufunc(ufunc, method, inputs, kwargs)
-    if method == 'reduce' and ufunc in (np.add, np.multiply):
-        if not isinstance(inputs[0], (Quantity, _Point)) or kwargs.keys() - {
-            'axis',
-            'dtype',
-            'keepdims',
-            'initial',
-            'where',
-        }:
-            return NotImplemented
-        handler = _sum if ufunc is np.add else _prod
-        return handler(ufunc.reduce, inputs[0], **{'axis': 0, **kwargs})
-    if method == 'accumulate' and ufunc is np.add:
-        if kwargs.keys() - {'axis', 'dtype'}:
-            return NotImplemented
-        if kwargs.get('dtype') is not None and np.dtype(kwargs['dtype']).kind not in 'iufc':
-            return NotImplemented
-        a, unit = _linear_parts(inputs[0])
-        return _wrap(getattr(ufunc, method)(a, **kwargs), unit)
     if method != '__call__':
         return NotImplemented
     allowed = {'where', 'dtype', 'casting', 'order', 'subok'}
@@ -668,6 +654,10 @@ def dispatch_function(
 ) -> Any:
     if any(t not in (Quantity, AffineQuantity, LogQuantity, np.ndarray) for t in types):
         return NotImplemented
+    if func in (np.copyto, np.put, np.put_along_axis, np.putmask, np.place, np.fill_diagonal):
+        from .numpy_writes import FUNCTIONS
+
+        return FUNCTIONS[func](*args, **kwargs)
     if func in (
         np.full_like,
         np.linspace,

@@ -91,7 +91,7 @@ are machine dependent; they are not a performance guarantee.
 
 ## Output buffers
 
-Supported single-output ufunc calls, add.reduce/accumulate, multiply.reduce, and the numeric
+Supported single-output ufunc calls and methods, and the numeric
 functions listed with `out` in the [support matrix](../numpy.md#support-matrix)
 accept a Quantity whose magnitude is a writable plain numeric ndarray.
 `out=target`, `out=(target,)`, and positional
@@ -157,7 +157,68 @@ assert np.argmax(q, axis=0, out=indices) is indices
 
 `out=None` and ufunc `out=(None,)` allocate ordinary single-output results.
 The supported multiple-output calls are described below; other multiple-output
-ufuncs and product accumulations remain unsupported.
+ufuncs remain unsupported. See the method table below for cumulative products.
+
+## Batch writes
+
+`copyto(dst, src, casting='same_kind', where=True)`, `put(a, ind, v,
+mode='raise')`, `put_along_axis(arr, indices, values, axis)`, `putmask(a, mask,
+values)`, `place(arr, mask, vals)` and `fill_diagonal(a, val, wrap=False)`
+write into Quantity or point ndarray targets and return None. Units, buffer
+identity, dtype and writeability remain fixed. Sources must be numeric
+scalars/ndarrays or compatible wrapped values; bare values are dimensionless,
+including bare zero. Points require compatible points with matching conventions.
+This differs from allocation's bare fill readings because these APIs update
+existing physical data.
+
+All six functions convert and cast before committing writes. `copyto` supports
+its explicit casting rule; the other five require `same_kind`, as indexed
+assignment does. NumPy controls index/axis validation, broadcasting and native
+value repetition: `putmask` repeats by flat position, while `place` repeats by
+selected position. Index arrays, masks and overlapping source data are
+snapshotted; noncontiguous targets are supported. Computation, conversion,
+casting, index, shape and read-only failures leave targets unchanged, subject
+to the concurrent-mutation and external-buffer limitations above.
+
+## Ufunc methods
+
+| Method | Supported operations and unit rules |
+| --- | --- |
+| `reduce` | add and multiply retain their sum/product contracts, including initial, where and unit powers. subtract/remainder/fmod preserve linear units. minimum/maximum/fmin/fmax preserve units or point coordinates. divide/true_divide, floor_divide, logaddexp/logaddexp2 require coherent dimensionless input. |
+| `accumulate`, `reduceat` | add/subtract/remainder/fmod preserve linear units. Extrema preserve units or point coordinates. multiply/divide/true_divide/floor_divide/logaddexp/logaddexp2 normalize dimensionless inputs and return coherent dimensionless results. |
+| `outer` | Supported binary, single-output elementwise calls apply the usual unit, coordinate and predicate rules over the combined input shape. Generalized ufuncs such as matmul are unsupported. |
+| `at` | add/subtract/remainder/fmod align compatible linear operands; add/subtract on points require differences. Extrema align compatible quantities or points. multiply/divide require dimensionless multipliers; copysign uses the RHS sign. Unary positive/floor/ceil/trunc/rint preserve units or points; negative/absolute/fabs/conjugate support linear quantities. |
+
+`reduce` accepts axis, dtype, keepdims, initial and where as applicable to the
+NumPy kernel. `accumulate` and `reduceat` accept axis/dtype; indices and axes
+are bare integers. All three support staged `out` writes in compatible units
+or coordinates. `initial` is converted to the retained unit or coordinate;
+only additive sum retains its bare-zero identity exception. Dimensionful
+cumulative or segmented multiplicative methods remain unsupported because
+different output positions can need different unit powers. Product `reduce`
+continues to support uniform element counts and exact unit powers.
+
+`outer` supports the call's keyword and staged output rules. `at` has no
+keywords/output argument and returns None. It applies repeated indices in
+NumPy's unbuffered order on a temporary, then commits the result. This gives
+repeated updates, unlike advanced-index augmented assignment. Its arithmetic
+must preserve the target unit/coordinate and obey `same_kind` casting.
+Unsupported methods/operations fail explicitly. These adapters do not add
+boolean magnitudes, bitwise unit algebra or generalized-ufunc signatures.
+
+```python
+import numpy as np
+from unitx import Quantity
+
+distance = Quantity(np.zeros(3), 'm')
+np.copyto(distance, Quantity(100, 'cm'))
+np.add.at(distance, [0, 0, 2], Quantity(50, 'cm'))
+np.testing.assert_allclose(distance.value, [2, 1, 1.5])
+segments = np.add.reduceat(distance, [0, 2])
+np.testing.assert_allclose(segments.value, [3, 1.5])
+products = np.multiply.outer(distance, Quantity(np.array([1, 2]), 's'))
+assert products.unit == distance.unit * Quantity(1, 's').unit
+```
 Output writes preserve the magnitude's type and dtype, so the covariant
 `Quantity[T]` contract remains valid; no arbitrary replacement of T is introduced.
 NumPy's own stubs do not accept Quantity outputs or infer wrapped

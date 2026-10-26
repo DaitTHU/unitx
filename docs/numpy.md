@@ -108,20 +108,26 @@ methods, mixed array types, and keywords fail explicitly.
 | vecdot | Conjugate first input; product unit; axis/axes options |
 | add.reduce, add.accumulate | Preserve unit; accept axis, dtype, out, plus keepdims, initial, where for reduce |
 | multiply.reduce | Product unit rules below; accepts axis, dtype, keepdims, initial, where, out |
+| subtract, remainder, fmod: reduce/accumulate/reduceat | Preserve linear unit; initial must be compatible |
+| minimum, maximum, fmin, fmax: reduce/accumulate/reduceat | Preserve unit or point coordinate |
+| multiply, divide/true_divide, floor_divide, logaddexp, logaddexp2: methods | Dimensionless inputs normalize their scales; multiply.reduce retains its general product rule |
+| outer, at | Binary outer uses the underlying call's unit rule; supported fixed-unit at updates stage repeated-index writes; see [method details](numpy/writes.md#ufunc-methods) |
 
 Ufunc `__call__` accepts `where`, `dtype`, `casting`, `order`, `subok`, and
 `out` as described below (two outputs for modf/frexp/divmod). Each kernel validates its own options.
 `where` is a bare boolean scalar
 or plain boolean ndarray; masked-out positions without an output buffer follow
 NumPy's uninitialized-result behavior. Numeric outputs must stay in the
-supported dtype domain. Product accumulation, at, outer, and reduceat are
-unsupported. Python `**` also accepts Fraction/Decimal exponents, retaining
+supported dtype domain. Method support and limitations are specified in
+[ufunc methods](numpy/writes.md#ufunc-methods). Python `**` also accepts Fraction/Decimal exponents, retaining
 exact unit exponents while passing a float exponent to the NumPy kernel.
 Angles retain unitx's dimensionless model: deg/rad normalize before these
 functions, including exp/log. Python scalar arithmetic follows the separate [scalar rules](scalars.md).
 
 | NumPy function | Unit/result rule | Supported options |
 | --- | --- | --- |
+| full_like, linspace, geomspace, logspace, meshgrid, pad, lib.stride_tricks.sliding_window_view | Units, coordinates, difference steps and independent axes | [Allocation and grid rules](numpy/creation.md) |
+| copyto, put, put_along_axis, putmask, place, fill_diagonal | Convert into fixed target units/coordinates; stage writes | [Batch write rules](numpy/writes.md#batch-writes) |
 | dot, inner, outer, vdot, linalg.vecdot, tensordot, einsum, kron, cross, convolve, correlate, linalg.multi_dot | Product units; [contraction rules](numpy/contractions.md) | Native shape/axis/mode/path rules; out on dot, outer, einsum, multi_dot |
 | einsum_path | Bare path and diagnostic string | Native subscript/optimization options |
 | trace | Preserve linear unit | offset, axis1, axis2, dtype, out |
