@@ -356,7 +356,7 @@ def check_sinc() -> None:
     x = Quantity(np.array([0.0, 50.0, 100.0]), Unit('cm/m'))
     result = cast(Quantity[Array], np.sinc(x))
     assert result.unit == si.one
-    np.testing.assert_allclose(result.value, np.sinc(x.value_in(si.one)))
+    np.testing.assert_allclose(result.value, np.sinc(np.asarray(x.value_in(si.one))))
 
 
 def check_fft() -> None:
@@ -495,7 +495,7 @@ def check_writes_and_methods() -> None:
     q = Quantity(np.zeros(3), si.m)
     # NumPy output/destination stubs do not model Quantity buffers.
     q.__array_function__(np.copyto, (Quantity,), (q, Quantity(100.0, si.cm)), {})
-    np.add.at(q, [0, 0, 2], Quantity(50.0, si.cm))
+    q.__array_ufunc__(np.add, 'at', q, [0, 0, 2], Quantity(50.0, si.cm))
     np.testing.assert_allclose(q.value, [2, 1, 1.5])
     segmented = cast(Quantity[Array], np.add.reduceat(q, [0, 2]))
     np.testing.assert_allclose(segmented.value, [3, 1.5])
