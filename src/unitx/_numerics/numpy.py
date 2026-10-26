@@ -878,6 +878,58 @@ def _matrix_rank(A: Any, tol: Any = None, hermitian: bool = False, *, rtol: Any 
     )
 
 
+def _qr(a: Any, mode: str = 'reduced') -> Any:
+    values, unit = _linalg_parts(a)
+    if mode not in ('reduced', 'complete', 'r'):
+        error_message = (
+            'Quantity QR supports only reduced, complete and r modes; '
+            'packed raw and deprecated modes are unsupported.'
+        )
+        raise ValueError(error_message)
+    # NumPy's result stubs only allow ndarray fields; dispatch replaces them
+    # with quantities while retaining the native namedtuple container.
+    result: Any = np.linalg.qr(values, mode=mode)
+    if mode == 'r':
+        return Quantity(result, unit)
+    return result._replace(Q=Quantity(result.Q, Unit()), R=Quantity(result.R, unit))
+
+
+def _cholesky(a: Any, /, *, upper: bool = False) -> Any:
+    values, unit = _linalg_parts(a)
+    # NumPy 2.1 supports upper at runtime, but its stubs omit the keyword.
+    cholesky = cast(Any, np.linalg.cholesky)
+    return Quantity(cholesky(values, upper=upper), unit ** Fraction(1, 2))
+
+
+def _svd(
+    a: Any, full_matrices: bool = True, compute_uv: bool = True, hermitian: bool = False
+) -> Any:
+    values, unit = _linalg_parts(a)
+    result: Any = np.linalg.svd(
+        values, full_matrices=full_matrices, compute_uv=compute_uv, hermitian=hermitian
+    )
+    if not compute_uv:
+        return Quantity(result, unit)
+    return result._replace(
+        U=Quantity(result.U, Unit()), S=Quantity(result.S, unit), Vh=Quantity(result.Vh, Unit())
+    )
+
+
+def _svdvals(x: Any, /) -> Any:
+    values, unit = _linalg_parts(x)
+    return Quantity(np.linalg.svdvals(values), unit)
+
+
+def _eigen(func: Any, a: Any, *args: Any, **kwargs: Any) -> Any:
+    values, unit = _linalg_parts(a)
+    result = func(values, *args, **kwargs)
+    if isinstance(result, tuple):
+        return cast(Any, result)._replace(
+            eigenvalues=Quantity(result[0], unit), eigenvectors=Quantity(result[1], Unit())
+        )
+    return Quantity(result, unit)
+
+
 _LINALG_FUNCTIONS = {
     np.linalg.solve: _solve,
     np.linalg.tensorsolve: _tensorsolve,
@@ -891,6 +943,14 @@ _LINALG_FUNCTIONS = {
     np.linalg.matrix_norm: _matrix_norm,
     np.linalg.cond: _cond,
     np.linalg.matrix_rank: _matrix_rank,
+    np.linalg.qr: _qr,
+    np.linalg.cholesky: _cholesky,
+    np.linalg.svd: _svd,
+    np.linalg.svdvals: _svdvals,
+    np.linalg.eig: partial(_eigen, np.linalg.eig),
+    np.linalg.eigh: partial(_eigen, np.linalg.eigh),
+    np.linalg.eigvals: partial(_eigen, np.linalg.eigvals),
+    np.linalg.eigvalsh: partial(_eigen, np.linalg.eigvalsh),
 }
 
 

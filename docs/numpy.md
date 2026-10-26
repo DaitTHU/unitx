@@ -131,6 +131,10 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | linalg.inv, linalg.pinv, linalg.tensorinv | Reciprocal input unit | Native hermitian/cutoff/ind options |
 | linalg.matrix_power, linalg.det | Input unit raised to integer power or matrix order | Native powers, square/stacked shapes |
 | linalg.cond, linalg.matrix_rank | Dimensionless Quantity or bare integer rank | Native orders and absolute/relative cutoffs |
+| linalg.qr | Dimensionless Q and input-unit R; mode='r' returns only R | reduced, complete, r; raw and deprecated modes unsupported |
+| linalg.cholesky | Exact square root of the input unit | upper; native positive-definite/stacked rules |
+| linalg.svd, linalg.svdvals | Input-unit singular values; dimensionless U and Vh | Native full_matrices, compute_uv, hermitian on svd |
+| linalg.eig, linalg.eigh, linalg.eigvals, linalg.eigvalsh | Input-unit eigenvalues; dimensionless eigenvectors when returned | Native stacked/complex rules; UPLO on Hermitian routines |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |
@@ -315,7 +319,7 @@ np.testing.assert_array_equal(np.imag(buffer).value[0], [2, 4])
 
 ## Norms
 
-See [linear systems and matrix measures](numpy/linalg.md) for the full group,
+See [linear algebra](numpy/linalg.md) for the full group,
 including solve, least-squares results, inverse units and rank thresholds.
 
 `np.linalg.norm(q, ord=None, axis=None, keepdims=False)` accepts linear

@@ -28,7 +28,7 @@ nav:
       - Reductions and statistics: numpy/statistics.md
       - Integration and differentiation: numpy/calculus.md
       - Vector and tensor products: numpy/contractions.md
-      - Linear systems and matrix measures: numpy/linalg.md
+      - Linear algebra: numpy/linalg.md
       - Writes and output buffers: numpy/writes.md
   - SciPy support: scipy.md
   - Matplotlib plots: matplotlib.md

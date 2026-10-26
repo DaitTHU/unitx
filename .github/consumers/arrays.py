@@ -329,6 +329,29 @@ def check_linalg() -> None:
     assert tensor_inverse.unit == tensor.unit**-1 and result.unit == si.V / si.ohm
 
 
+def check_factorizations() -> None:
+    a = Quantity(np.array([[3.0, 1.0], [1.0, 2.0]]), si.ohm)
+    q, r = cast(tuple[Quantity[Array], Quantity[Array]], np.linalg.qr(a))
+    assert q.unit == si.one and r.unit == a.unit
+    np.testing.assert_allclose((q @ r).value_in(si.ohm), a.value)
+    lower = cast(Quantity[Array], np.linalg.cholesky(a))
+    np.testing.assert_allclose((lower @ lower.T).value_in(si.ohm), a.value)
+    u, s, vh = cast(tuple[Quantity[Array], Quantity[Array], Quantity[Array]], np.linalg.svd(a))
+    assert u.unit == vh.unit == si.one and s.unit == a.unit
+    np.testing.assert_allclose(((u * s) @ vh).value_in(si.ohm), a.value)
+    singular = cast(Quantity[Array], np.linalg.svdvals(a))
+    assert singular.unit == a.unit
+    np.testing.assert_allclose(singular.value, s.value)
+    for operation in (np.linalg.eig, np.linalg.eigh):
+        w, v = cast(tuple[Quantity[Array], Quantity[Array]], operation(a))
+        assert w.unit == a.unit and v.unit == si.one
+        np.testing.assert_allclose((a @ v).value_in(si.ohm), (v * w).value_in(si.ohm))
+    for operation in (np.linalg.eigvals, np.linalg.eigvalsh):
+        w = cast(Quantity[Array], operation(a))
+        assert w.unit == a.unit
+        np.testing.assert_allclose(np.sort(w.value), np.sort(s.value))
+
+
 def check_sinc() -> None:
     x = Quantity(np.array([0.0, 50.0, 100.0]), Unit('cm/m'))
     result = cast(Quantity[Array], np.sinc(x))
@@ -338,4 +361,5 @@ def check_sinc() -> None:
 
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))
 check_linalg()
+check_factorizations()
 check_sinc()

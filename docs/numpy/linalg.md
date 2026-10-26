@@ -1,4 +1,4 @@
-# Linear systems and matrix measures
+# Linear algebra
 
 These functions accept linear Quantities and bare numeric ndarrays/scalars.
 Each operand has one uniform unit. Points and implicit list/tuple magnitudes
@@ -20,6 +20,12 @@ dtype, singular-matrix errors and available options; inputs are not modified.
 | `linalg.matrix_norm(x, *, keepdims=False, ord='fro')` | Input unit; operates on the last two axes |
 | `linalg.cond(x, p=None)` | Dimensionless Quantity |
 | `linalg.matrix_rank(A, tol=None, hermitian=False, *, rtol=None)` | Bare NumPy integer or integer ndarray |
+| `linalg.qr(a, mode='reduced')` | Dimensionless Q and input-unit R; reduced, complete and r modes |
+| `linalg.cholesky(a, *, upper=False)` | Input unit raised to the exact power 1/2 |
+| `linalg.svd(a, full_matrices=True, compute_uv=True, hermitian=False)` | Dimensionless U/Vh and input-unit singular values; only singular values when compute_uv=False |
+| `linalg.svdvals(x)` | Input-unit singular values |
+| `linalg.eig(a)`, `linalg.eigh(a, UPLO='L')` | Input-unit eigenvalues and dimensionless eigenvectors |
+| `linalg.eigvals(a)`, `linalg.eigvalsh(a, UPLO='L')` | Input-unit eigenvalues |
 
 Bare numerical operands are dimensionless. Solving does not require a and b
 to have the same dimensions: their quotient determines the solution's unit.
@@ -84,12 +90,48 @@ assert amplitude.unit == si.V and amplitude.value == 5
 np.testing.assert_allclose((signal / amplitude).value_in(si.one), [0.6, 0.8])
 ```
 
+## Factorizations and eigenproblems
+
+QR, SVD and eigenvector results retain NumPy's namedtuple fields (`Q`/`R`,
+`U`/`S`/`Vh`, `eigenvalues`/`eigenvectors`) and support tuple unpacking. Each
+component is a Quantity. Singular values, eigenvalues and R retain the full
+input unit, including exact extra scales. Orthogonal/unitary vectors use the
+coherent dimensionless unit. Cholesky factors carry the exact square root of
+the full unit. The reconstruction equations therefore retain their units:
+
+```python
+q, r = np.linalg.qr(resistance)
+np.testing.assert_allclose((q @ r).value_in(si.ohm), resistance.value)
+u, s, vh = np.linalg.svd(resistance, full_matrices=False)
+np.testing.assert_allclose(((u * s) @ vh).value_in(si.ohm), resistance.value)
+eigenvalues, eigenvectors = np.linalg.eigh(resistance)
+np.testing.assert_allclose(
+    (resistance @ eigenvectors).value_in(si.ohm),
+    (eigenvectors * eigenvalues).value_in(si.ohm),
+)
+lower = np.linalg.cholesky(resistance)
+np.testing.assert_allclose((lower @ lower.T).value_in(si.ohm), resistance.value)
+```
+
+QR supports `mode='reduced'`, `'complete'` and `'r'`; the last returns just R.
+`'raw'` and deprecated modes are rejected. Raw QR packs dimensionless
+Householder reflectors and input-unit triangular entries in the same array,
+which cannot be represented by one uniform unit. Extract numerical values
+explicitly when using that low-level representation.
+
+NumPy controls stacked/rectangular matrix shapes, complex conjugation, result
+dtypes and numerical failures. `eigh`/`eigvalsh` use the selected `UPLO`
+triangle, and Cholesky uses the triangle selected by `upper`; unitx does not
+add a Hermitian-symmetry check. None of these functions accepts an `out` buffer.
+
 NumPy's static annotations can still describe dispatched results as ndarrays
 or Any. These runtime implementations do not replace NumPy's stubs; see the
 [typing guide](../typing.md#numpy-component-inference).
 
 References: [NumPy linear algebra](https://numpy.org/doc/stable/reference/routines.linalg.html),
 [least-squares results](https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html),
-[rank thresholds](https://numpy.org/doc/stable/reference/generated/numpy.linalg.matrix_rank.html).
+[rank thresholds](https://numpy.org/doc/stable/reference/generated/numpy.linalg.matrix_rank.html),
+[QR modes](https://numpy.org/doc/stable/reference/generated/numpy.linalg.qr.html),
+[SVD](https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html).
 
 [NumPy support matrix](../numpy.md) · [Documentation index](../README.md)
