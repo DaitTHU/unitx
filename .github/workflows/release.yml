@@ -95,6 +95,15 @@ jobs:
           python -I plots.py
           python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" plots.py
 
+      - name: Install optional SciPy
+        run: python -m pip install 'scipy>=1.14'
+
+      - name: Check installed SciPy runtime and types
+        working-directory: ${{ runner.temp }}/unitx-consumers
+        run: |
+          python -I scipy_support.py
+          python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" scipy_support.py
+
       - name: Store distributions
         uses: actions/upload-artifact@v5
         with:

@@ -29,6 +29,7 @@ nav:
       - Integration and differentiation: numpy/calculus.md
       - Vector and tensor products: numpy/contractions.md
       - Writes and output buffers: numpy/writes.md
+  - SciPy support: scipy.md
   - Matplotlib plots: matplotlib.md
   - Display and formatting: display.md
   - Scalar data exchange: serialization.md

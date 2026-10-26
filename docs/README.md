@@ -20,6 +20,7 @@ reading about an older version.
 | Work with logarithmic differences and readings | [Logarithmic quantities](logarithmic.md) |
 | Call unit-aware mathematical functions or read a clock | [Standard-library enhancements](stdlib.md) |
 | Calculate with arrays, masks, reductions and output buffers | [NumPy support](numpy.md) |
+| Use Bessel functions and Simpson integration | [SciPy support](scipy.md) |
 | Plot quantities with automatic axis conversion | [Matplotlib plots](matplotlib.md) |
 | Format text or export LaTeX, HTML and siunitx | [Display and formatting](display.md) |
 | Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
@@ -63,7 +64,7 @@ symbolic pi nor Decimal input implies arbitrary-precision numerical functions.
 Type annotations describe magnitude types; physical dimensions are checked
 at runtime.
 
-NumPy and SymPy are optional. Core scalar use requires neither. Supported
+NumPy, SciPy and SymPy are optional. Core scalar use requires neither. Supported
 NumPy inputs are plain numeric arrays/scalars, not arbitrary duck arrays,
 masked arrays, or object arrays. The explicit `.value` and `.value_in(unit)`
 exits let callers choose where to hand numerical data to another library.

@@ -9,6 +9,7 @@ only after computing, converting, and casting a temporary result.
 
 import math
 import operator
+import sys
 import warnings
 from decimal import Decimal
 from fractions import Fraction
@@ -570,7 +571,17 @@ def _dispatch_ufunc(
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit())
-
+    # SciPy's public ufunc is already loaded when it dispatches here. Identity
+    # lookup avoids importing SciPy or accepting an unrelated same-name ufunc.
+    if ufunc is getattr(sys.modules.get('scipy.special'), 'jv', None):
+        a, u = _linear_parts(inputs[0])
+        b, v = _linear_parts(inputs[1])
+        if u.dimension != DIMENSIONLESS or v.dimension != DIMENSIONLESS:
+            error_message = 'Bessel order and argument must be dimensionless.'
+            raise DimensionError(error_message)
+        return _wrap(
+            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), Unit()
+        )
     return NotImplemented
 
 

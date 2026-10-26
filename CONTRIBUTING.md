@@ -3,10 +3,11 @@
 Use Python 3.12 or later. Install the checkout into your development environment:
 
 ```sh
-python -m pip install -e '.[test,numpy]' build twine
+python -m pip install -e '.[test,numpy,scipy]' build twine
 ```
 
-NumPy is optional at runtime; including it here enables array tests. SymPy is
+NumPy and SciPy are optional at runtime; including them here enables array
+and SciPy integration tests. SymPy is
 an optional factorization backend. Changes must also preserve scalar use
 without NumPy and the built-in factorization path without SymPy.
 
@@ -29,8 +30,9 @@ consumers in `.github/consumers/`. It copies those scripts and their independent
 Pyright configuration outside the checkout, first checking scalar runtime and
 types without NumPy, then installing NumPy and checking array runtime and types.
 It then installs Matplotlib and checks the optional axis converter with the
-installed plotting consumer. The NumPy minimum job also checks Matplotlib 3.9;
-the current job uses current Matplotlib.
+installed plotting consumer, then checks the optional SciPy integration consumer. The NumPy minimum job also checks Matplotlib 3.9;
+the current job uses current Matplotlib. These jobs also exercise minimum/current
+SciPy for the finite jv and Simpson integration support.
 The release workflow runs the same consumers before uploading distributions.
 Test functions and helpers have annotated parameters and return values. The
 dedicated Ruff command checks those signatures; static inference regressions

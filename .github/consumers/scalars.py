@@ -27,6 +27,7 @@ from unitx import (
 from unitx.cgs import cgs, emu, esu, gaussian, hl
 from unitx.factor import Factor
 from unitx.imperial import imperial
+from unitx.scipy import simpson
 from unitx.serialization import from_dict, to_dict
 from unitx.si import SI, si
 
@@ -38,6 +39,7 @@ assert (package_root / 'py.typed').is_file()
 assert find_spec('numpy') is None
 assert import_module('unitx.math') is math
 assert import_module('unitx.time') is time
+assert callable(simpson)
 assert_type(SI.re, Quantity[Decimal])
 assert_type(SI.c**2, Quantity[int])
 assert type(SI.re.value) is Decimal
@@ -150,4 +152,5 @@ for value in (quantity, celsius, level):
     assert pickle.loads(pickle.dumps(value)) == value
 assert 'numpy' not in sys.modules
 assert 'sympy' not in sys.modules
+assert 'scipy' not in sys.modules
 assert 'matplotlib' not in sys.modules
