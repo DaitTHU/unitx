@@ -687,6 +687,8 @@ def dispatch_function(
         return _multi_dot(*args, **kwargs)
     if func is np.linalg.norm:
         return _norm(*args, **kwargs)
+    if func in _LINALG_FUNCTIONS:
+        return _LINALG_FUNCTIONS[func](*args, **kwargs)
     if func is np.trace:
         return _trace(*args, **kwargs)
     if func is np.where:
@@ -761,13 +763,135 @@ def dispatch_function(
     return handler(*args, **kwargs)
 
 
-def _norm(x: Any, ord: Any = None, axis: Any = None, keepdims: bool = False) -> Any:
-    values, unit = _linear_parts(x)
+def _linalg_parts(value: Any) -> tuple[Any, Unit]:
+    if not _is_supported_operand(value):
+        error_message = 'Linear algebra requires numeric scalars, ndarrays or linear quantities.'
+        raise TypeError(error_message)
+    return _linear_parts(value)
+
+
+def _linalg_cutoff(value: Any, unit: Unit, name: str) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        value = np.asarray(value)
+    raw, source = _linalg_parts(value)
+    if np.iscomplexobj(raw):
+        error_message = f'{name} must be real.'
+        raise TypeError(error_message)
+    # Bare cutoffs are in the stored numerical domain, as in NumPy. Quantity
+    # cutoffs explicitly specify either an absolute unit or a relative scale.
+    if isinstance(value, Quantity):
+        if not compatible(source, unit):
+            error_message = f'{name} has an incompatible dimension or logarithmic degree.'
+            raise DimensionError(error_message)
+        return scale_magnitude(raw, source.factor / unit.factor)
+    return raw
+
+
+def _solve(a: Any, b: Any) -> Any:
+    av, au = _linalg_parts(a)
+    bv, bu = _linalg_parts(b)
+    return Quantity(np.linalg.solve(av, bv), bu / au)
+
+
+def _tensorsolve(a: Any, b: Any, axes: Any = None) -> Any:
+    av, au = _linalg_parts(a)
+    bv, bu = _linalg_parts(b)
+    return Quantity(np.linalg.tensorsolve(av, bv, axes=axes), bu / au)
+
+
+def _lstsq(a: Any, b: Any, rcond: Any = None) -> Any:
+    av, au = _linalg_parts(a)
+    bv, bu = _linalg_parts(b)
+    solution, residuals, rank, singular = np.linalg.lstsq(
+        av, bv, rcond=_linalg_cutoff(rcond, Unit(), 'rcond')
+    )
+    return Quantity(solution, bu / au), Quantity(residuals, bu**2), rank, Quantity(singular, au)
+
+
+def _inverse(func: Any, a: Any, *args: Any, **kwargs: Any) -> Any:
+    values, unit = _linalg_parts(a)
+    return Quantity(func(values, *args, **kwargs), unit**-1)
+
+
+def _pinv(a: Any, rcond: Any = None, hermitian: bool = False, *, rtol: Any = _UNSET) -> Any:
+    options = {} if rtol is _UNSET else {'rtol': _linalg_cutoff(rtol, Unit(), 'rtol')}
+    return _inverse(
+        np.linalg.pinv,
+        a,
+        rcond=_linalg_cutoff(rcond, Unit(), 'rcond'),
+        hermitian=hermitian,
+        **options,
+    )
+
+
+def _matrix_power(a: Any, n: Any) -> Any:
+    values, unit = _linalg_parts(a)
+    result = np.linalg.matrix_power(values, n)
+    return Quantity(result, unit ** operator.index(n))
+
+
+def _det(a: Any) -> Any:
+    values, unit = _linalg_parts(a)
+    result = np.linalg.det(values)
+    return Quantity(result, unit ** values.shape[-1])
+
+
+def _norm_result(func: Any, x: Any, **kwargs: Any) -> Any:
+    values, unit = _linalg_parts(x)
+    ord = kwargs['ord']
     if isinstance(ord, (Quantity, _Point, Unit, _Coordinate)):
         error_message = 'Norm order must be a bare number or a matrix norm string.'
         raise TypeError(error_message)
-    result = np.linalg.norm(values, ord=ord, axis=axis, keepdims=keepdims)
+    result = func(values, **kwargs)
     return Quantity(result, Unit() if ord == 0 else unit)
+
+
+def _norm(x: Any, ord: Any = None, axis: Any = None, keepdims: bool = False) -> Any:
+    return _norm_result(np.linalg.norm, x, ord=ord, axis=axis, keepdims=keepdims)
+
+
+def _vector_norm(x: Any, /, *, axis: Any = None, keepdims: bool = False, ord: Any = 2) -> Any:
+    return _norm_result(np.linalg.vector_norm, x, ord=ord, axis=axis, keepdims=keepdims)
+
+
+def _matrix_norm(x: Any, /, *, keepdims: bool = False, ord: Any = 'fro') -> Any:
+    return _norm_result(np.linalg.matrix_norm, x, ord=ord, keepdims=keepdims)
+
+
+def _cond(x: Any, p: Any = None) -> Any:
+    values, _ = _linalg_parts(x)
+    if isinstance(p, (Quantity, _Point, Unit, _Coordinate)):
+        error_message = 'Condition number order must be a bare number or a matrix norm string.'
+        raise TypeError(error_message)
+    return Quantity(np.linalg.cond(values, p=p), Unit())
+
+
+def _matrix_rank(A: Any, tol: Any = None, hermitian: bool = False, *, rtol: Any = None) -> Any:
+    values, unit = _linalg_parts(A)
+    return np.linalg.matrix_rank(
+        values,
+        tol=_linalg_cutoff(tol, unit, 'tol'),
+        hermitian=hermitian,
+        rtol=_linalg_cutoff(rtol, Unit(), 'rtol'),
+    )
+
+
+_LINALG_FUNCTIONS = {
+    np.linalg.solve: _solve,
+    np.linalg.tensorsolve: _tensorsolve,
+    np.linalg.lstsq: _lstsq,
+    np.linalg.inv: partial(_inverse, np.linalg.inv),
+    np.linalg.pinv: _pinv,
+    np.linalg.tensorinv: partial(_inverse, np.linalg.tensorinv),
+    np.linalg.matrix_power: _matrix_power,
+    np.linalg.det: _det,
+    np.linalg.vector_norm: _vector_norm,
+    np.linalg.matrix_norm: _matrix_norm,
+    np.linalg.cond: _cond,
+    np.linalg.matrix_rank: _matrix_rank,
+}
 
 
 def _product_parts(operands: Any) -> tuple[list[Any], Unit]:

@@ -10,6 +10,29 @@ from unitx.factor import Factor, pi
 np = pytest.importorskip('numpy')
 
 
+@pytest.mark.parametrize('ord', [0, 1, 2, -1, np.inf])
+@pytest.mark.parametrize('axis', [None, 0, (1, 2)])
+@pytest.mark.parametrize('keepdims', [False, True])
+def test_numpy_vector_norm(ord: Any, axis: Any, keepdims: bool) -> None:
+    q = Quantity(np.arange(1.0, 25).reshape(2, 3, 4) * (1 + 1j), Factor(2) * Unit('V'))
+    result = np.linalg.vector_norm(q, ord=ord, axis=axis, keepdims=keepdims)
+    assert result.unit == (Unit() if ord == 0 else q.unit)
+    np.testing.assert_allclose(
+        result.value, np.linalg.vector_norm(q.value, ord=ord, axis=axis, keepdims=keepdims)
+    )
+
+
+@pytest.mark.parametrize('ord', ['fro', 'nuc', 1, -1, 2, -2, np.inf])
+@pytest.mark.parametrize('keepdims', [False, True])
+def test_numpy_matrix_norm(ord: Any, keepdims: bool) -> None:
+    q = Quantity(np.arange(1.0, 25).reshape(2, 3, 4), 'V')
+    result = np.linalg.matrix_norm(q, ord=ord, keepdims=keepdims)
+    assert result.unit == q.unit
+    np.testing.assert_allclose(
+        result.value, np.linalg.matrix_norm(q.value, ord=ord, keepdims=keepdims)
+    )
+
+
 @pytest.mark.parametrize('ord', [None, 0, 1, 2, 3, -1, -2, np.inf, -np.inf])
 @pytest.mark.parametrize('axis', [None, 0, -1])
 @pytest.mark.parametrize('keepdims', [False, True])

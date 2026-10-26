@@ -295,4 +295,33 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     np.testing.assert_allclose(charge.value_in(si.C), 9)
 
 
+def check_linalg() -> None:
+    a = Quantity(np.array([[3.0, 1.0], [1.0, 2.0]]), si.ohm)
+    b = Quantity(np.array([9.0, 8.0]), si.V)
+    x = cast(Quantity[Array], np.linalg.solve(a, b))
+    np.testing.assert_allclose(x.value_in(si.A), [2, 3])
+    inverse = cast(Quantity[Array], np.linalg.inv(a))
+    pseudo = cast(Quantity[Array], np.linalg.pinv(a, rcond=1e-12))
+    np.testing.assert_allclose((a @ inverse).value_in(si.one), np.eye(2), atol=1e-14)
+    np.testing.assert_allclose(pseudo.value, inverse.value)
+    squared = cast(Quantity[Array], np.linalg.matrix_power(a, 2))
+    determinant = cast(Quantity[Array], np.linalg.det(a))
+    assert squared.unit == determinant.unit == a.unit**2
+    solution, residuals, rank, singular = cast(
+        tuple[Quantity[Array], Quantity[Array], object, Quantity[Array]], np.linalg.lstsq(a, b)
+    )
+    assert solution.unit == b.unit / a.unit and residuals.unit == b.unit**2
+    assert rank == 2 and singular.unit == a.unit
+    for operation in (np.linalg.vector_norm, np.linalg.matrix_norm):
+        norm = cast(Quantity[Array], operation(a))
+        assert norm.unit == a.unit
+    condition = cast(Quantity[Array], np.linalg.cond(a))
+    assert condition.unit == si.one and np.linalg.matrix_rank(a) == 2
+    tensor = Quantity(np.eye(4).reshape(2, 2, 2, 2), si.ohm)
+    tensor_inverse = cast(Quantity[Array], np.linalg.tensorinv(tensor, ind=2))
+    result = cast(Quantity[Array], np.linalg.tensorsolve(tensor, Quantity(np.ones((2, 2)), si.V)))
+    assert tensor_inverse.unit == tensor.unit**-1 and result.unit == si.V / si.ohm
+
+
 check_arrays(np.asarray([0.0, 20.0, 30.0], dtype=np.float64))
+check_linalg()

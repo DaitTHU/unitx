@@ -126,6 +126,11 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | einsum_path | Bare path and diagnostic string | Native subscript/optimization options |
 | trace | Preserve linear unit | offset, axis1, axis2, dtype, out |
 | linalg.norm | Preserve linear unit; ord=0 returns a dimensionless nonzero count | ord, axis, keepdims; native vector/matrix rules |
+| linalg.vector_norm, linalg.matrix_norm | Preserve linear unit; vector ord=0 is dimensionless | Native ord/keepdims; vector axis; [linear algebra rules](numpy/linalg.md) |
+| linalg.solve, linalg.tensorsolve, linalg.lstsq | Solution unit is b.unit / a.unit; lstsq has per-result units | Native shapes/axes/cutoffs; [linear systems](numpy/linalg.md) |
+| linalg.inv, linalg.pinv, linalg.tensorinv | Reciprocal input unit | Native hermitian/cutoff/ind options |
+| linalg.matrix_power, linalg.det | Input unit raised to integer power or matrix order | Native powers, square/stacked shapes |
+| linalg.cond, linalg.matrix_rank | Dimensionless Quantity or bare integer rank | Native orders and absolute/relative cutoffs |
 | reshape, transpose | Preserve unit | shape/order/copy; axes |
 | squeeze, expand_dims | Preserve unit or point coordinate | axis |
 | moveaxis, swapaxes, rollaxis | Preserve unit or point coordinate | source/destination; axis1/axis2; axis/start |
@@ -308,6 +313,9 @@ np.testing.assert_array_equal(np.imag(buffer).value[0], [2, 4])
 ```
 
 ## Norms
+
+See [linear systems and matrix measures](numpy/linalg.md) for the full group,
+including solve, least-squares results, inverse units and rank thresholds.
 
 `np.linalg.norm(q, ord=None, axis=None, keepdims=False)` accepts linear
 quantities. Vector norms and matrix norms (including Frobenius, nuclear and

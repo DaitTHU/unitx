@@ -152,7 +152,8 @@ ufunc stubs preserve the wrapper at every intermediate call. For an explicit
 numerical boundary, use `np.expm1(np.asarray(q.value_in(si.one)))` after
 checking dimensions and normalizing the scale.
 
-The same NumPy stub limitation applies to the supported vector/tensor products,
+The same NumPy stub limitation applies to linear systems and matrix measures,
+the supported vector/tensor products,
 `einsum`, and shape transformations,
 broadcasting, rearrangement, repetition and copying,
 `where`, `clip`,
