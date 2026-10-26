@@ -224,7 +224,9 @@ def check_arrays(values: NDArray[np.float64]) -> None:
     distance.__array_function__(
         np.clip, (Quantity,), (distance, Quantity(5, si.m), Quantity(25, si.m)), {'out': target}
     )
-    assert_type(target.value, NDArray[np.float64])
+    # NumPy versions differ in the shape inferred for empty(values.shape).
+    assert isinstance(target.value, np.ndarray)
+    assert_type(target.value.dtype, np.dtype[np.float64])
     np.testing.assert_allclose(target.value, [500, 2000, 2500])
 
     weights = Quantity(np.array([1.0, 2, 1]), Unit('m/cm'))
