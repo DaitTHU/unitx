@@ -15,6 +15,16 @@ from unitx.si import si
 np = pytest.importorskip('numpy')
 
 
+class _ArrayQuantity(Quantity[Array]):
+    pass
+
+
+def test_quantity_array_methods_subclass() -> None:
+    q = _ArrayQuantity(np.arange(4.0), si.m)
+    for result in (q.ravel(), q.copy(), q.sum(), q.mean(), q.std()):
+        assert type(result) is Quantity
+
+
 @pytest.mark.parametrize(
     'cls,unit', [(Quantity, si.m), (AffineQuantity, si.degC), (LogQuantity, si.dBm)]
 )

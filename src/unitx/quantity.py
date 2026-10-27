@@ -28,6 +28,7 @@ from ._numerics import (
     as_int_if_integral,
     is_numpy_object,
 )
+from ._numerics.methods import numpy_method
 from ._numerics.numpy_typing import (
     _UNSET,
     HasImag,
@@ -937,26 +938,23 @@ class Quantity(Generic[T]):
         new_shape = (shape, *dimensions) if dimensions else shape
         return _reshape(self, new_shape, order=order, copy=copy)
 
+    @numpy_method
     def ravel(
         self: Quantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[NumpyArray]:
         """Return a one-dimensional array, sharing storage when NumPy permits."""
-        self._array_value()
-        from ._numerics.numpy import _ravel
+        ...
 
-        return _ravel(self, order=order)
-
+    @numpy_method
     def copy(
         self: Quantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[NumpyArray]:
         """Copy into independent ndarray storage; the default order is `C`."""
-        self._array_value()
-        from ._numerics.numpy import _array_transform, np
+        ...
 
-        return _array_transform(np.copy, self, order=order)
-
+    @numpy_method
     def sum(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -968,20 +966,9 @@ class Quantity(Generic[T]):
         initial: object = 0,
     ) -> Quantity[NumpyValue]:
         """Sum linear values, using the existing NumPy unit and output rules."""
-        self._array_value()
-        from ._numerics.numpy import _sum, np
+        ...
 
-        return _sum(
-            np.add.reduce,
-            self,
-            axis=axis,
-            dtype=dtype,
-            out=out,
-            keepdims=keepdims,
-            where=where,
-            initial=initial,
-        )
-
+    @numpy_method
     def mean(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -992,11 +979,9 @@ class Quantity(Generic[T]):
         where: object = True,
     ) -> Quantity[NumpyValue]:
         """Average stored readings, using the existing NumPy unit and output rules."""
-        self._array_value()
-        from ._numerics.numpy import _mean, np
+        ...
 
-        return _mean(np.mean, self, axis=axis, dtype=dtype, out=out, keepdims=keepdims, where=where)
-
+    @numpy_method
     def std(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1010,21 +995,7 @@ class Quantity(Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[NumpyValue]:
         """Return a difference standard deviation using NumPy unit/output rules."""
-        self._array_value()
-        from ._numerics.numpy import _std_var, np
-
-        return _std_var(
-            np.std,
-            self,
-            axis=axis,
-            dtype=dtype,
-            out=out,
-            keepdims=keepdims,
-            where=where,
-            ddof=ddof,
-            mean=mean,
-            correction=correction,
-        )
+        ...
 
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]:
         return Quantity(self._array_value().flatten(order), self.unit)

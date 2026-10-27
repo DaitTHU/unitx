@@ -165,6 +165,12 @@ enumerate their own reference/difference dependencies. Display, NumPy and
 serialization remain explicit integration boundaries. Numeric caches, parser
 state and reconstruction indexes remain separate from mathematical identity.
 
+Direct array methods declare their public signatures explicitly. A private
+decorator in `_numerics/methods.py` binds their defaults and lazily delegates to
+the same NumPy dispatch used by function calls. It adds no dynamic method lookup
+or separate unit rules; coordinate and linear result construction stays in the
+existing handlers. Reshape keeps its explicit positional-shape normalization.
+
 The point marker's type parameter describes the result of adding a difference,
 not the original magnitude type. This prevents the open scalar protocol from
 claiming point operands and preserves concrete result types without naming the
