@@ -1,6 +1,19 @@
 # Changelog
 
-## [Unreleased]
+## [0.17.1] - 2026-10-27
+
+### Added
+
+- Add read-only `q.n` as an explicit dimensionless numerical exit, equivalent
+  to `q.value_in(si.one)` with full scale and compatibility checks.
+- Add `Quantity.to_base()` for coherent SI base products and `simplify()` for
+  combining like-dimensional factors without choosing named derived units.
+- Add `Quantity.compact()` for readable SI prefixes, including negative and
+  rational powers and one array-wide prefix selected from finite magnitudes.
+- Add `as_pair()` to linear quantities, affine points and logarithmic readings,
+  retaining the actual magnitude and complete unit or coordinate without copying.
+- Document representation choices and verify their installed scalar/array
+  runtime and type consumers without NumPy and with minimum/current dependencies.
 
 ### Fixed
 
