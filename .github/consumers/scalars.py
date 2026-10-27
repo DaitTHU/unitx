@@ -121,6 +121,9 @@ assert_type(root, Quantity[float])
 assert root == 3 * si.m
 assert math.sin(90 * si.deg).value == 1.0
 assert math.hypot(3 * si.m, 400 * si.cm) == 5 * si.m
+assert_type(math.exp(1j), Quantity[complex])
+assert_type(math.conj(2 + 3j), Quantity[complex])
+assert math.conj(Quantity(2 + 3j, si.m)).value == 2 - 3j
 
 stamp = time.time()
 start = time.perf_counter()

@@ -19,9 +19,11 @@ from ._numerics.numpy_typing import (
     WritableArray,
     _Axis,
     _NumpyArrayOf,
+    _NumpyNumber,
     _NumpyScalar,
     _Shape,
     _TypedArray,
+    _TypedScalar,
 )
 from ._operands import _Point, linear_unit
 from .dimension import Dimension
@@ -468,6 +470,43 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
             error_message = 'Scalar quantities are not iterable.'
             raise TypeError(error_message)
         return (LogQuantity(value, self.unit) for value in self._array_value())
+
+    @overload
+    def transpose[S: _NumpyScalar](
+        self: LogQuantity[_TypedArray[S]], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> LogQuantity[_NumpyArrayOf[S]]: ...
+    @overload
+    def transpose[S: _NumpyNumber](
+        self: LogQuantity[_TypedScalar[S]], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> LogQuantity[S]: ...
+    @overload
+    def transpose(
+        self: LogQuantity[Array], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> LogQuantity[NumpyValue]: ...
+    def transpose(
+        self: LogQuantity[Array], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> LogQuantity[NumpyValue]:
+        """Permute axes, accepting a tuple or positional axes; reverse them by default."""
+        self._array_value()
+        from ._numerics.numpy import _transpose
+
+        order = (axes, *more_axes) if more_axes or isinstance(axes, SupportsIndex) else axes
+        return _transpose(self, order)
+
+    @overload
+    def squeeze[S: _NumpyScalar](
+        self: LogQuantity[_TypedArray[S]], axis: _Axis = None
+    ) -> LogQuantity[_NumpyArrayOf[S]]: ...
+    @overload
+    def squeeze[S: _NumpyNumber](
+        self: LogQuantity[_TypedScalar[S]], axis: _Axis = None
+    ) -> LogQuantity[S]: ...
+    @overload
+    def squeeze(self: LogQuantity[Array], axis: _Axis = None) -> LogQuantity[NumpyValue]: ...
+    @numpy_method
+    def squeeze(self: LogQuantity[Array], axis: _Axis = None) -> LogQuantity[NumpyValue]:
+        """Remove length-one axes, retaining the complete unit and NumPy storage rules."""
+        ...
 
     @overload
     def reshape[S: _NumpyScalar](

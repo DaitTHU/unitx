@@ -113,3 +113,23 @@ def test_math_numpy_ufunc_outputs() -> None:
     with pytest.raises(DimensionError):
         y.__array_ufunc__(np.arctan2, '__call__', y, x, out=(target,))
     np.testing.assert_allclose(target.value, [500])
+
+
+@pytest.mark.parametrize('dtype', ['float32', 'float64', 'complex64', 'complex128'])
+@pytest.mark.parametrize('shape', [(), (3,)])
+def test_math_numpy_exp_conj(dtype: str, shape: tuple[int, ...]) -> None:
+    value = np.full(shape, 0.25, dtype=dtype)
+    if value.dtype.kind == 'c':
+        value += 0.5j
+    q = Quantity(value, 'percent')
+    exponential = math.exp(q)
+    expected = np.exp(q.n)
+    assert type(exponential.value) is type(expected)
+    assert exponential.value.dtype == expected.dtype
+    np.testing.assert_array_equal(exponential.value, expected)
+    conjugate = math.conj(q)
+    expected_conjugate = np.conj(value)
+    assert conjugate.unit is q.unit
+    assert type(conjugate.value) is type(expected_conjugate)
+    assert conjugate.value.dtype == expected_conjugate.dtype
+    np.testing.assert_array_equal(conjugate.value, expected_conjugate)

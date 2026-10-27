@@ -117,3 +117,25 @@ assert 'numpy' not in sys.modules
 assert 'sympy' not in sys.modules
 """
     subprocess.run([sys.executable, '-S', '-c', code], check=True)
+
+
+def test_math_exp_complex() -> None:
+    import cmath
+
+    result = math.exp(Quantity(2 + 3j, 'percent'))
+    assert type(result.value) is complex
+    assert result.unit == Unit()
+    assert result.value == cmath.exp(0.02 + 0.03j)
+    assert math.exp(1j).value == cmath.exp(1j)
+    with pytest.raises(DimensionError):
+        math.exp(Quantity(1j, 'm'))
+
+
+def test_math_conj() -> None:
+    for value in (2, 2.0, 2 + 3j, Fraction(2, 3), Decimal('1.25')):
+        q = Quantity(value, Unit('cm', scale=Factor(2)))
+        result = math.conj(q)
+        assert result.unit is q.unit
+        assert type(result.value) is type(value)
+        assert result.value == value.conjugate()
+    assert math.conj(pi).value == pi.value

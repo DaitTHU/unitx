@@ -19,9 +19,11 @@ from ._numerics.numpy_typing import (
     WritableArray,
     _Axis,
     _NumpyArrayOf,
+    _NumpyNumber,
     _NumpyScalar,
     _Shape,
     _TypedArray,
+    _TypedScalar,
 )
 from ._operands import _Point, linear_unit
 from .affineunit import AffineUnit, _as_affine_unit
@@ -490,6 +492,43 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
             error_message = 'Scalar quantities are not iterable.'
             raise TypeError(error_message)
         return (AffineQuantity(value, self.unit) for value in self._array_value())
+
+    @overload
+    def transpose[S: _NumpyScalar](
+        self: AffineQuantity[_TypedArray[S]], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
+    @overload
+    def transpose[S: _NumpyNumber](
+        self: AffineQuantity[_TypedScalar[S]], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> AffineQuantity[S]: ...
+    @overload
+    def transpose(
+        self: AffineQuantity[Array], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> AffineQuantity[NumpyValue]: ...
+    def transpose(
+        self: AffineQuantity[Array], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> AffineQuantity[NumpyValue]:
+        """Permute axes, accepting a tuple or positional axes; reverse them by default."""
+        self._array_value()
+        from ._numerics.numpy import _transpose
+
+        order = (axes, *more_axes) if more_axes or isinstance(axes, SupportsIndex) else axes
+        return _transpose(self, order)
+
+    @overload
+    def squeeze[S: _NumpyScalar](
+        self: AffineQuantity[_TypedArray[S]], axis: _Axis = None
+    ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
+    @overload
+    def squeeze[S: _NumpyNumber](
+        self: AffineQuantity[_TypedScalar[S]], axis: _Axis = None
+    ) -> AffineQuantity[S]: ...
+    @overload
+    def squeeze(self: AffineQuantity[Array], axis: _Axis = None) -> AffineQuantity[NumpyValue]: ...
+    @numpy_method
+    def squeeze(self: AffineQuantity[Array], axis: _Axis = None) -> AffineQuantity[NumpyValue]:
+        """Remove length-one axes, retaining the complete unit and NumPy storage rules."""
+        ...
 
     @overload
     def reshape[S: _NumpyScalar](

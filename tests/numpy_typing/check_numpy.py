@@ -193,7 +193,7 @@ def numpy_result_methods(a: npt.NDArray[np.float64]) -> None:
     for result in (q.to('cm'), q + q, q * 2, q / 2, q**2, q[0], next(iter(q)), abs(q)):
         # Exercise actual ndarray/scalar interfaces after unitx operations,
         # rather than accepting a result widened to Any or a small protocol.
-        assert_type(result.value, FloatValue | NumpyValue)
+        assert_type(result.value, FloatValue)
         assert_type(result.value.ndim, int)
         assert_type(result.value.dtype.kind.startswith('f'), bool)
         result.value.reshape((1, -1))

@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add typed `transpose` and `squeeze` methods for Quantity, AffineQuantity and
+  LogQuantity, preserving full units, coordinate families and NumPy views.
+- Add `unitx.math.conj` and complex inputs to `unitx.math.exp` for typed complex
+  phases, preserving complete units and the existing NumPy dispatch rules.
+
+### Changed
+
+- Expose `n` as an ordinary read-only property and retain float inference for
+  scientific scalar formulas, with exact runtime conversion rules unchanged.
+- Preserve known NumPy dtypes through the supported `unitx.math` phase functions,
+  mixed real/complex algebra, absolute values and same-dtype augmented products.
+- Retain ndarray results and numeric dtypes for slices, boolean indices,
+  ellipses, new axes and tuples starting with one of these indices.
+- Infer complex64/complex128 for float32/float64 multiplication and division
+  with Python complex scalars, including reflected operations.
+- Infer concrete NumPy dtype and container types for explicit `astype` calls,
+  and NumPy scalar types for complete sum/mean reductions and their numerical
+  exits, reducing the need for consumer casts and numerical conversions.
+
 ## [0.17.3] - 2026-10-27
 
 ### Added

@@ -4,7 +4,7 @@ unitx ships `quantity.pyi` for Quantity's complete static interface, inline
 annotations for the other modules, and `py.typed`. Fine-grained Quantity
 overloads live in the stub; its runtime implementation retains checked
 annotations and docstrings. The module's `quantity()` factory, dimensionless
-`n` descriptor, array components and subclass boundaries remain available.
+`n` property, array components and subclass boundaries remain available.
 The parameter in `Quantity[T]`
 or `AffineQuantity[T]` / `LogQuantity[T]` describes the magnitude type, not a physical dimension.
 Units and compatible dimensions are validated at runtime.
@@ -26,8 +26,10 @@ True
 Constructing a Quantity or changing its unit product without numerical
 arithmetic preserves T. Conversion and arithmetic can change the result type;
 annotations use the corresponding result domain. `unitx.math` returns
-`Quantity[float]` for supported Python real scalars and `Quantity[Array]`
-for its array overloads. `unitx.time` clocks return `AffineQuantity[int]`;
+`Quantity[float]` for supported Python real scalars. Its typed phase functions
+retain known NumPy dtypes, while other array overloads use `Quantity[Array]`;
+see [mathematical functions](stdlib.md#mathematical-functions).
+`unitx.time` clocks return `AffineQuantity[int]`;
 duration adapters use ordinary Quantity objects. `time.from_datetime()` returns
 `AffineQuantity[int]`; `time.to_datetime()` returns an aware datetime.
 
@@ -99,6 +101,15 @@ Mixed float/Decimal overloads likewise infer float for scientific formulas.
 If a float annotation hides an int, its interaction with Decimal can instead
 retain Decimal at runtime. Explicit int/Decimal inputs infer Decimal.
 
+The dimensionless `q.n` property also preserves the declared float domain for
+ordinary scientific calculations. For example,
+`(energy / (SI.me * SI.c**2)).n` infers `float` when `energy` is
+`Quantity[float]`. Concrete `Quantity[int]` inputs retain `int | Fraction | float`,
+and Fraction, Decimal and NumPy inputs keep their conversion-specific result
+domains. As with float arithmetic, an integer hidden inside `Quantity[float]`
+can still produce a Fraction at runtime; this annotation does not coerce values.
+Use `float(q.n)` when a float result must be guaranteed for such inputs.
+
 ## Quantity subclasses
 
 Preserving the magnitude parameter T does not preserve a Quantity subclass.
@@ -122,7 +133,10 @@ Quantity[T], as does `.T`. For a known NumPy floating or complex dtype S,
 linear conversion, `n`, unary signs, same-dtype array arithmetic, multiplication
 and division by Python real scalars, and real Python scalar powers retain
 `Quantity[NDArray[S] | S]`. Sum and mean retain this dtype when dtype/out are
-omitted. Indexing and iteration retain known numeric dtypes, including integers.
+omitted. A complete `sum()` or `mean()` with `axis=None` and `keepdims=False`
+returns the corresponding NumPy scalar type. Its `n`, `value_in()` and `to()`
+also preserve that scalar type for known floating/complex dtypes.
+Indexing and iteration retain known numeric dtypes, including integers.
 Shape/copy methods retain a known ndarray dtype without retaining its shape.
 Other numerical paths use `Quantity[NDArray[Any] | numpy.number[Any]]`, including
 mixed NumPy dtypes, integer conversion and array/scalar aligned addition.
@@ -139,6 +153,68 @@ undefined. `.dtype` exposes
 a NumPy dtype. Possible zero-dimensional-array to NumPy-scalar results remain
 in the result union.
 Boolean comparisons and isclose retain the NumPy-independent Array protocol.
+
+### Fewer conversions in scientific formulas
+
+Use ordinary quantity arithmetic and the direct methods before introducing a
+numeric conversion or a `cast`. For a known floating dtype, multiplication and
+division with a Python complex scalar retain the corresponding complex dtype:
+float32 produces complex64 and float64 produces complex128, in either operand
+order. Existing complex dtypes retain their precision. Strong NumPy scalar
+operands use the NumPy-dtype overloads instead; this follows
+[NumPy's scalar promotion rules](https://numpy.org/neps/nep-0050-scalar-promotion.html).
+The result still includes the possible NumPy scalar because zero-dimensional
+array arithmetic can remove the array container.
+
+A slice, boolean index, ellipsis or new axis retains an ndarray result and its
+numeric dtype. This includes tuples whose first component is one of those
+indices, such as `q[:, 0, 0]` and `q[mask, 0]`. Other tuple patterns, integer
+indices and integer-array indices keep an array/scalar union. In particular,
+a zero-dimensional integer index can select a scalar; an empty tuple can too.
+These distinctions follow [NumPy indexing](https://numpy.org/doc/stable/user/basics.indexing.html).
+
+```python
+import numpy as np
+from numpy.typing import NDArray
+from typing import assert_type
+from unitx import Quantity
+from unitx.si import si
+
+
+def inspect_spectrum(values: NDArray[np.float64], mask: NDArray[np.bool_]) -> None:
+    spectrum = Quantity(values, si.J)
+    assert_type(spectrum[mask], Quantity[NDArray[np.float64]])
+    assert_type(spectrum[:], Quantity[NDArray[np.float64]])
+    assert_type(1j * spectrum, Quantity[NDArray[np.complex128] | np.complex128])
+    assert_type(spectrum.sum(), Quantity[np.float64])
+    assert_type(spectrum.sum().value_in(si.mJ), np.float64)
+```
+
+When a numerical conversion is required, `q.astype(float)` and
+`q.astype(complex)` infer float64 and complex128 for NumPy magnitudes, retaining
+the ndarray or NumPy-scalar container. Explicit NumPy scalar dtype classes such
+as `np.float32` also retain the requested type. There is no need to convert
+again to repair their annotations. Built-in scalar `astype` keeps its existing
+Python return types.
+
+Keep a model's promised array shape in its public fields and return types.
+An annotation such as `NDArray[np.float64]` does not prove a nonzero rank, so
+general arithmetic and partial reductions can still require a local `cast`
+at a known model boundary. NumPy/SciPy function stubs can also lose Quantity
+dispatch information. These assertions should stay at the relevant boundary;
+adding `astype`, `float` or a reshape solely to satisfy the checker would
+introduce numerical work or alter the shape contract without improving the
+formula. An explicit numerical exit remains appropriate for an external API
+that actually requires plain numbers.
+
+For a sequence of transcendental calls, use the typed `unitx.math` entry points
+for supported functions. In particular, `math.atan`, `math.hypot`, `math.exp`
+and `math.conj` can retain Quantity and float64/complex128 through a full
+complex-field expression and its augmented products. Unitx's known
+float32/complex64 and float64/complex128 mixed arithmetic also retains the
+corresponding complex dtype; `abs(q)` retains the real component dtype.
+This avoids dependence on NumPy ufunc stubs that may return an incomplete
+ndarray. These functions do not require explicit dtype arguments or casts.
 
 ```python
 import numpy as np
@@ -158,6 +234,10 @@ Complex scalar arithmetic/conversion uses concrete complex or Number domains
 instead of the open Scalar fallback. A Python complex annotation can also hide
 an int, whose conversion may produce a Fraction; its conversion therefore keeps
 the Number union. Float conversion keeps the Real union for the same reason.
+The `q.n` property evaluates `q.value_in(si.one)` at runtime. Its float
+inference follows the scientific-calculation convention described above.
+At runtime `n` is an ordinary read-only property; its stub uses
+descriptor overloads to select the result domain from the magnitude type.
 
 `Scalar` is nonrecursive: its arithmetic methods return object at the protocol
 boundary, while equality still returns bool. Concrete scalar and array result
