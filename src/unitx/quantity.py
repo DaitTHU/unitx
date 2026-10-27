@@ -235,6 +235,10 @@ class Quantity(Generic[T]):
     def unit(self) -> Unit:
         return self._unit
 
+    def as_pair(self) -> tuple[T, Unit]:
+        """Return the stored magnitude and complete Unit without conversion or copy."""
+        return self.value, self.unit
+
     @property
     def dimension(self) -> Dimension:
         return self._unit.dimension
@@ -360,6 +364,109 @@ class Quantity(Generic[T]):
     def to(self, unit: str | Unit | _LinearUnitSource, /) -> Quantity[Magnitude]:
         unit = linear_unit(unit)
         return Quantity(self.value_in(unit), unit)
+
+    @overload
+    def to_base(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def to_base(self: Quantity[Decimal]) -> Quantity[Decimal]: ...
+
+    @overload
+    def to_base(self: Quantity[Fraction]) -> Quantity[Fraction | float]: ...
+
+    @overload
+    def to_base(self: Quantity[Real]) -> Quantity[Real]: ...
+
+    @overload
+    def to_base(self: Quantity[complex]) -> Quantity[complex]: ...
+
+    @overload
+    def to_base(self: Quantity[Scalar]) -> Quantity[Scalar]: ...
+
+    @overload
+    def to_base(self) -> Quantity[Magnitude]: ...
+
+    def to_base(self) -> Quantity[Magnitude]:
+        """Convert to a product of the seven coherent SI base units.
+
+        Return a Quantity, using ordinary conversion rules for the magnitude.
+        Dimensionless units become `one`; nonzero logarithmic degrees raise
+        DimensionError rather than discarding the logarithmic interpretation.
+
+        >>> Quantity(3, 'cm').to_base()
+        Quantity(Fraction(3, 100), Unit('m'))
+        """
+        from ._representation import base_unit
+
+        return self.to(base_unit(self.unit))
+
+    @overload
+    def simplify(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def simplify(self: Quantity[Decimal]) -> Quantity[Decimal]: ...
+
+    @overload
+    def simplify(self: Quantity[Fraction]) -> Quantity[Fraction | float]: ...
+
+    @overload
+    def simplify(self: Quantity[Real]) -> Quantity[Real]: ...
+
+    @overload
+    def simplify(self: Quantity[complex]) -> Quantity[complex]: ...
+
+    @overload
+    def simplify(self: Quantity[Scalar]) -> Quantity[Scalar]: ...
+
+    @overload
+    def simplify(self) -> Quantity[Magnitude]: ...
+
+    def simplify(self) -> Quantity[Magnitude]:
+        """Merge factors with the same complete dimension using existing units.
+
+        Prefer an existing unprefixed unit, then canonical symbol order. Remove
+        ordinary dimensionless factors, retaining the explicit extra Unit scale.
+        Do not search named derived units or choose prefixes from the magnitude.
+
+        >>> Quantity(1, 'cm*m**2').simplify()
+        Quantity(Fraction(1, 100), Unit('m**3'))
+        """
+        from ._representation import simplified_unit
+
+        return self.to(simplified_unit(self.unit))
+
+    @overload
+    def compact(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
+
+    @overload
+    def compact(self: Quantity[Decimal]) -> Quantity[Decimal]: ...
+
+    @overload
+    def compact(self: Quantity[Fraction]) -> Quantity[Fraction | float]: ...
+
+    @overload
+    def compact(self: Quantity[Real]) -> Quantity[Real]: ...
+
+    @overload
+    def compact(self: Quantity[Scalar]) -> Quantity[Scalar]: ...
+
+    @overload
+    def compact(self) -> Quantity[Magnitude]: ...
+
+    def compact(self) -> Quantity[Magnitude]:
+        """Choose a readable prefix for one unit factor, including rational powers.
+
+        Prefer engineering prefixes giving a finite peak in [1, 1000), then
+        other SI prefixes. Arrays share one prefix, selected from the maximum
+        absolute finite value. Zero/nonfinite-only, unprefixable and multi-factor
+        inputs retain their units. Complex and custom scalar magnitudes reject.
+
+        >>> Quantity(Fraction(1, 10**9), 'm**3').compact()
+        Quantity(Fraction(1, 1), Unit('mm**3'))
+        """
+        from ._representation import compact_unit
+
+        return self.to(compact_unit(self.unit, self.value))
 
     @overload
     def astype(self: Quantity[Array], dtype: object, /) -> Quantity[NumpyValue]: ...

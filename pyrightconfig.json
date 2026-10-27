@@ -1,5 +1,6 @@
 {
   "include": [
+    "src/unitx/_representation.py",
     "examples/impedance.py",
     "src/unitx/_formatting",
     "src/unitx/math.py",

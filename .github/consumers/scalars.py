@@ -63,6 +63,15 @@ assert Quantity(1, si.cm).value_in(si.m) == Fraction(1, 100)
 assert_type(Quantity(Decimal('25'), si.percent).n, Decimal)
 assert Quantity(Decimal('25'), si.percent).n == Decimal('0.25')
 assert (1 * si.km / si.m).n == 1000
+assert_type(distance.to_base(), Quantity[Decimal])
+assert distance.to_base().value == Decimal('1.25')
+assert (1 * si.J).to_base().unit == si.kg * si.m**2 / si.s**2
+assert_type(distance.simplify(), Quantity[Decimal])
+assert (1 * si.cm * si.m**2).simplify().value == Fraction(1, 100)
+assert_type(distance.compact(), Quantity[Decimal])
+assert Quantity(Fraction(1, 10**9), si.m**3).compact().unit == si.mm**3
+assert_type(distance.as_pair(), tuple[Decimal, Unit])
+assert distance.as_pair()[0] is distance.value
 assert 2 * Unit(si.m, scale=Factor(3)) == 6 * si.m
 
 assert (1 * cgs.erg).value_in(si.J) == Fraction(1, 10**7)
@@ -139,6 +148,7 @@ celsius = 20 @ si.degC
 level = 30 @ si.dBm
 assert_type(celsius, AffineQuantity[int])
 assert_type(level, LogQuantity[int])
+assert_type(level.as_pair(), tuple[int, LogUnit])
 assert celsius.to_quantity(si.K) == Fraction(5863, 20) * si.K
 assert (32 @ imperial.degF).to(si.degC) == 0 @ si.degC
 assert level.to_quantity(si.W) == 1 * si.W

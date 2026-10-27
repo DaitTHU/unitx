@@ -56,6 +56,10 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def unit(self) -> LogUnit:
         return self._unit
 
+    def as_pair(self) -> tuple[T, LogUnit]:
+        """Return the stored reading and coordinate without conversion or copy."""
+        return self.value, self.unit
+
     @property
     def dimension(self) -> Dimension:
         return self.unit.dimension

@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from unitx import AffineQuantity, LogQuantity, LogUnit, Quantity, Unit
 from unitx._numerics import Array
+from unitx._numerics.numpy_typing import NumpyValue
 from unitx.cgs import emu, esu, gaussian, hl
 from unitx.exceptions import DimensionError
 from unitx.si import si
@@ -27,6 +28,15 @@ def check_components(signal: Quantity[NDArray[np.complex128]]) -> None:
 
 
 def check_arrays(values: NDArray[np.float64]) -> None:
+    ratio = Quantity(values, si.percent)
+    assert_type(ratio.n, NumpyValue)
+    np.testing.assert_allclose(ratio.n, values / 100)
+    assert_type(ratio.as_pair(), tuple[NDArray[np.float64], Unit])
+    assert ratio.as_pair()[0] is values
+    assert_type(ratio.to_base(), Quantity[NumpyValue])
+    assert_type(ratio.simplify(), Quantity[NumpyValue])
+    assert_type(Quantity(values, si.m).compact(), Quantity[NumpyValue])
+    assert Quantity(values, si.cm * si.m).simplify().unit == si.m**2
     signal = Quantity(np.asarray([3 + 4j], dtype=np.complex128), si.V)
     check_components(signal)
     norm = cast(Quantity[Array], np.linalg.norm(signal))

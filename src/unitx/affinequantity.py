@@ -56,6 +56,10 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     def unit(self) -> AffineUnit:
         return self._unit
 
+    def as_pair(self) -> tuple[T, AffineUnit]:
+        """Return the stored reading and coordinate without conversion or copy."""
+        return self.value, self.unit
+
     @property
     def dimension(self) -> Dimension:
         return self.unit.dimension

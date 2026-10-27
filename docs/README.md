@@ -10,6 +10,7 @@ reading about an older version.
 | Task | Guide |
 | --- | --- |
 | Construct, combine, convert or compare quantities | [Units and quantities](units.md) |
+| Expand SI base units, combine like units, choose prefixes or obtain a value–unit pair | [Unit representations](representation.md) |
 | Choose and parse a unit catalogue | [Unit catalogues](catalogues/README.md) |
 | Find SI units, constants, prefixes and Unicode spellings | [SI reference](catalogues/si.md) |
 | Find Imperial units and their exact conventions | [Imperial reference](catalogues/imperial.md) |
@@ -69,3 +70,5 @@ NumPy, SciPy and SymPy are optional. Core scalar use requires neither. Supported
 NumPy inputs are plain numeric arrays/scalars, not arbitrary duck arrays,
 masked arrays, or object arrays. The explicit `.value` and `.value_in(unit)`
 exits let callers choose where to hand numerical data to another library.
+For coherent dimensionless numerical values, `q.n` is an explicit shorthand
+for `q.value_in(si.one)` with the same complete compatibility checks.

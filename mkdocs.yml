@@ -11,6 +11,7 @@ theme:
 nav:
   - Overview: README.md
   - Units and quantities: units.md
+  - Unit representations: representation.md
   - Catalogues:
       - Overview: catalogues/README.md
       - SI: catalogues/si.md
