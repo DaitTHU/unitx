@@ -9,7 +9,7 @@ from unitx import AffineQuantity, LogQuantity, LogUnit, Quantity, Unit
 from unitx._numerics import Array
 from unitx._numerics.numpy_typing import NumpyValue
 from unitx.cgs import emu, esu, gaussian, hl
-from unitx.exceptions import DimensionError
+from unitx.exceptions import DimensionError, ImplicitConversionError, UnitOperationError
 from unitx.si import si
 
 type ArrayQuantity = Quantity[Array] | AffineQuantity[Array] | LogQuantity[Array]
@@ -578,3 +578,40 @@ def check_array_methods(target: NDArray[np.float64]) -> None:
 
 
 check_array_methods(np.zeros(2, dtype=np.float64))
+
+
+def check_calculus_types(values: NDArray[np.float64]) -> None:
+    coordinate = Quantity(values, si.s)
+    signal = 2 * Quantity(values, si.A)
+    assert_type(coordinate.to(si.ms), Quantity[NumpyValue])
+    assert_type(signal * coordinate, Quantity[NumpyValue])
+    weights = cast(Quantity[Array], np.gradient(coordinate, axis=0))
+    weights[[0, -1]] /= 2
+    integral = cast(Quantity[Array], np.trapezoid(signal, coordinate))
+    assert np.sum(signal * weights).isclose(integral)
+    points = AffineQuantity(values, si.degC)
+    increments = cast(Quantity[Array], np.diff(points))
+    assert increments.unit == si.degC.delta_unit
+    assert np.diff(points, n=0) is points
+    rate = cast(Quantity[Array], np.gradient(points, coordinate, axis=0))
+    np.testing.assert_allclose(rate.value, 1)
+    levels = LogQuantity(values, si.dBm)
+    differences = cast(Quantity[Array], np.diff(levels))
+    assert differences.unit == si.dBm.delta_unit
+    try:
+        np.asarray(coordinate)
+    except ImplicitConversionError as error:
+        assert isinstance(error, TypeError)
+    else:
+        error_message = 'Array coercion must preserve the explicit numerical boundary.'
+        raise AssertionError(error_message)
+    try:
+        np.add(points, points)
+    except UnitOperationError as error:
+        assert isinstance(error, TypeError)
+    else:
+        error_message = 'Adding two points must fail.'
+        raise AssertionError(error_message)
+
+
+check_calculus_types(np.array([0.0, 1, 3, 6]))

@@ -213,8 +213,8 @@ functions, including exp/log. Python scalar arithmetic follows the separate [sca
 | argmin/nanargmin, argmax/nanargmax | Bare indices | axis, keepdims, out |
 | interp | Align x to xp's unit; retain fp's unit | finite strictly increasing 1-D xp; scalar left/right, period=None; no out |
 | trapezoid | Multiply ordinate and coordinate units | x, scalar dx, axis; no out |
-| diff | Preserve input unit | n, axis, prepend, append; no out |
-| gradient | Divide input unit by each coordinate unit | scalar spacings or coordinate arrays, axis, edge_order; no out |
+| diff | Preserve linear unit; point inputs return differences for n > 0 | n, axis, compatible point/value prepend and append; no out |
+| gradient | Divide input difference unit by each coordinate difference unit | scalar difference spacings or coordinate arrays, axis, edge_order; no out |
 | isclose, allclose | Bare mask / Python bool | rtol, atol, equal_nan |
 
 Supply the first magnitude argument positionally; concatenate/stack take a
@@ -236,8 +236,8 @@ behavior for augmented arithmetic.
 `squeeze`, `expand_dims`, `moveaxis`, `swapaxes`, `rollaxis`, and `ravel`
 operate on magnitudes without conversion. Like reshape and transpose, they
 retain the complete unit or point coordinate and return the same family:
-Quantity, AffineQuantity, or LogQuantity. Only the NumPy function forms are
-supported; these functions have no `out` option.
+Quantity, AffineQuantity, or LogQuantity. Ravel also has a direct method;
+these functions have no `out` option.
 
 Axis rules and errors follow NumPy, including negative and tuple axes where
 supported. Squeezing an ndarray whose axes all have length one produces a

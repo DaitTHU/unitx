@@ -69,13 +69,18 @@ No coordinate sorting, interpolation, dtype option, or output buffer is added.
 
 ## Differences and gradients
 
-`np.diff(q, n=1, axis=-1)` computes differences in q's stored coordinates and
-retains its unit for every order n. `prepend` and `append` may be numeric
+`np.diff(q, n=1, axis=-1)` computes differences in q's stored coordinates.
+Linear quantities retain their unit; AffineQuantity and LogQuantity points
+return ordinary Quantities in their complete difference unit for every positive
+order n. Logarithmic differences describe changes in readings, without an
+implicit conversion to physical power or amplitude. `prepend` and `append` may be numeric
 scalars/arrays or Quantities; their dimensions must match the input, and their
 values convert to the input unit before differencing. Bare boundaries are
 dimensionless, including bare zero. A bare input with a Quantity boundary is
 also dimensionless. Scaled dimensionless boundaries therefore normalize to the
 input's coordinates. Explicit list inputs/boundaries remain unsupported.
+For points, boundaries must be compatible points and convert to the input
+coordinate first; a difference or bare zero cannot stand in for a point.
 
 With `n=0`, diff returns its input object unchanged and ignores axis and
 boundaries. Other orders follow [NumPy diff](https://numpy.org/doc/stable/reference/generated/numpy.diff.html)
@@ -83,12 +88,15 @@ for shapes, scalar-boundary expansion, dtype promotion, unsigned wraparound,
 and empty results. A difference is not a derivative: its unit is not divided
 by a coordinate unit or raised to n.
 
-`np.gradient(f, *spacing, axis=None, edge_order=1)` accepts numeric or Quantity
-input and spacings. Each spacing is a scalar step or one-dimensional coordinate
+`np.gradient(f, *spacing, axis=None, edge_order=1)` accepts numeric values,
+Quantities and coordinate points. Each spacing is a scalar difference step or one-dimensional coordinate
 array; bare inputs and spacings are dimensionless. A single scalar step applies
 to every selected axis. Otherwise supply one spacing per selected axis, in
 the order given by axis. Each component has unit `f.unit / spacing.unit`,
 including exact Unit factors. No spacing means dimensionless unit steps.
+For point-valued f, use its difference unit in the numerator. A point coordinate
+array contributes its difference unit in the denominator; a scalar point is
+not a step. Changing a coordinate origin does not change the derivative.
 The kernels use stored numerical coordinates; no implicit SI conversion is
 needed because each result retains the corresponding unit ratio.
 
@@ -111,5 +119,32 @@ assert velocity.unit == Unit('m/s')
 np.testing.assert_allclose(velocity.value, 2)
 assert np.trapezoid(velocity, time).isclose(distance[-1] - distance[0])
 ```
+
+## Reusable trapezoidal weights
+
+For repeated weighted sums or contractions on a real one-dimensional grid of
+at least two samples, compute weights with gradient and halve the endpoints:
+
+```python
+time = Quantity(np.array([0.0, 1, 3, 6]), 's')
+current = Quantity(np.array([0.0, 2, 6, 12]), 'A')
+weights = np.gradient(time, axis=0)
+weights[[0, -1]] /= 2
+np.testing.assert_allclose(weights.value, [0.5, 1.5, 2.5, 1.5])
+assert np.sum(current * weights).isclose(np.trapezoid(current, time))
+```
+
+With no spacing argument and the default `edge_order=1`, interior gradient
+entries are `(x[i+1] - x[i-1]) / 2`, half the sum of adjacent intervals.
+Endpoints are full one-sided intervals, so their halving is essential.
+This is mathematically equivalent to trapezoidal weights; floating-point
+rounding order can differ from interval-by-interval integration.
+Decreasing and nonmonotonic coordinates retain their interval signs.
+Gradient needs at least two samples; handle empty/singleton grids locally
+only when the calculation requires them. Point coordinates return difference
+weights; logarithmic readings are not implicitly mapped to physical values.
+
+For a single integral, use `np.trapezoid`, following the linear integration
+contract above. NumPy function stubs retain the [documented typing limits](../typing.md#numpy-magnitude-types).
 
 [NumPy overview and support matrix](../numpy.md) · [Documentation index](../README.md)

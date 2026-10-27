@@ -819,6 +819,8 @@ def dispatch_function(
             np.amax,
             np.nanmin,
             np.nanmax,
+            np.diff,
+            np.gradient,
         ):
             error_message = (
                 'This NumPy function does not support coordinate points; convert explicitly.'
@@ -1565,25 +1567,36 @@ def _diff(a: Any, n: int = 1, axis: int = -1, prepend: Any = _UNSET, append: Any
     # Like NumPy, the no-op retains the input and ignores axis and boundaries.
     if n == 0:
         return a
-    value, unit = _linear_parts(a)
+    value, unit = _operand_parts(a)
     boundaries = {}
     for name, boundary in (('prepend', prepend), ('append', append)):
         if boundary is _UNSET:
             continue
         if not _is_supported_operand(boundary):
             return NotImplemented
-        raw, source = _linear_parts(boundary)
-        if not compatible(source, unit):
-            raise DimensionError(f'{name} has an incompatible dimension.')
-        boundaries[name] = scale_magnitude(raw, source.factor / unit.factor)
-    return _wrap(np.diff(value, n=n, axis=axis, **boundaries), unit)
+        if isinstance(unit, _Coordinate):
+            _, boundaries[name], _ = _selection_parts(a, boundary)
+        else:
+            raw, source = _linear_parts(boundary)
+            if not compatible(source, unit):
+                error_message = f'{name} has an incompatible dimension.'
+                raise DimensionError(error_message)
+            boundaries[name] = scale_magnitude(raw, source.factor / unit.factor)
+    return Quantity(np.diff(value, n=n, axis=axis, **boundaries), _delta_unit(unit))
 
 
 def _gradient(f: Any, *varargs: Any, axis: Any = None, edge_order: Literal[1, 2] = 1) -> Any:
     if not all(_is_supported_operand(x) for x in (f, *varargs)):
         return NotImplemented
-    value, unit = _linear_parts(f)
-    spacings = [_linear_parts(x) for x in varargs]
+    value, unit = _operand_parts(f)
+    unit = _delta_unit(unit)
+    spacings = []
+    for coordinate in varargs:
+        raw, source = _operand_parts(coordinate)
+        if isinstance(source, _Coordinate) and np.ndim(raw) == 0:
+            error_message = 'A scalar point is not a spacing step; use a Quantity difference.'
+            raise UnitOperationError(error_message)
+        spacings.append((raw, _delta_unit(source)))
     result = np.gradient(value, *(x[0] for x in spacings), axis=axis, edge_order=edge_order)
     # NumPy validates axes, coordinate shapes, and argument counts. Scalar
     # spacing applies to every selected axis; otherwise each axis has its own.
