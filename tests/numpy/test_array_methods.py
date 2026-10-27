@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from unitx import AffineQuantity, LogQuantity, Quantity, Unit
+from unitx._numerics import Array
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
 from unitx.si import si
@@ -88,6 +89,10 @@ def test_quantity_sum_initial() -> None:
     q = Quantity(np.array([1, 2]), si.m)
     assert q.sum(initial=100 * si.cm) == 4 * si.m
     assert q.sum(initial=0) == 3 * si.m
+
+
+def test_quantity_sum_initial_invalid() -> None:
+    q = Quantity(np.array([1, 2]), si.m)
     with pytest.raises(DimensionError, match='initial'):
         q.sum(initial=0 * si.s)
 
@@ -121,17 +126,31 @@ def test_quantity_array_methods_out(method: str) -> None:
     expected = getattr(np, method)(q.value.copy(), axis=1) * 100
     assert getattr(q, method)(1, None, target) is target
     np.testing.assert_allclose(target.value, expected)
+
+
+def _assert_out_failure(method: str, target: Quantity[Array], error: type[Exception]) -> None:
+    q = Quantity(np.array([[1.0, 2], [3, 4]]), si.m)
     before = q.value.copy()
-    for invalid in (
-        Quantity(np.zeros(2), si.s),
-        Quantity(np.zeros(3), si.m),
-        Quantity(np.ones(2, dtype=int), si.cm),
-    ):
-        saved = invalid.value.copy()
-        with pytest.raises((DimensionError, ValueError, TypeError)):
-            getattr(q, method)(axis=1, out=invalid)
-        np.testing.assert_array_equal(invalid.value, saved)
-        np.testing.assert_array_equal(q.value, before)
+    saved = target.value.copy()
+    with pytest.raises(error):
+        getattr(q, method)(axis=1, out=target)
+    np.testing.assert_array_equal(target.value, saved)
+    np.testing.assert_array_equal(q.value, before)
+
+
+@pytest.mark.parametrize('method', ['sum', 'mean', 'std'])
+def test_quantity_array_methods_out_unit_invalid(method: str) -> None:
+    _assert_out_failure(method, Quantity(np.zeros(2), si.s), DimensionError)
+
+
+@pytest.mark.parametrize('method', ['sum', 'mean', 'std'])
+def test_quantity_array_methods_out_shape_invalid(method: str) -> None:
+    _assert_out_failure(method, Quantity(np.zeros(3), si.m), ValueError)
+
+
+@pytest.mark.parametrize('method', ['sum', 'mean', 'std'])
+def test_quantity_array_methods_out_dtype_invalid(method: str) -> None:
+    _assert_out_failure(method, Quantity(np.ones(2, dtype=int), si.cm), TypeError)
 
 
 def test_quantity_std_invalid() -> None:
