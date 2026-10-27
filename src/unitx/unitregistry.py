@@ -8,7 +8,7 @@ writes requires external synchronization.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -179,7 +179,7 @@ class Registry:
             self.include(*units)
 
     @contextmanager
-    def defining(self) -> Iterator[Registry]:
+    def defining(self) -> Generator[Registry, None, None]:
         """Bind `.define()` calls in this block to this registry.
 
         Unit, Quantity and coordinate definitions, including helper calls, use
