@@ -26,6 +26,7 @@ from unitx import (
     time,
 )
 from unitx.cgs import cgs, emu, esu, gaussian, hl
+from unitx.exceptions import ImplicitConversionError, UnitOperationError, UnitxError
 from unitx.factor import Factor
 from unitx.imperial import imperial
 from unitx.quantity import quantity as decimal_quantity
@@ -185,3 +186,14 @@ assert 'matplotlib' not in sys.modules
 # The sibling stub must retain the module-level Decimal factory.
 assert_type(decimal_quantity(1.25, si.m), Quantity[Decimal])
 assert decimal_quantity(1.25, si.m).value == Decimal('1.25')
+
+assert issubclass(UnitOperationError, TypeError)
+assert issubclass(UnitOperationError, UnitxError)
+assert issubclass(ImplicitConversionError, UnitOperationError)
+try:
+    _ = (20 @ si.degC) * 2
+except UnitOperationError as error:
+    assert isinstance(error, TypeError)
+else:
+    error_message = 'Multiplying a coordinate point must fail.'
+    raise AssertionError(error_message)

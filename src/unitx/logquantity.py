@@ -24,6 +24,7 @@ from ._numerics.numpy_typing import (
 )
 from ._operands import _Point, linear_unit
 from .dimension import Dimension
+from .exceptions import ImplicitConversionError, UnitOperationError
 from .logunit import LogUnit, _as_log_unit
 from .quantity import Quantity
 from .unit import Unit
@@ -306,11 +307,11 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
 
     def __neg__(self) -> Never:
         error_message = 'Negation is undefined for an logarithmic reading.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __abs__(self) -> Never:
         error_message = 'Absolute value is undefined for an logarithmic reading.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __add__(self, other: Quantity[Magnitude], /) -> LogQuantity[Magnitude]:
         value, _ = _add_sub(self, other, subtract=False)
@@ -337,35 +338,35 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
 
     def __rsub__(self, other: object, /) -> Never:
         error_message = 'A difference cannot subtract an logarithmic reading.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __mul__(self, other: object, /) -> Never:
         error_message = 'Convert an logarithmic reading to_quantity(unit) before multiplication.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __rmul__(self, other: object, /) -> Never:
         error_message = 'Convert an logarithmic reading to_quantity(unit) before multiplication.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __truediv__(self, other: object, /) -> Never:
         error_message = 'Convert an logarithmic reading to_quantity(unit) before division.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __rtruediv__(self, other: object, /) -> Never:
         error_message = 'Convert an logarithmic reading to_quantity(unit) before division.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __pow__(self, exponent: object, /) -> Never:
         error_message = 'Convert an logarithmic reading to_quantity(unit) before powers.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __matmul__(self, other: object, /) -> Never:
         error_message = 'Matrix multiplication is undefined for logarithmic readings.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     def __rmatmul__(self, other: object, /) -> Never:
         error_message = 'Matrix multiplication is undefined for logarithmic readings.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
 
     @overload
     def __iadd__[A: WritableArray](
@@ -407,7 +408,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
 
     def __array__(self, dtype: object = None, copy: object = None) -> Any:
         error_message = 'Implicit unit removal is forbidden; use q.value_in(unit) or q.value.'
-        raise TypeError(error_message)
+        raise ImplicitConversionError(error_message)
 
     def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
         from ._numerics.numpy import dispatch_ufunc

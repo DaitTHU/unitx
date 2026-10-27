@@ -33,7 +33,8 @@ differences, and point sums/products are rejected.
 ## Values, storage, and precision
 
 `.value`, `.value_in(unit)`, and `.to(unit).value` are explicit numerical exits.
-`np.asarray(q)` and `np.array(q)` raise TypeError even for dimensionless q;
+`np.asarray(q)` and `np.array(q)` raise `ImplicitConversionError` (a TypeError)
+even for dimensionless q;
 use `np.asarray(q.value_in(target_unit))`.
 
 Construction, unit-only multiplication/division, and an identity conversion

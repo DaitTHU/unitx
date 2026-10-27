@@ -79,7 +79,7 @@ def test_numpy_complex_component_shared_write(attributes: bool) -> None:
     'point', [AffineQuantity(np.array([1.0]), 'degC'), LogQuantity(np.array([1.0]), 'dBm')]
 )
 def test_numpy_complex_component_invalid_point(operation: Callable[..., Any], point: Any) -> None:
-    with pytest.raises(TypeError, match='undefined'):
+    with pytest.raises(TypeError, match='does not support coordinate points'):
         operation(point)
 
 

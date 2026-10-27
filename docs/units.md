@@ -141,6 +141,23 @@ returns `False`.
 For repeated conversions, reuse a target `Unit` object to avoid parsing the
 expression on every call.
 
+### Catching errors
+
+Import domain exceptions from `unitx.exceptions`:
+
+| Exception | Catch when |
+| --- | --- |
+| `DimensionError` | Units, dimensions or coordinate conventions are incompatible |
+| `UnitOperationError` | An operation violates point/difference semantics, such as adding two points |
+| `ImplicitConversionError` | Array conversion would silently discard units or coordinates |
+| `UnitSymbolError`, `UnitSyntaxError`, `UnitRegistryError` | Looking up, parsing or registering units fails |
+
+`ImplicitConversionError` is a subclass of `UnitOperationError`; both also
+inherit TypeError, preserving existing catches. `UnitxError` catches unitx's
+domain exceptions together. Native numerical, shape, dtype and argument errors
+remain their original Python/NumPy exceptions; an unsupported NumPy dispatch
+may also raise TypeError. They are not all reclassified as `UnitxError`.
+
 ### Dimensionless numerical values
 
 `q.n` is a read-only shorthand for `q.value_in(si.one)`. It checks complete

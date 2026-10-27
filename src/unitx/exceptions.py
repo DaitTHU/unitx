@@ -7,8 +7,10 @@ __all__ = [
     'DimensionError',
     'IncompleteFactorWarning',
     'InexactFloatWarning',
+    'ImplicitConversionError',
     'SerializationError',
     'UnitRegistryError',
+    'UnitOperationError',
     'UnitSymbolError',
     'UnitSymbolWarning',
     'UnitSyntaxError',
@@ -19,7 +21,15 @@ __all__ = [
 
 
 class UnitxError(Exception):
-    """Base class for all exceptions raised by unitx."""
+    """Base for unitx-specific errors; native numerical errors remain native."""
+
+
+class UnitOperationError(UnitxError, TypeError):
+    """An operation violates linear-quantity or coordinate-point semantics."""
+
+
+class ImplicitConversionError(UnitOperationError):
+    """An array conversion would silently discard a quantity's unit/coordinate."""
 
 
 class UnitSymbolError(UnitxError):

@@ -23,7 +23,7 @@ from .._coordinates.resolve import convert_point as convert
 from .._operands import _Point, linear_unit
 from ..affinequantity import AffineQuantity
 from ..dimension import DIMENSIONLESS
-from ..exceptions import _WARNING_SKIP_PREFIXES, DimensionError
+from ..exceptions import _WARNING_SKIP_PREFIXES, DimensionError, UnitOperationError
 from ..factor import Factor, one
 from ..logquantity import LogQuantity
 from ..quantity import Quantity
@@ -107,7 +107,8 @@ def _operand_parts(value: Any) -> tuple[Any, Unit | _Coordinate]:
 def _linear_parts(value: Any) -> tuple[Any, Unit]:
     raw, unit = _operand_parts(value)
     if not isinstance(unit, Unit):
-        raise TypeError('This operation requires linear quantities or differences.')
+        error_message = 'This operation requires linear quantities or differences.'
+        raise UnitOperationError(error_message)
     return raw, unit
 
 
@@ -115,7 +116,8 @@ def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
     a, u = _linear_parts(left)
     b, v = _linear_parts(right)
     if isinstance(u, _Coordinate) or isinstance(v, _Coordinate):
-        raise TypeError('Use point/difference arithmetic for affine coordinates.')
+        error_message = 'Use point/difference arithmetic for affine coordinates.'
+        raise UnitOperationError(error_message)
     if not compatible(u, v):
         raise DimensionError('Cannot operate on incompatible dimensions or logarithmic degrees.')
     # Addition retains the first Quantity's unit, even with a bare left input.
@@ -135,7 +137,7 @@ def _selection_parts(left: Any, right: Any) -> tuple[Any, Any, Unit | _Coordinat
     if isinstance(left, _Point) or isinstance(right, _Point):
         if not isinstance(left, _Point) or not isinstance(right, _Point):
             error_message = 'Selection cannot mix points and differences.'
-            raise TypeError(error_message)
+            raise UnitOperationError(error_message)
         if not left.unit._compatible_with(right.unit):
             error_message = 'Selection requires compatible points with the same convention.'
             raise DimensionError(error_message)
@@ -818,9 +820,10 @@ def dispatch_function(
             np.nanmin,
             np.nanmax,
         ):
-            raise TypeError(
-                'This NumPy function is undefined for affine points; convert explicitly.'
+            error_message = (
+                'This NumPy function does not support coordinate points; convert explicitly.'
             )
+            raise TypeError(error_message)
     if func in (np.isclose, np.allclose):
         return _close_comparison(func, *args, **kwargs)
     if func in (np.concatenate, np.stack):
@@ -1975,7 +1978,8 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
     from .._coordinates.points import _addition_parts, _compare
 
     if method != '__call__':
-        raise TypeError('Affine points cannot be accumulated or reduced with arithmetic ufuncs.')
+        error_message = 'Affine points cannot be accumulated or reduced with arithmetic ufuncs.'
+        raise UnitOperationError(error_message)
     if kwargs.keys() - {'where', 'dtype', 'casting', 'order', 'subok'}:
         return NotImplemented
     _validate_where(kwargs)
@@ -1984,7 +1988,8 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
     if 'where' in kwargs:
         kwargs = {**kwargs, 'out': (None,) * ufunc.nout}
     if any(isinstance(x, (_Coordinate, Unit)) for x in inputs):
-        raise TypeError('Affine unit objects cannot participate in this ufunc.')
+        error_message = 'Affine unit objects cannot participate in this ufunc.'
+        raise UnitOperationError(error_message)
     if 'where' in kwargs:
         mask = kwargs['where']
         inputs = tuple(
@@ -2022,7 +2027,8 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
     if ufunc in (np.minimum, np.maximum, np.fmin, np.fmax):
         a, b, unit = _selection_parts(*inputs)
         return _wrap(ufunc(a, b, **kwargs), unit)
-    raise TypeError('This ufunc is undefined for affine points; convert to physical units first.')
+    error_message = 'This ufunc is undefined for affine points; convert to physical units first.'
+    raise UnitOperationError(error_message)
 
 
 def _extremum(

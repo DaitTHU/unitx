@@ -12,7 +12,7 @@ from .._numerics import is_numpy_object
 from .._numerics.scaling import _finite
 from .._numerics.scaling import affine_value as _affine
 from .._operands import _Point
-from ..exceptions import DimensionError
+from ..exceptions import DimensionError, UnitOperationError
 from ..quantity import Quantity
 from ..unit import Unit
 from .resolve import _Coordinate
@@ -28,11 +28,11 @@ def _addition_parts(
             b, a, unit = _addition_parts(right, left, subtract=False)
             return a, b, unit
         error_message = 'A difference cannot subtract an affine point.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
     if isinstance(right, _Point):
         if not subtract:
             error_message = 'Two affine points cannot be added.'
-            raise TypeError(error_message)
+            raise UnitOperationError(error_message)
         if not left.unit._compatible_with(right.unit):
             error_message = 'Point subtraction requires the same coordinate convention.'
             raise DimensionError(error_message)
@@ -44,7 +44,7 @@ def _addition_parts(
         return left.value, convert(raw, right.unit, left.unit), left.unit.delta_unit
     if not isinstance(right, Quantity):
         error_message = 'Point arithmetic requires an explicit Quantity difference.'
-        raise TypeError(error_message)
+        raise UnitOperationError(error_message)
     delta = convert(right.value, right.unit, left.unit.delta_unit)
     if isinstance(left.value, Decimal) and isinstance(delta, (int, Fraction)):
         delta = _affine(Decimal(0), 1, delta)

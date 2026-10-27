@@ -41,7 +41,7 @@ from ._numerics.numpy_typing import (
 from ._numerics.scaling import scale_value
 from ._operands import _LinearUnitSource, _Point, linear_unit
 from .dimension import DIMENSIONLESS, Dimension
-from .exceptions import DimensionError
+from .exceptions import DimensionError, ImplicitConversionError
 from .factor import Factor, SymbolicConstant, one
 from .unit import Unit
 from .unitdefinition import PrefixPolicy
@@ -841,7 +841,8 @@ class Quantity(Generic[T]):
         )
 
     def __array__(self, dtype: object = None, copy: object = None) -> Any:
-        raise TypeError('Implicit unit removal is forbidden; use q.value_in(unit) or q.value.')
+        error_message = 'Implicit unit removal is forbidden; use q.value_in(unit) or q.value.'
+        raise ImplicitConversionError(error_message)
 
     def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
         from ._numerics.numpy import dispatch_ufunc
