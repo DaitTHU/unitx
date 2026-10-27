@@ -20,9 +20,16 @@ def convert(value: Magnitude, source: Unit, target: Unit) -> Magnitude:
         )
         raise TypeError(error_message)
     if not compatible(source, target):
-        error_message = (
-            f'Cannot convert quantity with dimension {source.dimension} '
-            f'to unit with incompatible algebraic dimension {target.dimension}.'
-        )
+        if source.dimension.physical == target.dimension.physical:
+            error_message = (
+                f'Cannot convert unit {str(source)!r} to unit {str(target)!r}: '
+                'the physical dimensions match, but the logarithmic degrees differ. '
+                'Unit conversion does not apply a logarithmic or exponential mapping.'
+            )
+        else:
+            error_message = (
+                f'Cannot convert quantity with dimension {source.dimension} '
+                f'to unit with incompatible algebraic dimension {target.dimension}.'
+            )
         raise DimensionError(error_message)
     return scale_value(value, source.factor / target.factor)

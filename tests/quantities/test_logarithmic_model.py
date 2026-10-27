@@ -71,6 +71,25 @@ def test_quantity_complete_compatibility(unit: Unit) -> None:
     assert {0 * unit: 'log', 0 * plain: 'physical'}[0 * unit] == 'log'
 
 
+@pytest.mark.parametrize(
+    ('source', 'target'),
+    [
+        (si.dB, si.one),
+        (si.one, si.dB),
+        (si.dB**2, si.dB),
+        (si.dB / si.m, si.m**-1),
+        (si.Np, si.one),
+    ],
+)
+def test_quantity_invalid_logarithmic_conversion_diagnostic(source: Unit, target: Unit) -> None:
+    with pytest.raises(DimensionError, match='logarithmic degrees differ') as caught:
+        (1 * source).value_in(target)
+    message = str(caught.value)
+    assert f'unit {str(source)!r}' in message
+    assert f'unit {str(target)!r}' in message
+    assert 'physical dimensions match' in message
+
+
 def test_log_unit_concrete_family() -> None:
     assert type(si.degC) is AffineUnit
     assert type(si.dBm) is LogUnit

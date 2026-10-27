@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Explain failed conversions between units with matching physical dimensions
+  but different logarithmic degrees, identifying both units instead of showing
+  two apparently identical dimensions for conversions such as dB to one.
+
 ## [0.17.0] - 2026-10-27
 
 Stabilize the documented NumPy integration developed throughout 0.16.x, with
