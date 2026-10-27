@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.17.2] - 2026-10-27
+
+### Added
+
+- Add direct `reshape`, `ravel`, `copy`, `sum`, `mean` and `std` methods for
+  NumPy-backed quantities, retaining typed wrappers and fixed-unit output rules.
+  Shape/copy methods preserve known ndarray dtypes; reductions preserve the
+  concrete output type when `out` is supplied.
+- Add corresponding point methods except sum: shape/copy and mean retain the
+  coordinate family, while standard deviation returns a linear difference.
+
+### Changed
+
+- Move Quantity's complete static interface into the bundled `quantity.pyi`,
+  with checked runtime implementation annotations and no duplicated overloads.
+  Preserve scalar inference without NumPy, the Decimal factory, components,
+  representations and existing subclass behavior.
+- Clarify dimensional power/cumulative-product and heterogeneous covariance
+  boundaries in the NumPy guides, and execute the direct-method guide in tests.
+
+### Fixed
+
+- Allow `np.trapezoid` with bare numeric array samples and Quantity `dx` to
+  finish its native arithmetic through the direct Quantity sum method.
+
 ## [0.17.1] - 2026-10-27
 
 ### Added
