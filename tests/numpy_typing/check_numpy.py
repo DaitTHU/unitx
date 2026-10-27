@@ -16,6 +16,8 @@ from unitx.quantity import Quantity
 from unitx.si import SI, si
 from unitx.unit import Unit
 
+FloatValue: TypeAlias = npt.NDArray[np.float64] | np.float64
+
 NumpyValue: TypeAlias = npt.NDArray[Any] | np.number[Any]
 
 
@@ -35,16 +37,16 @@ def contracts(a: npt.NDArray[np.float64], scalar: np.float64, plain: int = 1) ->
     assert_type(q * unit, Quantity[npt.NDArray[np.float64]])
     assert_type(q / unit, Quantity[npt.NDArray[np.float64]])
     assert_type(q * Factor(2), Quantity[npt.NDArray[np.float64]])
-    assert_type(q.to('cm'), Quantity[NumpyValue])
-    assert_type(q.value_in('cm'), NumpyValue)
+    assert_type(q.to('cm'), Quantity[FloatValue])
+    assert_type(q.value_in('cm'), FloatValue)
     converted: npt.NDArray[Any] = np.asarray(q.value_in('cm'))
     assert_type(converted.ndim, int)
-    assert_type(q + q, Quantity[NumpyValue])
+    assert_type(q + q, Quantity[FloatValue])
     assert_type(Quantity(1, 'm') + q, Quantity[NumpyValue])
-    assert_type(q**2, Quantity[NumpyValue])
+    assert_type(q**2, Quantity[FloatValue])
     assert_type(q == q, Array)
     assert_type(Quantity(1, 'm') == q, Array)
-    assert_type(q[0], Quantity[NumpyValue])
+    assert_type(q[0], Quantity[FloatValue])
     assert_type(q.T, Quantity[npt.NDArray[np.float64]])
     assert_type(Quantity(scalar, unit).T, Quantity[np.float64])
     assert_type(q.flatten(), Quantity[npt.NDArray[Any]])
@@ -161,7 +163,9 @@ def output_contracts(a: npt.NDArray[np.float64]) -> None:
 
 
 def array_expression_contracts(a: npt.NDArray[np.float64]) -> None:
-    distance = np.linspace(0.1, 3, 100) * si.m
+    # Older NumPy linspace stubs describe floating[Any]; do not invent float64.
+    sampled_distance = np.linspace(0.1, 3, 100) * si.m
+    distance = si.m * a
     typed_distance = si.m * a
     temperature = si.K * np.array([3000, 4000, 5000], dtype=np.float64)
     default_temperature = si.K * np.array([3000, 4000, 5000])
@@ -171,15 +175,17 @@ def array_expression_contracts(a: npt.NDArray[np.float64]) -> None:
     direct = distance / (distance**2 * np.expm1(ratio))
     assert_type(distance.unit, Unit)
     assert_type(distance.value.ndim, int)
+    assert_type(sampled_distance.unit, Unit)
+    assert_type(sampled_distance.value.ndim, int)
     assert_type(typed_distance, Quantity[npt.NDArray[np.float64]])
     assert_type(temperature, Quantity[npt.NDArray[np.float64]])
     assert_type(default_temperature, Quantity[npt.NDArray[Any]])
-    assert_type(ratio, Quantity[NumpyValue])
-    assert_type(explicit, Quantity[NumpyValue])
-    assert_type(direct, Quantity[NumpyValue])
-    assert_type(direct.value, NumpyValue)
-    assert_type(direct.to('1/cm'), Quantity[NumpyValue])
-    assert_type(SI.h * distance, Quantity[NumpyValue])
+    assert_type(ratio, Quantity[FloatValue])
+    assert_type(explicit, Quantity[FloatValue])
+    assert_type(direct, Quantity[FloatValue])
+    assert_type(direct.value, FloatValue)
+    assert_type(direct.to('1/cm'), Quantity[FloatValue])
+    assert_type(SI.h * distance, Quantity[FloatValue])
 
 
 def numpy_result_methods(a: npt.NDArray[np.float64]) -> None:
@@ -187,7 +193,7 @@ def numpy_result_methods(a: npt.NDArray[np.float64]) -> None:
     for result in (q.to('cm'), q + q, q * 2, q / 2, q**2, q[0], next(iter(q)), abs(q)):
         # Exercise actual ndarray/scalar interfaces after unitx operations,
         # rather than accepting a result widened to Any or a small protocol.
-        assert_type(result.value, NumpyValue)
+        assert_type(result.value, FloatValue | NumpyValue)
         assert_type(result.value.ndim, int)
         assert_type(result.value.dtype.kind.startswith('f'), bool)
         result.value.reshape((1, -1))

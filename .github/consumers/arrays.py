@@ -29,13 +29,13 @@ def check_components(signal: Quantity[NDArray[np.complex128]]) -> None:
 
 def check_arrays(values: NDArray[np.float64]) -> None:
     ratio = Quantity(values, si.percent)
-    assert_type(ratio.n, NumpyValue)
+    assert_type(ratio.n, NDArray[np.float64] | np.float64)
     np.testing.assert_allclose(ratio.n, values / 100)
     assert_type(ratio.as_pair(), tuple[NDArray[np.float64], Unit])
     assert ratio.as_pair()[0] is values
-    assert_type(ratio.to_base(), Quantity[NumpyValue])
-    assert_type(ratio.simplify(), Quantity[NumpyValue])
-    assert_type(Quantity(values, si.m).compact(), Quantity[NumpyValue])
+    assert_type(ratio.to_base(), Quantity[NDArray[np.float64] | np.float64])
+    assert_type(ratio.simplify(), Quantity[NDArray[np.float64] | np.float64])
+    assert_type(Quantity(values, si.m).compact(), Quantity[NDArray[np.float64] | np.float64])
     assert Quantity(values, si.cm * si.m).simplify().unit == si.m**2
     signal = Quantity(np.asarray([3 + 4j], dtype=np.complex128), si.V)
     check_components(signal)
@@ -555,7 +555,7 @@ def check_array_methods(target: NDArray[np.float64]) -> None:
     assert_type(columns, Quantity[NDArray[np.float32]])
     assert_type(columns.ravel(), Quantity[NDArray[np.float32]])
     assert_type(columns.copy(), Quantity[NDArray[np.float32]])
-    assert_type(columns.mean(axis=0), Quantity[NumpyValue])
+    assert_type(columns.mean(axis=0), Quantity[NDArray[np.float32] | np.float32])
     assert np.shares_memory(columns.value, values)
     assert not np.shares_memory(columns.copy().value, values)
     out = Quantity(target, si.cm)
@@ -583,8 +583,8 @@ check_array_methods(np.zeros(2, dtype=np.float64))
 def check_calculus_types(values: NDArray[np.float64]) -> None:
     coordinate = Quantity(values, si.s)
     signal = 2 * Quantity(values, si.A)
-    assert_type(coordinate.to(si.ms), Quantity[NumpyValue])
-    assert_type(signal * coordinate, Quantity[NumpyValue])
+    assert_type(coordinate.to(si.ms), Quantity[NDArray[np.float64] | np.float64])
+    assert_type(signal * coordinate, Quantity[NDArray[np.float64] | np.float64])
     weights = cast(Quantity[Array], np.gradient(coordinate, axis=0))
     weights[[0, -1]] /= 2
     integral = cast(Quantity[Array], np.trapezoid(signal, coordinate))

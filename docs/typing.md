@@ -118,18 +118,46 @@ domain; they are not a template for preserving every array or coordinate overloa
 The `unitx._numerics` package defines `Scalar`, `Array`, and `Magnitude = Array | Scalar`
 without importing NumPy. Array is an input capability protocol, not a guarantee
 of other backend support. Construction and unit-only operators preserve
-Quantity[T], as does `.T`. Numerical array operations, conversions, indexing,
-and iteration return `Quantity[NDArray[Any] | numpy.number[Any]]`; `.flatten()`
-returns `Quantity[NDArray[Any]]`. `.value` therefore exposes native NumPy
-methods. Direct `q.reshape`, `ravel` and `copy` preserve a known ndarray dtype
-without retaining the source shape parameter;
-`q.sum`, `mean` and `std` retain a Quantity wrapper with the numerical result
-domain above, or the concrete `out` type. The corresponding point methods
-retain their coordinate family, except `std`, which returns a Quantity
-difference. Point sums remain undefined. `.dtype` exposes a NumPy dtype.
-Changed dtypes are not falsely annotated as the original dtype, and possible
-zero-dimensional-array to NumPy-scalar results remain in the result union.
+Quantity[T], as does `.T`. For a known NumPy floating or complex dtype S,
+linear conversion, `n`, unary signs, same-dtype array arithmetic, multiplication
+and division by Python real scalars, and real Python scalar powers retain
+`Quantity[NDArray[S] | S]`. Sum and mean retain this dtype when dtype/out are
+omitted. Indexing and iteration retain known numeric dtypes, including integers.
+Shape/copy methods retain a known ndarray dtype without retaining its shape.
+Other numerical paths use `Quantity[NDArray[Any] | numpy.number[Any]]`, including
+mixed NumPy dtypes, integer conversion and array/scalar aligned addition.
+For example, scaling a Python scalar before addition can introduce a strong
+float64 NumPy scalar and promote a float32 array. General scalar annotations
+can also hide NumPy scalar subclasses; concrete dtype inference assumes inputs
+describe their actual numerical domains.
+
+`.value` exposes native NumPy methods; `.flatten()` returns an ndarray.
+Reduction `out` retains the concrete destination type. Point shape/copy/mean
+retain their coordinate family, while std returns a Quantity difference. The
+NumPy diff and gradient functions also return differences. Point sums remain
+undefined. `.dtype` exposes
+a NumPy dtype. Possible zero-dimensional-array to NumPy-scalar results remain
+in the result union.
 Boolean comparisons and isclose retain the NumPy-independent Array protocol.
+
+```python
+import numpy as np
+from numpy.typing import NDArray
+from typing import assert_type
+from unitx import Quantity
+
+
+def travel(time: Quantity[NDArray[np.float64]]) -> None:
+    distance = Quantity(2.5, 'm/s') * time
+    assert_type(distance, Quantity[NDArray[np.float64] | np.float64])
+    assert_type(distance.to('cm'), Quantity[NDArray[np.float64] | np.float64])
+```
+
+Fraction multiplication/division with integers or Fractions retain Fraction.
+Complex scalar arithmetic/conversion uses concrete complex or Number domains
+instead of the open Scalar fallback. A Python complex annotation can also hide
+an int, whose conversion may produce a Fraction; its conversion therefore keeps
+the Number union. Float conversion keeps the Real union for the same reason.
 
 `Scalar` is nonrecursive: its arithmetic methods return object at the protocol
 boundary, while equality still returns bool. Concrete scalar and array result

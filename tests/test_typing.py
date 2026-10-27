@@ -69,7 +69,7 @@ from unitx import Quantity, Unit
 
 assert_type(lam.unit, Unit)
 assert_type(lam.value.ndim, int)
-assert_type(radiance, Quantity[npt.NDArray[Any] | np.number[Any]])
+assert_type(radiance, Quantity[npt.NDArray[np.float64] | np.float64])
 assert_type(radiance.value.ndim, int)
 """,
         'arrhenius_fit': """

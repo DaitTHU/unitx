@@ -111,7 +111,7 @@ def test_unit_numeric_scaling(unit: Unit, scaled: Unit) -> None:
     assert_type(scaled / 0.1, Quantity[float])
     assert_type(unit * 2 / 3, Quantity[float])
     assert_type(3 * (unit * 2), Quantity[int])
-    assert_type(Fraction(3) * (unit / 2), Quantity[Real])
+    assert_type(Fraction(3) * (unit / 2), Quantity[Fraction])
     assert_type(Factor(2) * unit, Unit)
     assert_type(pi * scaled, Unit)
     assert_type(unit * Quantity(2, 's'), Quantity[int])
@@ -162,7 +162,7 @@ def test_quantity_value_in(quantity: Quantity[Scalar]) -> None:
     assert_type(Quantity(1.0, 'm').value_in('cm'), Real)
     assert_type(Quantity[float](1, 'cm').value_in('m'), Real)
     assert_type(Quantity(1, 'm').value_in(Unit('cm', scale=Factor(2))), Real)
-    assert_type(Quantity(1j, 'cm').value_in('m'), Scalar)
+    assert_type(Quantity(1j, 'cm').value_in('m'), Number)
     assert_type(quantity.value_in('m'), Scalar)
 
 

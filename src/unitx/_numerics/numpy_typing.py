@@ -39,11 +39,15 @@ class WritableArray(Array, Protocol):
     def __setitem__(self, key: Any, value: Any, /) -> None: ...
 
 
-class _TypedArray(WritableArray, Protocol[_ScalarType]):
-    """Capture dtype without retaining a source ndarray's shape parameter."""
+class _DTypeValue(Array, Protocol[_ScalarType]):
+    """Capture a NumPy array/scalar dtype independently of its shape."""
 
     @property
     def dtype(self) -> _NumpyDTypeOf[_ScalarType]: ...
+
+
+class _TypedArray(WritableArray, _DTypeValue[_ScalarType], Protocol[_ScalarType]):
+    """Capture ndarray dtype without retaining the source shape parameter."""
 
 
 if TYPE_CHECKING:
@@ -51,7 +55,12 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray  # pyright: ignore[reportMissingImports]
 
     _NumpyScalar: TypeAlias = np.generic
+    _NumpyNumber: TypeAlias = np.number[Any]
+    _InexactScalar = TypeVar('_InexactScalar', bound=np.inexact[Any])
+    _FloatingScalar = TypeVar('_FloatingScalar', bound=np.floating[Any])
+    _ComplexScalar = TypeVar('_ComplexScalar', bound=np.complexfloating[Any, Any])
     _NumpyArrayOf: TypeAlias = NDArray[_ScalarType]
+    _NumpyValueOf: TypeAlias = NDArray[_ScalarType] | _ScalarType
     _NumpyDTypeOf: TypeAlias = np.dtype[_ScalarType]
     NumpyArray: TypeAlias = NDArray[Any]
     NumpyValue: TypeAlias = NumpyArray | np.number[Any]
@@ -59,7 +68,12 @@ if TYPE_CHECKING:
 else:
     # Keep annotations resolvable without importing an optional dependency.
     type _NumpyArrayOf[S] = Array
+    type _NumpyValueOf[S] = Array
     type _NumpyDTypeOf[S] = object
     _NumpyScalar = object
+    _NumpyNumber = object
+    _InexactScalar = TypeVar('_InexactScalar')
+    _FloatingScalar = TypeVar('_FloatingScalar')
+    _ComplexScalar = TypeVar('_ComplexScalar')
     NumpyArray = NumpyValue = Array
     NumpyDType = object

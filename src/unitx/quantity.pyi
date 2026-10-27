@@ -33,8 +33,14 @@ from ._numerics.numpy_typing import (
     NumpyValue,
     WritableArray,
     _Axis,
+    _ComplexScalar,
+    _DTypeValue,
+    _FloatingScalar,
+    _InexactScalar,
     _NumpyArrayOf,
+    _NumpyNumber,
     _NumpyScalar,
+    _NumpyValueOf,
     _Shape,
     _TypedArray,
 )
@@ -67,6 +73,10 @@ def _scalar_arithmetic(
 class _NumberValue:
     @overload
     def __get__(self, quantity: None, owner: type[object] | None = None) -> _NumberValue: ...
+    @overload
+    def __get__(
+        self, quantity: Quantity[_DTypeValue[_InexactScalar]], owner: type[object] | None = None
+    ) -> _NumpyValueOf[_InexactScalar]: ...
     @overload
     def __get__(
         self, quantity: Quantity[Array], owner: type[object] | None = None
@@ -119,6 +129,10 @@ class Quantity(Generic[T]):
     def is_dimensionless(self) -> bool: ...
     def __bool__(self) -> bool: ...
     @overload
+    def value_in(
+        self: Quantity[_DTypeValue[_InexactScalar]], unit: str | Unit | _LinearUnitSource, /
+    ) -> _NumpyValueOf[_InexactScalar]: ...
+    @overload
     def value_in(self: Quantity[Array], unit: str | Unit | _LinearUnitSource, /) -> NumpyValue: ...
     @overload
     def value_in(self: Quantity[Decimal], unit: str | Unit | _LinearUnitSource, /) -> Decimal: ...
@@ -129,9 +143,15 @@ class Quantity(Generic[T]):
     @overload
     def value_in[N: Real](self: Quantity[N], unit: str | Unit | _LinearUnitSource, /) -> Real: ...
     @overload
+    def value_in(self: Quantity[complex], unit: str | Unit | _LinearUnitSource, /) -> Number: ...
+    @overload
     def value_in(self: Quantity[Scalar], unit: str | Unit | _LinearUnitSource, /) -> Scalar: ...
     @overload
     def value_in(self, unit: str | Unit | _LinearUnitSource, /) -> Magnitude: ...
+    @overload
+    def to(
+        self: Quantity[_DTypeValue[_InexactScalar]], unit: str | Unit | _LinearUnitSource, /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def to(
         self: Quantity[Array], unit: str | Unit | _LinearUnitSource, /
@@ -149,9 +169,17 @@ class Quantity(Generic[T]):
         self: Quantity[N], unit: str | Unit | _LinearUnitSource, /
     ) -> Quantity[Real]: ...
     @overload
+    def to(
+        self: Quantity[complex], unit: str | Unit | _LinearUnitSource, /
+    ) -> Quantity[Number]: ...
+    @overload
     def to(self: Quantity[Scalar], unit: str | Unit | _LinearUnitSource, /) -> Quantity[Scalar]: ...
     @overload
     def to(self, unit: str | Unit | _LinearUnitSource, /) -> Quantity[Magnitude]: ...
+    @overload
+    def to_base(
+        self: Quantity[_DTypeValue[_InexactScalar]],
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def to_base(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
     @overload
@@ -167,6 +195,10 @@ class Quantity(Generic[T]):
     @overload
     def to_base(self) -> Quantity[Magnitude]: ...
     @overload
+    def simplify(
+        self: Quantity[_DTypeValue[_InexactScalar]],
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
     def simplify(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
     @overload
     def simplify(self: Quantity[Decimal]) -> Quantity[Decimal]: ...
@@ -180,6 +212,10 @@ class Quantity(Generic[T]):
     def simplify(self: Quantity[Scalar]) -> Quantity[Scalar]: ...
     @overload
     def simplify(self) -> Quantity[Magnitude]: ...
+    @overload
+    def compact(
+        self: Quantity[_DTypeValue[_InexactScalar]],
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def compact(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
     @overload
@@ -319,6 +355,10 @@ class Quantity(Generic[T]):
         abs_tol: Quantity[Fractionable] | Fractionable = 0,
     ) -> bool: ...
     @overload
+    def __pos__(
+        self: Quantity[_DTypeValue[_InexactScalar]], /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
     def __pos__(self: Quantity[Array], /) -> Quantity[NumpyValue]: ...
     @overload
     def __pos__[N: (int, float, Fraction, Decimal, complex)](
@@ -328,6 +368,10 @@ class Quantity(Generic[T]):
     def __pos__(self: Quantity[Scalar], /) -> Quantity[Scalar]: ...
     @overload
     def __pos__(self, /) -> Quantity[Magnitude]: ...
+    @overload
+    def __neg__(
+        self: Quantity[_DTypeValue[_InexactScalar]], /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def __neg__(self: Quantity[Array], /) -> Quantity[NumpyValue]: ...
     @overload
@@ -350,6 +394,22 @@ class Quantity(Generic[T]):
 
     @overload
     def __add__[P: _Point[Any]](self, other: _Point[P], /) -> P: ...
+    @overload
+    def __add__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __add__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __add__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
     @overload
     def __add__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -382,10 +442,34 @@ class Quantity(Generic[T]):
     ) -> Quantity[Real]: ...
     @overload
     def __add__(
+        self: Quantity[complex], other: Quantity[complex] | complex, /
+    ) -> Quantity[complex]: ...
+    @overload
+    def __add__(
+        self: Quantity[Number], other: Quantity[Number] | Number, /
+    ) -> Quantity[Number]: ...
+    @overload
+    def __add__(
         self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
     ) -> Quantity[Scalar]: ...
     @overload
     def __add__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+    @overload
+    def __radd__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __radd__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __radd__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
     @overload
     def __radd__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -411,9 +495,29 @@ class Quantity(Generic[T]):
     @overload
     def __radd__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
     @overload
+    def __radd__(self: Quantity[complex], other: complex, /) -> Quantity[complex]: ...
+    @overload
+    def __radd__(self: Quantity[Number], other: Number, /) -> Quantity[Number]: ...
+    @overload
     def __radd__(self: Quantity[Scalar], other: Scalar, /) -> Quantity[Scalar]: ...
     @overload
     def __radd__(self, other: Magnitude, /) -> Quantity[Magnitude]: ...
+    @overload
+    def __sub__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __sub__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __sub__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
     @overload
     def __sub__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -446,10 +550,34 @@ class Quantity(Generic[T]):
     ) -> Quantity[Real]: ...
     @overload
     def __sub__(
+        self: Quantity[complex], other: Quantity[complex] | complex, /
+    ) -> Quantity[complex]: ...
+    @overload
+    def __sub__(
+        self: Quantity[Number], other: Quantity[Number] | Number, /
+    ) -> Quantity[Number]: ...
+    @overload
+    def __sub__(
         self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
     ) -> Quantity[Scalar]: ...
     @overload
     def __sub__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
     @overload
     def __rsub__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -475,6 +603,10 @@ class Quantity(Generic[T]):
     @overload
     def __rsub__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
     @overload
+    def __rsub__(self: Quantity[complex], other: complex, /) -> Quantity[complex]: ...
+    @overload
+    def __rsub__(self: Quantity[Number], other: Number, /) -> Quantity[Number]: ...
+    @overload
     def __rsub__(self: Quantity[Scalar], other: Scalar, /) -> Quantity[Scalar]: ...
     @overload
     def __rsub__(self, other: Magnitude, /) -> Quantity[Magnitude]: ...
@@ -482,6 +614,32 @@ class Quantity(Generic[T]):
     def __mul__(
         self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
     ) -> Quantity[T]: ...
+    @overload
+    def __mul__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __mul__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __mul__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __mul__(
+        self: Quantity[_DTypeValue[_InexactScalar]], other: Quantity[Fractionable] | Fractionable, /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
+    def __mul__(
+        self: Quantity[Fractionable],
+        other: Quantity[_DTypeValue[_InexactScalar]] | _DTypeValue[_InexactScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def __mul__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -507,9 +665,25 @@ class Quantity(Generic[T]):
         self: Quantity[float], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[float]: ...
     @overload
+    def __mul__(
+        self: Quantity[Fraction], other: Quantity[int | Fraction] | int | Fraction, /
+    ) -> Quantity[Fraction]: ...
+    @overload
+    def __mul__(
+        self: Quantity[int], other: Quantity[Fraction] | Fraction, /
+    ) -> Quantity[Fraction]: ...
+    @overload
     def __mul__[L: Real, R: Real](
         self: Quantity[L], other: Quantity[R] | R, /
     ) -> Quantity[Real]: ...
+    @overload
+    def __mul__(
+        self: Quantity[complex], other: Quantity[complex] | complex, /
+    ) -> Quantity[complex]: ...
+    @overload
+    def __mul__(
+        self: Quantity[Number], other: Quantity[Number] | Number, /
+    ) -> Quantity[Number]: ...
     @overload
     def __mul__(
         self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
@@ -520,6 +694,32 @@ class Quantity(Generic[T]):
     def __rmul__(
         self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
     ) -> Quantity[T]: ...
+    @overload
+    def __rmul__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __rmul__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __rmul__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __rmul__(
+        self: Quantity[_DTypeValue[_InexactScalar]], other: Quantity[Fractionable] | Fractionable, /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
+    def __rmul__(
+        self: Quantity[Fractionable],
+        other: Quantity[_DTypeValue[_InexactScalar]] | _DTypeValue[_InexactScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def __rmul__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -541,7 +741,13 @@ class Quantity(Generic[T]):
     @overload
     def __rmul__(self: Quantity[float], other: Decimal, /) -> Quantity[float]: ...
     @overload
+    def __rmul__(self: Quantity[Fraction], other: int | Fraction, /) -> Quantity[Fraction]: ...
+    @overload
     def __rmul__[N: Real](self: Quantity[N], other: Real, /) -> Quantity[Real]: ...
+    @overload
+    def __rmul__(self: Quantity[complex], other: complex, /) -> Quantity[complex]: ...
+    @overload
+    def __rmul__(self: Quantity[Number], other: Number, /) -> Quantity[Number]: ...
     @overload
     def __rmul__(self: Quantity[Scalar], other: Scalar, /) -> Quantity[Scalar]: ...
     @overload
@@ -550,6 +756,32 @@ class Quantity(Generic[T]):
     def __truediv__(
         self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant, /
     ) -> Quantity[T]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[_DTypeValue[_InexactScalar]], other: Quantity[Fractionable] | Fractionable, /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[Fractionable],
+        other: Quantity[_DTypeValue[_InexactScalar]] | _DTypeValue[_InexactScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def __truediv__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -579,15 +811,57 @@ class Quantity(Generic[T]):
         self: Quantity[float], other: Quantity[Decimal] | Decimal, /
     ) -> Quantity[float]: ...
     @overload
+    def __truediv__(
+        self: Quantity[Fraction], other: Quantity[int | Fraction] | int | Fraction, /
+    ) -> Quantity[Fraction]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[int], other: Quantity[Fraction] | Fraction, /
+    ) -> Quantity[Fraction]: ...
+    @overload
     def __truediv__[L: Real, R: Real](
         self: Quantity[L], other: Quantity[R] | R, /
     ) -> Quantity[Real]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[complex], other: Quantity[complex] | complex, /
+    ) -> Quantity[complex]: ...
+    @overload
+    def __truediv__(
+        self: Quantity[Number], other: Quantity[Number] | Number, /
+    ) -> Quantity[Number]: ...
     @overload
     def __truediv__(
         self: Quantity[Scalar], other: Quantity[Scalar] | Scalar, /
     ) -> Quantity[Scalar]: ...
     @overload
     def __truediv__(self, other: Quantity[Magnitude] | Magnitude, /) -> Quantity[Magnitude]: ...
+    @overload
+    def __rtruediv__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __rtruediv__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __rtruediv__(
+        self: Quantity[Array], other: Quantity[Array] | Array, /
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __rtruediv__(
+        self: Quantity[_DTypeValue[_InexactScalar]], other: Quantity[Fractionable] | Fractionable, /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
+    def __rtruediv__(
+        self: Quantity[Fractionable],
+        other: Quantity[_DTypeValue[_InexactScalar]] | _DTypeValue[_InexactScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def __rtruediv__(
         self: Quantity[Array],
@@ -626,9 +900,15 @@ class Quantity(Generic[T]):
     @overload
     def __rtruediv__(self: Quantity[float], other: Decimal, /) -> Quantity[float]: ...
     @overload
+    def __rtruediv__(self: Quantity[Fraction], other: int | Fraction, /) -> Quantity[Fraction]: ...
+    @overload
     def __rtruediv__[N: Real](
         self: Quantity[N], other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Real, /
     ) -> Quantity[Real]: ...
+    @overload
+    def __rtruediv__(self: Quantity[complex], other: complex, /) -> Quantity[complex]: ...
+    @overload
+    def __rtruediv__(self: Quantity[Number], other: Number, /) -> Quantity[Number]: ...
     @overload
     def __rtruediv__(
         self: Quantity[Scalar],
@@ -639,6 +919,14 @@ class Quantity(Generic[T]):
     def __rtruediv__(
         self, other: Unit | _LinearUnitSource | Factor | SymbolicConstant | Magnitude, /
     ) -> Quantity[Magnitude]: ...
+    @overload
+    def __pow__(
+        self: Quantity[Array], exponent: Array | Quantity[Array], /
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __pow__(
+        self: Quantity[_DTypeValue[_InexactScalar]], exponent: int | float, /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def __pow__(self: Quantity[Array], exponent: object, /) -> Quantity[NumpyValue]: ...
     @overload
@@ -879,11 +1167,21 @@ class Quantity(Generic[T]):
     def real[A: Array](self: Quantity[HasReal[A]]) -> Quantity[A]: ...
     @property
     def imag[A: Array](self: Quantity[HasImag[A]]) -> Quantity[A]: ...
+    @overload
+    def __getitem__[S: _NumpyNumber](
+        self: Quantity[_TypedArray[S]], key: Any
+    ) -> Quantity[_NumpyValueOf[S]]: ...
+    @overload
     def __getitem__(self: Quantity[Array], key: Any) -> Quantity[NumpyValue]: ...
     def __setitem__(
         self: Quantity[Array], key: Any, value: Quantity[Magnitude] | Magnitude
     ) -> None: ...
     def __len__(self: Quantity[Array]) -> int: ...
+    @overload
+    def __iter__[S: _NumpyNumber](
+        self: Quantity[_TypedArray[S]],
+    ) -> Iterator[Quantity[_NumpyValueOf[S]]]: ...
+    @overload
     def __iter__(self: Quantity[Array]) -> Iterator[Quantity[NumpyValue]]: ...
     @overload
     def reshape[S: _NumpyScalar](
@@ -925,6 +1223,17 @@ class Quantity(Generic[T]):
     ) -> Quantity[NumpyArray]: ...
     @overload
     def sum(
+        self: Quantity[_DTypeValue[_InexactScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
+    def sum(
         self: Quantity[Array],
         axis: _Axis = None,
         dtype: object = None,
@@ -956,6 +1265,16 @@ class Quantity(Generic[T]):
         where: object = True,
         initial: object = 0,
     ) -> Quantity[O]: ...
+    @overload
+    def mean(
+        self: Quantity[_DTypeValue[_InexactScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
     @overload
     def mean(
         self: Quantity[Array],

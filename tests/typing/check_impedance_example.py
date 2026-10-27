@@ -14,11 +14,11 @@ assert_type(first.value_in(si.kohm), Number)
 assert_type(first + second, Impedance)
 assert_type(first // second, Impedance)
 assert_type((first + second).to(si.kohm) // second, Impedance)
-assert_type(first * (2 * si.A), Quantity[Scalar])
+assert_type(first * (2 * si.A), Quantity[Number])
 ordinary = 100 * si.ohm
 assert_type(first + ordinary, Quantity[Scalar])
-assert_type(ordinary + first, Quantity[Scalar])
-assert_type(first - second, Quantity[Scalar])
+assert_type(ordinary + first, Quantity[Number])
+assert_type(first - second, Quantity[Number])
 assert_type(-first, Quantity[Scalar])
 series: Impedance = first
 series += second
