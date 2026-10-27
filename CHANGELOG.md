@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.17.3] - 2026-10-27
+
+### Added
+
+- Support `diff` and `gradient` on affine/logarithmic point arrays, returning
+  differences and using coordinate difference units for derivatives. Align
+  point boundaries explicitly; retain the original object for `diff(n=0)`.
+- Document reusable trapezoidal weights using `np.gradient` and an endpoint
+  correction.
+- Add `UnitOperationError` for point/difference semantic violations and its
+  `ImplicitConversionError` subclass for silent array unit removal. Both remain
+  catchable as TypeError and UnitxError; native numerical errors stay native.
+
+### Changed
+
+- Delegate direct array methods through a private lazy decorator, retaining
+  explicit signatures, method defaults and the existing NumPy unit/output rules.
+- Retain known floating/complex NumPy dtypes in linear conversions, supported
+  arithmetic and default sum/mean results, including possible NumPy scalars.
+  Preserve numeric dtypes in indexing/iteration; narrow exact Fraction
+  arithmetic and complex scalar result domains.
+
+### Fixed
+
+- Update the generator annotation on registry definition scopes to avoid the
+  deprecated Iterator overload of `contextmanager` in current type stubs.
+
 ## [0.17.2] - 2026-10-27
 
 ### Added
