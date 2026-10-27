@@ -60,6 +60,9 @@ distance = Quantity(Decimal('1.25'), si.m)
 assert_type(distance.to(si.cm), Quantity[Decimal])
 assert distance.value_in(si.cm) == Decimal(125)
 assert Quantity(1, si.cm).value_in(si.m) == Fraction(1, 100)
+assert_type(Quantity(Decimal('25'), si.percent).n, Decimal)
+assert Quantity(Decimal('25'), si.percent).n == Decimal('0.25')
+assert (1 * si.km / si.m).n == 1000
 assert 2 * Unit(si.m, scale=Factor(3)) == 6 * si.m
 
 assert (1 * cgs.erg).value_in(si.J) == Fraction(1, 10**7)

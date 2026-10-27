@@ -91,6 +91,55 @@ def _scalar_arithmetic(
     return cast(Scalar, op(left, right))
 
 
+class _NumberValue:
+    """Read-only dimensionless exit with the same result domains as `value_in`."""
+
+    @overload
+    def __get__(self, quantity: None, owner: type[object] | None = None) -> _NumberValue: ...
+
+    @overload
+    def __get__(
+        self, quantity: Quantity[Array], owner: type[object] | None = None
+    ) -> NumpyValue: ...
+
+    @overload
+    def __get__(
+        self, quantity: Quantity[Decimal], owner: type[object] | None = None
+    ) -> Decimal: ...
+
+    @overload
+    def __get__(
+        self, quantity: Quantity[Fraction], owner: type[object] | None = None
+    ) -> Fraction | float: ...
+
+    @overload
+    def __get__(self, quantity: Quantity[Real], owner: type[object] | None = None) -> Real: ...
+
+    @overload
+    def __get__(
+        self, quantity: Quantity[complex], owner: type[object] | None = None
+    ) -> complex: ...
+
+    @overload
+    def __get__(self, quantity: Quantity[Scalar], owner: type[object] | None = None) -> Scalar: ...
+
+    @overload
+    def __get__(
+        self, quantity: Quantity[Magnitude], owner: type[object] | None = None
+    ) -> Magnitude: ...
+
+    def __get__(
+        self, quantity: Quantity[Magnitude] | None, owner: type[object] | None = None
+    ) -> Magnitude | _NumberValue:
+        if quantity is None:
+            return self
+        return quantity.value_in(Unit())
+
+    def __set__(self, quantity: Quantity[Magnitude], value: object) -> None:
+        error_message = 'The dimensionless numerical value n is read-only.'
+        raise AttributeError(error_message)
+
+
 class Quantity(Generic[T]):
     """A magnitude paired with a physical unit.
 
@@ -164,6 +213,7 @@ class Quantity(Generic[T]):
     __slots__ = ('_value', '_unit')
     _value: T
     _unit: Unit
+    n = _NumberValue()
 
     def __init__(self, value: T, unit: str | Unit | _LinearUnitSource, /) -> None:
         if is_numpy_object(value):

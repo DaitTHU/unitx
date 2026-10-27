@@ -141,6 +141,31 @@ returns `False`.
 For repeated conversions, reuse a target `Unit` object to avoid parsing the
 expression on every call.
 
+### Dimensionless numerical values
+
+`q.n` is a read-only shorthand for `q.value_in(si.one)`. It checks complete
+unit compatibility and evaluates the full dimensionless scale; `.value`
+continues to return the stored magnitude.
+
+```pycon
+>>> ratio = 1 * si.km / si.m
+>>> ratio.value, ratio.n
+(1, 1000)
+>>> (25 * si.percent).n
+Fraction(1, 4)
+
+```
+
+The result follows the existing conversion rules for Python and NumPy
+magnitudes; it is not forced to float. Identity conversion can reuse the
+original magnitude. Dimensional quantities raise DimensionError. Logarithmic
+differences such as dB also raise: use `.to_ratio(kind=...)` explicitly before
+extracting an ordinary ratio. `is_dimensionless()` describes only physical
+dimensions and is not sufficient for this conversion.
+
+Points have no `n` shorthand. `np.asarray(q)` and `np.array(q)` still reject
+implicit unit removal, including for dimensionless quantities.
+
 
 ## Unit expressions
 
