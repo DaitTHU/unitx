@@ -28,6 +28,7 @@ from unitx import (
 from unitx.cgs import cgs, emu, esu, gaussian, hl
 from unitx.factor import Factor
 from unitx.imperial import imperial
+from unitx.quantity import quantity as decimal_quantity
 from unitx.scipy import simpson
 from unitx.serialization import from_dict, to_dict
 from unitx.si import SI, si
@@ -37,6 +38,7 @@ package_root = Path(str(installed.locate_file('unitx')))
 assert installed.version == os.environ['EXPECTED_VERSION']
 assert Path(unitx.__file__).resolve() == (package_root / '__init__.py').resolve()
 assert (package_root / 'py.typed').is_file()
+assert (package_root / 'quantity.pyi').is_file()
 assert find_spec('numpy') is None
 assert import_module('unitx.math') is math
 assert import_module('unitx.time') is time
@@ -179,3 +181,7 @@ assert 'numpy' not in sys.modules
 assert 'sympy' not in sys.modules
 assert 'scipy' not in sys.modules
 assert 'matplotlib' not in sys.modules
+
+# The sibling stub must retain the module-level Decimal factory.
+assert_type(decimal_quantity(1.25, si.m), Quantity[Decimal])
+assert decimal_quantity(1.25, si.m).value == Decimal('1.25')

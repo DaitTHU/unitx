@@ -2,7 +2,6 @@ from __future__ import annotations
 
 # The public signatures reuse the package's private operand protocols.
 # pyright: reportPrivateUsage=false
-
 from collections.abc import Callable, Iterator
 from decimal import Decimal
 from fractions import Fraction
@@ -11,6 +10,7 @@ from typing import (
     Any,
     Generic,
     Literal,
+    SupportsIndex,
     TypeAlias,
     TypeGuard,
     TypeVar,
@@ -32,6 +32,8 @@ from ._numerics.numpy_typing import (
     NumpyDType,
     NumpyValue,
     WritableArray,
+    _Axis,
+    _Shape,
 )
 from ._operands import _LinearUnitSource, _Point
 from .dimension import Dimension
@@ -880,6 +882,146 @@ class Quantity(Generic[T]):
     ) -> None: ...
     def __len__(self: Quantity[Array]) -> int: ...
     def __iter__(self: Quantity[Array]) -> Iterator[Quantity[NumpyValue]]: ...
+    @overload
+    def reshape[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[A],
+        shape: _Shape,
+        /,
+        *dimensions: SupportsIndex,
+        order: Literal['C', 'F', 'A'] = 'C',
+        copy: bool | None = None,
+    ) -> Quantity[A]: ...
+    @overload
+    def reshape(
+        self: Quantity[Array],
+        shape: _Shape,
+        /,
+        *dimensions: SupportsIndex,
+        order: Literal['C', 'F', 'A'] = 'C',
+        copy: bool | None = None,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def ravel[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[A],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> Quantity[A]: ...
+    @overload
+    def ravel(
+        self: Quantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> Quantity[NumpyArray]: ...
+    @overload
+    def copy[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[A],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> Quantity[A]: ...
+    @overload
+    def copy(
+        self: Quantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> Quantity[NumpyArray]: ...
+    @overload
+    def sum(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def sum[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[O]: ...
+    @overload
+    def sum[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        keepdims: bool = False,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[O]: ...
+    @overload
+    def mean(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def mean[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> Quantity[O]: ...
+    @overload
+    def mean[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        keepdims: bool = False,
+        where: object = True,
+    ) -> Quantity[O]: ...
+    @overload
+    def std(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def std[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @overload
+    def std[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]: ...
     @overload
     def __abs__(self: Quantity[Array]) -> Quantity[NumpyValue]: ...

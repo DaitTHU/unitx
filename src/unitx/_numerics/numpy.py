@@ -30,8 +30,8 @@ from ..quantity import Quantity
 from ..unit import Unit
 from . import as_exponent
 from .conversion import compatible
+from .numpy_typing import _UNSET
 
-_UNSET = object()
 _MATRIX_VECTOR_UFUNCS = tuple(
     value for name in ('matvec', 'vecmat') if isinstance(value := getattr(np, name, None), np.ufunc)
 )

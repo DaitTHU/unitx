@@ -13,7 +13,9 @@ from ._notebooks import notebook_source
 NOTEBOOKS = sorted((Path(__file__).resolve().parents[1] / 'examples').glob('*.ipynb'))
 
 
-@pytest.mark.parametrize('guide', ['compatibility', 'creation', 'fft', 'histograms', 'writes'])
+@pytest.mark.parametrize(
+    'guide', ['compatibility', 'creation', 'fft', 'histograms', 'methods', 'writes']
+)
 def test_numpy_documentation(guide: str) -> None:
     pytest.importorskip('numpy')
     path = Path(__file__).resolve().parents[1] / f'docs/numpy/{guide}.md'

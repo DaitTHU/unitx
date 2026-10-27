@@ -25,6 +25,7 @@ nav:
   - Scalar statistics: statistics.md
   - NumPy:
       - Overview and support matrix: numpy.md
+      - Direct array methods: numpy/methods.md
       - Allocation, grids and padding: numpy/creation.md
       - Joining, splitting and indexing: numpy/indexing.md
       - Selection and clipping: numpy/selection.md

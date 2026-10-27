@@ -58,7 +58,10 @@ np.testing.assert_allclose(np.diff(current).value, [1, 1, 2, 2])
 Quantity with unit `y.unit * x.unit`; bare inputs are dimensionless. With
 `x=None`, scalar `dx` supplies the coordinate unit instead (default: dimensionless
 1). NumPy dispatches this function on y and x, so at least one of those must be
-a Quantity to enter unitx; a Quantity supplied only as dx is insufficient.
+a Quantity to enter its handler. When only dx is a Quantity and y is a plain
+numeric array, NumPy's native arithmetic also works, finishing with the
+Quantity `sum` method. This returns the spacing unit; it does not extend
+point-coordinate integration.
 Explicit x makes dx irrelevant. Numeric arrays, scalar spacing, axis handling,
 coordinate order (including reversed or nonmonotonic x), broadcasting, and
 empty intervals follow [NumPy trapezoid](https://numpy.org/doc/stable/reference/generated/numpy.trapezoid.html).

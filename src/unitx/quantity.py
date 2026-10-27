@@ -12,6 +12,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Literal,
+    SupportsIndex,
     TypeGuard,
     TypeVar,
     cast,
@@ -27,11 +29,14 @@ from ._numerics import (
     is_numpy_object,
 )
 from ._numerics.numpy_typing import (
+    _UNSET,
     HasImag,
     HasReal,
     NumpyArray,
     NumpyDType,
     NumpyValue,
+    _Axis,
+    _Shape,
 )
 from ._numerics.scaling import scale_value
 from ._operands import _LinearUnitSource, _Point, linear_unit
@@ -852,7 +857,8 @@ class Quantity(Generic[T]):
 
     def _array_value(self) -> Any:
         if not is_numpy_object(self.value):
-            raise AttributeError('Array attributes require a NumPy magnitude.')
+            error_message = 'Array attributes require a NumPy magnitude.'
+            raise AttributeError(error_message)
         return self.value
 
     @property
@@ -914,6 +920,110 @@ class Quantity(Generic[T]):
             error_message = 'Scalar quantities are not iterable.'
             raise TypeError(error_message)
         return (Quantity(value, self.unit) for value in self._array_value())
+
+    def reshape(
+        self: Quantity[Array],
+        shape: _Shape,
+        /,
+        *dimensions: SupportsIndex,
+        order: Literal['C', 'F', 'A'] = 'C',
+        copy: bool | None = None,
+    ) -> Quantity[NumpyValue]:
+        """Reshape with a tuple or positional dimensions and NumPy's copy/view rules."""
+        self._array_value()
+        from ._numerics.numpy import _reshape
+
+        new_shape = (shape, *dimensions) if dimensions else shape
+        return _reshape(self, new_shape, order=order, copy=copy)
+
+    def ravel(
+        self: Quantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> Quantity[NumpyArray]:
+        """Return a one-dimensional array, sharing storage when NumPy permits."""
+        self._array_value()
+        from ._numerics.numpy import _ravel
+
+        return _ravel(self, order=order)
+
+    def copy(
+        self: Quantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> Quantity[NumpyArray]:
+        """Copy into independent ndarray storage; the default order is `C`."""
+        self._array_value()
+        from ._numerics.numpy import _array_transform, np
+
+        return _array_transform(np.copy, self, order=order)
+
+    def sum(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[NumpyValue]:
+        """Sum linear values, using the existing NumPy unit and output rules."""
+        self._array_value()
+        from ._numerics.numpy import _sum, np
+
+        return _sum(
+            np.add.reduce,
+            self,
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+            initial=initial,
+        )
+
+    def mean(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> Quantity[NumpyValue]:
+        """Average stored readings, using the existing NumPy unit and output rules."""
+        self._array_value()
+        from ._numerics.numpy import _mean, np
+
+        return _mean(np.mean, self, axis=axis, dtype=dtype, out=out, keepdims=keepdims, where=where)
+
+    def std(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        ddof: object = _UNSET,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = _UNSET,
+        correction: object = _UNSET,
+    ) -> Quantity[NumpyValue]:
+        """Return a difference standard deviation using NumPy unit/output rules."""
+        self._array_value()
+        from ._numerics.numpy import _std_var, np
+
+        return _std_var(
+            np.std,
+            self,
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+            ddof=ddof,
+            mean=mean,
+            correction=correction,
+        )
 
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]:
         return Quantity(self._array_value().flatten(order), self.unit)

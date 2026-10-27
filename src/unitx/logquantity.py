@@ -6,11 +6,19 @@ import operator
 from collections.abc import Callable, Iterator
 from decimal import Decimal
 from fractions import Fraction
-from typing import Any, Generic, Never, TypeVar, cast, overload
+from typing import Any, Generic, Literal, Never, SupportsIndex, TypeVar, cast, overload
 
 from ._coordinates.points import _add_sub, _compare, _isclose
 from ._numerics import Array, Magnitude, Scalar, is_numpy_object
-from ._numerics.numpy_typing import NumpyArray, NumpyDType, NumpyValue, WritableArray
+from ._numerics.numpy_typing import (
+    _UNSET,
+    NumpyArray,
+    NumpyDType,
+    NumpyValue,
+    WritableArray,
+    _Axis,
+    _Shape,
+)
 from ._operands import _Point, linear_unit
 from .dimension import Dimension
 from .logunit import LogUnit, _as_log_unit
@@ -455,6 +463,192 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
             error_message = 'Scalar quantities are not iterable.'
             raise TypeError(error_message)
         return (LogQuantity(value, self.unit) for value in self._array_value())
+
+    @overload
+    def reshape[A: WritableArray](
+        self: LogQuantity[A],
+        shape: _Shape,
+        /,
+        *dimensions: SupportsIndex,
+        order: Literal['C', 'F', 'A'] = 'C',
+        copy: bool | None = None,
+    ) -> LogQuantity[A]: ...
+    @overload
+    def reshape(
+        self: LogQuantity[Array],
+        shape: _Shape,
+        /,
+        *dimensions: SupportsIndex,
+        order: Literal['C', 'F', 'A'] = 'C',
+        copy: bool | None = None,
+    ) -> LogQuantity[NumpyValue]: ...
+    def reshape(
+        self: LogQuantity[Array],
+        shape: _Shape,
+        /,
+        *dimensions: SupportsIndex,
+        order: Literal['C', 'F', 'A'] = 'C',
+        copy: bool | None = None,
+    ) -> LogQuantity[Array]:
+        """Reshape with a tuple or positional dimensions and NumPy's copy/view rules."""
+        self._array_value()
+        from ._numerics.numpy import _reshape
+
+        new_shape = (shape, *dimensions) if dimensions else shape
+        return _reshape(self, new_shape, order=order, copy=copy)
+
+    @overload
+    def ravel[A: WritableArray](
+        self: LogQuantity[A],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> LogQuantity[A]: ...
+    @overload
+    def ravel(
+        self: LogQuantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> LogQuantity[NumpyArray]: ...
+    def ravel(
+        self: LogQuantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> LogQuantity[Array]:
+        """Return a one-dimensional array, sharing storage when NumPy permits."""
+        self._array_value()
+        from ._numerics.numpy import _ravel
+
+        return _ravel(self, order=order)
+
+    @overload
+    def copy[A: WritableArray](
+        self: LogQuantity[A],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> LogQuantity[A]: ...
+    @overload
+    def copy(
+        self: LogQuantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> LogQuantity[NumpyArray]: ...
+    def copy(
+        self: LogQuantity[Array],
+        order: Literal['C', 'F', 'A', 'K'] = 'C',
+    ) -> LogQuantity[Array]:
+        """Copy into independent ndarray storage; the default order is `C`."""
+        self._array_value()
+        from ._numerics.numpy import _array_transform, np
+
+        return _array_transform(np.copy, self, order=order)
+
+    @overload
+    def mean(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> LogQuantity[NumpyValue]: ...
+    @overload
+    def mean[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: LogQuantity[O],
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> LogQuantity[O]: ...
+    @overload
+    def mean[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: LogQuantity[O],
+        keepdims: bool = False,
+        where: object = True,
+    ) -> LogQuantity[O]: ...
+    def mean(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: LogQuantity[Array] | None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> LogQuantity[Array]:
+        """Average stored readings, using the existing NumPy unit and output rules."""
+        self._array_value()
+        from ._numerics.numpy import _mean, np
+
+        return _mean(np.mean, self, axis=axis, dtype=dtype, out=out, keepdims=keepdims, where=where)
+
+    @overload
+    def std(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def std[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @overload
+    def std[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    def std(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        ddof: object = _UNSET,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = _UNSET,
+        correction: object = _UNSET,
+    ) -> Quantity[Array]:
+        """Return a difference standard deviation using NumPy unit/output rules."""
+        self._array_value()
+        from ._numerics.numpy import _std_var, np
+
+        return _std_var(
+            np.std,
+            self,
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+            ddof=ddof,
+            mean=mean,
+            correction=correction,
+        )
 
     def flatten(self: LogQuantity[Array], order: str = 'C') -> LogQuantity[NumpyArray]:
         return LogQuantity(self._array_value().flatten(order), self.unit)

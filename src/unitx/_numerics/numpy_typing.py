@@ -4,9 +4,14 @@ Inputs still use the NumPy-independent Array protocol. Missing optional NumPy
 types must never turn scalar overload inputs into Any or Unknown.
 """
 
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, SupportsIndex, TypeAlias, TypeVar
 
 from . import Array
+
+# Shared method defaults distinguish omission from explicitly invalid values.
+_UNSET = object()
+_Axis: TypeAlias = SupportsIndex | tuple[SupportsIndex, ...] | None
+_Shape: TypeAlias = SupportsIndex | tuple[SupportsIndex, ...]
 
 Component = TypeVar('Component', bound=Array, covariant=True)
 
@@ -24,7 +29,7 @@ class HasImag(Array, Protocol[Component]):
 class WritableArray(Array, Protocol):
     """Distinguish ndarray storage from NumPy scalars without optional imports.
 
-    Only used to retain the concrete magnitude type in augmented annotations;
+    Retain the concrete magnitude type in shape/copy, out and augmented annotations;
     the runtime adapter still validates plain numeric ndarrays.
     """
 

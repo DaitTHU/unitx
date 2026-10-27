@@ -14,7 +14,9 @@ Relative weights and ddof can be coherent dimensionless Quantities.
 
 Different dimensions cannot share a single covariance matrix unit: combining
 length and time would need m², m·s and s² in different cells. Use
-[scalar covariance](../statistics.md) for the cross term.
+[scalar covariance](../statistics.md) for the cross term. `np.cov` rejects
+incompatible variable dimensions with DimensionError rather than returning a
+matrix with one misleading unit or an implicit heterogeneous container.
 `np.corrcoef(x, y=None, rowvar=True, *, dtype=None)` returns dimensionless
 coefficients and allows independently dimensioned variables. Native deprecated
 bias/ddof options and their warnings follow the installed NumPy version.

@@ -93,9 +93,13 @@ assert weighted.unit == Unit('m2 s')
 
 Both entry points support the output [output rules](writes.md#output-buffers), including exact result
 shape and unchanged targets on computation, unit, shape, or casting errors.
-`cumprod` and `nancumprod` support dimensionless input, normalizing its complete
-scale first. Dimensional cumulative products remain unsupported because partial
-products generally require different units at different positions.
+`cumprod` and `nancumprod` support ordinary dimensionless input, normalizing its
+complete scale first. Dimensional cumulative products are explicitly rejected
+with DimensionError: partial products generally require U, U², U³ at different
+positions, which cannot share one Quantity unit. There is no per-element-unit
+array or object-array fallback, even for special dimensional inputs where a
+short result might happen to be homogeneous. Use explicit numerical values
+and manage the resulting units separately when implementing such a calculation.
 `multiply.accumulate` and `multiply.reduceat` support dimensionless input with
 the same scale normalization; dimensional inputs remain unsupported. See
 [ufunc methods](writes.md#ufunc-methods) for options and output buffers.

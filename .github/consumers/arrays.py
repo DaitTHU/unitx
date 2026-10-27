@@ -546,3 +546,30 @@ def check_compatibility() -> None:
 
 
 check_compatibility()
+
+
+def check_array_methods() -> None:
+    values = np.arange(6, dtype=np.float32)
+    q = Quantity(values, si.m)
+    columns = q.reshape(2, 3)
+    assert_type(columns, Quantity[NDArray[np.float32]])
+    assert_type(columns.ravel(), Quantity[NDArray[np.float32]])
+    assert_type(columns.copy(), Quantity[NDArray[np.float32]])
+    assert_type(columns.mean(axis=0), Quantity[NumpyValue])
+    assert np.shares_memory(columns.value, values)
+    assert not np.shares_memory(columns.copy().value, values)
+    out = Quantity(np.zeros(2, dtype=np.float64), si.cm)
+    assert_type(columns.sum(axis=1, out=out), Quantity[NDArray[np.float64]])
+    assert columns.sum(axis=1, out=out) is out
+    np.testing.assert_allclose(out.value, [300, 1200])
+    for point in (AffineQuantity(values, si.degC), LogQuantity(values, si.dBm)):
+        assert type(point.reshape(2, 3).mean(axis=1)) is type(point)
+        assert isinstance(point.std(), Quantity)
+    signal = Quantity(np.asarray([1 + 2j], dtype=np.complex64), si.V)
+    assert_type(signal.reshape(-1), Quantity[NDArray[np.complex64]])
+    assert signal.copy().value.dtype == np.complex64
+    assert_type(Quantity(np.float32(2), si.m).reshape(()), Quantity[NumpyValue])
+    assert np.trapezoid(np.ones(3), dx=2 * si.s) == 4 * si.s
+
+
+check_array_methods()
