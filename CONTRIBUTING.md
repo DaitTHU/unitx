@@ -112,10 +112,13 @@ python -m build
 python -m twine check --strict dist/*
 ```
 
-Check wheel/sdist contents, version metadata, `py.typed`, and an installed
-consumer outside the checkout. Source-tree success alone does not verify
-packaging. Use a clean export of the intended commit when separating several
-changes into independently reviewable commits.
+Build release artifacts from a clean checkout or Git export of the intended
+commit. Git's local `.git/info/exclude` is not a distribution manifest:
+building a shared working tree can include locally ignored notes in an sdist.
+Check wheel/sdist contents, version metadata, `py.typed`, and installed
+consumers outside the checkout. Source-tree success alone does not verify
+packaging. When separating changes, also validate the actual committed
+snapshots rather than only the final working tree.
 
 The [release workflow](.github/workflows/release.yml) validates distributions
 and uploads them to PyPI after a published GitHub Release. The tag must match
