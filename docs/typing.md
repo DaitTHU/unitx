@@ -121,7 +121,8 @@ of other backend support. Construction and unit-only operators preserve
 Quantity[T], as does `.T`. Numerical array operations, conversions, indexing,
 and iteration return `Quantity[NDArray[Any] | numpy.number[Any]]`; `.flatten()`
 returns `Quantity[NDArray[Any]]`. `.value` therefore exposes native NumPy
-methods. Direct `q.reshape`, `ravel` and `copy` preserve a known ndarray dtype;
+methods. Direct `q.reshape`, `ravel` and `copy` preserve a known ndarray dtype
+without retaining the source shape parameter;
 `q.sum`, `mean` and `std` retain a Quantity wrapper with the numerical result
 domain above, or the concrete `out` type. The corresponding point methods
 retain their coordinate family, except `std`, which returns a Quantity

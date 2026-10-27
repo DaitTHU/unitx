@@ -10,6 +10,15 @@ from unitx._numerics.numpy_typing import NumpyArray, NumpyValue
 from unitx.si import si
 
 
+def check_inferred_shapes() -> None:
+    # Newer NumPy stubs infer a one-axis shape here. Reshape and ravel must
+    # retain the dtype without promising that the source shape is unchanged.
+    q = Quantity(np.arange(6, dtype=np.float32), si.m)
+    assert_type(q.reshape(2, 3), Quantity[NDArray[np.float32]])
+    assert_type(q.ravel(), Quantity[NDArray[np.float32]])
+    assert_type(q.copy(), Quantity[NDArray[np.float32]])
+
+
 def check_array_methods(values: NDArray[np.complex64], target: NDArray[np.float32]) -> None:
     q = Quantity(values, si.m)
     assert_type(q.reshape(-1, 1), Quantity[NDArray[np.complex64]])

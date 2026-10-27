@@ -33,7 +33,10 @@ from ._numerics.numpy_typing import (
     NumpyValue,
     WritableArray,
     _Axis,
+    _NumpyArrayOf,
+    _NumpyScalar,
     _Shape,
+    _TypedArray,
 )
 from ._operands import _LinearUnitSource, _Point
 from .dimension import Dimension
@@ -883,14 +886,14 @@ class Quantity(Generic[T]):
     def __len__(self: Quantity[Array]) -> int: ...
     def __iter__(self: Quantity[Array]) -> Iterator[Quantity[NumpyValue]]: ...
     @overload
-    def reshape[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
-        self: Quantity[A],
+    def reshape[S: _NumpyScalar](
+        self: Quantity[_TypedArray[S]],
         shape: _Shape,
         /,
         *dimensions: SupportsIndex,
         order: Literal['C', 'F', 'A'] = 'C',
         copy: bool | None = None,
-    ) -> Quantity[A]: ...
+    ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
     def reshape(
         self: Quantity[Array],
@@ -901,20 +904,20 @@ class Quantity(Generic[T]):
         copy: bool | None = None,
     ) -> Quantity[NumpyValue]: ...
     @overload
-    def ravel[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
-        self: Quantity[A],
+    def ravel[S: _NumpyScalar](
+        self: Quantity[_TypedArray[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
-    ) -> Quantity[A]: ...
+    ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
     def ravel(
         self: Quantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[NumpyArray]: ...
     @overload
-    def copy[A: WritableArray](  # pyright: ignore[reportOverlappingOverload]
-        self: Quantity[A],
+    def copy[S: _NumpyScalar](
+        self: Quantity[_TypedArray[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
-    ) -> Quantity[A]: ...
+    ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
     def copy(
         self: Quantity[Array],

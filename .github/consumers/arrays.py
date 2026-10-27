@@ -548,7 +548,7 @@ def check_compatibility() -> None:
 check_compatibility()
 
 
-def check_array_methods() -> None:
+def check_array_methods(target: NDArray[np.float64]) -> None:
     values = np.arange(6, dtype=np.float32)
     q = Quantity(values, si.m)
     columns = q.reshape(2, 3)
@@ -558,7 +558,7 @@ def check_array_methods() -> None:
     assert_type(columns.mean(axis=0), Quantity[NumpyValue])
     assert np.shares_memory(columns.value, values)
     assert not np.shares_memory(columns.copy().value, values)
-    out = Quantity(np.zeros(2, dtype=np.float64), si.cm)
+    out = Quantity(target, si.cm)
     assert_type(columns.sum(axis=1, out=out), Quantity[NDArray[np.float64]])
     assert columns.sum(axis=1, out=out) is out
     np.testing.assert_allclose(out.value, [300, 1200])
@@ -569,7 +569,12 @@ def check_array_methods() -> None:
     assert_type(signal.reshape(-1), Quantity[NDArray[np.complex64]])
     assert signal.copy().value.dtype == np.complex64
     assert_type(Quantity(np.float32(2), si.m).reshape(()), Quantity[NumpyValue])
-    assert np.trapezoid(np.ones(3), dx=2 * si.s) == 4 * si.s
+    # NumPy's dx annotation remains numeric despite this native runtime path.
+    integral = cast(
+        Quantity[Array],
+        np.trapezoid(np.ones(3), dx=2 * si.s),  # pyright: ignore[reportCallIssue, reportArgumentType]
+    )
+    assert integral == 4 * si.s
 
 
-check_array_methods()
+check_array_methods(np.zeros(2, dtype=np.float64))

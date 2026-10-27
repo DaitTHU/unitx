@@ -17,7 +17,10 @@ from ._numerics.numpy_typing import (
     NumpyValue,
     WritableArray,
     _Axis,
+    _NumpyArrayOf,
+    _NumpyScalar,
     _Shape,
+    _TypedArray,
 )
 from ._operands import _Point, linear_unit
 from .affineunit import AffineUnit, _as_affine_unit
@@ -487,14 +490,14 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         return (AffineQuantity(value, self.unit) for value in self._array_value())
 
     @overload
-    def reshape[A: WritableArray](
-        self: AffineQuantity[A],
+    def reshape[S: _NumpyScalar](
+        self: AffineQuantity[_TypedArray[S]],
         shape: _Shape,
         /,
         *dimensions: SupportsIndex,
         order: Literal['C', 'F', 'A'] = 'C',
         copy: bool | None = None,
-    ) -> AffineQuantity[A]: ...
+    ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
     @overload
     def reshape(
         self: AffineQuantity[Array],
@@ -520,10 +523,10 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         return _reshape(self, new_shape, order=order, copy=copy)
 
     @overload
-    def ravel[A: WritableArray](
-        self: AffineQuantity[A],
+    def ravel[S: _NumpyScalar](
+        self: AffineQuantity[_TypedArray[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
-    ) -> AffineQuantity[A]: ...
+    ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
     @overload
     def ravel(
         self: AffineQuantity[Array],
@@ -540,10 +543,10 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         return _ravel(self, order=order)
 
     @overload
-    def copy[A: WritableArray](
-        self: AffineQuantity[A],
+    def copy[S: _NumpyScalar](
+        self: AffineQuantity[_TypedArray[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
-    ) -> AffineQuantity[A]: ...
+    ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
     @overload
     def copy(
         self: AffineQuantity[Array],

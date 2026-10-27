@@ -17,7 +17,10 @@ from ._numerics.numpy_typing import (
     NumpyValue,
     WritableArray,
     _Axis,
+    _NumpyArrayOf,
+    _NumpyScalar,
     _Shape,
+    _TypedArray,
 )
 from ._operands import _Point, linear_unit
 from .dimension import Dimension
@@ -465,14 +468,14 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         return (LogQuantity(value, self.unit) for value in self._array_value())
 
     @overload
-    def reshape[A: WritableArray](
-        self: LogQuantity[A],
+    def reshape[S: _NumpyScalar](
+        self: LogQuantity[_TypedArray[S]],
         shape: _Shape,
         /,
         *dimensions: SupportsIndex,
         order: Literal['C', 'F', 'A'] = 'C',
         copy: bool | None = None,
-    ) -> LogQuantity[A]: ...
+    ) -> LogQuantity[_NumpyArrayOf[S]]: ...
     @overload
     def reshape(
         self: LogQuantity[Array],
@@ -498,10 +501,10 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         return _reshape(self, new_shape, order=order, copy=copy)
 
     @overload
-    def ravel[A: WritableArray](
-        self: LogQuantity[A],
+    def ravel[S: _NumpyScalar](
+        self: LogQuantity[_TypedArray[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
-    ) -> LogQuantity[A]: ...
+    ) -> LogQuantity[_NumpyArrayOf[S]]: ...
     @overload
     def ravel(
         self: LogQuantity[Array],
@@ -518,10 +521,10 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         return _ravel(self, order=order)
 
     @overload
-    def copy[A: WritableArray](
-        self: LogQuantity[A],
+    def copy[S: _NumpyScalar](
+        self: LogQuantity[_TypedArray[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
-    ) -> LogQuantity[A]: ...
+    ) -> LogQuantity[_NumpyArrayOf[S]]: ...
     @overload
     def copy(
         self: LogQuantity[Array],
