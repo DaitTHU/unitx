@@ -1,20 +1,31 @@
-"""A finite set of unit-aware real mathematical functions.
+"""A finite set of unit-aware mathematical functions.
 
-Python int/float/Fraction/Decimal inputs use math and return float magnitudes.
+Real transcendental calls use math for Python scalars and return float magnitudes.
+Conjugation preserves native scalar types.
 Plain real NumPy arrays/scalars use NumPy and its broadcasting/dtype/error rules.
 Bare numbers are dimensionless; all results are Quantities. Affine points,
-logarithmic units, complex inputs and implicit list/tuple arrays are unsupported.
+logarithmic units and implicit list/tuple arrays are unsupported.
+Only exp and conj accept complex inputs.
 """
 
 from __future__ import annotations
 
+import cmath as _cmath
 import math as _math
 from collections.abc import Callable
+from decimal import Decimal
 from fractions import Fraction
-from typing import TypeAlias, cast, overload
+from typing import Protocol, TypeAlias, cast, overload
 
 from ._numerics import Array, Fractionable, Magnitude, is_numpy_object
 from ._numerics.conversion import compatible
+from ._numerics.numpy_typing import (
+    _DTypeValue,
+    _Float64,
+    _FloatingScalar,
+    _InexactScalar,
+    _NumpyValueOf,
+)
 from .exceptions import DimensionError
 from .factor import Factor, SymbolicConstant
 from .quantity import Quantity
@@ -30,6 +41,7 @@ __all__ = [
     'acos',
     'atan',
     'exp',
+    'conj',
     'expm1',
     'log',
     'log1p',
@@ -43,21 +55,117 @@ _ScalarInput: TypeAlias = Fractionable | Factor | SymbolicConstant | Quantity[Fr
 _ArrayInput: TypeAlias = Array | Quantity[Array]
 _Input: TypeAlias = _ScalarInput | _ArrayInput
 _Result: TypeAlias = Quantity[float] | Quantity[Array]
+_ComplexInput: TypeAlias = _Input | complex | Quantity[Fractionable | complex]
+_Float64Input: TypeAlias = _DTypeValue[_Float64] | Quantity[_DTypeValue[_Float64]]
 
 
-def _as_quantity(x: _Input) -> Quantity[Magnitude]:
+# These callable types keep scalar function imports complete when optional
+# NumPy return aliases cannot be resolved. The decorators return the original
+# functions: they add no wrapper, numerical conversion or runtime dispatch.
+class _RealFunction(Protocol):
+    @overload
+    def __call__(
+        self, x: _DTypeValue[_FloatingScalar] | Quantity[_DTypeValue[_FloatingScalar]], /
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+
+    @overload
+    def __call__(self, x: _ArrayInput, /) -> Quantity[Array]: ...
+
+    @overload
+    def __call__(self, x: _ScalarInput, /) -> Quantity[float]: ...
+
+
+def _typed_real(function: Callable[[_Input], _Result]) -> _RealFunction:
+    return cast(_RealFunction, function)
+
+
+class _ExpFunction(Protocol):
+    @overload
+    def __call__(
+        self, x: _DTypeValue[_InexactScalar] | Quantity[_DTypeValue[_InexactScalar]], /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+
+    @overload
+    def __call__(self, x: _ArrayInput, /) -> Quantity[Array]: ...
+
+    @overload
+    def __call__(self, x: _ScalarInput, /) -> Quantity[float]: ...
+
+    @overload
+    def __call__(self, x: complex | Quantity[complex], /) -> Quantity[complex]: ...
+
+
+def _typed_exp(
+    function: Callable[[_ComplexInput], Quantity[float] | Quantity[complex] | Quantity[Array]],
+) -> _ExpFunction:
+    return cast(_ExpFunction, function)
+
+
+class _ConjFunction(Protocol):
+    @overload
+    def __call__(
+        self, x: _DTypeValue[_InexactScalar] | Quantity[_DTypeValue[_InexactScalar]], /
+    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+
+    @overload
+    def __call__(self, x: _ArrayInput, /) -> Quantity[Array]: ...
+
+    @overload
+    def __call__[N: (int, float, complex, Fraction, Decimal)](
+        self, x: N | Quantity[N], /
+    ) -> Quantity[N]: ...
+
+    @overload
+    def __call__(self, x: Factor | SymbolicConstant, /) -> Quantity[int | Fraction | float]: ...
+
+
+def _typed_conj(function: Callable[[_ComplexInput], Quantity[Magnitude]]) -> _ConjFunction:
+    return cast(_ConjFunction, function)
+
+
+class _HypotFunction(Protocol):
+    @overload
+    def __call__(
+        self, x: _Float64Input, y: _Float64Input | _ScalarInput, /
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+
+    @overload
+    def __call__(
+        self, x: _ScalarInput, y: _Float64Input, /
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+
+    @overload
+    def __call__(self, x: _ArrayInput, /, *coordinates: _Input) -> Quantity[Array]: ...
+
+    @overload
+    def __call__(self, *coordinates: _ScalarInput) -> Quantity[float]: ...
+
+    @overload
+    def __call__(self, *coordinates: _Input) -> _Result: ...
+
+
+def _typed_hypot(function: Callable[..., _Result]) -> _HypotFunction:
+    return cast(_HypotFunction, function)
+
+
+def _as_quantity(x: _ComplexInput, *, allow_complex: bool = False) -> Quantity[Magnitude]:
     if isinstance(x, (Factor, SymbolicConstant)):
         x = x.value
     q = x if isinstance(x, Quantity) else Quantity(x, si.one)
     value = q.value
     if is_numpy_object(value):
         # Quantity construction has already checked ndarray type/dtype support.
-        if getattr(cast(Array, value).dtype, 'kind') == 'c':
-            raise TypeError('unitx.math requires real numeric inputs.')
-    elif isinstance(value, bool) or not isinstance(value, Fractionable):
-        raise TypeError('unitx.math requires real numeric inputs.')
+        if not allow_complex and getattr(cast(Array, value).dtype, 'kind') == 'c':
+            error_message = 'unitx.math requires real numeric inputs.'
+            raise TypeError(error_message)
+    elif isinstance(value, bool) or not (
+        isinstance(value, Fractionable) or allow_complex and isinstance(value, complex)
+    ):
+        error_message = 'unitx.math requires real numeric inputs, or complex for exp/conj.'
+        raise TypeError(error_message)
     if q.dimension != q.dimension.physical:
-        raise DimensionError('Convert logarithmic quantities to physical ratios first.')
+        error_message = 'Convert logarithmic quantities to physical ratios first.'
+        raise DimensionError(error_message)
     return q
 
 
@@ -81,14 +189,7 @@ def _unary(
     return Quantity(function(cast(float, value)), unit)
 
 
-@overload
-def sqrt(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def sqrt(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def sqrt(x: _Input, /) -> _Result:
     """Return the square root, with an exact half power of the input unit."""
     return _unary(x, _math.sqrt, 'sqrt', power=Fraction(1, 2))
@@ -107,27 +208,13 @@ def cbrt(x: _Input, /) -> _Result:
     return _unary(x, _math.cbrt, 'cbrt', power=Fraction(1, 3))
 
 
-@overload
-def sin(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def sin(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def sin(x: _Input, /) -> _Result:
     """Return sine after converting dimensionless input to coherent values."""
     return _unary(x, _math.sin, 'sin')
 
 
-@overload
-def cos(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def cos(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def cos(x: _Input, /) -> _Result:
     """Return cosine after converting dimensionless input to coherent values."""
     return _unary(x, _math.cos, 'cos')
@@ -172,30 +259,35 @@ def acos(x: _Input, /) -> _Result:
     return _unary(x, _math.acos, 'arccos', angle=True)
 
 
-@overload
-def atan(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def atan(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def atan(x: _Input, /) -> _Result:
     """Return inverse tangent in radians."""
     return _unary(x, _math.atan, 'arctan', angle=True)
 
 
-@overload
-def exp(x: _ArrayInput, /) -> Quantity[Array]: ...
+@_typed_exp
+def exp(x: _ComplexInput, /) -> Quantity[float] | Quantity[complex] | Quantity[Array]:
+    """Return the exponential of coherent dimensionless input, including complex phases."""
+    q = _as_quantity(x, allow_complex=True)
+    if is_numpy_object(q.value):
+        from ._numerics.numpy import apply_ufunc
+
+        return cast(Quantity[Array], apply_ufunc('exp', q))
+    if isinstance(q.value, complex):
+        return Quantity(_cmath.exp(cast(complex, q.n)), si.one)
+    return _unary(cast(_Input, q), _math.exp, 'exp')
 
 
-@overload
-def exp(x: _ScalarInput, /) -> Quantity[float]: ...
+@_typed_conj
+def conj(x: _ComplexInput, /) -> Quantity[Magnitude]:
+    """Return the complex conjugate, preserving the complete linear unit."""
+    q = _as_quantity(x, allow_complex=True)
+    if is_numpy_object(q.value):
+        from ._numerics.numpy import apply_ufunc
 
-
-def exp(x: _Input, /) -> _Result:
-    """Return the exponential of coherent dimensionless input."""
-    return _unary(x, _math.exp, 'exp')
+        return cast(Quantity[Array], apply_ufunc('conjugate', q))
+    value = cast(int | float | complex | Fraction | Decimal, q.value)
+    return Quantity(value.conjugate(), q.unit)
 
 
 @overload
@@ -263,18 +355,7 @@ def log10(x: _Input, /) -> _Result:
     return _unary(x, _math.log10, 'log10')
 
 
-@overload
-def hypot(x: _ArrayInput, /, *coordinates: _Input) -> Quantity[Array]: ...
-
-
-@overload
-def hypot(*coordinates: _ScalarInput) -> Quantity[float]: ...
-
-
-@overload
-def hypot(*coordinates: _Input) -> _Result: ...
-
-
+@_typed_hypot
 def hypot(*coordinates: _Input) -> _Result:
     """Return the Euclidean norm in the first coordinate's unit.
 

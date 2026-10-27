@@ -52,6 +52,8 @@ from .unitdefinition import PrefixPolicy
 # array aliases were already writable through .value. No arbitrary T is stored.
 T = TypeVar('T', bound=Magnitude, covariant=True)
 
+_ONE_UNIT = Unit()
+
 if TYPE_CHECKING:
     from ._coordinates.logarithms import LogKind
 
@@ -85,21 +87,6 @@ def _scalar_arithmetic(
         b = Decimal(repr(right)) if type(right) is float else right
         return float(cast(Decimal, op(a, b)))
     return cast(Scalar, op(left, right))
-
-
-class _NumberValue:
-    """Read-only dimensionless exit with the same result domains as `value_in`."""
-
-    def __get__(
-        self, quantity: Quantity[Magnitude] | None, owner: type[object] | None = None
-    ) -> Magnitude | _NumberValue:
-        if quantity is None:
-            return self
-        return quantity.value_in(Unit())
-
-    def __set__(self, quantity: Quantity[Magnitude], value: object) -> None:
-        error_message = 'The dimensionless numerical value n is read-only.'
-        raise AttributeError(error_message)
 
 
 class Quantity(Generic[T]):
@@ -175,7 +162,6 @@ class Quantity(Generic[T]):
     __slots__ = ('_value', '_unit')
     _value: T
     _unit: Unit
-    n = _NumberValue()
 
     def __init__(self, value: T, unit: str | Unit | _LinearUnitSource, /) -> None:
         if is_numpy_object(value):
@@ -192,6 +178,11 @@ class Quantity(Generic[T]):
     @property
     def value(self) -> T:
         return self._value
+
+    @property
+    def n(self) -> Magnitude:
+        """Return the dimensionless value in the unit one, following `value_in` rules."""
+        return self.value_in(_ONE_UNIT)
 
     @property
     def unit(self) -> Unit:
@@ -349,7 +340,7 @@ class Quantity(Generic[T]):
         """Restore a power or amplitude ratio from a logarithmic difference."""
         from ._coordinates.logarithms import to_ratio
 
-        return Quantity(cast(Magnitude, to_ratio(self.value, self.unit, kind)), Unit())
+        return Quantity(cast(Magnitude, to_ratio(self.value, self.unit, kind)), _ONE_UNIT)
 
     def to_log(
         self, unit: str | Unit | _LinearUnitSource, /, *, kind: LogKind
@@ -428,7 +419,7 @@ class Quantity(Generic[T]):
         if not _is_quantity(other):
             if self.dimension != DIMENSIONLESS:
                 return NotImplemented
-            other = Quantity(cast(Scalar, other), Unit())
+            other = Quantity(cast(Scalar, other), _ONE_UNIT)
         if self.dimension != other.dimension:
             return op is operator.ne
         if self.unit.factor == other.unit.factor:
@@ -490,7 +481,7 @@ class Quantity(Generic[T]):
         if not _is_quantity(other):
             if self.dimension != DIMENSIONLESS:
                 return NotImplemented
-            other = Quantity(cast(Scalar, other), Unit())
+            other = Quantity(cast(Scalar, other), _ONE_UNIT)
         if self.dimension != other.dimension:
             raise DimensionError(
                 'Cannot compare quantities with different dimensions: '
@@ -595,7 +586,7 @@ class Quantity(Generic[T]):
         if not isinstance(abs_tol, Quantity):
             if not isinstance(abs_tol, Fractionable):
                 raise TypeError('abs_tol must be a Quantity or real scalar.')
-            abs_tol = Quantity(abs_tol, self.unit if abs_tol == 0 else Unit())
+            abs_tol = Quantity(abs_tol, self.unit if abs_tol == 0 else _ONE_UNIT)
         if self.dimension != abs_tol.dimension:
             raise DimensionError(
                 'Absolute tolerance must have the same dimension as the quantities.'
@@ -922,6 +913,21 @@ class Quantity(Generic[T]):
             error_message = 'Scalar quantities are not iterable.'
             raise TypeError(error_message)
         return (Quantity(value, self.unit) for value in self._array_value())
+
+    def transpose(
+        self: Quantity[Array], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> Quantity[NumpyValue]:
+        """Permute axes, accepting a tuple or positional axes; reverse them by default."""
+        self._array_value()
+        from ._numerics.numpy import _transpose
+
+        order = (axes, *more_axes) if more_axes or isinstance(axes, SupportsIndex) else axes
+        return _transpose(self, order)
+
+    @numpy_method
+    def squeeze(self: Quantity[Array], axis: _Axis = None) -> Quantity[NumpyValue]:
+        """Remove length-one axes, retaining the complete unit and NumPy storage rules."""
+        ...
 
     def reshape(
         self: Quantity[Array],

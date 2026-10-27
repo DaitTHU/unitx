@@ -72,7 +72,7 @@ produce unhashable Quantities. `bool(q)` delegates to `bool(q.value)`.
 
 ## Direct array methods
 
-Quantity provides `reshape`, `ravel`, `copy`, `sum`, `mean` and `std` for NumPy
+Quantity provides `reshape`, `ravel`, `copy`, `transpose`, `squeeze`, `sum`, `mean` and `std` for NumPy
 magnitudes. Two coordinate families provide the same methods except `sum`;
 mean preserves a point and std returns a difference. These methods preserve
 the wrapper in static types. See [array methods](numpy/methods.md) for shape,

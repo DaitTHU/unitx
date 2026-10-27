@@ -21,7 +21,7 @@ class _ArrayQuantity(Quantity[Array]):
 
 def test_quantity_array_methods_subclass() -> None:
     q = _ArrayQuantity(np.arange(4.0), si.m)
-    for result in (q.ravel(), q.copy(), q.sum(), q.mean(), q.std()):
+    for result in (q.ravel(), q.copy(), q.transpose(), q.squeeze(), q.sum(), q.mean(), q.std()):
         assert type(result) is Quantity
 
 
@@ -70,7 +70,9 @@ def test_quantity_array_methods_scalar(value: Any) -> None:
         assert result.value.dtype == value.dtype
 
 
-@pytest.mark.parametrize('method', ['reshape', 'ravel', 'copy', 'sum', 'mean', 'std'])
+@pytest.mark.parametrize(
+    'method', ['reshape', 'ravel', 'copy', 'transpose', 'squeeze', 'sum', 'mean', 'std']
+)
 def test_quantity_array_methods_scalar_invalid(method: str) -> None:
     q = Quantity(3, si.m)
     with pytest.raises(AttributeError, match='NumPy magnitude'):
@@ -183,3 +185,59 @@ def test_quantity_trapezoid_dx() -> None:
     # Only dx carries units: NumPy's own arithmetic reaches the direct sum method.
     result = np.trapezoid(np.array([1.0, 2, 3]), dx=2 * si.s)
     assert isinstance(result, Quantity) and result == 8 * si.s
+
+
+@pytest.mark.parametrize(
+    'cls,unit', [(Quantity, Factor(3) * si.cm), (AffineQuantity, si.degC), (LogQuantity, si.dBm)]
+)
+@pytest.mark.parametrize('dtype', ['float32', 'int64'])
+def test_array_methods_axes(cls: Any, unit: Any, dtype: str) -> None:
+    values = np.arange(12, dtype=dtype).reshape(2, 1, 6)[:, :, ::2]
+    q = cls(values, unit)
+    for result, expected in (
+        (q.transpose(), np.transpose(values)),
+        (q.transpose(None), np.transpose(values)),
+        (q.transpose((2, 0, 1)), np.transpose(values, (2, 0, 1))),
+        (q.transpose(2, 0, 1), np.transpose(values, (2, 0, 1))),
+        (q.squeeze(), np.squeeze(values)),
+        (q.squeeze(axis=1), np.squeeze(values, axis=1)),
+        (q.transpose(2, 0, 1).squeeze(-1), np.squeeze(values.transpose(2, 0, 1), -1)),
+    ):
+        assert type(result) is cls and result.unit is q.unit
+        assert result.value.dtype == values.dtype
+        assert np.shares_memory(result.value, values)
+        np.testing.assert_array_equal(result.value, expected)
+
+
+@pytest.mark.parametrize('value', [np.float32(2), np.array(2, dtype=np.float32)])
+@pytest.mark.parametrize(
+    'cls,unit', [(Quantity, si.m), (AffineQuantity, si.degC), (LogQuantity, si.dBm)]
+)
+def test_array_methods_axes_scalar(cls: Any, unit: Any, value: Any) -> None:
+    q = cls(value, unit)
+    for result in (q.transpose(), q.transpose(()), q.squeeze()):
+        assert type(result) is cls and result.unit is q.unit
+        assert type(result.value) is type(value)
+        assert result.value.dtype == value.dtype
+        np.testing.assert_array_equal(result.value, value)
+
+
+@pytest.mark.parametrize(
+    'method,args,error',
+    [
+        ('transpose', (1, 1, 0), ValueError),
+        ('transpose', (0, 1), ValueError),
+        ('transpose', ((1, 0), 2), TypeError),
+        ('squeeze', (0,), ValueError),
+        ('squeeze', (3,), IndexError),
+    ],
+)
+def test_quantity_array_methods_axes_invalid(
+    method: str, args: tuple[Any, ...], error: Any
+) -> None:
+    values = np.arange(6.0).reshape(2, 1, 3)
+    saved = values.copy()
+    q = Quantity(values, si.m)
+    with pytest.raises(error):
+        getattr(q, method)(*args)
+    np.testing.assert_array_equal(values, saved)

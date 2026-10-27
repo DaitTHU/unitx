@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from unitx import AffineQuantity, LogQuantity, LogUnit, Quantity, Unit
+from unitx import math as unitx_math
 from unitx._numerics import Array
 from unitx._numerics.numpy_typing import NumpyValue
 from unitx.cgs import emu, esu, gaussian, hl
@@ -615,3 +616,59 @@ def check_calculus_types(values: NDArray[np.float64]) -> None:
 
 
 check_calculus_types(np.array([0.0, 1, 3, 6]))
+
+
+def check_scientific_inference(values: NDArray[np.float64]) -> None:
+    spectrum = Quantity(values.reshape(2, 2, 2), si.J)
+    mask = np.array([True, False])
+    selected = spectrum[mask, 0, 0]
+    assert_type(selected, Quantity[NDArray[np.float64]])
+    assert_type(spectrum[:, 0, 0], Quantity[NDArray[np.float64]])
+    phase = 1j * selected
+    assert_type(phase, Quantity[NDArray[np.complex128] | np.complex128])
+    assert_type(spectrum.sum(), Quantity[np.float64])
+    assert_type(spectrum.sum().value_in(si.J), np.float64)
+    assert_type(selected.astype(float), Quantity[NDArray[np.float64]])
+    assert_type(Quantity(np.float32(2), si.percent).n, np.float32)
+    np.testing.assert_array_equal(selected.value, [values[0]])
+    np.testing.assert_array_equal(phase.value, 1j * selected.value)
+    assert spectrum.sum().value_in(si.J) == np.sum(values)
+
+
+check_scientific_inference(np.arange(8, dtype=np.float64))
+
+
+def check_complex_field(values: NDArray[np.float64]) -> None:
+    z = values * si.m
+    gouy = unitx_math.atan(z / (0.5 * si.m))
+    geometry = unitx_math.hypot(1, z / (0.5 * si.m))
+    field = unitx_math.conj(unitx_math.exp(1j * gouy) / geometry)
+    assert_type(field, Quantity[NDArray[np.complex128] | np.complex128])
+    for _ in range(3):
+        field *= unitx_math.exp(-1j * gouy)
+        assert_type(field, Quantity[NDArray[np.complex128] | np.complex128])
+    angle = np.arctan(np.linspace(-1, 1, 5) / 0.5)
+    expected = np.exp(-4j * angle) / np.hypot(1, np.linspace(-1, 1, 5) / 0.5)
+    np.testing.assert_allclose(field.n, expected, rtol=1e-14)
+
+
+check_complex_field(np.linspace(-1, 1, 5))
+
+
+def check_shape_axes(values: NDArray[np.float64]) -> None:
+    q = Quantity(values.reshape(2, 1, 4), si.m)
+    permuted = q.transpose(2, 0, 1).squeeze(-1)
+    assert_type(permuted, Quantity[NDArray[np.float64]])
+    assert np.shares_memory(permuted.value, values)
+    np.testing.assert_array_equal(permuted.value, values.reshape(2, 4).T)
+    assert_type(Quantity(np.float32(2), si.m).squeeze(), Quantity[np.float32])
+    for point in (
+        AffineQuantity(values.reshape(2, 1, 4), si.degC),
+        LogQuantity(values.reshape(2, 1, 4), si.dBm),
+    ):
+        transformed = point.transpose((2, 0, 1)).squeeze(axis=-1)
+        assert type(transformed) is type(point) and transformed.unit is point.unit
+        np.testing.assert_array_equal(transformed.value, values.reshape(2, 4).T)
+
+
+check_shape_axes(np.arange(8.0))

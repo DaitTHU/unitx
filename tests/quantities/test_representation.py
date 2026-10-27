@@ -27,6 +27,12 @@ def test_quantity_n_scaled() -> None:
         assert Quantity(Decimal('12.345'), si.percent).n == Decimal('0.12')
 
 
+def test_quantity_n_float_annotation() -> None:
+    quantity = Quantity[float](1, si.percent)
+    assert type(quantity.n) is Fraction
+    assert quantity.n == Fraction(1, 100)
+
+
 @pytest.mark.parametrize('unit', [si.m, si.dB, si.dB**2, si.dB / si.m])
 def test_quantity_n_invalid_dimension(unit: Unit) -> None:
     with pytest.raises(DimensionError):
@@ -34,7 +40,7 @@ def test_quantity_n_invalid_dimension(unit: Unit) -> None:
 
 
 def test_quantity_n_invalid_assignment() -> None:
-    with pytest.raises(AttributeError, match='read-only'):
+    with pytest.raises(AttributeError):
         Quantity(1, si.one).n = 2
 
 

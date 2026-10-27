@@ -1,6 +1,6 @@
 # Standard-library enhancements
 
-`unitx.math` provides a finite set of unit-aware real functions. `unitx.time`
+`unitx.math` provides a finite set of unit-aware functions. `unitx.time`
 provides integer nanosecond clock readings and explicit duration adapters.
 `unitx.statistics` provides scalar means, dispersion and paired statistics.
 These modules work without NumPy installed.
@@ -9,7 +9,7 @@ These modules work without NumPy installed.
 
 | Module | Use |
 | --- | --- |
-| `unitx.math` | Unit-aware real mathematical functions with scalar and optional NumPy backends |
+| `unitx.math` | Unit-aware mathematical functions with scalar and optional NumPy backends |
 | `unitx.time` | Integer ns clocks, scalar sleep, timedelta and aware datetime conversion |
 | `unitx.statistics` | [Scalar means, dispersion, covariance and correlation](statistics.md) |
 
@@ -46,6 +46,7 @@ identities or arbitrary-precision evaluation.
 | `sin(x)`, `cos(x)`, `tan(x)` | Dimensionless input, including deg/rad; coherent dimensionless result |
 | `asin(x)`, `acos(x)`, `atan(x)` | Dimensionless input; result in rad |
 | `exp(x)`, `expm1(x)` | Dimensionless input; coherent dimensionless result |
+| `conj(x)` | Complex conjugate in the complete input unit |
 | `log(x)`, `log1p(x)`, `log2(x)`, `log10(x)` | Dimensionless input; coherent dimensionless result |
 | `hypot(*coordinates)` | Compatible input dimensions; first coordinate's unit |
 | `atan2(y, x)` | Compatible input dimensions; result in rad |
@@ -58,11 +59,15 @@ Use `log(x) / log(base)` for a different base. `hypot()` returns dimensionless
 zero; `hypot(x)` returns the absolute value in x's unit. For a bare first
 coordinate, the result unit is coherent dimensionless.
 
-Python int, float, Fraction and Decimal inputs use the standard-library math
+Real transcendental calls on Python int, float, Fraction and Decimal use the standard-library math
 backend, returning `Quantity[float]`. Decimal/Fraction input does not imply
 arbitrary-precision output. Standard math domain, overflow, NaN and infinity
 behavior applies. In particular, negative `sqrt` raises ValueError; negative
-`cbrt` returns a real cube root. Complex inputs, bools, custom scalar backends,
+`cbrt` returns a real cube root. `exp` also accepts complex inputs: Python
+complex values use `cmath.exp`, and NumPy complex magnitudes use `np.exp`.
+`conj` preserves the native scalar type or delegates to NumPy conjugation;
+it preserves the complete input unit. Other functions retain their real domain.
+Bools, custom scalar backends,
 implicit list/tuple arrays, affine points and logarithmic units are unsupported.
 Explicitly convert a logarithmic quantity to a physical ratio first.
 
@@ -74,12 +79,34 @@ may differ from the standard library's multi-coordinate implementation.
 The wrappers accept positional inputs only, without `out` or `where`.
 Use the supported NumPy ufuncs directly for those options.
 
-Array overloads return `Quantity[Array]`, using the NumPy-independent magnitude
-protocol so strict scalar users have complete annotations without NumPy.
+The `sqrt`, `sin`, `cos`, `atan` and `exp` overloads retain known NumPy floating
+dtypes; `exp` and `conj` also retain known complex dtypes. Two-coordinate
+float64 `hypot` calls with float64 or Python real inputs retain float64.
+The result includes a possible NumPy scalar, since zero-dimensional array
+operations can remove the array container. Other array overloads return
+`Quantity[Array]`, using the NumPy-independent magnitude protocol.
+Strict scalar users have complete annotations without NumPy.
 At runtime, magnitudes are native NumPy arrays/scalars. The protocol exposes
 shape/ndim/size/dtype and explicit array conversion, without promising a
 particular result shape or dtype. For additional native array methods in
 static analysis, use `np.asarray(result.value)`.
+
+For a typed complex phase, use this existing mathematical entry point directly:
+
+```python
+import numpy as np
+from unitx import math
+from unitx.si import si
+
+z = np.linspace(-1, 1, 5) * si.m
+gouy = math.atan(z / (0.5 * si.m))
+field = math.conj(math.exp(1j * gouy) / math.hypot(1, z / (0.5 * si.m)))
+field *= math.exp(-1j * gouy)
+```
+
+The phase formula needs no dtype argument or cast. Ordinary `np.exp(q)` and
+`np.conj(q)` still work at runtime, but their NumPy function signatures may
+infer a bare ndarray or an incomplete dtype. unitx does not alter those stubs.
 
 ## Clock readings
 
