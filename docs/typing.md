@@ -1,6 +1,11 @@
 # Type hints
 
-unitx ships inline annotations and `py.typed`. The parameter in `Quantity[T]`
+unitx ships `quantity.pyi` for Quantity's complete static interface, inline
+annotations for the other modules, and `py.typed`. Fine-grained Quantity
+overloads live in the stub; its runtime implementation retains checked
+annotations and docstrings. The module's `quantity()` factory, dimensionless
+`n` descriptor, array components and subclass boundaries remain available.
+The parameter in `Quantity[T]`
 or `AffineQuantity[T]` / `LogQuantity[T]` describes the magnitude type, not a physical dimension.
 Units and compatible dimensions are validated at runtime.
 

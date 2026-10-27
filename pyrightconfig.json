@@ -28,6 +28,7 @@
     "src/unitx/_coordinates/logarithms.py",
     "src/unitx/_registry/builtin_units.py",
     "src/unitx/quantity.py",
+    "src/unitx/quantity.pyi",
     "src/unitx/factor.py",
     "src/unitx/unit.py",
     "src/unitx/unitregistry.py",
@@ -45,6 +46,7 @@
     "examples/impedance.py",
     "src/unitx/serialization.py",
     "src/unitx/quantity.py",
+    "src/unitx/quantity.pyi",
     "tests/typing",
     "tests/numpy_typing"
   ],
