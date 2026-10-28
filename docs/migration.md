@@ -1,6 +1,6 @@
 # Migration notes
 
-## Upcoming pre-1.0 changes
+## Upgrading to 0.17.5
 
 Derived SI/Particle/atomic/natural/Planck constants now use a fixed 28-digit
 `ROUND_HALF_EVEN` Decimal context during import. Changing the caller context
