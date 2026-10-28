@@ -32,6 +32,8 @@ from . import as_exponent
 from .conversion import compatible
 from .numpy_typing import _UNSET
 
+_UNITLESS = Unit()
+
 _MATRIX_VECTOR_UFUNCS = tuple(
     value for name in ('matvec', 'vecmat') if isinstance(value := getattr(np, name, None), np.ufunc)
 )
@@ -101,7 +103,7 @@ def _operand_parts(value: Any) -> tuple[Any, Unit | _Coordinate]:
         return _numeric_value(value.value), value.unit
     if isinstance(value, (Unit, _Coordinate)):
         return 1, value
-    return _numeric_value(value), Unit()
+    return _numeric_value(value), _UNITLESS
 
 
 def _linear_parts(value: Any) -> tuple[Any, Unit]:
@@ -435,8 +437,8 @@ def _dispatch_ufunc(
         a, b, unit = _align_operands(*inputs)
         result = ufunc(a, b, **kwargs)
         if ufunc is np.divmod:
-            return _wrap(result[0], Unit()), _wrap(result[1], unit)
-        return _wrap(result, Unit() if ufunc is np.floor_divide else unit)
+            return _wrap(result[0], _UNITLESS), _wrap(result[1], unit)
+        return _wrap(result, _UNITLESS if ufunc is np.floor_divide else unit)
     if ufunc is np.copysign:
         a, unit = _linear_parts(inputs[0])
         b, _ = _linear_parts(inputs[1])
@@ -448,7 +450,7 @@ def _dispatch_ufunc(
             error_message = 'This function requires dimensionless inputs.'
             raise DimensionError(error_message)
         return _wrap(
-            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), Unit()
+            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), _UNITLESS
         )
     if ufunc in (np.hypot, np.arctan2):
         a, b, unit = _align_operands(*inputs)
@@ -526,9 +528,9 @@ def _dispatch_ufunc(
         if v.dimension != DIMENSIONLESS:
             error_message = 'heaviside requires a dimensionless value at zero.'
             raise DimensionError(error_message)
-        return _wrap(ufunc(a, scale_magnitude(b, v.factor), **kwargs), Unit())
+        return _wrap(ufunc(a, scale_magnitude(b, v.factor), **kwargs), _UNITLESS)
     if ufunc is np.sign:
-        return _wrap(ufunc(a, **kwargs), Unit())
+        return _wrap(ufunc(a, **kwargs), _UNITLESS)
     if ufunc in (np.degrees, np.rad2deg, np.radians, np.deg2rad):
         if unit.dimension != DIMENSIONLESS:
             error_message = 'Angle conversion requires dimensionless input.'
@@ -553,7 +555,7 @@ def _dispatch_ufunc(
             error_message = 'Exponents must be finite real values.'
             raise TypeError(error_message)
         if unit.dimension == DIMENSIONLESS:
-            return _wrap(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), Unit())
+            return _wrap(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), _UNITLESS)
         if np.ndim(exponent) != 0:
             raw, _ = _linear_parts(inputs[1])
             if not raw.size or not np.all(raw == raw.flat[0]):
@@ -595,7 +597,7 @@ def _dispatch_ufunc(
     ):
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
-        return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit())
+        return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), _UNITLESS)
     # SciPy's public ufunc is already loaded when it dispatches here. Identity
     # lookup avoids importing SciPy or accepting an unrelated same-name ufunc.
     if ufunc is getattr(sys.modules.get('scipy.special'), 'jv', None):
@@ -605,7 +607,7 @@ def _dispatch_ufunc(
             error_message = 'Bessel order and argument must be dimensionless.'
             raise DimensionError(error_message)
         return _wrap(
-            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), Unit()
+            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), _UNITLESS
         )
     return NotImplemented
 
@@ -667,7 +669,7 @@ def isclose(
         a, b = scale_magnitude(a, u.factor), scale_magnitude(b, v.factor)
     else:
         a, b, unit = _align_operands(left, right)
-    relative = _convert_tolerance(rel_tol, Unit(), 'rel_tol')
+    relative = _convert_tolerance(rel_tol, _UNITLESS, 'rel_tol')
     absolute = _convert_tolerance(abs_tol, unit, 'abs_tol')
     if np.iscomplexobj(a) or np.iscomplexobj(b):
         raise TypeError('isclose requires real magnitudes.')
@@ -935,7 +937,7 @@ def _lstsq(a: Any, b: Any, rcond: Any = None) -> Any:
     av, au = _linalg_parts(a)
     bv, bu = _linalg_parts(b)
     solution, residuals, rank, singular = np.linalg.lstsq(
-        av, bv, rcond=_linalg_cutoff(rcond, Unit(), 'rcond')
+        av, bv, rcond=_linalg_cutoff(rcond, _UNITLESS, 'rcond')
     )
     return Quantity(solution, bu / au), Quantity(residuals, bu**2), rank, Quantity(singular, au)
 
@@ -946,11 +948,11 @@ def _inverse(func: Any, a: Any, *args: Any, **kwargs: Any) -> Any:
 
 
 def _pinv(a: Any, rcond: Any = None, hermitian: bool = False, *, rtol: Any = _UNSET) -> Any:
-    options = {} if rtol is _UNSET else {'rtol': _linalg_cutoff(rtol, Unit(), 'rtol')}
+    options = {} if rtol is _UNSET else {'rtol': _linalg_cutoff(rtol, _UNITLESS, 'rtol')}
     return _inverse(
         np.linalg.pinv,
         a,
-        rcond=_linalg_cutoff(rcond, Unit(), 'rcond'),
+        rcond=_linalg_cutoff(rcond, _UNITLESS, 'rcond'),
         hermitian=hermitian,
         **options,
     )
@@ -975,7 +977,7 @@ def _norm_result(func: Any, x: Any, **kwargs: Any) -> Any:
         error_message = 'Norm order must be a bare number or a matrix norm string.'
         raise TypeError(error_message)
     result = func(values, **kwargs)
-    return Quantity(result, Unit() if ord == 0 else unit)
+    return Quantity(result, _UNITLESS if ord == 0 else unit)
 
 
 def _norm(x: Any, ord: Any = None, axis: Any = None, keepdims: bool = False) -> Any:
@@ -995,7 +997,7 @@ def _cond(x: Any, p: Any = None) -> Any:
     if isinstance(p, (Quantity, _Point, Unit, _Coordinate)):
         error_message = 'Condition number order must be a bare number or a matrix norm string.'
         raise TypeError(error_message)
-    return Quantity(np.linalg.cond(values, p=p), Unit())
+    return Quantity(np.linalg.cond(values, p=p), _UNITLESS)
 
 
 def _matrix_rank(A: Any, tol: Any = None, hermitian: bool = False, *, rtol: Any = None) -> Any:
@@ -1004,7 +1006,7 @@ def _matrix_rank(A: Any, tol: Any = None, hermitian: bool = False, *, rtol: Any 
         values,
         tol=_linalg_cutoff(tol, unit, 'tol'),
         hermitian=hermitian,
-        rtol=_linalg_cutoff(rtol, Unit(), 'rtol'),
+        rtol=_linalg_cutoff(rtol, _UNITLESS, 'rtol'),
     )
 
 
@@ -1021,7 +1023,7 @@ def _qr(a: Any, mode: str = 'reduced') -> Any:
     result: Any = np.linalg.qr(values, mode=mode)
     if mode == 'r':
         return Quantity(result, unit)
-    return result._replace(Q=Quantity(result.Q, Unit()), R=Quantity(result.R, unit))
+    return result._replace(Q=Quantity(result.Q, _UNITLESS), R=Quantity(result.R, unit))
 
 
 def _cholesky(a: Any, /, *, upper: bool = False) -> Any:
@@ -1041,7 +1043,9 @@ def _svd(
     if not compute_uv:
         return Quantity(result, unit)
     return result._replace(
-        U=Quantity(result.U, Unit()), S=Quantity(result.S, unit), Vh=Quantity(result.Vh, Unit())
+        U=Quantity(result.U, _UNITLESS),
+        S=Quantity(result.S, unit),
+        Vh=Quantity(result.Vh, _UNITLESS),
     )
 
 
@@ -1055,7 +1059,7 @@ def _eigen(func: Any, a: Any, *args: Any, **kwargs: Any) -> Any:
     result = func(values, *args, **kwargs)
     if isinstance(result, tuple):
         return cast(Any, result)._replace(
-            eigenvalues=Quantity(result[0], unit), eigenvectors=Quantity(result[1], Unit())
+            eigenvalues=Quantity(result[0], unit), eigenvectors=Quantity(result[1], _UNITLESS)
         )
     return Quantity(result, unit)
 
@@ -1086,7 +1090,7 @@ _LINALG_FUNCTIONS = {
 
 def _product_parts(operands: Any) -> tuple[list[Any], Unit]:
     values = []
-    unit = Unit()
+    unit = _UNITLESS
     for operand in operands:
         if not _is_supported_operand(operand):
             error_message = 'Products require numeric scalars, ndarrays or linear quantities.'
@@ -1451,7 +1455,7 @@ def _sinc(x: Any) -> Any:
     if unit.dimension != DIMENSIONLESS:
         error_message = 'sinc requires dimensionless linear input.'
         raise DimensionError(error_message)
-    return Quantity(np.sinc(scale_magnitude(values, unit.factor)), Unit())
+    return Quantity(np.sinc(scale_magnitude(values, unit.factor)), _UNITLESS)
 
 
 def _unwrap(p: Any, discont: Any = None, axis: int = -1, *, period: Any = 2 * math.pi) -> Any:
@@ -1610,9 +1614,9 @@ def _gradient(f: Any, *varargs: Any, axis: Any = None, edge_order: Literal[1, 2]
     # NumPy validates axes, coordinate shapes, and argument counts. Scalar
     # spacing applies to every selected axis; otherwise each axis has its own.
     if not isinstance(result, tuple):
-        return _wrap(result, unit / (spacings[0][1] if spacings else Unit()))
+        return _wrap(result, unit / (spacings[0][1] if spacings else _UNITLESS))
     if not spacings or len(spacings) == 1 and np.ndim(spacings[0][0]) == 0:
-        coordinate_units = [spacings[0][1] if spacings else Unit()] * len(result)
+        coordinate_units = [spacings[0][1] if spacings else _UNITLESS] * len(result)
     else:
         coordinate_units = [x[1] for x in spacings]
     return tuple(_wrap(raw, unit / source) for raw, source in zip(result, coordinate_units))
@@ -1663,7 +1667,7 @@ def _cumulative(func: Any, a: Any, axis: Any = None, dtype: Any = None, out: Any
         if unit.dimension != DIMENSIONLESS:
             error_message = 'Cumulative products support only dimensionless input.'
             raise DimensionError(error_message)
-        values, unit = scale_magnitude(values, unit.factor), Unit()
+        values, unit = scale_magnitude(values, unit.factor), _UNITLESS
     result = Quantity(func(values, axis=axis, dtype=dtype), unit)
     return _write_output(result, out)
 
@@ -1721,7 +1725,7 @@ def _covariance(
         error_message = 'corrcoef does not accept weights.'
         raise TypeError(error_message)
     result = _call_with_warnings(func, mv, yv, **options)
-    return Quantity(result, unit**2 if func is np.cov else Unit())
+    return Quantity(result, unit**2 if func is np.cov else _UNITLESS)
 
 
 def _mean(
@@ -1770,7 +1774,7 @@ def _average(
         average, weight_sum = np.average(
             value, axis=axis, weights=weights, returned=True, keepdims=keepdims
         )
-        return Quantity(average, a.unit), Quantity(weight_sum, Unit())
+        return Quantity(average, a.unit), Quantity(weight_sum, _UNITLESS)
     return Quantity(np.average(value, axis=axis, weights=weights, keepdims=keepdims), a.unit)
 
 
@@ -1857,7 +1861,7 @@ def _prod(
 ) -> Any:
     _validate_dtype(dtype)
     _validate_where({'where': where})
-    initial_value, initial_unit = None, Unit()
+    initial_value, initial_unit = None, _UNITLESS
     if initial is not None:
         if not _is_supported_operand(initial):
             error_message = 'initial must be a numeric scalar or scalar Quantity.'
@@ -1872,7 +1876,7 @@ def _prod(
     # Different counts still have one coherent unit for dimensionless inputs.
     if unit.dimension == DIMENSIONLESS:
         value = scale_magnitude(value, unit.factor, where=mask)
-        unit = Unit()
+        unit = _UNITLESS
     result = func(
         value, axis=axis, dtype=dtype, keepdims=keepdims, initial=initial_value, where=where
     )
@@ -1939,7 +1943,7 @@ def _validate_dtype(dtype: Any) -> None:
 def power(q: Any, exponent: Any) -> Any:
     if isinstance(exponent, (Fraction, Decimal)):
         exact = as_exponent(exponent)
-        unit = Unit() if q.dimension == DIMENSIONLESS else q.unit**exact
+        unit = _UNITLESS if q.dimension == DIMENSIONLESS else q.unit**exact
         value = scale_magnitude(q.value, q.unit.factor) if q.dimension == DIMENSIONLESS else q.value
         return _wrap(np.power(value, float(exponent)), unit)
     return apply_ufunc('power', q, exponent)
@@ -2027,7 +2031,7 @@ def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict
         op = next(op for op, func in _COMPARISON_UFUNCS.items() if func is ufunc)
         left, right = inputs
         if not isinstance(left, (Quantity, _Point)):
-            left = _wrap(left, Unit())
+            left = _wrap(left, _UNITLESS)
         if not isinstance(left, _Point) and isinstance(right, _Point):
             reverse = {
                 operator.eq: operator.eq,

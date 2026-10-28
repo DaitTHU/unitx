@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Hashable, ItemsView, KeysView, Mapping, ValuesView
+from collections.abc import Hashable, ItemsView, Iterable, KeysView, Mapping, ValuesView
 from fractions import Fraction
 from types import MappingProxyType
 from typing import Literal
@@ -12,6 +12,38 @@ from ._numerics import Fractionable, as_exponent
 __all__ = ['Monomial']
 
 _ZERO = Fraction(0)
+
+
+class _MutableMonomial[BaseT: Hashable]:
+    """Accumulate normalized products before taking an immutable snapshot.
+
+    Inputs are already normalized Monomials and Fraction powers. Freezing copies
+    the mapping so subsequent accumulation cannot change an earlier snapshot.
+    """
+
+    __slots__ = ('_components',)
+
+    def __init__(self, initial: Monomial[BaseT] | None = None, /) -> None:
+        self._components: dict[BaseT, Fraction] = (
+            {} if initial is None else initial._components.copy()
+        )
+
+    def multiply(self, monomial: Monomial[BaseT], power: Fraction, /) -> None:
+        components: Iterable[tuple[BaseT, Fraction]] = monomial.components()
+        if power != 1:
+            components = ((base, exponent * power) for base, exponent in components)
+        for base, exponent in components:
+            if not exponent:
+                continue
+            if (current := self._components.get(base)) is not None:
+                exponent += current
+            if exponent:
+                self._components[base] = exponent
+            else:
+                del self._components[base]
+
+    def freeze(self) -> Monomial[BaseT]:
+        return Monomial._from_dict(self._components.copy())
 
 
 class Monomial[BaseT: Hashable](_Immutable):

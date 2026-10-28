@@ -22,6 +22,7 @@
     "src/unitx/_operands.py",
     "src/unitx/_coordinates/points.py",
     "src/unitx/dimension.py",
+    "src/unitx/monomial.py",
     "src/unitx/affinequantity.py",
     "src/unitx/_numerics",
     "src/unitx/_electromagnetism",

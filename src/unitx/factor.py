@@ -4,7 +4,7 @@ import math
 import operator
 import re
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
 from typing import Any, Final, overload
@@ -19,7 +19,7 @@ from ._numerics import (
     as_int_if_integral,
 )
 from .exceptions import _WARNING_SKIP_PREFIXES, IncompleteFactorWarning
-from .monomial import Monomial
+from .monomial import Monomial, _MutableMonomial
 
 try:
     from sympy import (  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
@@ -275,6 +275,14 @@ class Factor:
         obj._value_cache = None
         obj._decompose_cache = None
         return obj
+
+    @classmethod
+    def _product(cls, terms: Iterable[tuple[Factor, Fraction]], coefficient: Factor, /) -> Factor:
+        """Combine powered factors with one freeze and symbolic validation."""
+        product = _MutableMonomial(coefficient._monomial)
+        for factor, exponent in terms:
+            product.multiply(factor._monomial, exponent)
+        return cls._from_monomial(product.freeze())
 
     @classmethod
     def from_dict(cls, components: Mapping[int | SymbolicConstant, Fractionable], /) -> Factor:

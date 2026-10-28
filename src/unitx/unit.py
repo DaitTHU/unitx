@@ -137,14 +137,15 @@ class Unit(_Immutable):
     def _from_monomial(cls, monomial: Monomial[SingleUnit], /, *, scale: Factor = one) -> Self:
         """Direct constructor from Monomial without copy. Internal use only."""
         obj = object.__new__(cls)
-        factor = one
-        dimension = DIMENSIONLESS
-        for unit, exponent in monomial.components():
-            factor *= unit.factor**exponent
-            dimension *= unit.dimension**exponent
+        factor = Factor._product(
+            ((unit.factor, exponent) for unit, exponent in monomial.components()), scale
+        )
+        dimension = Dimension._product(
+            (unit.dimension, exponent) for unit, exponent in monomial.components()
+        )
         object.__setattr__(obj, '_monomial', monomial)
         object.__setattr__(obj, '_scale', scale)
-        object.__setattr__(obj, '_conversion', _ConversionData(factor * scale, dimension))
+        object.__setattr__(obj, '_conversion', _ConversionData(factor, dimension))
         return obj
 
     @classmethod

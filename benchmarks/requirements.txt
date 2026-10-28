@@ -1,0 +1,7 @@
+# Development-only comparison and sampling tools; not unitx runtime dependencies.
+numpy>=2.1
+scipy>=1.14
+pint>=0.25
+astropy>=7
+unyt>=3
+pyinstrument>=5
