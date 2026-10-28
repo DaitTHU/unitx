@@ -22,14 +22,17 @@ def main() -> None:
     parser.add_argument('--repeat', type=int, default=7)
     parser.add_argument('--number', type=int, default=20)
     options = parser.parse_args()
+    if options.size < 1 or options.repeat < 1 or options.number < 1:
+        parser.error('--size, --repeat and --number must be positive integers.')
     source = Quantity(np.ones(options.size), 'm')
-    target = Quantity(np.empty(options.size), 'm')
+    target = Quantity(np.zeros(options.size), 'm')
     converted = Quantity(np.empty(options.size), 'cm')
+    scalar = Quantity(1, source.unit)
     cases = {
         'add_out': lambda: np.add(source, source, out=target),
         'converted_out': lambda: np.add(source, source, out=converted),
         'add_inplace': lambda: target.__iadd__(source),
-        'scalar_assignment': lambda: target.__setitem__(slice(None), Quantity(1, 'm')),
+        'scalar_assignment': lambda: target.__setitem__(slice(None), scalar),
         'overlapping_assignment': lambda: target.__setitem__(slice(1, None), target[:-1]),
     }
     results = {}
@@ -53,6 +56,8 @@ def main() -> None:
                 'platform': platform.platform(),
                 'numpy': np.__version__,
                 'size': options.size,
+                'repeat': options.repeat,
+                'number': options.number,
                 'cases': results,
             },
             indent=2,

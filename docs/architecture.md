@@ -68,6 +68,13 @@ a composite Unit derives it from its terms
 and extra scale. It is an immutable summary, not a second independent definition.
 The readable symbol is derived from the formal product.
 
+Composite-unit conversion data is built by accumulating rational exponents in
+private mutable monomials. Factor and Dimension each freeze their complete
+product once, with Factor validating the resulting symbolic bases. A frozen
+snapshot owns its mapping and remains unchanged if accumulation continues.
+Public Monomial, Factor, Dimension and Unit objects retain their immutable
+value and hashing contracts.
+
 Unit spellings group canonical symbols, names, aliases and prefix permissions.
 Their validation produces the accepted spellings before registration. Definition
 identity and coordinate data remain separate from spelling rules.

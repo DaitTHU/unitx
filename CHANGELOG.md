@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add validated float64 comparisons with NumPy, Pint, Astropy and unyt, warmed
+  scalar/array/fit profiling commands, and a reproducible performance study.
+
+### Changed
+
+- Accumulate composite-unit factors and dimensions in private mutable monomials
+  and freeze each product once, preserving exact scale and formal identity.
+- Reuse one immutable dimensionless unit throughout the NumPy adapter instead
+  of repeatedly constructing equivalent empty units.
+
 ## [0.17.5] - 2026-10-28
 
 ### Added

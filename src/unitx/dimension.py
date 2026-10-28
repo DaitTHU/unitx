@@ -7,7 +7,7 @@ from typing import Literal
 from ._formatting.unicode import superscript
 from ._immutable import _Immutable
 from ._numerics import Fractionable, as_exponent, as_int_if_integral
-from .monomial import Monomial
+from .monomial import Monomial, _MutableMonomial
 
 __all__ = ['DIMENSIONLESS', 'Dimension']
 
@@ -70,6 +70,14 @@ class Dimension(_Immutable):
         obj = object.__new__(cls)
         object.__setattr__(obj, '_monomial', monomial)
         return obj
+
+    @classmethod
+    def _product(cls, terms: Iterable[tuple[Dimension, Fraction]], /) -> Dimension:
+        """Combine powered dimensions without immutable intermediate products."""
+        product = _MutableMonomial[str]()
+        for dimension, exponent in terms:
+            product.multiply(dimension._monomial, exponent)
+        return cls._from_monomial(product.freeze())
 
     @classmethod
     def _from_iter(cls, exponents: Iterable[Fraction], /) -> Dimension:

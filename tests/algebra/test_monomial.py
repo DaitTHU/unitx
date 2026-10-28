@@ -9,7 +9,7 @@ from fractions import Fraction
 import pytest
 
 from unitx.exceptions import InexactFloatWarning
-from unitx.monomial import Monomial
+from unitx.monomial import Monomial, _MutableMonomial
 
 
 def test_monomial_empty() -> None:
@@ -222,3 +222,17 @@ def test_monomial_float_exponents() -> None:
         assert monomial == Monomial({'x': Fraction(1, 10)})
         assert monomial**10 == Monomial({'x': 1})
         assert (Monomial({'x': 1}) ** 0.1) ** 10 == Monomial({'x': 1})
+
+
+@pytest.mark.parametrize('power', [Fraction(-2, 3), Fraction(0), Fraction(2, 3)])
+def test_mutable_monomial_snapshot(power: Fraction) -> None:
+    source = Monomial({'x': 3, 'y': -2})
+    product = _MutableMonomial[str]()
+    product.multiply(source, power)
+    snapshot = product.freeze()
+    stored = {snapshot: 'snapshot'}
+    product.multiply(source, -power)
+    assert product.freeze() == Monomial()
+    assert snapshot == source**power
+    assert stored[source**power] == 'snapshot'
+    assert source == Monomial({'x': 3, 'y': -2})
