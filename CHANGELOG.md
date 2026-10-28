@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.6] - 2026-10-28
+
 ### Added
 
 - Add validated float64 comparisons with NumPy, Pint, Astropy and unyt, warmed
