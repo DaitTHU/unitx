@@ -72,9 +72,11 @@ produce unhashable Quantities. `bool(q)` delegates to `bool(q.value)`.
 
 ## Direct array methods
 
-Quantity provides `reshape`, `ravel`, `copy`, `transpose`, `squeeze`, `sum`, `mean` and `std` for NumPy
+Quantity provides `reshape`, `ravel`, `copy`, `transpose`, `squeeze`, `sum`, `mean`,
+`std`, `var`, `min` and `max` for NumPy
 magnitudes. Two coordinate families provide the same methods except `sum`;
-mean preserves a point and std returns a difference. These methods preserve
+mean/min/max preserve a point, std returns a difference, and var uses squared
+difference units. These methods preserve
 the wrapper in static types. See [array methods](numpy/methods.md) for shape,
 copy, reduction, output and dtype rules with runnable examples.
 
@@ -99,7 +101,7 @@ methods, mixed array types, and keywords fail explicitly.
 | equal, not_equal, less, less_equal, greater, greater_equal / comparisons | Bare boolean results |
 | positive, negative, absolute, fabs, conjugate / unary `+`, `-`, `abs` | Preserve unit |
 | square, sqrt, cbrt, reciprocal | Exact unit exponents 2, 1/2, 1/3, -1 |
-| power, float_power / `**` | Dimensional bases require a finite real scalar exponent; dimensionless bases/exponents normalize their scales |
+| power, float_power / `**` | Dimensional bases require a finite real scalar or nonempty constant exponent array; dimensionless bases/exponents normalize their scales |
 | sin, cos, tan, sinh, cosh, tanh, arcsinh, arccosh, arctanh, exp, expm1, exp2, log, log2, log10, log1p | Require coherent dimensionless values; return dimensionless Quantity |
 | logaddexp, logaddexp2 | Normalize both dimensionless inputs; return dimensionless Quantity |
 | floor, ceil, trunc, rint | Round stored magnitudes; retain unit or point coordinate |
@@ -380,9 +382,14 @@ np.testing.assert_allclose(direction.value_in(''), [0.6, 0.8])
 
 ## Powers and uniform result units
 
-Dimensional bases require one finite real scalar exponent, including a
-zero-dimensional exponent array or scalar dimensionless Quantity. Exponent
-arrays with one or more axes are rejected, even when all entries are equal.
+Dimensional bases require one finite real exponent: a scalar, a zero-dimensional
+array, or a nonempty array whose entries are exactly equal. Exponent Quantities
+must have a completely dimensionless unit; their scale is normalized first.
+Constant exponent arrays keep their original broadcasting shape. Every entry
+is checked, including positions excluded by `where`; no tolerance is used to
+infer the formal exponent. Empty exponent arrays have no common exponent and
+are rejected for dimensional bases. An empty base with a nonempty constant
+exponent array can still produce an empty result.
 In particular, elementwise powers that would produce m, m² and m³ in different
 positions do not return a per-element-unit array or an object-array fallback.
 
@@ -393,7 +400,9 @@ from unitx import Quantity, Unit
 lengths = Quantity(np.array([2.0, 3.0]), 'm')
 assert np.power(lengths, 2).unit == Unit('m**2')
 # np.power(lengths, np.array([1, 2])) raises TypeError:
-# "Dimensional powers require one scalar exponent."
+# Different formal units cannot share one Quantity array.
+result = np.power(lengths[:, None], np.full((1, 3), 2))
+assert result.shape == (2, 3) and result.unit == Unit('m**2')
 ```
 
 Ordinary dimensionless bases can use dimensionless array exponents and normal

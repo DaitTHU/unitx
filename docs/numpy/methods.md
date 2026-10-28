@@ -1,10 +1,11 @@
 # Direct array methods
 
 For NumPy magnitudes, Quantity provides `reshape`, `ravel`, `copy`, `transpose`,
-`squeeze`, `sum`, `mean` and `std`. AffineQuantity and LogQuantity provide the same methods
-except `sum`. Mean preserves a point's coordinate; standard deviation returns
-its difference unit. Logarithmic statistics operate on readings; convert to
-physical values explicitly before averaging power or amplitude.
+`squeeze`, `sum`, `mean`, `std`, `var`, `min` and `max`. AffineQuantity and
+LogQuantity provide the same methods except `sum`. Mean preserves a point's coordinate; standard deviation returns
+its difference unit, and variance returns the square of that difference unit.
+Logarithmic statistics operate on readings; convert to physical values explicitly
+before averaging power or amplitude.
 
 `reshape((m, n))` and `reshape(m, n)` accept `order='C'/'F'/'A'` and
 `copy=None/True/False`, following NumPy's view/copy rules. `ravel` accepts
@@ -23,13 +24,20 @@ and share storage for ndarray inputs. A fully squeezed ndarray remains a
 zero-dimensional ndarray; a NumPy scalar remains a NumPy scalar. Invalid
 axes raise native NumPy errors without changing the input.
 
-Reductions accept `axis`, `dtype`, `out`, `keepdims` and `where`. Sum also
-accepts a compatible `initial` (bare zero is the additive identity); std
-supports `ddof`, `correction` and a compatible precomputed `mean`. These use
+Sum, mean, std and var accept `axis`, `dtype`, `out`, `keepdims` and `where`. Sum also
+accepts a compatible `initial` (bare zero is the additive identity); std and var
+support `ddof`, `correction` and a compatible precomputed `mean`. These use
 the existing [statistics](statistics.md) and
 [fixed-unit output](writes.md#output-buffers) rules, including returning
 the original out object and staging writes. Numerical result dtypes follow
 NumPy; a reduction need not preserve the input dtype or ndarray storage.
+Min and max accept `axis`, `out`, `keepdims`, `initial` and `where`, without a
+`dtype` argument. An explicit initial must carry a compatible unit or the same
+point family; even bare zero is rejected. Empty reductions need an initial,
+and masked reductions follow NumPy's initial requirement. Extrema retain the
+point family. Complex variance uses NumPy's real squared-absolute deviations
+by default, rather than retaining the input's complex dtype.
+
 Direct methods retain the wrapper in static types; general NumPy function
 inference still has the [documented limits](../typing.md#numpy-magnitude-types).
 

@@ -32,3 +32,11 @@ except TypeError:
 else:
     error_message = 'Plotting must not enable implicit unit stripping.'
     raise AssertionError(error_message)
+
+# Collection artists use the same explicit numeric axis conversion boundary.
+collections = Figure().add_subplot()  # pyright: ignore[reportUnknownMemberType]
+scatter = collections.scatter(time, distance, xunits=si.ms, yunits=si.cm)  # pyright: ignore[reportUnknownMemberType]
+offsets = np.asarray(scatter.get_offsets())
+np.testing.assert_allclose(offsets[:, 0], [0, 1000, 2000])
+np.testing.assert_allclose(offsets[:, 1], [100, 200, 300])
+collections.fill_between(time, distance, distance + 1 * si.m)  # pyright: ignore[reportUnknownMemberType]

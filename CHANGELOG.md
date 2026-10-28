@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add typed `min`, `max` and `var` methods for linear, affine and logarithmic
+  arrays, reusing compatible initials, squared difference units and staged out.
+- Support nonempty constant exponent arrays for dimensional `power` and
+  `float_power`, preserving broadcasting and checking every exponent exactly.
+- Expose magnitude annotations through `unitx.typing` without importing NumPy.
+- Document the 1.x public API, data compatibility, constant updates and deprecation
+  policy, plus executable fitting, array storage and numerical-boundary recipes.
+- Validate Matplotlib scatter/fill paths and document explicit point-errorbar
+  conversion; record scalar, array-write and complete-fit performance baselines.
+
+### Fixed
+
+- Evaluate derived catalogue constants in an isolated 28-digit Decimal context,
+  independent of caller precision, rounding, traps and exponent bounds, without
+  changing the caller context. Subsequent user arithmetic keeps its own context.
+- Normalize exact scalar point-conversion results at the NumPy boundary, so
+  integer Kelvin replacements/selections in Celsius arrays do not create object
+  dtypes or fail numeric fill operations.
+
 ## [0.17.4] - 2026-10-28
 
 ### Added

@@ -157,3 +157,49 @@ def test_matplotlib_plot_render(tmp_path: Path) -> None:
     axes.plot(Quantity(np.array([0.0, 1, 2]), si.s), Quantity(np.array([1.0, 2, 1]), si.m))
     figure.savefig(tmp_path / 'quantities.png')
     assert (tmp_path / 'quantities.png').stat().st_size > 1000
+
+
+@pytest.mark.parametrize(
+    'cls,unit,target,expected',
+    [
+        (Quantity, si.m, si.cm, [100, 200, 300]),
+        (AffineQuantity, si.degC, AffineQuantity(0, si.K).unit, [274.15, 275.15, 276.15]),
+        (LogQuantity, si.dBW, si.dBm, [31, 32, 33]),
+    ],
+)
+def test_matplotlib_collections(cls: Any, unit: Any, target: Any, expected: list[float]) -> None:
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    time = Quantity(np.array([0.0, 1, 2]), si.s)
+    q = cls(np.array([1.0, 2, 3]), unit)
+    delta = q.unit if cls is Quantity else q.unit.delta_unit
+    figure = Figure()
+    FigureCanvasAgg(figure)
+    axes = figure.subplots()
+    dots = axes.scatter(time, q, xunits=si.ms, yunits=target)
+    np.testing.assert_allclose(dots.get_offsets()[:, 0], [0, 1000, 2000])
+    np.testing.assert_allclose(dots.get_offsets()[:, 1], expected)
+    band = axes.fill_between(time, q, q + 1 * delta)
+    vertices = np.concatenate([path.vertices for path in band.get_paths()])
+    np.testing.assert_allclose(vertices[:, 0].min(), 0)
+    np.testing.assert_allclose(vertices[:, 0].max(), 2000)
+    np.testing.assert_allclose(vertices[:, 1].min(), expected[0])
+    np.testing.assert_allclose(vertices[:, 1].max(), (q + 1 * delta).value_in(target)[-1])
+    figure.canvas.draw()
+
+
+def test_matplotlib_errorbar_boundary() -> None:
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    figure = Figure()
+    FigureCanvasAgg(figure)
+    axes = figure.subplots()
+    time = Quantity(np.array([0.0, 1.0]), si.s)
+    readings = AffineQuantity(np.array([20.0, 21.0]), si.degC)
+    errors = Quantity(np.array([0.2, 0.3]), si.K)
+    container = axes.errorbar(
+        time.value_in(si.s), readings.value_in(si.degC), yerr=errors.value_in(si.degC.delta_unit)
+    )
+    segments = container.lines[2][0].get_segments()
+    np.testing.assert_allclose(segments, [[[0, 19.8], [0, 20.2]], [[1, 20.7], [1, 21.3]]])
+    figure.canvas.draw()

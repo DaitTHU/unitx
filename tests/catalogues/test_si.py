@@ -213,7 +213,7 @@ def test_si_namespace_readonly(namespace: type[ConstNamespace], attribute: str) 
     'entry', ['unitx', 'unitx.si.bases', 'unitx.si.units', 'unitx.si.constants']
 )
 def test_si_import_initialization(entry: str, tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     script = f"""
 import importlib
 importlib.import_module({entry!r})

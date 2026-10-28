@@ -71,7 +71,8 @@ def test_quantity_array_methods_scalar(value: Any) -> None:
 
 
 @pytest.mark.parametrize(
-    'method', ['reshape', 'ravel', 'copy', 'transpose', 'squeeze', 'sum', 'mean', 'std']
+    'method',
+    ['reshape', 'ravel', 'copy', 'transpose', 'squeeze', 'sum', 'mean', 'std', 'var', 'min', 'max'],
 )
 def test_quantity_array_methods_scalar_invalid(method: str) -> None:
     q = Quantity(3, si.m)
@@ -241,3 +242,107 @@ def test_quantity_array_methods_axes_invalid(
     with pytest.raises(error):
         getattr(q, method)(*args)
     np.testing.assert_array_equal(values, saved)
+
+
+@pytest.mark.parametrize('method', ['min', 'max'])
+@pytest.mark.parametrize(
+    'cls,unit,target',
+    [(Quantity, si.m, si.cm), (AffineQuantity, si.degC, si.K), (LogQuantity, si.dBW, si.dBm)],
+)
+def test_array_methods_extrema(method: str, cls: Any, unit: Any, target: Any) -> None:
+    values = np.arange(6.0).reshape(2, 3)[:, ::-1]
+    q = cls(values, unit)
+    initial = cls(100.0 if method == 'min' else -100.0, unit).to(target)
+    mask = np.array([True, False, True])
+    expected = getattr(np, method)(values, axis=1, where=mask, initial=initial.value_in(unit))
+    result = getattr(q, method)(axis=1, initial=initial, where=mask)
+    assert type(result) is cls and result.unit == q.unit
+    np.testing.assert_array_equal(result.value, expected)
+    # Overlapping output must be staged and converted into its fixed coordinate.
+    out = cls(values[:, 0], target)
+    assert getattr(q, method)(1, out, initial=initial, where=mask) is out
+    np.testing.assert_allclose(out.value, cls(expected, unit).value_in(target))
+    empty = cls(np.empty(0), unit)
+    assert getattr(empty, method)(initial=initial) == initial
+    with pytest.raises(ValueError, match='zero-size'):
+        getattr(empty, method)()
+
+
+@pytest.mark.parametrize('method', ['min', 'max'])
+@pytest.mark.parametrize('initial', [0, None])
+def test_quantity_extrema_initial_invalid(method: str, initial: Any) -> None:
+    q = Quantity(np.arange(3.0), si.m)
+    out = Quantity(np.array(-1.0), si.cm)
+    with pytest.raises(TypeError, match='initial must carry'):
+        getattr(q, method)(initial=initial, out=out)
+    assert out.value == -1
+
+
+@pytest.mark.parametrize('method', ['min', 'max', 'var'])
+@pytest.mark.parametrize('value', [np.float32(2), np.array(2, dtype=np.float32)])
+def test_quantity_reductions_scalar(method: str, value: Any) -> None:
+    q = Quantity(value, si.m)
+    result = getattr(q, method)()
+    assert result.unit == (si.m**2 if method == 'var' else si.m)
+    assert result.value == getattr(np, method)(value)
+    assert result.value.dtype == np.dtype('float32')
+
+
+@pytest.mark.parametrize(
+    'cls,unit', [(Quantity, si.cm), (AffineQuantity, si.degC), (LogQuantity, si.dBm)]
+)
+def test_array_methods_var(cls: Any, unit: Any) -> None:
+    q = cls(np.array([[1.0, 2, 5], [3, 4, 7]]), unit)
+    delta = q.unit if cls is Quantity else q.unit.delta_unit
+    result = q.var(axis=1, correction=1, mean=q.mean(axis=1, keepdims=True))
+    assert type(result) is Quantity and result.unit == delta**2
+    np.testing.assert_allclose(result.value, [13 / 3, 13 / 3])
+    out = Quantity(q.value[:, 0], Factor(100) * delta**2)
+    assert q.var(axis=1, out=out, ddof=1) is out
+    np.testing.assert_allclose(out.value, np.full(2, 13 / 300))
+
+
+def test_quantity_var_complex() -> None:
+    q = Quantity(np.array([1 + 1j, 3 + 5j], dtype=np.complex64), si.m)
+    result = q.var()
+    assert result.value.dtype == np.dtype('float32')
+    assert result == 5 * si.m**2
+
+
+def test_quantity_var_invalid() -> None:
+    out = Quantity(np.array(-1.0), si.m**2)
+    with pytest.raises(ValueError, match='ddof.*correction'):
+        Quantity(np.arange(4.0), si.m).var(out=out, ddof=1, correction=1)
+    assert out.value == -1
+
+
+def test_quantity_var_mean_invalid() -> None:
+    out = Quantity(np.array(-1.0), si.m**2)
+    with pytest.raises(DimensionError):
+        Quantity(np.arange(4.0), si.m).var(out=out, mean=1 * si.s)
+    assert out.value == -1
+
+
+@pytest.mark.parametrize('method', ['min', 'max'])
+def test_quantity_extrema_initial_unit_invalid(method: str) -> None:
+    out = Quantity(np.array(-1.0), si.cm)
+    with pytest.raises(DimensionError):
+        getattr(Quantity(np.arange(3.0), si.m), method)(initial=1 * si.s, out=out)
+    assert out.value == -1
+
+
+@pytest.mark.parametrize('method', ['min', 'max', 'var'])
+def test_quantity_reductions_out_invalid(method: str) -> None:
+    _assert_out_failure(method, Quantity(np.zeros(2), si.s), DimensionError)
+
+
+@pytest.mark.parametrize('method', ['min', 'max', 'var'])
+def test_quantity_reductions_out_shape_invalid(method: str) -> None:
+    unit = si.m**2 if method == 'var' else si.m
+    _assert_out_failure(method, Quantity(np.zeros(3), unit), ValueError)
+
+
+@pytest.mark.parametrize('method', ['min', 'max', 'var'])
+def test_quantity_reductions_out_dtype_invalid(method: str) -> None:
+    unit = si.m**2 if method == 'var' else si.m
+    _assert_out_failure(method, Quantity(np.ones(2, dtype=int), unit), TypeError)

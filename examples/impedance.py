@@ -13,9 +13,9 @@ from fractions import Fraction
 from typing import cast, overload
 
 from unitx import Quantity, Unit
-from unitx._numerics import Scalar
 from unitx.exceptions import DimensionError
 from unitx.si import si
+from unitx.typing import Scalar
 
 type Number = int | float | Fraction | complex
 

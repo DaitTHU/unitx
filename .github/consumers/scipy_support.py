@@ -6,9 +6,9 @@ from typing import assert_type
 import numpy as np
 
 from unitx import Quantity
-from unitx._numerics import Array
 from unitx.scipy import simpson
 from unitx.si import si
+from unitx.typing import Array
 
 special = import_module('scipy.special')
 # Native SciPy stubs do not describe the Quantity wrapper. Validate this

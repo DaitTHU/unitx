@@ -56,9 +56,48 @@ unitx quantity classes. Repeated registration is safe. Importing `unitx` does
 not import Matplotlib or register anything. Enabling the adapter does not
 allow `np.asarray(q)` or `np.array(q)` to drop units.
 
-The supported workflow is `plot`, its scalar limits, default labels and axis
-unit changes. Other Matplotlib APIs may convert at the same boundary, but
+Supported workflows include `plot`, its scalar limits, default labels and axis
+unit changes, plus the finite scatter/fill paths below. Other Matplotlib APIs may convert at the same boundary, but
 functions that coerce inputs before consulting axis converters need separate
 validation. The adapter does not claim support for every plotting function.
 
 [NumPy support](numpy.md) · [Typing](typing.md)
+
+## Scatter, filled intervals and error bars
+
+`scatter(x, y)` and `fill_between(x, y1, y2)` support wrapped real numeric
+arrays, including affine and logarithmic readings. Both filled boundaries must
+be compatible quantities or the same point family. Explicit `xunits`/`yunits`
+choose the initial axis scale. Use bare numeric marker sizes, colors and boolean
+masks; these rendering parameters are not additional physical data axes.
+Unlike `plot`, collection-based artists do not promise to recompute stored
+vertices/offsets when axis units change later. Choose their display units before
+creating them, and recreate the artists to change scales.
+
+`errorbar` coerces its inputs before the unit converter can reliably handle
+them. Use an explicit numerical boundary for this function. For a point axis,
+the error is a **difference**, so convert its width to the coordinate's
+`delta_unit`, not to the point coordinate with an origin:
+
+```python
+from unitx import AffineQuantity, Quantity
+
+time = Quantity(np.array([0.0, 1.0, 2.0]), si.s)
+readings = AffineQuantity(np.array([20.0, 21.0, 19.5]), si.degC)
+errors = Quantity(np.array([0.2, 0.3, 0.2]), si.K)
+fig, ax = plt.subplots()
+ax.errorbar(
+    time.value_in(si.s),
+    readings.value_in(si.degC),
+    yerr=errors.value_in(si.degC.delta_unit),
+    fmt='o',
+)
+ax.set_xlabel(f'Time / {si.s}')
+ax.set_ylabel(f'Temperature / {si.degC}')
+```
+
+For logarithmic readings, convert widths into logarithmic differences in the
+chosen convention. If displaying physical power instead, transform the lower
+and upper reading bounds separately; symmetric log errors generally become
+asymmetric physical errors. The explicit boundary does not relax `np.asarray(q)`
+or promise that arbitrary plotting functions preserve units.

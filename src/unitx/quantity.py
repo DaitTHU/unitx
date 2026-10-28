@@ -1003,6 +1003,46 @@ class Quantity(Generic[T]):
         """Return a difference standard deviation using NumPy unit/output rules."""
         ...
 
+    @numpy_method
+    def var(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        ddof: object = _UNSET,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = _UNSET,
+        correction: object = _UNSET,
+    ) -> Quantity[NumpyValue]:
+        """Return a variance in squared difference units using NumPy unit/output rules."""
+        ...
+
+    @numpy_method
+    def min(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        out: Quantity[Array] | None = None,
+        keepdims: bool = False,
+        initial: object = _UNSET,
+        where: object = True,
+    ) -> Quantity[NumpyValue]:
+        """Return the minimum, retaining the unit or coordinate and fixed out rules."""
+        ...
+
+    @numpy_method
+    def max(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        out: Quantity[Array] | None = None,
+        keepdims: bool = False,
+        initial: object = _UNSET,
+        where: object = True,
+    ) -> Quantity[NumpyValue]:
+        """Return the maximum, retaining the unit or coordinate and fixed out rules."""
+        ...
+
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]:
         return Quantity(self._array_value().flatten(order), self.unit)
 

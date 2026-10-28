@@ -60,3 +60,14 @@ the existing Pyright example check, without committing duplicate `.py` exports.
 Assertions on NumPy results also check that dispatch retains the Quantity
 wrapper. NumPy's stubs cannot describe every wrapped result; the optical
 example documents local suppressions for its Quantity `initial` and `out` call.
+
+## Solver and storage recipes
+
+[Nonlinear decay fitting](nonlinear_fit.py) is a standalone script requiring
+`unitx[scipy]`. It shows heterogeneous parameter scales, weighted residuals,
+solver tolerances, a local covariance estimate and equivalent-unit validation.
+Run it with `python examples/nonlinear_fit.py`.
+
+The [array storage recipe](../docs/array-storage.md) pairs numeric `.npz` data
+with complete unit/coordinate JSON metadata. Its in-memory example writes no
+project files and restores dtype, shape and each quantity family.

@@ -126,8 +126,12 @@ domain; they are not a template for preserving every array or coordinate overloa
 
 ## NumPy magnitude types
 
-The `unitx._numerics` package defines `Scalar`, `Array`, and `Magnitude = Array | Scalar`
-without importing NumPy. Array is an input capability protocol, not a guarantee
+The public `unitx.typing` module exports `Scalar`, `Array`, and `Magnitude = Array | Scalar`
+without importing NumPy. It also exports `NumpyArray` and `NumpyValue` for result
+annotations with NumPy installed. These aliases resolve to the Array protocol
+at runtime; they are annotations, not runtime type validators. Private
+`_numerics` imports are implementation details; use this public entry or concrete
+`numpy.typing.NDArray` annotations in consumers. Array is an input capability protocol, not a guarantee
 of other backend support. Construction and unit-only operators preserve
 Quantity[T], as does `.T`. For a known NumPy floating or complex dtype S,
 linear conversion, `n`, unary signs, same-dtype array arithmetic, multiplication
@@ -147,7 +151,8 @@ describe their actual numerical domains.
 
 `.value` exposes native NumPy methods; `.flatten()` returns an ndarray.
 Reduction `out` retains the concrete destination type. Point shape/copy/mean
-retain their coordinate family, while std returns a Quantity difference. The
+retain their coordinate family, as do min/max, while std returns a Quantity
+difference and var returns its squared unit. The
 NumPy diff and gradient functions also return differences. Point sums remain
 undefined. `.dtype` exposes
 a NumPy dtype. Possible zero-dimensional-array to NumPy-scalar results remain
