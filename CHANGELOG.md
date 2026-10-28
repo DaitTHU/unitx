@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.5] - 2026-10-28
+
 ### Added
 
 - Add typed `min`, `max` and `var` methods for linear, affine and logarithmic
