@@ -675,6 +675,141 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         """Return a difference standard deviation using NumPy unit/output rules."""
         ...
 
+    @overload
+    def var(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def var[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @overload
+    def var[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @numpy_method
+    def var(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        ddof: object = _UNSET,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = _UNSET,
+        correction: object = _UNSET,
+    ) -> Quantity[Array]:
+        """Return a variance in squared difference units using NumPy unit/output rules."""
+        ...
+
+    @overload
+    def min(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> LogQuantity[NumpyValue]: ...
+    @overload
+    def min[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis,
+        out: LogQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> LogQuantity[O]: ...
+    @overload
+    def min[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        *,
+        out: LogQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> LogQuantity[O]: ...
+    @numpy_method
+    def min(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        out: LogQuantity[Array] | None = None,
+        keepdims: bool = False,
+        initial: object = _UNSET,
+        where: object = True,
+    ) -> LogQuantity[Array]:
+        """Return the minimum, retaining the unit or coordinate and fixed out rules."""
+        ...
+
+    @overload
+    def max(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> LogQuantity[NumpyValue]: ...
+    @overload
+    def max[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis,
+        out: LogQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> LogQuantity[O]: ...
+    @overload
+    def max[O: WritableArray](
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        *,
+        out: LogQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> LogQuantity[O]: ...
+    @numpy_method
+    def max(
+        self: LogQuantity[Array],
+        axis: _Axis = None,
+        out: LogQuantity[Array] | None = None,
+        keepdims: bool = False,
+        initial: object = _UNSET,
+        where: object = True,
+    ) -> LogQuantity[Array]:
+        """Return the maximum, retaining the unit or coordinate and fixed out rules."""
+        ...
+
     def flatten(self: LogQuantity[Array], order: str = 'C') -> LogQuantity[NumpyArray]:
         return LogQuantity(self._array_value().flatten(order), self.unit)
 

@@ -7,11 +7,10 @@ from numpy.typing import NDArray
 
 from unitx import AffineQuantity, LogQuantity, LogUnit, Quantity, Unit
 from unitx import math as unitx_math
-from unitx._numerics import Array
-from unitx._numerics.numpy_typing import NumpyValue
 from unitx.cgs import emu, esu, gaussian, hl
 from unitx.exceptions import DimensionError, ImplicitConversionError, UnitOperationError
 from unitx.si import si
+from unitx.typing import Array, NumpyValue
 
 type ArrayQuantity = Quantity[Array] | AffineQuantity[Array] | LogQuantity[Array]
 
@@ -672,3 +671,19 @@ def check_shape_axes(values: NDArray[np.float64]) -> None:
 
 
 check_shape_axes(np.arange(8.0))
+
+
+def check_reduction_methods(values: NDArray[np.float64], target: NDArray[np.float64]) -> None:
+    samples = Quantity(values, si.m)
+    assert samples.min() == 1 * si.m
+    assert samples.max() == 3 * si.m
+    variance_out = Quantity(target, si.cm**2)
+    assert_type(samples.var(out=variance_out), Quantity[NDArray[np.float64]])
+    assert samples.var(ddof=1, out=variance_out) is variance_out
+    np.testing.assert_allclose(variance_out.value, 10000)
+    assert np.power(samples[:, None], np.full((1, 2), 2)).shape == (3, 2)
+    assert AffineQuantity(np.array([0.0, 10.0]), si.degC).max() == 10 @ si.degC
+    assert LogQuantity(np.array([0.0, 20.0]), si.dBm).var().unit == si.dB**2
+
+
+check_reduction_methods(np.array([1.0, 2.0, 3.0]), np.array(0.0))

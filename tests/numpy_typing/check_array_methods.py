@@ -6,8 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from unitx import AffineQuantity, LogQuantity, Quantity, Unit
-from unitx._numerics.numpy_typing import NumpyArray, NumpyValue
 from unitx.si import si
+from unitx.typing import NumpyArray, NumpyValue
 
 
 def check_inferred_shapes() -> None:
@@ -67,3 +67,26 @@ def check_axes(values: NDArray[np.complex64], real: NDArray[np.float32]) -> None
     assert_type(LogQuantity(real, si.dBm).squeeze(), LogQuantity[NDArray[np.float32]])
     assert_type(AffineQuantity(np.float32(2), si.degC).squeeze(), AffineQuantity[np.float32])
     assert_type(LogQuantity(np.float32(2), si.dBm).transpose(), LogQuantity[np.float32])
+
+
+def check_remaining_reductions(values: NDArray[np.complex64], target: NDArray[np.float32]) -> None:
+    q = Quantity(values, si.m)
+    out = Quantity(target, si.cm)
+    variance_out = Quantity(target, si.cm**2)
+    assert_type(q.min(), Quantity[NumpyValue])
+    assert_type(q.max(), Quantity[NumpyValue])
+    assert_type(q.var(), Quantity[NumpyValue])
+    assert_type(q.min(out=out), Quantity[NDArray[np.float32]])
+    assert_type(q.max(0, out), Quantity[NDArray[np.float32]])
+    assert_type(q.var(out=variance_out), Quantity[NDArray[np.float32]])
+    assert_type(q.var(0, None, variance_out), Quantity[NDArray[np.float32]])
+    temperatures = AffineQuantity(target, si.degC)
+    levels = LogQuantity(target, si.dBm)
+    assert_type(temperatures.min(), AffineQuantity[NumpyValue])
+    assert_type(temperatures.max(out=temperatures), AffineQuantity[NDArray[np.float32]])
+    assert_type(temperatures.var(), Quantity[NumpyValue])
+    assert_type(temperatures.var(out=variance_out), Quantity[NDArray[np.float32]])
+    assert_type(levels.min(0, levels), LogQuantity[NDArray[np.float32]])
+    assert_type(levels.max(), LogQuantity[NumpyValue])
+    assert_type(levels.var(), Quantity[NumpyValue])
+    assert_type(levels.var(0, None, variance_out), Quantity[NDArray[np.float32]])

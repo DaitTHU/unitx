@@ -25,8 +25,11 @@ reading about an older version.
 | Use Bessel functions and Simpson integration | [SciPy support](scipy.md) |
 | Plot quantities with automatic axis conversion | [Matplotlib plots](matplotlib.md) |
 | Format text or export LaTeX, HTML and siunitx | [Display and formatting](display.md) |
+| Choose tolerances, readings, spectral transforms or sampling scales | [Scientific boundaries](scientific-boundaries.md) |
+| Save numeric arrays with complete coordinate metadata | [Array storage](array-storage.md) |
 | Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
 | Understand annotations and NumPy inference limits | [Typing](typing.md) |
+| Check public API, compatibility and data update promises | [Compatibility policy](compatibility.md) |
 | Update code written for an earlier release | [Migration notes](migration.md) |
 | Run scientific examples | [Scientific examples](https://github.com/DaitTHU/unitx/blob/main/examples/README.md) |
 | Test or contribute a change | [Contributing](https://github.com/DaitTHU/unitx/blob/main/CONTRIBUTING.md) |
@@ -59,6 +62,8 @@ The package root exports `Quantity`, `AffineQuantity`, `Unit`, `AffineUnit`,
 `imperial`, `cgs`, `math`, `statistics`, and `time` modules. Import the unit and constant namespaces with
 `from unitx.si import si, SI`. `Factor` and other building blocks
 remain available from their own modules; names beginning with `_` are internal.
+Public magnitude annotations live in `unitx.typing`. The supported imports,
+subclass boundary and 1.x promises are defined in the [compatibility policy](compatibility.md).
 
 Unit algebra is exact within its documented symbolic/factorization model.
 Numerical magnitudes follow their own arithmetic and backend rules. Neither

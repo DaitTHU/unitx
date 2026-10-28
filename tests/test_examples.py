@@ -89,3 +89,20 @@ def test_notebook_physics(path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         exec(compile(notebook_source(path), str(path), 'exec'), {'__name__': '__main__'})
     finally:
         plt.close('all')
+
+
+def test_nonlinear_fit_example() -> None:
+    pytest.importorskip('scipy')
+    path = Path(__file__).resolve().parents[1] / 'examples/nonlinear_fit.py'
+    exec(compile(path.read_text(), str(path), 'exec'), {'__name__': '__main__'})
+
+
+@pytest.mark.parametrize('guide', ['array-storage', 'scientific-boundaries'])
+def test_scientific_documentation(guide: str) -> None:
+    pytest.importorskip('numpy')
+    path = Path(__file__).resolve().parents[1] / f'docs/{guide}.md'
+    blocks = re.findall(r'^```python\n(.*?)^```', path.read_text(), re.M | re.S)
+    assert blocks
+    namespace = {'__name__': '__main__'}
+    for source in blocks:
+        exec(compile(source, str(path), 'exec'), namespace)

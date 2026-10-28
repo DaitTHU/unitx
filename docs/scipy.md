@@ -64,3 +64,39 @@ Backends: [SciPy jv](https://docs.scipy.org/doc/scipy/reference/generated/scipy.
 [SciPy simpson](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.simpson.html).
 
 [Documentation index](README.md) · [NumPy support](numpy.md)
+
+## Nonlinear fit with heterogeneous parameter units
+
+The executable [decay-fit recipe](https://github.com/DaitTHU/unitx/blob/main/examples/nonlinear_fit.py)
+fits `signal(t) = amplitude * exp(-t/lifetime)` to synthetic voltage data.
+Run `python examples/nonlinear_fit.py` with `unitx[scipy]` installed.
+
+Amplitude and lifetime have different units. The solver vector contains their
+values relative to explicit scales of 1 V and 1 s; it is not one Quantity array.
+The callback reconstructs both parameters, evaluates the model with quantities,
+then exits through `(prediction - observations) / sigma` in coherent dimensionless
+values. Sigma is a known measurement standard deviation, so the objective is
+weighted least squares. Positive numerical bounds are in the selected parameter
+scales. The solver's `ftol`, `xtol` and `gtol` act on this normalized problem;
+they are not voltage or time tolerances.
+
+The example uses SciPy's
+[`least_squares`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html)
+with a real numerical residual and checks solver success. It computes the local
+parameter covariance by SVD of the weighted Jacobian. This assumes independent
+Gaussian errors, locally identifiable parameters and a valid linearization;
+active bounds or strongly nonlinear confidence regions require another analysis.
+Known absolute sigma means no residual-variance rescaling is applied. With
+relative weights instead, that statistical assumption must be changed explicitly.
+
+A numeric covariance C is accompanied by parameter units `(V, s)`, with element
+units `u[i] * u[j]`. Standard errors use `sqrt(C[i,i]) * u[i]`. Changing a parameter
+unit multiplies both its covariance row and column by the corresponding numeric
+conversion factor. A correlation matrix is dimensionless; eigenvalues of the
+unscaled heterogeneous numeric covariance are not unit-invariant physical
+quantities. This finite recipe needs no general heterogeneous Quantity container.
+
+The same dataset is fitted again in ms/mV, verifying matching physical parameters
+and covariance within floating tolerances. Solver kernels run in NumPy's floating
+domain; keeping quantities around the callback does not make them exact or
+arbitrary precision. No general `scipy.optimize` wrapper is added.

@@ -37,11 +37,14 @@ nav:
       - FFT and frequency axes: numpy/fft.md
       - Writes and output buffers: numpy/writes.md
       - Compatibility and remaining boundaries: numpy/compatibility.md
+  - Scientific boundaries: scientific-boundaries.md
+  - Array storage: array-storage.md
   - SciPy support: scipy.md
   - Matplotlib plots: matplotlib.md
   - Display and formatting: display.md
   - Scalar data exchange: serialization.md
   - Typing: typing.md
+  - Compatibility policy: compatibility.md
   - Migration: migration.md
   - Architecture: architecture.md
   - Scientific examples: https://github.com/DaitTHU/unitx/blob/main/examples/README.md

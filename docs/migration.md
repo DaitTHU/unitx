@@ -1,5 +1,21 @@
 # Migration notes
 
+## Upcoming pre-1.0 changes
+
+Derived SI/Particle/atomic/natural/Planck constants now use a fixed 28-digit
+`ROUND_HALF_EVEN` Decimal context during import. Changing the caller context
+before importing no longer changes catalogue values or makes import fail on
+inexact-operation traps. The values match the previous default-context path.
+Applications requiring different evaluation precision should recompute the
+required formulas explicitly from appropriate input data; increasing context
+precision does not add information to stored measured constants. Subsequent
+user arithmetic continues to honor the active context.
+
+Import magnitude annotations from `unitx.typing` instead of private `_numerics`
+modules. Existing internal definitions retain their identities; this adds a
+supported consumer entry without moving the implementation. See the
+[compatibility policy](compatibility.md) for the 1.x boundary.
+
 ## Upgrading to 0.16.7
 
 Linear Quantity arithmetic now permits built-in float/Decimal mixing in

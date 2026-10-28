@@ -143,7 +143,7 @@ def _selection_parts(left: Any, right: Any) -> tuple[Any, Any, Unit | _Coordinat
             raise DimensionError(error_message)
         return (
             _numeric_value(left.value),
-            convert(_numeric_value(right.value), right.unit, left.unit),
+            _numeric_value(convert(_numeric_value(right.value), right.unit, left.unit)),
             left.unit,
         )
     return _align_operands(left, right)
@@ -546,15 +546,24 @@ def _dispatch_ufunc(
     if ufunc in (np.power, np.float_power):
         exponent, exponent_unit = _linear_parts(inputs[1])
         if exponent_unit.dimension != DIMENSIONLESS:
-            raise DimensionError('Exponents must be dimensionless.')
+            error_message = 'Exponents must be dimensionless.'
+            raise DimensionError(error_message)
         exponent = scale_magnitude(exponent, exponent_unit.factor)
         if np.iscomplexobj(exponent) or not np.all(np.isfinite(exponent)):
-            raise TypeError('Exponents must be finite real values.')
+            error_message = 'Exponents must be finite real values.'
+            raise TypeError(error_message)
         if unit.dimension == DIMENSIONLESS:
             return _wrap(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), Unit())
         if np.ndim(exponent) != 0:
-            raise TypeError('Dimensional powers require one scalar exponent.')
-        scalar = exponent.item() if isinstance(exponent, (np.ndarray, np.generic)) else exponent
+            raw, _ = _linear_parts(inputs[1])
+            if not raw.size or not np.all(raw == raw.flat[0]):
+                error_message = (
+                    'Dimensional powers require a nonempty array of identical exponents.'
+                )
+                raise TypeError(error_message)
+            scalar = exponent.flat[0].item()
+        else:
+            scalar = exponent.item() if isinstance(exponent, (np.ndarray, np.generic)) else exponent
         raw_exponent = inputs[1].value if isinstance(inputs[1], (Quantity, _Point)) else inputs[1]
         rational, irrational = exponent_unit.factor.decompose()
         if isinstance(raw_exponent, (Fraction, Decimal)) and irrational == one:

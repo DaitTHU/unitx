@@ -697,5 +697,140 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         """Return a difference standard deviation using NumPy unit/output rules."""
         ...
 
+    @overload
+    def var(
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def var[O: WritableArray](
+        self: AffineQuantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @overload
+    def var[O: WritableArray](
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @numpy_method
+    def var(
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: Quantity[Array] | None = None,
+        ddof: object = _UNSET,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = _UNSET,
+        correction: object = _UNSET,
+    ) -> Quantity[Array]:
+        """Return a variance in squared difference units using NumPy unit/output rules."""
+        ...
+
+    @overload
+    def min(
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[NumpyValue]: ...
+    @overload
+    def min[O: WritableArray](
+        self: AffineQuantity[Array],
+        axis: _Axis,
+        out: AffineQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[O]: ...
+    @overload
+    def min[O: WritableArray](
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        *,
+        out: AffineQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[O]: ...
+    @numpy_method
+    def min(
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        out: AffineQuantity[Array] | None = None,
+        keepdims: bool = False,
+        initial: object = _UNSET,
+        where: object = True,
+    ) -> AffineQuantity[Array]:
+        """Return the minimum, retaining the unit or coordinate and fixed out rules."""
+        ...
+
+    @overload
+    def max(
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[NumpyValue]: ...
+    @overload
+    def max[O: WritableArray](
+        self: AffineQuantity[Array],
+        axis: _Axis,
+        out: AffineQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[O]: ...
+    @overload
+    def max[O: WritableArray](
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        *,
+        out: AffineQuantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[O]: ...
+    @numpy_method
+    def max(
+        self: AffineQuantity[Array],
+        axis: _Axis = None,
+        out: AffineQuantity[Array] | None = None,
+        keepdims: bool = False,
+        initial: object = _UNSET,
+        where: object = True,
+    ) -> AffineQuantity[Array]:
+        """Return the maximum, retaining the unit or coordinate and fixed out rules."""
+        ...
+
     def flatten(self: AffineQuantity[Array], order: str = 'C') -> AffineQuantity[NumpyArray]:
         return AffineQuantity(self._array_value().flatten(order), self.unit)

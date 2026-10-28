@@ -1655,6 +1655,101 @@ class Quantity(Generic[T]):
         mean: object = ...,
         correction: object = ...,
     ) -> Quantity[O]: ...
+    @overload
+    def var(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        out: None = None,
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def var[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis,
+        dtype: object,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @overload
+    def var[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        dtype: object = None,
+        *,
+        out: Quantity[O],
+        ddof: object = ...,
+        keepdims: bool = False,
+        where: object = True,
+        mean: object = ...,
+        correction: object = ...,
+    ) -> Quantity[O]: ...
+    @overload
+    def min(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def min[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis,
+        out: Quantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[O]: ...
+    @overload
+    def min[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        *,
+        out: Quantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[O]: ...
+    @overload
+    def max(
+        self: Quantity[Array],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[NumpyValue]: ...
+    @overload
+    def max[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis,
+        out: Quantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[O]: ...
+    @overload
+    def max[O: WritableArray](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        *,
+        out: Quantity[O],
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[O]: ...
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]: ...
     @overload
     def __abs__(

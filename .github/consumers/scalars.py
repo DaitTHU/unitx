@@ -200,3 +200,15 @@ except UnitOperationError as error:
 else:
     error_message = 'Multiplying a coordinate point must fail.'
     raise AssertionError(error_message)
+
+# Public annotations do not import optional NumPy into a scalar installation.
+from unitx.typing import Array, Magnitude, Scalar  # noqa: E402
+
+
+def public_quantity[T: Magnitude](value: T) -> Quantity[T]:
+    return Quantity(value, si.m)
+
+
+assert_type(public_quantity(1), Quantity[int])
+assert Scalar.__name__ == 'Scalar' and Array.__name__ == 'Array'
+assert 'numpy' not in sys.modules

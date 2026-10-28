@@ -292,3 +292,28 @@ def test_matrix_vector_ufuncs(name: str) -> None:
     target = Quantity(np.empty(result.shape, dtype=complex), result.unit)
     assert func(a, b, out=target) is target
     np.testing.assert_array_equal(target.value, result.value)
+
+
+@pytest.mark.parametrize('copy', [True, False])
+def test_nan_to_num_integer_point_conversion(copy: bool) -> None:
+    q = AffineQuantity(np.array([np.nan, np.inf, -np.inf, 20.0]), 'degC')
+    result = np.nan_to_num(
+        q,
+        copy=copy,
+        nan=AffineQuantity(0, 'K'),
+        posinf=AffineQuantity(300, 'K'),
+        neginf=AffineQuantity(0, 'K'),
+    )
+    assert result.value.dtype.kind == 'f'
+    assert (result is q) == (not copy)
+    np.testing.assert_allclose(result.value, [-273.15, 26.85, -273.15, 20])
+
+
+def test_numpy_selection_integer_point_conversion() -> None:
+    q = AffineQuantity(np.array([0.0, 20.0]), 'degC')
+    zero = AffineQuantity(0, 'K')
+    selected = np.where(np.array([True, False]), q, zero)
+    np.testing.assert_allclose(selected.value, [0, -273.15])
+    assert selected.value.dtype.kind == 'f'
+    filled = np.full_like(q, zero)
+    np.testing.assert_allclose(filled.value, [-273.15, -273.15])

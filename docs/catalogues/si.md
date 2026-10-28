@@ -65,8 +65,13 @@ Particle data are available from `from unitx.si import Particle`; the existing
 Defining decimal values are stored using Decimal/int magnitudes. Measured
 constants carry the digits in the catalogue; Quantity does not attach an
 uncertainty model to them. Derived constants are numerical values calculated
-when the catalogue loads; increasing Decimal precision later does not
-recompute them. The catalogue does not promise arbitrary-precision constants.
+when the catalogue loads in an isolated Decimal context: 28 digits,
+`ROUND_HALF_EVEN`, exponent limits -999999 to 999999, and traps for invalid
+operations, division by zero and overflow. Caller precision, rounding, traps,
+flags and exponent limits do not change those stored values; import leaves the
+caller context unchanged. Increasing Decimal precision later does not
+recompute them. Subsequent arithmetic still follows the caller's context. The catalogue does not promise arbitrary-precision constants.
+See the [data update policy](../compatibility.md#constants-and-catalogue-data).
 See [constant source](https://github.com/DaitTHU/unitx/blob/main/src/unitx/si/constants.py)
 for the stored definitions. Known computed Decimal constants, including `SI.re`,
 retain `Quantity[Decimal]` annotations through the underlying Quantity operations.

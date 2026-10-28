@@ -97,7 +97,7 @@ Quantity results; see [typing](../typing.md#numpy-magnitude-types).
 | --- | --- |
 | `array`, `asarray`, `asanyarray`, contiguity/require coercions | Implicit stripping remains rejected. Use `.value`/`.value_in()` when an external API needs numbers. |
 | Bare constructors, random sampling, index constructors, dtype promotion helpers | Construct numerical arrays first, then attach a unit; `like=q` is not an implicit unit constructor. |
-| Dimensional `power` with exponent arrays | Rejected, including constant arrays with one or more axes; use a scalar exponent. No per-element-unit result is constructed. |
+| Dimensional `power` with varying or empty exponent arrays | Rejected. Nonempty constant exponent arrays preserve numerical broadcasting and one common result unit. No per-element-unit result is constructed. |
 | `polyfit`, polynomial coefficients/roots, `vander`, dimensional `slogdet` | Coefficients or logarithms need heterogeneous units/reference scales; no misleading single-unit wrapper is returned. |
 | `piecewise`, `apply_along_axis`, `apply_over_axes` | Callback input/output units and mutable views require a separate explicit contract. |
 | Bitwise, gcd/lcm, string, datetime, record and masked-array APIs | Outside the supported numeric magnitude/unit model. |
