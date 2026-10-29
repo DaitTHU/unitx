@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.8] - 2026-10-29
+
 ### Added
 
 - Add unit-aware `math.sinpi` and `math.cospi` with period reduction before
