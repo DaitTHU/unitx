@@ -44,7 +44,7 @@ def test_single_unit_combinations() -> None:
     for prefix_definition in (NO_PREFIX, *PREFIX_DEFINITIONS.values()):
         prefix = prefix_definition.symbol
         for symbol, unit_definition in default_registry._bindings.definitions.items():
-            if prefix and not unit_definition.allows_prefix(symbol):
+            if prefix and not unit_definition.allows_prefix(symbol, prefix_definition):
                 continue
             unit = SingleUnit(prefix + symbol)
             assert unit.prefix_symbol == prefix
@@ -74,7 +74,9 @@ def test_single_unit_aliases(symbol: str) -> None:
     assert all(lookup[alias] == 'micro' for alias in aliases)
 
 
-@pytest.mark.parametrize('prefix', ('', *PREFIX_DEFINITIONS))
+@pytest.mark.parametrize(
+    'prefix', ('', *(p.symbol for p in PREFIX_DEFINITIONS.values() if p.family == 'decimal'))
+)
 def test_single_unit_name_alias(prefix: str) -> None:
     prefix_name = PREFIX_DEFINITIONS[prefix].name if prefix else NO_PREFIX.name
     with warnings.catch_warnings(record=True) as recorded:

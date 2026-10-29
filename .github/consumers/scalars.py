@@ -29,10 +29,12 @@ from unitx.cgs import cgs, emu, esu, gaussian, hl
 from unitx.exceptions import ImplicitConversionError, UnitOperationError, UnitxError
 from unitx.factor import Factor
 from unitx.imperial import imperial
+from unitx.information import information
 from unitx.quantity import quantity as decimal_quantity
 from unitx.scipy import simpson
 from unitx.serialization import from_dict, to_dict
 from unitx.si import SI, si
+from unitx.unitdefinition import PrefixFamily, PrefixPolicy
 
 installed = distribution('unitx')
 package_root = Path(str(installed.locate_file('unitx')))
@@ -58,6 +60,27 @@ assert statistics.correlation([1, 2, 3], [20 @ si.degC, 30 @ si.degC, 40 @ si.de
 assert_type(SI.re, Quantity[Decimal])
 assert_type(SI.c**2, Quantity[int])
 assert type(SI.re.value) is Decimal
+
+assert_type(information.MiB, Unit)
+assert_type(information.QiB, Unit)
+assert_type(3 * information.MiB, Quantity[int])
+assert (1 * information.QiB).value_in(information.B) == 2**100
+assert (1 * information.MB).value_in(information.B) == 10**6
+assert information.unit('kibibyte') == information.KiB
+assert Unit('B') == si.B
+assert si.turn is si.cycle
+assert (1 * si.cycle).value_in(si.deg) == 360
+assert (1 * si.ppm).value_in(si.one) == Fraction(1, 10**6)
+assert (1 * si.Jy).value_in(si.W / si.m**2 / si.Hz) == Fraction(1, 10**26)
+assert pickle.loads(pickle.dumps(information.MiB)) == information.MiB
+information_registry = Registry((information.B,))
+assert from_dict(to_dict(3 * information.MiB), registry=information_registry) == 3 * information.MiB
+prefix_policy: PrefixPolicy = {'octet': PrefixFamily.ALL, 'sample byte': True}
+private_information = Registry()
+octet = private_information.define(si.one, 'octet', 'sample byte', prefixable=prefix_policy)
+assert_type(octet, Unit)
+assert private_information.parse('Kioctet').factor == 1024 * octet.factor
+assert private_information.parse('[kilosample byte]').factor == 1000 * octet.factor
 
 distance = Quantity(Decimal('1.25'), si.m)
 assert_type(distance.to(si.cm), Quantity[Decimal])

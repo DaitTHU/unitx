@@ -3,24 +3,48 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
+from enum import Enum
 from fractions import Fraction
+from types import MappingProxyType
+from typing import Literal
 from uuid import UUID, uuid4
 
 from ._formatting.unicode import SUPERSCRIPTS
 from ._immutable import _Immutable
-from ._registry.prefixes import _PREFIXED_NAME_EXCEPTIONS, PREFIX_DEFINITIONS, PrefixDefinition
+from ._registry.prefixes import (
+    _PREFIXED_NAME_EXCEPTIONS,
+    ALL_PREFIXES,
+    BINARY_PREFIXES,
+    DECIMAL_PREFIXES,
+    PrefixDefinition,
+)
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitRegistryError
 from .factor import Factor, one
 
-__all__ = ['PrefixPolicy', 'UnitDefinition']
+__all__ = ['PrefixFamily', 'PrefixPolicy', 'UnitDefinition']
 
 _UNIT_SYMBOL_PATTERN = r'[^\s\d' + re.escape('*^()/+-[]' + SUPERSCRIPTS) + ']+'
 _UNIT_SYMBOL_RE = re.compile(_UNIT_SYMBOL_PATTERN)
 _UNIT_NAME_RE = re.compile(f'{_UNIT_SYMBOL_PATTERN}(?:[ -]{_UNIT_SYMBOL_PATTERN})*')
 
-type PrefixPolicy = bool | str | tuple[str, ...]
+
+class PrefixFamily(Enum):
+    """Allowed prefix families, distinct from unit spelling strings."""
+
+    DECIMAL = 'decimal'
+    BINARY = 'binary'
+    ALL = 'all'
+
+
+type PrefixPolicy = (
+    bool | PrefixFamily | str | tuple[str, ...] | Mapping[str, PrefixFamily | Literal[True]]
+)
+type _StoredPrefixPolicy = (
+    bool | PrefixFamily | tuple[str, ...] | Mapping[str, PrefixFamily | Literal[True]]
+)
 type UnitTerms = tuple[tuple[PrefixDefinition, UnitDefinition, Fraction], ...]
 
 
@@ -47,11 +71,13 @@ class _UnitSpellings:
 
     symbols: tuple[str, ...]
     names: tuple[str, ...]
-    prefixable: bool | tuple[str, ...]
+    prefixable: _StoredPrefixPolicy
     _identity: InitVar[bool] = False
     accepted: tuple[str, ...] = field(init=False)
 
     def __post_init__(self, _identity: bool) -> None:
+        if isinstance(self.prefixable, Mapping):
+            object.__setattr__(self, 'prefixable', MappingProxyType(dict(self.prefixable)))
         object.__setattr__(self, 'accepted', () if _identity else _validate_spellings(self))
 
     @property
@@ -62,8 +88,46 @@ class _UnitSpellings:
     def name(self) -> str:
         return self.names[0]
 
-    def allows_prefix(self, spelling: str) -> bool:
-        return self.prefixable if isinstance(self.prefixable, bool) else spelling in self.prefixable
+    def _prefixes(self) -> tuple[PrefixDefinition, ...]:
+        """Select candidate families once, before iterating individual prefixes."""
+        policy = self.prefixable
+        if policy is True:
+            return DECIMAL_PREFIXES
+        if policy is False:
+            return ()
+        if isinstance(policy, tuple):
+            return DECIMAL_PREFIXES if policy else ()
+        if isinstance(policy, PrefixFamily):
+            if policy is PrefixFamily.DECIMAL:
+                return DECIMAL_PREFIXES
+            if policy is PrefixFamily.BINARY:
+                return BINARY_PREFIXES
+            return ALL_PREFIXES
+        rules = policy.values()
+        decimal = any(r is True or r in (PrefixFamily.DECIMAL, PrefixFamily.ALL) for r in rules)
+        binary = any(r in (PrefixFamily.BINARY, PrefixFamily.ALL) for r in rules)
+        if decimal and binary:
+            return ALL_PREFIXES
+        if decimal:
+            return DECIMAL_PREFIXES
+        if binary:
+            return BINARY_PREFIXES
+        return ()
+
+    def allows_prefix(self, spelling: str, prefix: PrefixDefinition | None = None) -> bool:
+        policy = self.prefixable
+        if policy is True:
+            return prefix is None or prefix.family == 'decimal'
+        if policy is False:
+            return False
+        if isinstance(policy, tuple):
+            return (prefix is None or prefix.family == 'decimal') and spelling in policy
+        rule = policy if isinstance(policy, PrefixFamily) else policy.get(spelling, False)
+        if rule is True:
+            return prefix is None or prefix.family == 'decimal'
+        return rule is not False and (
+            prefix is None or rule is PrefixFamily.ALL or prefix.family == rule.value
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,7 +281,7 @@ class UnitDefinition(_Immutable):
         return self._spelling.names
 
     @property
-    def prefixable(self) -> bool | tuple[str, ...]:
+    def prefixable(self) -> _StoredPrefixPolicy:
         return self._spelling.prefixable
 
     @property
@@ -232,8 +296,12 @@ class UnitDefinition(_Immutable):
     def _spellings(self) -> tuple[str, ...]:
         return self._spelling.accepted
 
-    def allows_prefix(self, spelling: str) -> bool:
-        return self._spelling.allows_prefix(spelling)
+    def allows_prefix(self, spelling: str, prefix: PrefixDefinition | None = None) -> bool:
+        """Check a spelling and, when supplied, the prefix's family."""
+        return self._spelling.allows_prefix(spelling, prefix)
+
+    def _prefixes(self) -> tuple[PrefixDefinition, ...]:
+        return self._spelling._prefixes()
 
     @property
     def name(self) -> str:
@@ -243,10 +311,19 @@ class UnitDefinition(_Immutable):
 def _validate_spellings(definition: _UnitSpellings) -> tuple[str, ...]:
     """Validate a definition's own spellings without consulting an environment."""
     symbol, *symbol_aliases = definition.symbols
-    if not isinstance(definition.prefixable, (bool, tuple)):
-        wrong_type = type(definition.prefixable).__name__
-        error_message = f'Prefixable must be bool, str or tuple of spellings, got {wrong_type}.'
+    policy = definition.prefixable
+    if not isinstance(policy, (bool, PrefixFamily, tuple, Mapping)):
+        wrong_type = type(policy).__name__
+        error_message = (
+            'Prefixable must be bool, str or tuple of spellings, a PrefixFamily, '
+            f'or a spelling mapping, got {wrong_type}.'
+        )
         raise TypeError(error_message)
+    if isinstance(policy, Mapping):
+        for rule in policy.values():
+            if rule is not True and not isinstance(rule, PrefixFamily):
+                error_message = 'Prefix mapping values must be True or a PrefixFamily.'
+                raise TypeError(error_message)
     # Validate every spelling and alias, including generated prefixed spellings.
     for kind, texts in (
         ('symbol', (symbol,)),
@@ -272,8 +349,8 @@ def _validate_spellings(definition: _UnitSpellings) -> tuple[str, ...]:
 
     symbols = dict.fromkeys(text for text in (symbol, *symbol_aliases) if text)
     names = dict.fromkeys(name for name in definition.names if name)
-    if isinstance(definition.prefixable, tuple):
-        for text in definition.prefixable:
+    if isinstance(policy, (tuple, Mapping)):
+        for text in policy:
             if not isinstance(text, str):
                 error_message = f'Prefixable spellings must be str, got {type(text).__name__}.'
                 raise TypeError(error_message)
@@ -281,12 +358,16 @@ def _validate_spellings(definition: _UnitSpellings) -> tuple[str, ...]:
                 error_message = f'Prefixable spelling {text!r} is not a registered spelling.'
                 raise ValueError(error_message)
     spellings = [(text, '') for text in (*symbols, *names)]
-    for prefix in PREFIX_DEFINITIONS.values():
+    for prefix in definition._prefixes():
         prefix_symbol = prefix.symbol
-        for text in filter(definition.allows_prefix, symbols):
+        for text in symbols:
+            if not definition.allows_prefix(text, prefix):
+                continue
             spellings.append((prefix_symbol + text, prefix_symbol))
             spellings.extend((alias + text, prefix_symbol) for alias in prefix.symbol_aliases)
-        for text in filter(definition.allows_prefix, names):
+        for text in names:
+            if not definition.allows_prefix(text, prefix):
+                continue
             for prefix_name in prefix.names:
                 prefixed_name = prefix_name + text
                 spellings.append((prefixed_name, prefix_symbol))

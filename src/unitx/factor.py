@@ -31,7 +31,7 @@ except ModuleNotFoundError as exc:
         raise
     from ._numerics import factorint, isprime
 
-__all__ = ['ln10', 'one', 'pi', 'ten', 'two', 'Factor', 'SymbolicConstant']
+__all__ = ['ln2', 'ln10', 'one', 'pi', 'ten', 'two', 'Factor', 'SymbolicConstant']
 
 _NUMBER_RE = re.compile(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?')
 _INVALID_CHARS = re.compile(r'[\s' + re.escape('+-−*/×÷⋅·∗⁄∕^()[]{}=') + ']')
@@ -583,3 +583,5 @@ pi: Final = SymbolicConstant('π', math.pi)
 """The ratio of the circumference of a circle to its diameter."""
 ln10: Final = SymbolicConstant('ln(10)', math.log(10))
 """The natural logarithm of 10."""
+ln2: Final = SymbolicConstant('ln(2)', math.log(2))
+"""The natural logarithm of 2."""

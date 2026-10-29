@@ -429,10 +429,19 @@ def test_unit_define_registry_stability() -> None:
                 texts.update(
                     prefix + text
                     for prefix in (*PREFIX_DEFINITIONS, *PREFIX_SYMBOL_ALIAS_TO_SYMBOL)
+                    if default_registry._bindings.definitions[symbol].allows_prefix(
+                        text, PREFIX_DEFINITIONS[PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(prefix, prefix)]
+                    )
                 )
         for name, symbol in default_registry._bindings.names.items():
             if default_registry._bindings.definitions[symbol].allows_prefix(name):
-                texts.update(prefix + name for prefix in PREFIX_NAME_TO_SYMBOL)
+                texts.update(
+                    prefix + name
+                    for prefix, canonical in PREFIX_NAME_TO_SYMBOL.items()
+                    if default_registry._bindings.definitions[symbol].allows_prefix(
+                        name, PREFIX_DEFINITIONS[canonical]
+                    )
+                )
 
         units = {text: SingleUnit(text) for text in texts}
         return {

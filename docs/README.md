@@ -13,6 +13,7 @@ reading about an older version.
 | Expand SI base units, combine like units, choose prefixes or obtain a value–unit pair | [Unit representations](representation.md) |
 | Choose and parse a unit catalogue | [Unit catalogues](catalogues/README.md) |
 | Find SI units, constants, prefixes and Unicode spellings | [SI reference](catalogues/si.md) |
+| Calculate with bit, byte, nat, hartley and binary multiples | [Information units](catalogues/information.md) |
 | Find Imperial units and their exact conventions | [Imperial reference](catalogues/imperial.md) |
 | Calculate with CGS units and convert Gaussian, ESU, EMU and H–L electromagnetism | [CGS reference](catalogues/cgs.md) |
 | Define an exact scale or register a new unit | [Custom units and registries](custom-units.md) |
@@ -60,7 +61,7 @@ to a zero-origin coordinate such as K.
 
 The package root exports `Quantity`, `AffineQuantity`, `Unit`, `AffineUnit`,
 `LogUnit`, `LogQuantity`, `Dimension`, `DIMENSIONLESS`, `UnitCatalog`, `Registry`, `one`, `ten`, `pi`, the `si`,
-`imperial`, `cgs`, `math`, `statistics`, and `time` modules. Import the unit and constant namespaces with
+`imperial`, `information`, `cgs`, `math`, `statistics`, and `time` modules. Import the unit and constant namespaces with
 `from unitx.si import si, SI`. `Factor` and other building blocks
 remain available from their own modules; names beginning with `_` are internal.
 Public magnitude annotations live in `unitx.typing`. The supported imports,

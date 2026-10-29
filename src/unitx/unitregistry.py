@@ -27,7 +27,7 @@ from ._registry.prefixes import (
 )
 from ._registry.reconstruction import _publish_definitions
 from .exceptions import UnitRegistryError, UnitSymbolError
-from .unitdefinition import PrefixPolicy, UnitDefinition
+from .unitdefinition import PrefixFamily, PrefixPolicy, UnitDefinition
 
 if TYPE_CHECKING:
     from ._coordinates.resolve import _Coordinate
@@ -96,7 +96,7 @@ class _Bindings:
             unit_symbol = names.get(name)
             if unit_symbol is not None:
                 unit = definitions[unit_symbol]
-                if unit.allows_prefix(name):
+                if unit.allows_prefix(name, PREFIX_DEFINITIONS[prefix_symbol]):
                     return PREFIX_DEFINITIONS[prefix_symbol], unit
         error_message = f'{text!r} is not a valid unit symbol.'
         raise UnitSymbolError(error_message)
@@ -117,7 +117,7 @@ class _Bindings:
                 continue
             unit = text[prefix_len:]
             unitdef = definitions.get(aliases.get(unit, unit))
-            if unitdef is not None and unitdef.allows_prefix(unit):
+            if unitdef is not None and unitdef.allows_prefix(unit, prefixdef):
                 return prefixdef, unitdef
         return self.resolve_name(text)
 
@@ -161,16 +161,18 @@ class Registry:
     snapshot API is provided.
 
     `prefixable` supplies the default for definitions made by this registry
-    or within its defining() blocks. Included units retain their own policy.
+    or within its defining() blocks: True enables decimal prefixes, False
+    disables prefixes, and a PrefixFamily selects decimal, binary or both.
+    Included units retain their own policy.
     """
 
     __slots__ = ('_bindings', '_prefixable')
 
     def __init__(
-        self, units: Iterable[Unit | _Coordinate] = (), *, prefixable: bool = True
+        self, units: Iterable[Unit | _Coordinate] = (), *, prefixable: bool | PrefixFamily = True
     ) -> None:
-        if type(prefixable) is not bool:
-            error_message = 'Registry prefixable default must be bool.'
+        if not isinstance(prefixable, (bool, PrefixFamily)):
+            error_message = 'Registry prefixable default must be bool or PrefixFamily.'
             raise TypeError(error_message)
         self._prefixable = prefixable
         self._bindings = _Bindings({'': _UNIT_ENTRIES[0]}, {}, {})

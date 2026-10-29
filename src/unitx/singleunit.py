@@ -18,7 +18,8 @@ class SingleUnit(_Immutable):
     Hold shared immutable prefix and unit definitions resolved at construction.
 
     Accept a registered symbol or singular English name, optionally with one
-    SI prefix: `'m'`, `'metre'`, `'km'`, and `'kilometre'`. Inputs are
+    permitted decimal or binary prefix: `'m'`, `'metre'`, `'km'`, and
+    `'kilometre'`. Binary prefixes require an explicit definition permission. Inputs are
     case-sensitive. Micro prefix aliases `'u'` and `'μ'` normalize to
     `'µ'`; kilo uses lowercase `'k'`, while `'K'` denotes kelvin.
     The empty string represents a dimensionless unit.
@@ -176,7 +177,9 @@ class SingleUnit(_Immutable):
         """Return a permitted symbol, or None if this prefix requires a name."""
         if not self.has_prefix():
             return self._unit.symbol
-        for symbol in filter(self._unit.allows_prefix, self._unit.symbols):
+        for symbol in self._unit.symbols:
+            if not self._unit.allows_prefix(symbol, self._prefix):
+                continue
             return self._prefix.symbol + symbol
         return None
 
@@ -184,7 +187,9 @@ class SingleUnit(_Immutable):
         """Return a permitted name, or None if this prefix requires a symbol."""
         if not self.has_prefix():
             return self._unit.name
-        for name in filter(self._unit.allows_prefix, self._unit.names):
+        for name in self._unit.names:
+            if not self._unit.allows_prefix(name, self._prefix):
+                continue
             return _format_prefixed_name(self._prefix, name)
         return None
 

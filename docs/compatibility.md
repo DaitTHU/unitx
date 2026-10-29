@@ -11,7 +11,7 @@ members of those objects, and the following documented module entries:
 
 | Entry | Supported surface |
 | --- | --- |
-| `unitx.si`, `unitx.imperial`, `unitx.cgs` | Documented catalogues, constants and explicit electromagnetic conversions |
+| `unitx.si`, `unitx.imperial`, `unitx.cgs`, `unitx.information` | Documented catalogues, constants and explicit electromagnetic conversions |
 | `unitx.math`, `unitx.statistics`, `unitx.time` | Documented functions |
 | `unitx.numpy` | Finite typed wrapped-input integration, gradient and like allocations |
 | `unitx.scipy`, `unitx.matplotlib` | Documented finite adapters; registration remains explicit |

@@ -177,7 +177,7 @@ def test_unit_define_string_policy(source: Unit | Quantity[Magnitude], spelling:
                 Unit(prefixed)
 
 
-@pytest.mark.parametrize('policy', [[], ['rvpolicy'], {}, {'rvpolicy': True}, 1])
+@pytest.mark.parametrize('policy', [[], ['rvpolicy'], 1])
 def test_unit_define_invalid_policy(
     policy: list[object] | list[str] | dict[str, object] | int,
     unit_registry: RegistrySnapshot,

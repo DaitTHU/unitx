@@ -17,11 +17,12 @@ True
 | --- | --- | --- |
 | SI and common scientific units | `from unitx.si import si, SI` | [Units, constants, prefixes and Unicode spellings](si.md) |
 | Imperial, historical English and US units | `from unitx.imperial import imperial, imperial_historical, us` | [Length, mass, volume, force and pressure conventions](imperial.md) |
+| Information | `from unitx.information import information` | [Bits, bytes, nats, hartleys and binary prefixes](information.md) |
 | CGS electromagnetism | `from unitx.cgs import cgs, gaussian, esu, emu, hl` | [Mechanical definitions and explicit SI correspondence](cgs.md) |
 
 ## The UnitCatalog entry point
 
-`si`, `imperial`, `cgs`, `gaussian`, `esu`, `emu` and `hl` share the public `UnitCatalog` base.
+`si`, `imperial`, `information`, `cgs`, `gaussian`, `esu`, `emu` and `hl` share the public `UnitCatalog` base.
 A catalogue exposes unit attributes and a `unit()` entry point, using its
 configured spelling environment. `si.unit()` uses the existing default
 environment; Imperial and CGS parsing use independent environments.

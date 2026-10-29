@@ -13,7 +13,12 @@ from .exceptions import UnitSymbolError, UnitSyntaxError
 from .factor import Factor, SymbolicConstant, one
 from .monomial import Monomial
 from .singleunit import SingleUnit
-from .unitdefinition import PrefixPolicy, UnitDefinition, _ConversionData, _UnitProduct
+from .unitdefinition import (
+    PrefixPolicy,
+    UnitDefinition,
+    _ConversionData,
+    _UnitProduct,
+)
 from .unitparser import UnitParser
 from .unitregistry import _definition_target
 
@@ -478,11 +483,12 @@ class Unit(_Immutable):
         All spellings must be internally unambiguous. Binding to a Registry
         also checks existing units, prefixed forms and implicit unit products.
         Complex names work standalone or in `[name]` references in expressions.
-        `prefixable` accepts True for all spellings, False for none, a single
-        spelling string, or a tuple of exact symbols, names, or aliases, such as
-        `('arcsec', 'arcsecond')`. Only listed spellings accept prefixes;
-        `'arcsec'` is equivalent to `('arcsec',)`. An empty tuple disables
-        all prefixes. Unknown or empty spellings are errors.
+        `prefixable` accepts True (decimal), False (none), a PrefixFamily,
+        one spelling string, a tuple of spellings, or a mapping from spellings
+        to True (decimal) or a PrefixFamily. String and tuple spellings accept
+        decimal prefixes only. Mapping permissions apply only to listed spellings;
+        the mapping is copied, so later changes cannot alter this definition.
+        Unknown spellings and invalid policy values are errors.
         Invalid definitions raise TypeError, ValueError, or UnitRegistryError
         before returning the definition or changing an explicit registry.
         """

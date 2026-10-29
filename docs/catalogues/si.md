@@ -40,11 +40,12 @@ of accepted parser spellings:
 | SI bases | s, m, kg, A, K, mol, cd |
 | Named derived units | rad, sr, Hz, N, Pa, J, W, C, V, F, ohm, S, Wb, T, H, lm, lx, Bq, Gy, Sv, kat |
 | Common prefixes | ns, ms, um, cm, km, MeV, kW, mA |
-| Angles and ratios | deg, arcmin, arcsec, mas, uas, percent, permille |
+| Angles and ratios | turn, cycle, deg, arcmin, arcsec, mas, uas, percent, permille, ppm |
 | Time and frequency | min, h, d, yr, a_j, mo, rpm |
 | Length, area and volume | au, pc, ly, nmile, angstrom, a, ha, b, L |
 | Mass and mechanics | t, Da, u, c, Gal, knot, gf, kgf |
 | Pressure and energy | bar, atm, mHg, mmHg, Torr, mTorr, Wh, eV, cal |
+| Spectral flux density | Jy, nJy, uJy, mJy, kJy |
 | Electrical variants | VA, var, mho |
 | Temperature and logarithmic coordinates | degC, dBm, dBW, dBV |
 | Logarithmic differences | Np, B, dB |
@@ -134,6 +135,19 @@ All derived scales inherit the catalogue's finite numerical precision and
 lack of uncertainty propagation.
 
 ## Spelling and scale conventions
+
+`si.turn` and `si.cycle` share one definition: exactly `2*pi rad`, or 360 degrees.
+The parser accepts both `turn` and `cycle`. These are angular units: `cycle/s`
+converts to `rad/s` with factor `2*pi`; bare Hz remains `1/s`. Neither spelling
+accepts prefixes. `si.ppm` is exactly `1e-6` and accepts no prefixes. It does not
+infer mass, volume or molar fractions from its name.
+
+`si.Jy` is the jansky, exactly `1e-26 W/(m**2*Hz)`, following the
+[NRAO definition](https://public.nrao.edu/ask/how-does-one-measure-the-flux-of-a-radio-source/).
+It accepts decimal SI prefixes; nJy, uJy, mJy and kJy are convenience attributes.
+This is spectral flux density per frequency. Converting to a per-wavelength
+density requires a spectral coordinate and its Jacobian, rather than an ordinary
+unit conversion. Binary prefixes require explicit permission; metres reject `Kim`.
 
 Symbols and names are case-sensitive. Lowercase `k` is kilo and uppercase
 `K` is kelvin: `km` is kilometre; `K m` is kelvin times metre. Unsupported

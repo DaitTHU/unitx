@@ -131,6 +131,12 @@ class si(_si, registry=default_registry):
     # other common units
 
     # dimensionless
+    turn: Final = (2 * pi * _si.rad).define(
+        'turn', 'turn', 'cycle', symbol_aliases='cycle', prefixable=False
+    )
+    """Full angular turn; `1 turn = 1 cycle = 2*pi rad` exactly."""
+    cycle: Final = turn
+    """Cycle, sharing the turn definition; divide by time for angular velocity."""
     deg: Final = (pi / 180 * _si.rad).define(
         '°', name='degree', symbol_aliases='deg', prefixable=False
     )
@@ -154,6 +160,8 @@ class si(_si, registry=default_registry):
     """Percent, `1 percent = 1/100`; dimensionless ratio."""
     permille: Final = (_si.one / 1000).define('‰', name='permille', prefixable=False)
     """Permille, `1 permille = 1/1000`; dimensionless ratio."""
+    ppm: Final = (_si.one / ten**6).define('ppm', 'parts per million', prefixable=False)
+    """Parts per million, exactly `1e-6`; a ratio with no implied physical kind."""
     permyriad: Final = (_si.one / 10000).define(
         '‱', 'permyriad', 'per ten thousand', prefixable=False
     )
@@ -245,6 +253,13 @@ class si(_si, registry=default_registry):
     """Electronvolt or its SI prefixes; `1 eV = 1.602176634e-19 J` exactly."""
     ueV, meV, keV, MeV, GeV, TeV, PeV, EeV = _prefixed_units(eV, 'umkMGTPE')
     """Electronvolt or its SI prefixes; `1 eV = 1.602176634e-19 J` exactly."""
+    Jy: Final = (_si.W / (_si.m**2 * _si.Hz) / ten**26).define('Jy', 'jansky')
+    """Jansky, exactly `1e-26 W/(m**2*Hz)`; spectral flux density per frequency.
+
+    https://public.nrao.edu/ask/how-does-one-measure-the-flux-of-a-radio-source/
+    """
+    nJy, uJy, mJy, kJy = _prefixed_units(Jy, 'numk')
+    """Decimal jansky multiples; `1 mJy = 1e-3 Jy`."""
     cal: Final = (4184 * mJ).define('cal', name='calorie', symbol_aliases='㎈')
     """Thermochemical calorie, `1 cal = 4.184 J` exactly."""
     kcal: Final = next(_prefixed_units(cal, 'k'))
