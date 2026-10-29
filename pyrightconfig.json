@@ -43,7 +43,7 @@
     "src/unitx/unitcatalog.py",
     "src/unitx/cgs",
     "src/unitx/imperial/units.py",
-    "src/unitx/information.py",
+    "src/unitx/information",
     "src/unitx/singleunit.py",
     "src/unitx/unitparser.py",
     "tests/typing"

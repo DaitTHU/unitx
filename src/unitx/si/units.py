@@ -1,39 +1,18 @@
 import math as _math
-from collections.abc import Iterator
 from decimal import Decimal
 from typing import Final
 
 from .._electromagnetism.coefficients import _EMCoefficients
-from .._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PREFIX_SYMBOL_ALIAS_TO_SYMBOL
 from ..affineunit import AffineUnit
 from ..factor import pi, ten
 from ..logunit import LogUnit
-from ..monomial import Monomial
 from ..quantity import Quantity
-from ..singleunit import SingleUnit
 from ..unit import Unit
+from ..unitcatalog import _prefixed_units
 from ..unitregistry import default_registry
 from .bases import _SI, _si
 
 __all__ = ['si']
-
-
-def _prefixed_units(unit: Unit, prefixes: str | list[str]) -> Iterator[Unit]:
-    """Replace a single unit's prefix with each listed prefix.
-
-    Use `prefixes` as a string when every prefix is an individual character.
-    Unit without prefix can be included in the string as a space character.
-    Otherwise use a list of strings for multi-character prefixes.
-    """
-    [(base, exponent)] = unit._monomial.components()
-    assert exponent == 1
-    for spelling in prefixes:
-        prefix = (
-            PREFIX_DEFINITIONS[PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(spelling, spelling)]
-            if spelling != ' '
-            else NO_PREFIX
-        )
-        yield Unit._from_monomial(Monomial({SingleUnit._from_definitions(prefix, base._unit): 1}))
 
 
 class si(_si, registry=default_registry):
