@@ -260,6 +260,8 @@ class Factor:
     @classmethod
     def _from_monomial(cls, monomial: Monomial[int | SymbolicConstant], /) -> Factor:
         """Direct constructor from Monomial without copy. Internal use only."""
+        if not monomial.components():
+            return one
         symbols: dict[str, float] = {}
         for base in monomial.bases():
             if isinstance(base, SymbolicConstant):
@@ -278,7 +280,13 @@ class Factor:
 
     @classmethod
     def _product(cls, terms: Iterable[tuple[Factor, Fraction]], coefficient: Factor, /) -> Factor:
-        """Combine powered factors with one freeze and symbolic validation."""
+        """Combine `factor**exponent` terms with an exact coefficient."""
+        terms = tuple(terms)
+        if not terms:
+            return coefficient
+        if len(terms) == 1:
+            factor, exponent = terms[0]
+            return factor**exponent * coefficient
         product = _MutableMonomial(coefficient._monomial)
         for factor, exponent in terms:
             product.multiply(factor._monomial, exponent)
@@ -483,28 +491,40 @@ class Factor:
         return NotImplemented
 
     def __mul__(self, other: Fractionable | SymbolicConstant | Factor) -> Factor:
-        if isinstance(other, Factor):
-            return Factor._from_monomial(self._monomial * other._monomial)
-        if isinstance(other, Fractionable):
-            fraction = as_fraction(other)
-            return Factor._from_monomial(self._monomial * Factor(fraction)._monomial)
-        if isinstance(other, SymbolicConstant):
-            return Factor._from_monomial(self._monomial * Factor(other)._monomial)
-        return NotImplemented
+        if not isinstance(other, Factor):
+            if isinstance(other, Fractionable):
+                other = Factor(as_fraction(other))
+            elif isinstance(other, SymbolicConstant):
+                other = Factor(other)
+            else:
+                return NotImplemented
+        if not self._monomial.components():
+            return other
+        if not other._monomial.components():
+            return self
+        return Factor._from_monomial(self._monomial * other._monomial)
 
     __rmul__ = __mul__
 
     def __truediv__(self, other: Fractionable | SymbolicConstant | Factor) -> Factor:
-        if isinstance(other, Factor):
-            return Factor._from_monomial(self._monomial / other._monomial)
-        if isinstance(other, Fractionable):
-            other = as_fraction(other)
-            if other == 0:
-                raise ZeroDivisionError('division by zero')
-            return Factor._from_monomial(self._monomial / Factor(other)._monomial)
-        if isinstance(other, SymbolicConstant):
-            return Factor._from_monomial(self._monomial / Factor(other)._monomial)
-        return NotImplemented
+        if not isinstance(other, Factor):
+            if isinstance(other, Fractionable):
+                fraction = as_fraction(other)
+                if fraction == 0:
+                    error_message = 'division by zero'
+                    raise ZeroDivisionError(error_message)
+                other = Factor(fraction)
+            elif isinstance(other, SymbolicConstant):
+                other = Factor(other)
+            else:
+                return NotImplemented
+        if not other._monomial.components():
+            return self
+        if self._monomial == other._monomial:
+            return one
+        if not self._monomial.components():
+            return Factor._from_monomial(1 / other._monomial)
+        return Factor._from_monomial(self._monomial / other._monomial)
 
     def __rtruediv__(self, other: Fractionable | SymbolicConstant) -> Factor:
         if isinstance(other, Fractionable):
@@ -515,7 +535,10 @@ class Factor:
         return NotImplemented
 
     def __pow__(self, other: Fractionable) -> Factor:
-        return Factor._from_monomial(self._monomial ** as_exponent(other))
+        exponent = as_exponent(other)
+        if exponent == 1:
+            return self
+        return Factor._from_monomial(self._monomial**exponent)
 
     @overload
     def __call__(self, magnitude: Fraction) -> Fraction | float: ...

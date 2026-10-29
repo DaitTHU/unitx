@@ -28,7 +28,7 @@ from ._numerics import (
     as_int_if_integral,
     is_numpy_object,
 )
-from ._numerics.methods import numpy_method
+from ._numerics.methods import call_numpy_method
 from ._numerics.numpy_typing import (
     _UNSET,
     HasImag,
@@ -924,10 +924,9 @@ class Quantity(Generic[T]):
         order = (axes, *more_axes) if more_axes or isinstance(axes, SupportsIndex) else axes
         return _transpose(self, order)
 
-    @numpy_method
     def squeeze(self: Quantity[Array], axis: _Axis = None) -> Quantity[NumpyValue]:
         """Remove length-one axes, retaining the complete unit and NumPy storage rules."""
-        ...
+        return call_numpy_method(self, 'squeeze', axis=axis)
 
     def reshape(
         self: Quantity[Array],
@@ -944,23 +943,20 @@ class Quantity(Generic[T]):
         new_shape = (shape, *dimensions) if dimensions else shape
         return _reshape(self, new_shape, order=order, copy=copy)
 
-    @numpy_method
     def ravel(
         self: Quantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[NumpyArray]:
         """Return a one-dimensional array, sharing storage when NumPy permits."""
-        ...
+        return call_numpy_method(self, 'ravel', order=order)
 
-    @numpy_method
     def copy(
         self: Quantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[NumpyArray]:
         """Copy into independent ndarray storage; the default order is `C`."""
-        ...
+        return call_numpy_method(self, 'copy', order=order)
 
-    @numpy_method
     def sum(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -972,9 +968,17 @@ class Quantity(Generic[T]):
         initial: object = 0,
     ) -> Quantity[NumpyValue]:
         """Sum linear values, using the existing NumPy unit and output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'sum',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+            initial=initial,
+        )
 
-    @numpy_method
     def mean(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -985,9 +989,16 @@ class Quantity(Generic[T]):
         where: object = True,
     ) -> Quantity[NumpyValue]:
         """Average stored readings, using the existing NumPy unit and output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'mean',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+        )
 
-    @numpy_method
     def std(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1001,9 +1012,19 @@ class Quantity(Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[NumpyValue]:
         """Return a difference standard deviation using NumPy unit/output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'std',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            ddof=ddof,
+            keepdims=keepdims,
+            where=where,
+            mean=mean,
+            correction=correction,
+        )
 
-    @numpy_method
     def var(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1017,9 +1038,19 @@ class Quantity(Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[NumpyValue]:
         """Return a variance in squared difference units using NumPy unit/output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'var',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            ddof=ddof,
+            keepdims=keepdims,
+            where=where,
+            mean=mean,
+            correction=correction,
+        )
 
-    @numpy_method
     def min(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1029,9 +1060,16 @@ class Quantity(Generic[T]):
         where: object = True,
     ) -> Quantity[NumpyValue]:
         """Return the minimum, retaining the unit or coordinate and fixed out rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'min',
+            axis=axis,
+            out=out,
+            keepdims=keepdims,
+            initial=initial,
+            where=where,
+        )
 
-    @numpy_method
     def max(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1041,7 +1079,15 @@ class Quantity(Generic[T]):
         where: object = True,
     ) -> Quantity[NumpyValue]:
         """Return the maximum, retaining the unit or coordinate and fixed out rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'max',
+            axis=axis,
+            out=out,
+            keepdims=keepdims,
+            initial=initial,
+            where=where,
+        )
 
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]:
         return Quantity(self._array_value().flatten(order), self.unit)

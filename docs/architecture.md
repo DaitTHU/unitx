@@ -68,12 +68,25 @@ a composite Unit derives it from its terms
 and extra scale. It is an immutable summary, not a second independent definition.
 The readable symbol is derived from the formal product.
 
-Composite-unit conversion data is built by accumulating rational exponents in
-private mutable monomials. Factor and Dimension each freeze their complete
-product once, with Factor validating the resulting symbolic bases. A frozen
+Unit derives conversion data by asking Factor and Dimension to combine powered
+terms. Each owns its empty/single-term product and exponent-one identities.
+Nontrivial products accumulate rational exponents in private mutable monomials
+and freeze once, with Factor validating the resulting symbolic bases. A frozen
 snapshot owns its mapping and remains unchanged if accumulation continues.
 Public Monomial, Factor, Dimension and Unit objects retain their immutable
 value and hashing contracts.
+
+Factor normalizes arithmetic operands before applying exact product/quotient
+rules. Identity operations and exact cancellation can reuse existing algebraic
+values. Already normalized Fraction exponents pass through unchanged across
+algebra layers. Numerical caches do not determine algebraic identity or classification.
+NumPy scaling consumes Factor's evaluated int/Fraction/float domain instead of
+separately decomposing it first.
+
+Dimension's physical projection filters the sparse monomial directly. Display
+and dictionary views share canonical physical-axis iteration without expanding
+a seven-element tuple. `as_tuple()` remains the fixed-layout boundary used by
+serialization and SI base-unit expansion.
 
 Unit spellings group canonical symbols, names, aliases and prefix permissions.
 Their validation produces the accepted spellings before registration. Definition
@@ -172,11 +185,11 @@ enumerate their own reference/difference dependencies. Display, NumPy and
 serialization remain explicit integration boundaries. Numeric caches, parser
 state and reconstruction indexes remain separate from mathematical identity.
 
-Direct array methods declare their public signatures explicitly. A private
-decorator in `_numerics/methods.py` binds their defaults and lazily delegates to
-the same NumPy dispatch used by function calls. It adds no dynamic method lookup
-or separate unit rules; coordinate and linear result construction stays in the
-existing handlers. Reshape keeps its explicit positional-shape normalization.
+Direct array methods declare their public signatures explicitly, letting Python
+bind arguments and defaults. A shared helper in `_numerics/methods.py` lazily
+forwards their arguments to the same NumPy dispatch used by function calls.
+Coordinate and linear result construction stays in the existing handlers.
+Reshape keeps its explicit positional-shape normalization.
 
 The point marker's type parameter describes the result of adding a difference,
 not the original magnitude type. This prevents the open scalar protocol from

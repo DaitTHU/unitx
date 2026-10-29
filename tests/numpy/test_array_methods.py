@@ -141,6 +141,20 @@ def test_quantity_array_methods_out(method: str) -> None:
     np.testing.assert_allclose(target.value, expected)
 
 
+@pytest.mark.parametrize(
+    'cls,unit', [(Quantity, si.m), (AffineQuantity, si.degC), (LogQuantity, si.dBm)]
+)
+def test_array_methods_mean_arguments(cls: Any, unit: Any) -> None:
+    values = np.arange(6.0).reshape(2, 3)
+    samples = cls(values, unit)
+    target = cls(np.empty((2, 1), dtype=np.float32), unit)
+    mask = np.array([True, False, True])
+    assert samples.mean(1, np.float32, target, True, where=mask) is target
+    expected = np.mean(values, axis=1, dtype=np.float32, keepdims=True, where=mask)
+    assert target.unit is unit and target.value.dtype == np.float32
+    np.testing.assert_array_equal(target.value, expected)
+
+
 def _assert_out_failure(method: str, target: Quantity[Array], error: type[Exception]) -> None:
     q = Quantity(np.array([[1.0, 2], [3, 4]]), si.m)
     before = q.value.copy()

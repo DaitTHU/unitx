@@ -32,6 +32,7 @@ def main() -> None:
     greater = Quantity(Fraction(101, 3), si.cm)
     base = Factor(2) * pi
     radical = base ** Fraction(1, 3)
+    dimension = Unit('dB*m/s2').dimension
     cases = {
         'parse_expression': lambda: Unit('kg m2/s3'),
         'convert_fraction': lambda: rational.value_in(si.cm),
@@ -41,6 +42,9 @@ def main() -> None:
         'factor_construct': lambda: Factor(Fraction(123456, 1001)),
         'factor_rational_power': lambda: base ** Fraction(1, 3),
         'factor_cancel': lambda: radical**3 / base,
+        'dimension_physical': lambda: dimension.physical,
+        'dimension_repr': lambda: repr(dimension),
+        'dimension_dict': lambda: dimension.as_dict(),
     }
     results = {}
     for name, operation in cases.items():

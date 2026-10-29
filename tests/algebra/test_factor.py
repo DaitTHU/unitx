@@ -358,15 +358,68 @@ def test_factor_numeric_powers(base: int, exponent: Fractionable, expected: int 
 
 
 @pytest.mark.parametrize('exponent', [True, False, 'x'])
-def test_factor_invalid_exponents(exponent: bool | str) -> None:
+@pytest.mark.parametrize('factor', [one, two])
+def test_factor_invalid_exponents(factor: Factor, exponent: bool | str) -> None:
     with pytest.raises(TypeError, match=f'Cannot convert {type(exponent).__name__} to Fraction'):
-        two**exponent  # pyright: ignore[reportOperatorIssue, reportUnusedExpression]
+        factor**exponent  # pyright: ignore[reportOperatorIssue, reportUnusedExpression]
+
+
+@pytest.mark.parametrize('factor', [one, two])
+@pytest.mark.parametrize('exponent', [float('nan'), Decimal('NaN')])
+def test_factor_invalid_nan_power(factor: Factor, exponent: float | Decimal) -> None:
+    with pytest.raises(ValueError):
+        factor**exponent
+
+
+@pytest.mark.parametrize('factor', [one, two])
+@pytest.mark.parametrize('exponent', [float('inf'), Decimal('Infinity')])
+def test_factor_invalid_infinite_power(factor: Factor, exponent: float | Decimal) -> None:
+    with pytest.raises(OverflowError):
+        factor**exponent
 
 
 @pytest.mark.parametrize('factor', [pi**1000, two ** Fraction(-2201, 2)])
 def test_factor_division_extreme_cancellation(factor: Factor) -> None:
     assert factor / factor == one
     assert (1 / factor) * factor == one
+
+
+@pytest.mark.parametrize('factor', [pi**1000, two ** Fraction(-2201, 2)])
+def test_factor_identity_without_evaluation(
+    factor: Factor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_evaluation(self: Factor) -> NoReturn:
+        pytest.fail('Identity algebra must not evaluate a floating-point approximation.')
+
+    monkeypatch.setattr(Factor, 'value', property(unexpected_evaluation))
+    for result in (factor * one, one * factor, factor / one, factor**1):
+        assert result == factor
+        assert hash(result) == hash(factor)
+    assert factor / factor == factor**0 == one
+    assert one / factor * factor == one
+
+
+@pytest.mark.parametrize('warm_cache', [False, True])
+@pytest.mark.parametrize(
+    'components, expected',
+    [
+        ({2: -2, 5: -2}, 100),
+        ({2: 17, 3: -20}, Fraction(3**20, 2**17)),
+        ({2: 2000, 3: -1}, Fraction(3, 2**2000)),
+    ],
+)
+def test_factor_reciprocal_exact(
+    warm_cache: bool, components: dict[int, int], expected: int | Fraction
+) -> None:
+    factor = Factor.from_dict(components)
+    if warm_cache:
+        assert factor.value == 1 / Fraction(expected)
+    with localcontext() as context:
+        context.prec = 2
+        reciprocal = one / factor
+    assert reciprocal.value == expected
+    assert type(reciprocal.value) is type(expected)
+    assert reciprocal * factor == one
 
 
 def test_factor_extreme_rationals() -> None:

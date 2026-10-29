@@ -1,110 +1,141 @@
-# Performance study for the 0.17.6 candidate
+# Performance
 
-This is a single-machine development study, recorded on 2026-10-28. It measures
-specific operations, not an overall library ranking or a performance guarantee.
-The baseline is commit `d0acb06` (0.17.5). The candidate uses private mutable
-monomial accumulation and one shared immutable dimensionless Unit in the NumPy
-adapter. Installed unitx metadata was 0.17.5 while testing the candidate source;
-source fingerprints and numerical evidence are in [the JSON record](performance-baseline.json).
+Current measurements were recorded on 2026-10-29. This document describes
+unitx's present costs, comparisons with other libraries and remaining
+optimization priorities. It is updated in place. Raw current samples, commands,
+allocation peaks and source SHA-256 fingerprints are in
+[performance.json](performance.json); reproduction commands are in the
+[benchmark guide](README.md).
 
-## Method and environment
+## Measurement conditions
 
-Python 3.12.15, macOS 27.0.1 ARM64, NumPy 2.5.3 and SciPy 1.18.1.
-Before/after runs used the same interpreter and built-in factorization backend,
-with exported baseline/candidate sources selected through PYTHONPATH. Four
-sequential runs followed baseline/candidate/candidate/baseline order. Timings
-were collected without concurrent tests or profiling. CPU frequency and other
-system processes were not controlled; no statistical confidence intervals are claimed.
+Python 3.12.15, macOS 27.0.1 ARM64 and NumPy 2.5.3. The cross-library environment
+uses Pint 0.26.2, Astropy 8.0.2, unyt 3.2.0 and SymPy 1.14.0; unitx selects the
+SymPy factorization backend there. Scalar, fitting and array-write measurements
+use the built-in backend; fitting uses SciPy 1.18.1.
 
-Common-operation rows combine fourteen per-call samples (seven per run), with
-loop counts calibrated to at least 0.02 seconds per sample. Scalar and fit rows
-use the median of two run medians, each based on seven repeats of respectively
-2000 and 50 calls. Setup and imports are excluded. Profiles were collected
-separately and are not the source of these timings.
+Registries, units and input data are prepared before timing. Public constructors
+are validated, and array sharing is checked for every library. Each shared
+operation is validated in the expected output unit before measurement. Imports
+and setup are excluded. Timings include the small Python benchmark callback;
+tracemalloc is run separately. Tests and profilers do not run concurrently with
+timing.
 
-## Before and after
+The shared-operation benchmark takes seven samples per operation, calibrating
+loop counts to at least 0.02 seconds per sample. Values are medians. Scalar and
+fit summaries combine two run medians, each from seven repeats of respectively
+2000 and 50 calls. CPU frequency and other processes are not controlled. These
+are observations on one machine, without confidence intervals or CI timing
+thresholds. Exported source is identified by hashes; installed distribution
+metadata in the raw measurements can differ from that source.
 
-Times below are microseconds per call; a ratio above one means the candidate
-was faster in this measurement.
+## Shared float64 operations
 
-| Operation | Baseline µs | Candidate µs | Baseline/candidate |
-| --- | ---: | ---: | ---: |
-| Fresh unit expression parsing | 28.89 | 20.68 | 1.40× |
-| Scalar multiplication | 9.06 | 7.43 | 1.22× |
-| 1-element array multiplication | 13.04 | 10.81 | 1.21× |
-| 1000-element array multiplication | 12.87 | 11.06 | 1.16× |
-| 1000-element dimensionless exponential | 16.91 | 15.47 | 1.09× |
-| Complete 41-sample weighted fit | 2143.97 | 1882.67 | 1.14× |
-| 1,000,000-element array multiplication | 413.88 | 422.69 | 0.98× |
+Inputs are 1000-element float64 arrays. Values are microseconds per call.
+NumPy is a manual numerical reference without dimension checking.
 
-The largest repeatable changes are in unit expression construction and small
-unit products. Complete-fit elapsed time decreased by about 12%. Large-array
-multiplication was about 2% slower in this run; no large-array throughput gain
-is claimed. Small changes on untouched numerical paths, including conversion,
-should not be attributed to this refactor. Individual samples remain available
-for checking variation rather than relying only on this table.
-
-## Shared float64 operations across libraries
-
-This separate run used Pint 0.26.2, Astropy 8.0.2, unyt 3.2.0 and SymPy 1.14.0;
-unitx selected the SymPy factorization backend in this environment. It is not
-the built-in-backend environment of the before/after table. All libraries used
-validated public constructors, prepared units and a common 1000-element float64
-input. Actual backing-array sharing was verified for all five constructors.
-NumPy is a manual numerical reference without units. Values are median µs/call.
-
-| Operation | NumPy | unitx candidate | Pint | Astropy | unyt |
+| Operation | NumPy | unitx | Pint | Astropy | unyt |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| construct | 0.03 | 0.72 | 1.13 | 0.50 | 0.29 |
-| convert | 0.45 | 6.25 | 4.08 | 1.86 | 2.01 |
-| add_same | 0.30 | 6.27 | 3.11 | 1.93 | 1.95 |
-| add_scaled | 0.78 | 9.56 | 7.65 | 3.01 | 3.18 |
-| multiply | 0.29 | 11.28 | 3.09 | 3.74 | 1.98 |
-| exp_ratio | 1.98 | 15.62 | 12.41 | 5.40 | 4.73 |
-| mean | 0.91 | 4.51 | 13.19 | 2.50 | 8.00 |
+| construct | 0.026 | 0.522 | 1.129 | 0.483 | 0.288 |
+| convert | 0.427 | 5.893 | 4.122 | 1.834 | 2.011 |
+| add_same | 0.272 | 4.149 | 3.080 | 1.891 | 1.957 |
+| add_scaled | 0.730 | 4.750 | 7.585 | 2.983 | 3.190 |
+| multiply | 0.273 | 8.332 | 3.089 | 3.712 | 2.011 |
+| exp_ratio | 1.940 | 10.925 | 12.301 | 5.265 | 4.547 |
+| mean | 0.903 | 4.213 | 13.533 | 2.459 | 7.977 |
+| mean_method | 0.722 | 4.504 | 2.441 | 2.107 | 7.461 |
 
-unitx remains substantially slower on several small-array operations, especially
-multiplication and dimensionless expressions. Its mean reduction compares more
-favorably with Pint and unyt in this example. These results do not establish a
-general winner. Exact factors, Fraction/Decimal behavior, affine/log coordinates,
-implicit-conversion rejection and output failure guarantees are outside this
-shared subset. Cross-library tests of those capabilities must establish matching
-semantics first. Full scalar, 1-element and million-element samples are in the JSON.
+`convert` changes m to cm; `add_scaled` adds equivalent values stored in m and
+cm; `exp_ratio` evaluates `exp(q / scale)` with compatible dimensional inputs.
+`mean` calls `np.mean(q)`; `mean_method` calls `q.mean()` with the same inputs.
+Construction shares the existing input array and does not copy its elements.
 
-## What changed and what remains expensive
+The main gaps are conversion, multiplication and dimensionless expressions.
+Unitx multiplication takes about 2.2 times Astropy's time and 4.1 times unyt's
+in this case. Conversion takes about 3.2 times Astropy's time. Scaled addition
+and the exponential ratio are faster than Pint here; mean is faster than Pint
+and unyt. These are operation-specific comparisons, not an overall ranking.
+Scalar, 1-element and million-element samples are also in the raw record.
 
-Unit conversion metadata previously built Factor and Dimension powers and
-products at every term. Each step froze another Monomial. They now each
-accumulate rational exponents in one private mutable monomial and freeze once.
-The resulting factor is validated once for conflicting symbolic bases. Frozen
-snapshots have independent storage, so later accumulation cannot change a
-hashed value. Unit keeps its formal product and extra scale; it does not
-inspect the internals of Factor or Dimension or select exponent-specific paths.
+The shared subset does not establish matching Fraction/Decimal exactness,
+formal unit identity, affine/log coordinates, implicit-conversion rejection or
+fixed-output failure guarantees across libraries. The remaining differences
+cannot all be attributed to either semantics or implementation without further
+isolated measurements.
 
-The NumPy adapter also uses one immutable dimensionless Unit for its unitless
-operands, results and tolerances instead of constructing it repeatedly. There
-is no growing operation cache, changed unit identity or weakened write staging.
+## Exact scalar operations and a complete fit
 
-The warmed-fit profiles still show NumPy dispatch, exact unit construction,
-monomial combination and numerical differentiation repeatedly entered by the
-residual callback. The next investigation should isolate dispatch overhead and
-unit algebra from the numerical kernel, and measure allocations before adding
-another optimization. The present study does not justify changing exact
-arithmetic or fixed-output failure semantics.
+| Scalar operation | µs/call |
+| --- | ---: |
+| `parse_expression` | 18.715 |
+| `convert_fraction` | 4.431 |
+| `convert_decimal` | 4.608 |
+| `equal_cross_unit` | 2.693 |
+| `order_cross_unit` | 2.703 |
+| `factor_construct` | 8.019 |
+| `factor_rational_power` | 1.522 |
+| `factor_cancel` | 1.958 |
+| `dimension_physical` | 0.723 |
+| `dimension_repr` | 1.075 |
+| `dimension_dict` | 0.615 |
 
-## Reproduce and inspect
+These scalar operations retain exact rational/symbolic unit algebra. Fractions
+and Decimal use their documented magnitude domains; Decimal precision is 28
+for these measurements.
 
-Use the [benchmark instructions](README.md#shared-float64-comparisons) for the
-comparison script and the [profile commands](README.md#sampling-and-call-profiles)
-for warmed scalar, array and fitting workloads. The speedscope export retains
-small frames (`filter_threshold=0`), otherwise repeated short residual calls
-can disappear from the timeline. Sampling and deterministic profilers perturb
-Python execution; use them to locate call chains, then verify any speed claim
-with profiling disabled. Raw profiles contain machine paths and can be large,
-so they are generated outside the repository.
-The profiler reported high timer overhead on this machine; these profiles are
-qualitative call-chain diagnostics rather than precise CPU-time attribution.
+The complete 41-sample weighted exponential-decay fit takes **1.311 ms**.
+It includes the physical model, normalized residual callback, SciPy optimization
+and local covariance calculation, excluding imports and input preparation. See
+[the fitting recipe](../examples/nonlinear_fit.py).
 
-Cold-start latency, broader allocation/RSS behavior, other machines and complete
-cross-library scientific workflows remain future measurements. No timing gate
-has been added to CI.
+## Array writes and allocations
+
+The following measurements use 1,000,000-element arrays, seven repeats of ten
+calls. Traced allocation peaks are measured separately and are not process RSS.
+
+| Operation | ms/call | Peak traced bytes |
+| --- | ---: | ---: |
+| `add_out` | 1.220 | 8001331 |
+| `converted_out` | 1.846 | 16001819 |
+| `add_inplace` | 0.798 | 8000930 |
+| `scalar_assignment` | 0.062 | 646 |
+| `overlapping_assignment` | 0.551 | 8000448 |
+
+Output writes stage results before modifying the destination. This explains
+some temporary storage, especially when conversion requires another array.
+Allocation reduction must preserve unit/dtype validation, overlapping-storage
+behavior and the documented failure invariance.
+
+## Current implementation and optimization priorities
+
+Unit composes powered Factor and Dimension products; each model owns its
+empty/single-term products and exponent-one identities. Factor normalizes
+arithmetic inputs before applying its product/quotient rules. Dimension projects
+physical axes directly from its sparse monomial, and display/dictionary views
+iterate in canonical order without constructing seven-element tuples. The
+fixed-layout tuple remains at serialization and SI base-unit boundaries. NumPy scaling consumes the evaluated
+factor without an additional decomposition. Fixed ufunc groups and the
+empty-keyword path reduce dispatch allocations.
+
+Direct array methods use ordinary Python signatures and explicitly forward
+arguments to a small shared lazy helper. There is no runtime Signature.bind,
+manual parameter binder or generated wrapper. Forwarding adds some repetitive
+source lines but leaves binding errors/defaults to Python and unit semantics to
+the existing handlers. Arithmetic does not propagate numerical caches between
+Factor operands. No public API or growing operation/type cache was added.
+
+Further work should focus on:
+
+1. **Unit metadata in products and ratios.** Nontrivial formal products still
+   construct and validate exact monomials, factors and dimensions. Measure
+   those allocations separately from the numerical multiplication.
+2. **Conversion.** Separate ratio construction, exact-factor evaluation and
+   scalar/array scaling to identify the remaining fixed overhead.
+3. **NumPy dispatch.** Short arrays repeatedly traverse protocol dispatch,
+   operand validation and unit alignment. Other operands' overrides and staged
+   output validation remain required behavior.
+
+Warmed profiles locate these call chains; their elapsed times do not substitute
+for uninstrumented timings. Keep raw profiler databases outside the repository.
+Do not infer numerical-kernel speed from small-array dispatch costs or give up
+exactness and failure guarantees solely to match another library's timing.

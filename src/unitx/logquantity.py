@@ -10,7 +10,7 @@ from typing import Any, Generic, Literal, Never, SupportsIndex, TypeVar, cast, o
 
 from ._coordinates.points import _add_sub, _compare, _isclose
 from ._numerics import Array, Magnitude, Scalar, is_numpy_object
-from ._numerics.methods import numpy_method
+from ._numerics.methods import call_numpy_method
 from ._numerics.numpy_typing import (
     _UNSET,
     NumpyArray,
@@ -503,10 +503,9 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     ) -> LogQuantity[S]: ...
     @overload
     def squeeze(self: LogQuantity[Array], axis: _Axis = None) -> LogQuantity[NumpyValue]: ...
-    @numpy_method
     def squeeze(self: LogQuantity[Array], axis: _Axis = None) -> LogQuantity[NumpyValue]:
         """Remove length-one axes, retaining the complete unit and NumPy storage rules."""
-        ...
+        return call_numpy_method(self, 'squeeze', axis=axis)
 
     @overload
     def reshape[S: _NumpyScalar](
@@ -551,13 +550,12 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         self: LogQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> LogQuantity[NumpyArray]: ...
-    @numpy_method
     def ravel(
         self: LogQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> LogQuantity[Array]:
         """Return a one-dimensional array, sharing storage when NumPy permits."""
-        ...
+        return call_numpy_method(self, 'ravel', order=order)
 
     @overload
     def copy[S: _NumpyScalar](
@@ -569,13 +567,12 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         self: LogQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> LogQuantity[NumpyArray]: ...
-    @numpy_method
     def copy(
         self: LogQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> LogQuantity[Array]:
         """Copy into independent ndarray storage; the default order is `C`."""
-        ...
+        return call_numpy_method(self, 'copy', order=order)
 
     @overload
     def mean(
@@ -607,7 +604,6 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         keepdims: bool = False,
         where: object = True,
     ) -> LogQuantity[O]: ...
-    @numpy_method
     def mean(
         self: LogQuantity[Array],
         axis: _Axis = None,
@@ -618,7 +614,15 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         where: object = True,
     ) -> LogQuantity[Array]:
         """Average stored readings, using the existing NumPy unit and output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'mean',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+        )
 
     @overload
     def std(
@@ -659,7 +663,6 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         mean: object = ...,
         correction: object = ...,
     ) -> Quantity[O]: ...
-    @numpy_method
     def std(
         self: LogQuantity[Array],
         axis: _Axis = None,
@@ -673,7 +676,18 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[Array]:
         """Return a difference standard deviation using NumPy unit/output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'std',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            ddof=ddof,
+            keepdims=keepdims,
+            where=where,
+            mean=mean,
+            correction=correction,
+        )
 
     @overload
     def var(
@@ -714,7 +728,6 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         mean: object = ...,
         correction: object = ...,
     ) -> Quantity[O]: ...
-    @numpy_method
     def var(
         self: LogQuantity[Array],
         axis: _Axis = None,
@@ -728,7 +741,18 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[Array]:
         """Return a variance in squared difference units using NumPy unit/output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'var',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            ddof=ddof,
+            keepdims=keepdims,
+            where=where,
+            mean=mean,
+            correction=correction,
+        )
 
     @overload
     def min(
@@ -758,7 +782,6 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         initial: object = ...,
         where: object = True,
     ) -> LogQuantity[O]: ...
-    @numpy_method
     def min(
         self: LogQuantity[Array],
         axis: _Axis = None,
@@ -768,7 +791,15 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         where: object = True,
     ) -> LogQuantity[Array]:
         """Return the minimum, retaining the unit or coordinate and fixed out rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'min',
+            axis=axis,
+            out=out,
+            keepdims=keepdims,
+            initial=initial,
+            where=where,
+        )
 
     @overload
     def max(
@@ -798,7 +829,6 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         initial: object = ...,
         where: object = True,
     ) -> LogQuantity[O]: ...
-    @numpy_method
     def max(
         self: LogQuantity[Array],
         axis: _Axis = None,
@@ -808,7 +838,15 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         where: object = True,
     ) -> LogQuantity[Array]:
         """Return the maximum, retaining the unit or coordinate and fixed out rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'max',
+            axis=axis,
+            out=out,
+            keepdims=keepdims,
+            initial=initial,
+            where=where,
+        )
 
     def flatten(self: LogQuantity[Array], order: str = 'C') -> LogQuantity[NumpyArray]:
         return LogQuantity(self._array_value().flatten(order), self.unit)

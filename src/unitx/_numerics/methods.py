@@ -1,31 +1,14 @@
 """Lazy delegation of explicitly declared methods to the NumPy adapters."""
 
-from collections.abc import Callable
-from functools import wraps
-from inspect import signature
-from typing import Any, cast
+from typing import Any
 
 from .numpy_typing import _UNSET
 
 
-def numpy_method[**P, R](method: Callable[P, R]) -> Callable[P, R]:
-    """Use the declaration's signature/defaults and the existing NumPy dispatch.
+def call_numpy_method(quantity: Any, name: str, /, **options: Any) -> Any:
+    """Forward already bound method arguments to the existing NumPy dispatch."""
+    quantity._array_value()
+    from . import numpy
 
-    Keep this private: each public method still declares its own typed contract.
-    NumPy is imported only when a method is called on a NumPy magnitude.
-    """
-    parameters = signature(method)
-
-    @wraps(method)
-    def call(*args: P.args, **kwargs: P.kwargs) -> R:
-        bound = parameters.bind(*args, **kwargs)
-        bound.apply_defaults()
-        quantity: Any = bound.arguments.pop('self')
-        quantity._array_value()
-        from . import numpy
-
-        options = {name: value for name, value in bound.arguments.items() if value is not _UNSET}
-        function = getattr(numpy.np, method.__name__)
-        return cast(R, numpy.dispatch_function(function, (), (quantity,), options))
-
-    return call
+    options = {key: value for key, value in options.items() if value is not _UNSET}
+    return numpy.dispatch_function(getattr(numpy.np, name), (), (quantity,), options)

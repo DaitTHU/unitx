@@ -5,11 +5,21 @@ from fractions import Fraction
 import pytest
 
 import unitx._numerics as numerics_module
-from unitx._numerics import as_fraction, factorint, isprime
+from unitx._numerics import as_exponent, as_fraction, factorint, isprime
 from unitx.exceptions import IncompleteFactorWarning, InexactFloatWarning
 
 _LARGE_PRIME = 1000003  # a prime number larger than the default limit of 1,000,000
 _MERSENNE_PRIME = 2**61 - 1  # a known large prime number
+
+
+def test_as_exponent_fraction_subclass() -> None:
+    class Rational(Fraction):
+        pass
+
+    value = Rational(1, 10**30)
+    exponent = as_exponent(value)
+    assert type(exponent) is Fraction
+    assert exponent == Fraction(1, 10**30)
 
 
 def test_as_fraction() -> None:

@@ -47,6 +47,45 @@ _COMPARISON_UFUNCS = {
     operator.ge: np.greater_equal,
 }
 
+_COMPARISON_UFUNC_SET = frozenset(_COMPARISON_UFUNCS.values())
+_MULTIPLICATIVE_UFUNCS = frozenset(
+    (np.multiply, np.divide, np.true_divide, np.matmul, np.vecdot, *_MATRIX_VECTOR_UFUNCS)
+)
+_PRESERVE_UNIT_UFUNCS = frozenset(
+    (
+        np.positive,
+        np.negative,
+        np.absolute,
+        np.fabs,
+        np.conjugate,
+        np.floor,
+        np.ceil,
+        np.trunc,
+        np.rint,
+    )
+)
+_DIMENSIONLESS_UFUNCS = frozenset(
+    (
+        np.sin,
+        np.cos,
+        np.tan,
+        np.sinh,
+        np.cosh,
+        np.tanh,
+        np.arcsinh,
+        np.arccosh,
+        np.arctanh,
+        np.exp,
+        np.expm1,
+        np.exp2,
+        np.log,
+        np.log2,
+        np.log10,
+        np.log1p,
+    )
+)
+_UFUNC_OPTIONS = frozenset(('where', 'dtype', 'casting', 'order', 'subok'))
+
 
 def _wrap(value: Any, unit: Unit | _Coordinate) -> Any:
     return unit.__rmatmul__(value) if isinstance(unit, _Coordinate) else Quantity(value, unit)
@@ -88,12 +127,9 @@ def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
     value = _numeric_value(value)
     if factor == one:
         return value
-    rational, irrational = factor.decompose()
-    multiplier = (
-        (rational.numerator if rational.denominator == 1 else float(rational))
-        if irrational == one
-        else float(factor.value)
-    )
+    multiplier = factor.value
+    if isinstance(multiplier, Fraction):
+        multiplier = float(multiplier)
     # Do not pass a Fraction to NumPy (it would create object dtype).
     return np.multiply(value, multiplier, where=where, out=None)
 
@@ -117,13 +153,10 @@ def _linear_parts(value: Any) -> tuple[Any, Unit]:
 def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
     a, u = _linear_parts(left)
     b, v = _linear_parts(right)
-    if isinstance(u, _Coordinate) or isinstance(v, _Coordinate):
-        error_message = 'Use point/difference arithmetic for affine coordinates.'
-        raise UnitOperationError(error_message)
     if not compatible(u, v):
         raise DimensionError('Cannot operate on incompatible dimensions or logarithmic degrees.')
     # Addition retains the first Quantity's unit, even with a bare left input.
-    target = u if isinstance(left, (Quantity, _Point)) else v
+    target = u if isinstance(left, Quantity) else v
     return (
         scale_magnitude(a, u.factor / target.factor),
         scale_magnitude(b, v.factor / target.factor),
@@ -230,7 +263,7 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         ):
             return NotImplemented
         target = outputs[0]
-        if ufunc in _COMPARISON_UFUNCS.values() or ufunc in (
+        if ufunc in _COMPARISON_UFUNC_SET or ufunc in (
             np.isfinite,
             np.isnan,
             np.isinf,
@@ -395,9 +428,11 @@ def _dispatch_ufunc(
 ) -> Any:
     if not all(isinstance(x, (Unit, _Coordinate)) or _is_supported_operand(x) for x in inputs):
         return NotImplemented
-    if any(x is not None for x in kwargs.get('out', ())):
-        return NotImplemented
-    kwargs = {k: v for k, v in kwargs.items() if k != 'out'}
+    if kwargs:
+        if any(x is not None for x in kwargs.get('out', ())):
+            return NotImplemented
+        if 'out' in kwargs:
+            kwargs = {k: v for k, v in kwargs.items() if k != 'out'}
     if ufunc is np.matmul and method == '__call__' and isinstance(inputs[1], (Unit, _Coordinate)):
         if isinstance(inputs[0], (Quantity, _Point, Unit, _Coordinate)):
             raise TypeError('Only a bare numeric magnitude can construct a point with @.')
@@ -413,18 +448,17 @@ def _dispatch_ufunc(
         return _affine_ufunc(ufunc, method, inputs, kwargs)
     if method != '__call__':
         return NotImplemented
-    allowed = {'where', 'dtype', 'casting', 'order', 'subok'}
-    if ufunc is np.vecdot:
-        allowed |= {'axis', 'axes'}
-    if kwargs.keys() - allowed:
-        return NotImplemented
-    _validate_where(kwargs)
+    if kwargs:
+        allowed = _UFUNC_OPTIONS | {'axis', 'axes'} if ufunc is np.vecdot else _UFUNC_OPTIONS
+        if kwargs.keys() - allowed:
+            return NotImplemented
+        _validate_where(kwargs)
     # Explicit dtype=object/str/etc must not escape the supported numerical domain.
     if 'dtype' in kwargs and np.dtype(kwargs['dtype']).kind not in 'biufc':
         return NotImplemented
     if 'where' in kwargs:
         # A masked temporary intentionally has unspecified unused elements.
-        kwargs['out'] = (None,) * ufunc.nout
+        kwargs = {**kwargs, 'out': (None,) * ufunc.nout}
     if ufunc in (np.add, np.subtract):
         if any(isinstance(x, Unit) for x in inputs):
             return NotImplemented
@@ -457,7 +491,7 @@ def _dispatch_ufunc(
         if unit.dimension != unit.dimension.physical:
             raise DimensionError('Convert logarithmic quantities to physical ratios first.')
         return _wrap(ufunc(a, b, **kwargs), Unit('rad') if ufunc is np.arctan2 else unit)
-    if ufunc in _COMPARISON_UFUNCS.values():
+    if ufunc in _COMPARISON_UFUNC_SET:
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
         if not compatible(u, v):
@@ -472,14 +506,7 @@ def _dispatch_ufunc(
         if ratio == one:
             return ufunc(a, b, **kwargs)
         return ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs)
-    if ufunc in (
-        np.multiply,
-        np.divide,
-        np.true_divide,
-        np.matmul,
-        np.vecdot,
-        *_MATRIX_VECTOR_UFUNCS,
-    ):
+    if ufunc in _MULTIPLICATIVE_UFUNCS:
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
         assert isinstance(u, Unit) and isinstance(v, Unit)
@@ -499,17 +526,7 @@ def _dispatch_ufunc(
         # Decompose the stored coordinates. Both modf parts, and the frexp
         # mantissa, carry the input unit; the binary exponent is a bare integer.
         return _wrap(first, unit), _wrap(second, unit) if ufunc is np.modf else second
-    if ufunc in (
-        np.positive,
-        np.negative,
-        np.absolute,
-        np.fabs,
-        np.conjugate,
-        np.floor,
-        np.ceil,
-        np.trunc,
-        np.rint,
-    ):
+    if ufunc in _PRESERVE_UNIT_UFUNCS:
         return _wrap(ufunc(a, **kwargs), unit)
     if ufunc is np.ldexp:
         exponent, exponent_unit = _linear_parts(inputs[1])
@@ -577,24 +594,7 @@ def _dispatch_ufunc(
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
-    if ufunc in (
-        np.sin,
-        np.cos,
-        np.tan,
-        np.sinh,
-        np.cosh,
-        np.tanh,
-        np.arcsinh,
-        np.arccosh,
-        np.arctanh,
-        np.exp,
-        np.expm1,
-        np.exp2,
-        np.log,
-        np.log2,
-        np.log10,
-        np.log1p,
-    ):
+    if ufunc in _DIMENSIONLESS_UFUNCS:
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
         return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), _UNITLESS)

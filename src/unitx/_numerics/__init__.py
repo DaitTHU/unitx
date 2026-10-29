@@ -102,7 +102,11 @@ Fractionable: TypeAlias = Real | Decimal
 
 def is_numpy_object(value: object) -> bool:
     """Recognize NumPy objects and subclasses without importing NumPy."""
-    return any(base.__module__.split('.')[0] == 'numpy' for base in type(value).__mro__)
+    for base in type(value).__mro__:
+        module = base.__module__
+        if module == 'numpy' or module.startswith('numpy.'):
+            return True
+    return False
 
 
 def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000) -> Fraction:
@@ -162,8 +166,11 @@ def as_int_if_integral(value: Fraction, /) -> int | Fraction:
 
 def as_exponent(value: Fractionable, /) -> Fraction:
     """Normalize formal exponents; floats use their shortest decimal text."""
+    if type(value) is Fraction:
+        return value
     if not isinstance(value, Fractionable) or isinstance(value, bool):
-        raise TypeError(f'Cannot convert {type(value).__name__} to Fraction.')
+        error_message = f'Cannot convert {type(value).__name__} to Fraction.'
+        raise TypeError(error_message)
     # Nonfinite floats still use Fraction's standard ValueError/OverflowError.
     return Fraction(
         str(float(value)) if isinstance(value, float) and math.isfinite(value) else value

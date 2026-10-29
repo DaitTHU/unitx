@@ -10,7 +10,7 @@ from typing import Any, Generic, Literal, Never, SupportsIndex, TypeVar, cast, o
 
 from ._coordinates.points import _add_sub, _compare, _isclose
 from ._numerics import Array, Magnitude, Scalar, is_numpy_object
-from ._numerics.methods import numpy_method
+from ._numerics.methods import call_numpy_method
 from ._numerics.numpy_typing import (
     _UNSET,
     NumpyArray,
@@ -525,10 +525,9 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     ) -> AffineQuantity[S]: ...
     @overload
     def squeeze(self: AffineQuantity[Array], axis: _Axis = None) -> AffineQuantity[NumpyValue]: ...
-    @numpy_method
     def squeeze(self: AffineQuantity[Array], axis: _Axis = None) -> AffineQuantity[NumpyValue]:
         """Remove length-one axes, retaining the complete unit and NumPy storage rules."""
-        ...
+        return call_numpy_method(self, 'squeeze', axis=axis)
 
     @overload
     def reshape[S: _NumpyScalar](
@@ -573,13 +572,12 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         self: AffineQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> AffineQuantity[NumpyArray]: ...
-    @numpy_method
     def ravel(
         self: AffineQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> AffineQuantity[Array]:
         """Return a one-dimensional array, sharing storage when NumPy permits."""
-        ...
+        return call_numpy_method(self, 'ravel', order=order)
 
     @overload
     def copy[S: _NumpyScalar](
@@ -591,13 +589,12 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         self: AffineQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> AffineQuantity[NumpyArray]: ...
-    @numpy_method
     def copy(
         self: AffineQuantity[Array],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> AffineQuantity[Array]:
         """Copy into independent ndarray storage; the default order is `C`."""
-        ...
+        return call_numpy_method(self, 'copy', order=order)
 
     @overload
     def mean(
@@ -629,7 +626,6 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         keepdims: bool = False,
         where: object = True,
     ) -> AffineQuantity[O]: ...
-    @numpy_method
     def mean(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -640,7 +636,15 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         where: object = True,
     ) -> AffineQuantity[Array]:
         """Average stored readings, using the existing NumPy unit and output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'mean',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            keepdims=keepdims,
+            where=where,
+        )
 
     @overload
     def std(
@@ -681,7 +685,6 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         mean: object = ...,
         correction: object = ...,
     ) -> Quantity[O]: ...
-    @numpy_method
     def std(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -695,7 +698,18 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[Array]:
         """Return a difference standard deviation using NumPy unit/output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'std',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            ddof=ddof,
+            keepdims=keepdims,
+            where=where,
+            mean=mean,
+            correction=correction,
+        )
 
     @overload
     def var(
@@ -736,7 +750,6 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         mean: object = ...,
         correction: object = ...,
     ) -> Quantity[O]: ...
-    @numpy_method
     def var(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -750,7 +763,18 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         correction: object = _UNSET,
     ) -> Quantity[Array]:
         """Return a variance in squared difference units using NumPy unit/output rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'var',
+            axis=axis,
+            dtype=dtype,
+            out=out,
+            ddof=ddof,
+            keepdims=keepdims,
+            where=where,
+            mean=mean,
+            correction=correction,
+        )
 
     @overload
     def min(
@@ -780,7 +804,6 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         initial: object = ...,
         where: object = True,
     ) -> AffineQuantity[O]: ...
-    @numpy_method
     def min(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -790,7 +813,15 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         where: object = True,
     ) -> AffineQuantity[Array]:
         """Return the minimum, retaining the unit or coordinate and fixed out rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'min',
+            axis=axis,
+            out=out,
+            keepdims=keepdims,
+            initial=initial,
+            where=where,
+        )
 
     @overload
     def max(
@@ -820,7 +851,6 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         initial: object = ...,
         where: object = True,
     ) -> AffineQuantity[O]: ...
-    @numpy_method
     def max(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -830,7 +860,15 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         where: object = True,
     ) -> AffineQuantity[Array]:
         """Return the maximum, retaining the unit or coordinate and fixed out rules."""
-        ...
+        return call_numpy_method(
+            self,
+            'max',
+            axis=axis,
+            out=out,
+            keepdims=keepdims,
+            initial=initial,
+            where=where,
+        )
 
     def flatten(self: AffineQuantity[Array], order: str = 'C') -> AffineQuantity[NumpyArray]:
         return AffineQuantity(self._array_value().flatten(order), self.unit)
