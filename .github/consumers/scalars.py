@@ -212,3 +212,10 @@ def public_quantity[T: Magnitude](value: T) -> Quantity[T]:
 assert_type(public_quantity(1), Quantity[int])
 assert Scalar.__name__ == 'Scalar' and Array.__name__ == 'Array'
 assert 'numpy' not in sys.modules
+
+# Half-turn functions and scientific float conversion inference work without NumPy.
+
+assert math.sinpi(1).value == 0.0
+assert math.cospi(0.5).value == 0.0
+assert_type(Quantity(1.25, si.m).to(si.cm), Quantity[float])
+assert_type(Quantity(1.25, si.m).value_in(si.cm), float)

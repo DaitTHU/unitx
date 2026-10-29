@@ -159,8 +159,8 @@ def test_quantity_value_in(quantity: Quantity[Scalar]) -> None:
     assert_type(Quantity(1, 'm').value_in('cm'), Real)
     assert_type(Quantity(Fraction(1), 'm').value_in('cm'), Fraction | float)
     assert_type(Quantity(Decimal(1), 'm').value_in('cm'), Decimal)
-    assert_type(Quantity(1.0, 'm').value_in('cm'), Real)
-    assert_type(Quantity[float](1, 'cm').value_in('m'), Real)
+    assert_type(Quantity(1.0, 'm').value_in('cm'), float)
+    assert_type(Quantity[float](1, 'cm').value_in('m'), float)
     assert_type(Quantity(1, 'm').value_in(Unit('cm', scale=Factor(2))), Real)
     assert_type(Quantity(1j, 'cm').value_in('m'), Number)
     assert_type(quantity.value_in('m'), Scalar)
@@ -170,9 +170,9 @@ def test_quantity_conversion() -> None:
     assert_type(Quantity(1, 'm').to('cm'), Quantity[Real])
     assert_type(Quantity(Fraction(1), 'm').to('cm'), Quantity[Fraction | float])
     assert_type(Quantity(Decimal(1), 'm').to('cm'), Quantity[Decimal])
-    assert_type(Quantity(1.0, 'm').to('cm'), Quantity[Real])
+    assert_type(Quantity(1.0, 'm').to('cm'), Quantity[float])
     # A float annotation accepts int values too; scaling can then yield Fraction.
-    assert_type(Quantity[float](1, 'cm').to('m'), Quantity[Real])
+    assert_type(Quantity[float](1, 'cm').to('m'), Quantity[float])
 
 
 def test_quantity_unit_operations[T: Scalar](value: T) -> Quantity[T]:

@@ -2,6 +2,8 @@
   "include": [
     "src/unitx/_representation.py",
     "src/unitx/typing.py",
+    "src/unitx/numpy.py",
+    "src/unitx/numpy.pyi",
     "examples/impedance.py",
     "examples/nonlinear_fit.py",
     "src/unitx/_formatting",

@@ -12,6 +12,7 @@ collect_ignore_glob = []
 if find_spec('numpy') is None:
     # All optional NumPy backend modules share this filename prefix.
     collect_ignore_glob.append('src/unitx/_numerics/numpy*.py')
+    collect_ignore.append('src/unitx/numpy.py')
 if find_spec('matplotlib') is None:
     collect_ignore.append('src/unitx/matplotlib.py')
 

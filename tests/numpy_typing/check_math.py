@@ -11,7 +11,9 @@ def check_math(values: NDArray[np.float64]) -> None:
     q = Quantity(values, 'm2')
     assert_type(math.sqrt(q), Quantity[NDArray[np.float64] | np.float64])
     assert_type(math.sin(values), Quantity[NDArray[np.float64] | np.float64])
-    assert_type(math.asin(Quantity(np.float64(0.5), '')), Quantity[Array])
+    assert_type(
+        math.asin(Quantity(np.float64(0.5), '')), Quantity[NDArray[np.float64] | np.float64]
+    )
     assert_type(math.hypot(q, q), Quantity[NDArray[np.float64] | np.float64])
     assert_type(math.atan2(q, q), Quantity[Array])
     assert_type(math.atan2(Quantity(1, 'm2'), q), Quantity[Array])

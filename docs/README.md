@@ -28,6 +28,7 @@ reading about an older version.
 | Choose tolerances, readings, spectral transforms or sampling scales | [Scientific boundaries](scientific-boundaries.md) |
 | Save numeric arrays with complete coordinate metadata | [Array storage](array-storage.md) |
 | Save and restore scalar quantities as JSON-compatible records | [Scalar data exchange](serialization.md) |
+| Use finite typed NumPy integration, gradient and allocation entries | [Typed NumPy entries](typing.md#finite-typed-numpy-entries) |
 | Understand annotations and NumPy inference limits | [Typing](typing.md) |
 | Check public API, compatibility and data update promises | [Compatibility policy](compatibility.md) |
 | Update code written for an earlier release | [Migration notes](migration.md) |
