@@ -15,6 +15,7 @@ nav:
   - Catalogues:
       - Overview: catalogues/README.md
       - SI: catalogues/si.md
+      - Information: catalogues/information.md
       - Imperial: catalogues/imperial.md
       - CGS electromagnetism: catalogues/cgs.md
   - Custom units and registries: custom-units.md

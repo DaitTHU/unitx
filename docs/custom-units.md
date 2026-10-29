@@ -287,11 +287,42 @@ block. `Registry(prefixable=False)` disables prefixes for definitions constructe
 inside its `defining()` block or through its `define()` method. Catalogue collection
 preserves the policy already stored in each definition. Included SI units retain
 their original permissions. An explicit per-definition
-policy overrides the default. `prefixable` accepts True for all spellings,
-False for none, one spelling string, or a tuple of exact symbols, names and aliases.
-A string is equivalent to a singleton tuple. An empty tuple disables prefixes.
-Unknown spellings and non-string entries are errors. This policy belongs to the
-immutable definition, whether or not it has been bound to a parser.
+policy overrides the default. `prefixable` has the following forms:
+
+| Value | Permission |
+| --- | --- |
+| `True` (default) | Decimal SI prefixes on every spelling |
+| `False` | No prefixes |
+| `PrefixFamily.DECIMAL`, `.BINARY`, `.ALL` | The selected prefix family on every spelling |
+| A spelling string or tuple of spellings | Decimal prefixes on only those spellings |
+| A mapping from spellings to `True` or a `PrefixFamily` | The selected family on each listed spelling; others accept no prefixes |
+
+Import `PrefixFamily` and the annotation alias `PrefixPolicy` from
+`unitx.unitdefinition`. Enum members cannot be confused with spelling strings.
+An empty tuple or mapping disables prefixes. Mapping values are `True` (decimal)
+or a `PrefixFamily`, not strings or `False`. Omit a spelling to disable its
+prefixes. Unknown spellings and invalid rules are errors. Definitions copy the
+mapping into a read-only view; later changes to the input cannot change parsing.
+This policy belongs to the immutable definition, whether or not it has been bound
+to a parser. `Registry(prefixable=PrefixFamily.BINARY)` can supply a family default
+for new definitions; included definitions keep their original policies.
+
+```pycon
+>>> from unitx.unitdefinition import PrefixFamily
+>>> data = Registry()
+>>> octet = data.define(8 * si.one, 'octet', prefixable=PrefixFamily.ALL)
+>>> (1 * data.parse('Kioctet')).value_in(octet)
+1024
+>>> (1 * data.parse('koctet')).value_in(octet)
+1000
+
+```
+
+Binary prefixes are Ki, Mi, Gi, Ti, Pi, Ei, Zi, Yi, Ri and Qi, with factors
+`2**10` through `2**100`. Ordinary SI units retain decimal-only permissions:
+`Kim` is invalid. Prefixes never stack. The separate
+[information catalogue](catalogues/information.md) enables both families for bit
+and byte, without changing the default meanings of B (bel) or b (barn).
 
 ```pycon
 >>> ticks = Registry([si.s])

@@ -1,6 +1,6 @@
 """An intuitive Python library for physical units and quantities."""
 
-from . import cgs, imperial, math, si, statistics, time
+from . import cgs, imperial, information, math, si, statistics, time
 from .affinequantity import AffineQuantity
 from .affineunit import AffineUnit
 from .dimension import DIMENSIONLESS, Dimension
@@ -23,6 +23,7 @@ __all__ = [
     'Registry',
     'cgs',
     'imperial',
+    'information',
     'Unit',
     'UnitCatalog',
     'one',

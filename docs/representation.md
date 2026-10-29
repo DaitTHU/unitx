@@ -80,7 +80,7 @@ selection implementation is internal rather than another public conversion API.
 
 ## Readable prefixes
 
-`q.compact()` chooses an SI prefix for a real quantity with one prefixable
+`q.compact()` chooses a permitted prefix for a real quantity with one prefixable
 unit factor. Powers, including negative and rational powers, are supported:
 the prefix factor is raised to that power too.
 
@@ -106,6 +106,10 @@ absolute-value overflow; NaN/Inf elements do not choose the prefix. The whole
 array retains one unit. Zeros, empty/nonfinite-only inputs, nonprefixable units,
 and expressions with multiple different factors keep their existing units.
 Complex magnitudes and unsupported custom scalar domains raise TypeError.
+
+Binary candidates use `[1, 1024)` instead of `[1, 1000)`. An unprefixed root
+uses `[1, 1024)` when its policy permits only binary prefixes. When both families
+are permitted, both compete under the same distance and peak-size rules.
 
 The unit's prefix permissions remain authoritative, including spellings where
 only a name or alias is prefixable. Gram is the prefix root for mass, so this

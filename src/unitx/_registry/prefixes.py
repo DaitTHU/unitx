@@ -1,20 +1,22 @@
-"""Immutable SI prefix specifications, independent of unit definitions and registries."""
+"""Immutable decimal and binary prefixes, independent of unit registries."""
 
 from itertools import chain
+from typing import Literal
 
 from .._immutable import _Immutable
-from ..factor import Factor, one, ten
+from ..factor import Factor, one, ten, two
 
 
 class PrefixDefinition(_Immutable):
     """Immutable canonical symbol, exact scale, and accepted prefix names."""
 
-    __slots__ = ('symbol', 'symbol_aliases', 'names', 'factor')
+    __slots__ = ('symbol', 'symbol_aliases', 'names', 'factor', 'family')
 
     symbol: str
     symbol_aliases: tuple[str, ...]
     names: tuple[str, ...]
     factor: Factor
+    family: Literal['decimal', 'binary']
 
     def __init__(
         self,
@@ -23,6 +25,7 @@ class PrefixDefinition(_Immutable):
         *name_aliases: str,
         factor: Factor,
         symbol_aliases: str | tuple[str, ...] = (),
+        family: Literal['decimal', 'binary'] = 'decimal',
     ) -> None:
         if isinstance(symbol_aliases, str):
             symbol_aliases = (symbol_aliases,)
@@ -30,6 +33,7 @@ class PrefixDefinition(_Immutable):
         object.__setattr__(self, 'symbol_aliases', symbol_aliases)
         object.__setattr__(self, 'names', (name, *name_aliases))
         object.__setattr__(self, 'factor', factor)
+        object.__setattr__(self, 'family', family)
 
     @property
     def name(self) -> str:
@@ -46,7 +50,7 @@ _PREFIXED_NAME_EXPANSIONS = {
 }
 
 
-_PREFIX_ENTRIES: tuple[PrefixDefinition, ...] = (
+DECIMAL_PREFIXES: tuple[PrefixDefinition, ...] = (
     # Decimal multiples.
     PrefixDefinition('Q', 'quetta', factor=ten**30),
     PrefixDefinition('R', 'ronna', factor=ten**27),
@@ -75,22 +79,36 @@ _PREFIX_ENTRIES: tuple[PrefixDefinition, ...] = (
     PrefixDefinition('q', 'quecto', factor=ten**-30),
 )
 
+BINARY_PREFIXES: tuple[PrefixDefinition, ...] = (
+    # IEC 80000-13 binary multiples, also listed in the SI Brochure.
+    PrefixDefinition('Ki', 'kibi', factor=two**10, family='binary'),
+    PrefixDefinition('Mi', 'mebi', factor=two**20, family='binary'),
+    PrefixDefinition('Gi', 'gibi', factor=two**30, family='binary'),
+    PrefixDefinition('Ti', 'tebi', factor=two**40, family='binary'),
+    PrefixDefinition('Pi', 'pebi', factor=two**50, family='binary'),
+    PrefixDefinition('Ei', 'exbi', factor=two**60, family='binary'),
+    PrefixDefinition('Zi', 'zebi', factor=two**70, family='binary'),
+    PrefixDefinition('Yi', 'yobi', factor=two**80, family='binary'),
+    PrefixDefinition('Ri', 'robi', factor=two**90, family='binary'),
+    PrefixDefinition('Qi', 'quebi', factor=two**100, family='binary'),
+)
+
+ALL_PREFIXES = (*DECIMAL_PREFIXES, *BINARY_PREFIXES)
+
 PREFIX_DEFINITIONS: dict[str, PrefixDefinition] = {
-    definition.symbol: definition for definition in _PREFIX_ENTRIES
+    definition.symbol: definition for definition in ALL_PREFIXES
 }
 """Canonical prefix symbol -> prefix definition."""
 
 PREFIX_NAME_TO_SYMBOL: dict[str, str] = {
-    name: definition.symbol for definition in _PREFIX_ENTRIES for name in definition.names if name
+    name: definition.symbol for definition in ALL_PREFIXES for name in definition.names if name
 }
 """Prefix name or name alias -> canonical prefix symbol."""
 
 _PREFIX_NAME_LENGTHS = tuple(sorted({len(name) for name in PREFIX_NAME_TO_SYMBOL}))
 
 PREFIX_SYMBOL_ALIAS_TO_SYMBOL: dict[str, str] = {
-    alias: definition.symbol
-    for definition in _PREFIX_ENTRIES
-    for alias in definition.symbol_aliases
+    alias: definition.symbol for definition in ALL_PREFIXES for alias in definition.symbol_aliases
 }
 """Prefix symbol alias -> canonical prefix symbol."""
 

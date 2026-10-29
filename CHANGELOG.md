@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add the independent `unitx.information.information` catalogue with bit/shannon,
+  eight-bit byte, nat and hartley. Information is dimensionless with natural-log
+  normalization: bit = ln(2) nat and hartley = ln(10) nat. Keep default B/b
+  spellings bound to bel/barn.
+- Add exact IEC binary prefixes Ki through Qi, enabled only by explicit unit
+  permissions. Extend the existing `prefixable` argument with `PrefixFamily`
+  and per-spelling mappings, retaining bool/string/tuple decimal shorthand.
+  Keep permissions immutable and enforce them in parsing, output spelling,
+  compact representation and reconstruction. Select decimal/binary candidate
+  collections separately and keep common decimal permission checks direct.
+  Ordinary metres reject Kim.
+- Add `si.turn`/`si.cycle` as one exact 2*pi-radian definition, `si.ppm` as an
+  exact 1e-6 ratio, and jansky `si.Jy` with decimal prefix shortcuts.
+- Expose symbolic `ln2` from `unitx.factor`, preserving exact cancellation in
+  information-unit conversions without changing the scalar JSON schema.
+
 ## [0.17.8] - 2026-10-29
 
 ### Added

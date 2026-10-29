@@ -304,9 +304,11 @@ class Quantity(Generic[T]):
         """Choose a readable prefix for one unit factor, including rational powers.
 
         Prefer engineering prefixes giving a finite peak in [1, 1000), then
-        other SI prefixes. Arrays share one prefix, selected from the maximum
-        absolute finite value. Zero/nonfinite-only, unprefixable and multi-factor
-        inputs retain their units. Complex and custom scalar magnitudes reject.
+        other SI prefixes. Binary candidates use [1, 1024); the definition's
+        `prefixable` policy restricts all candidates. Arrays share one prefix,
+        selected from the maximum absolute finite value. Zero/nonfinite-only,
+        unprefixable and multi-factor inputs retain their units. Complex and
+        custom scalar magnitudes reject.
 
         >>> Quantity(Fraction(1, 10**9), 'm**3').compact()
         Quantity(Fraction(1, 1), Unit('mm**3'))

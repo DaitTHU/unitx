@@ -86,6 +86,9 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('cal', 'J', Decimal('4.184')),
         ('percent', '', Fraction(1, 100)),
         ('permille', '', Fraction(1, 1000)),
+        ('ppm', '', Fraction(1, 10**6)),
+        ('Jy', 'W/(m2*Hz)', Fraction(1, 10**26)),
+        ('mJy', 'W/(m2*Hz)', Fraction(1, 10**29)),
         ('permyriad', '', Fraction(1, 10000)),
         ('rpm', 'Hz', Fraction(1, 60)),
         ('c', 'm/s', 299792458),
@@ -110,6 +113,11 @@ def test_si_electronvolt() -> None:
 
 
 def test_si_angles() -> None:
+    assert si.turn is si.cycle
+    assert si.turn.factor == 2 * pi
+    assert Unit('turn') == Unit('cycle') == si.turn
+    assert (1 * si.turn).value_in(si.deg) == 360
+    assert (1 * si.cycle / si.s).value_in(si.rad / si.s) == 2 * pi.value
     assert si.deg.factor == pi / 180
     assert si.arcmin.factor == pi / 10800
     assert si.arcsec.factor == pi / 648000
@@ -371,7 +379,10 @@ def test_si_ascii_micro() -> None:
     assert not recorded
 
 
-@pytest.mark.parametrize('attribute', ['mas', 'uas', 'u', 'Da', 'mTorr', 'c', 'gf', 'VA', 'Ah'])
+@pytest.mark.parametrize(
+    'attribute',
+    ['mas', 'uas', 'u', 'Da', 'mTorr', 'c', 'gf', 'VA', 'Ah', 'turn', 'cycle', 'ppm', 'Jy'],
+)
 def test_si_unit_roundtrip(attribute: str) -> None:
     unit = getattr(si, attribute)
     assert Unit(unit.expression()) == unit

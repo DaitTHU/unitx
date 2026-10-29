@@ -7,10 +7,10 @@ Neither lookup imports modules nor creates or registers definitions.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from decimal import Decimal
 from fractions import Fraction
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Literal, NamedTuple
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .._numerics import UnfactoredInteger
@@ -19,7 +19,7 @@ from ..exceptions import UnitRegistryError
 from ..factor import Factor, SymbolicConstant
 
 if TYPE_CHECKING:
-    from ..unitdefinition import UnitDefinition, UnitTerms
+    from ..unitdefinition import PrefixFamily, UnitDefinition, UnitTerms
 
 type DefinitionLocation = tuple[str, str, str]  # module, catalogue, canonical symbol
 type DefinitionId = int | DefinitionLocation
@@ -38,7 +38,9 @@ class _DefinitionState(NamedTuple):
     names: tuple[str, ...]
     factors: tuple[tuple[tuple[str, ...], int, int], ...]
     dimension: Dimension
-    prefixable: bool | tuple[str, ...]
+    prefixable: (
+        bool | PrefixFamily | tuple[str, ...] | tuple[tuple[str, PrefixFamily | Literal[True]], ...]
+    )
     reference: (
         tuple[
             int | float | Fraction | Decimal,
@@ -138,7 +140,9 @@ def _definition_state(definition: UnitDefinition) -> _DefinitionState:
         definition.names,
         factors,
         definition.dimension,
-        definition.prefixable,
+        tuple(sorted(definition.prefixable.items()))
+        if isinstance(definition.prefixable, Mapping)
+        else definition.prefixable,
         (
             reference.value,
             factor_state(reference.unit.scale),

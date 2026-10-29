@@ -5,6 +5,7 @@ from unitx import Quantity, Registry, Unit, UnitCatalog
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
+from unitx.unitdefinition import PrefixFamily, PrefixPolicy
 from unitx.unitparser import UnitParser
 
 assert_type(imperial.ft, Unit)
@@ -54,3 +55,8 @@ assert_type(private.define(si.m, 'length'), Unit)
 assert_type(Registry(prefixable=False), Registry)
 assert_type(si.m.define('length'), Unit)
 assert_type((2 * si.m).define('doubleLength'), Unit)
+assert_type(Registry(prefixable=PrefixFamily.BINARY), Registry)
+policy: PrefixPolicy = {'span': PrefixFamily.ALL, 'survey span': True}
+assert_type(private.define(si.m, 'span', 'survey span', prefixable=policy), Unit)
+assert_type(si.m.define('span', prefixable=PrefixFamily.BINARY), Unit)
+assert_type((2 * si.m).define('span', prefixable={'span': PrefixFamily.ALL}), Unit)

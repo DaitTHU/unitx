@@ -99,9 +99,13 @@ def compact_unit(unit: Unit, value: Magnitude) -> Unit:
     base, exponent = next(iter(components))
     if not any(base._unit.allows_prefix(text) for text in (*base._unit.symbols, *base._unit.names)):
         return unit
+    decimal_allowed = any(
+        base._unit.allows_prefix(text, PREFIX_DEFINITIONS['k'])
+        for text in (*base._unit.symbols, *base._unit.names)
+    )
     best_unit = unit
     best_score: tuple[Fraction | float, bool, Fraction | float, str] | None = None
-    for prefix in (NO_PREFIX, *PREFIX_DEFINITIONS.values()):
+    for prefix in (NO_PREFIX, *base._unit._prefixes()):
         candidate = Unit._from_monomial(
             Monomial({SingleUnit._from_definitions(prefix, base._unit): exponent})
         )
@@ -112,7 +116,8 @@ def compact_unit(unit: Unit, value: Magnitude) -> Unit:
             continue
         if scaled <= 0 or (isinstance(scaled, float) and not math.isfinite(scaled)):
             continue
-        distance = 0 if 1 <= scaled < 1000 else 1 / scaled if scaled < 1 else scaled / 1000
+        limit = 1024 if prefix.family == 'binary' or not decimal_allowed else 1000
+        distance = 0 if 1 <= scaled < limit else 1 / scaled if scaled < 1 else scaled / limit
         score = (distance, prefix.symbol in ('h', 'da', 'd', 'c'), scaled, prefix.symbol)
         if best_score is None or score < best_score:
             best_unit, best_score = candidate, score
