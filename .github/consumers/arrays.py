@@ -691,8 +691,8 @@ check_reduction_methods(np.array([1.0, 2.0, 3.0]), np.array(0.0))
 
 # Explicit typed entries retain units and concrete allocation/derivative arrays.
 
-_typed_samples = Quantity(np.linspace(0.0, 1.0, 5), si.m)
-_typed_coordinates = Quantity(np.linspace(0.0, 2.0, 5), si.s)
+_typed_samples: Quantity[NDArray[np.float64]] = Quantity(np.linspace(0.0, 1.0, 5), si.m)
+_typed_coordinates: Quantity[NDArray[np.float64]] = Quantity(np.linspace(0.0, 2.0, 5), si.s)
 _typed_integral = unp.trapezoid(_typed_samples, _typed_coordinates)
 assert_type(_typed_integral, Quantity[NDArray[np.float64] | np.float64])
 assert_type(unp.zeros_like(_typed_samples), Quantity[NDArray[np.float64]])
