@@ -10,7 +10,7 @@ python benchmarks/scalars.py --repeat 7 --number 1000
 
 The scalar script measures fresh expression parsing, Fraction/Decimal
 conversion, cross-unit equality and ordering, factor construction, rational
-powers and symbolic cancellation. Input quantities and factors are prepared
+powers, symbolic cancellation and sparse Dimension projection/display. Inputs are prepared
 outside the timed operations; each parsing call constructs a new parser.
 The JSON output records median seconds per call, Python/platform, the selected
 factorization backend, Decimal precision and timing parameters. SymPy is used
@@ -37,12 +37,10 @@ python benchmarks/nonlinear_fit.py --repeat 7 --number 10
 ```
 
 It measures the physical model, normalized residual callback, optimization and
-local covariance together, excluding import and data generation. The recorded
-[pre-1.0 baseline](pre1-baseline.json) includes commands, interpreter, platform,
-backend versions and timing parameters. It is one machine's observation, not a
-release threshold or a cross-library comparison. Array writes intentionally
-allocate staging storage; this baseline supplies no reason to trade away their
-failure invariance or introduce a cache/adapter framework.
+local covariance together, excluding import and data generation. The
+[current performance record](performance.json) includes commands, interpreter,
+platform, backend versions and timing parameters. Array writes intentionally
+allocate staging storage to preserve their failure invariance.
 
 ## Shared float64 comparisons
 
@@ -78,7 +76,9 @@ then run the same script and interpreter with each source directory on
 idle machine. Do not run tests, other benchmarks or profilers concurrently.
 Compare samples and physical results before interpreting small timing changes.
 
-See the [recorded performance study](performance.md) for scope, results and limits.
+Keep the [performance report](performance.md) focused on the current source,
+cross-library gaps, scope and limits. Local before/after experiments guide
+implementation decisions; they do not need separate versioned reports.
 
 ## Sampling and call profiles
 

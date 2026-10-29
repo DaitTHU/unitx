@@ -111,6 +111,7 @@ def operations(library: str, size: str) -> tuple[dict[str, Any], bool | None]:
     }
     if size != 'scalar':
         cases['mean'] = (lambda: np.mean(q), np.mean(values), metre)
+        cases['mean_method'] = (lambda: q.mean(), np.mean(values), metre)
     for operation, expected, unit in cases.values():
         result = operation()
         # Each result is converted to the expected unit before comparison.

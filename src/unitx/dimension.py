@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from fractions import Fraction
 from typing import Literal
 
@@ -11,9 +11,7 @@ from .monomial import Monomial, _MutableMonomial
 
 __all__ = ['DIMENSIONLESS', 'Dimension']
 
-_SYMBOLS = ('T', 'L', 'M', 'I', 'Θ', 'N', 'J')
-_ASCII_SYMBOLS = ('T', 'L', 'M', 'I', 'Theta', 'N', 'J')
-_LEN = len(_SYMBOLS)
+_PHYSICAL_AXES = {'T': 'T', 'L': 'L', 'M': 'M', 'I': 'I', 'Theta': 'Θ', 'N': 'N', 'J': 'J'}
 
 
 class Dimension(_Immutable):
@@ -61,7 +59,7 @@ class Dimension(_Immutable):
         N: Fractionable = 0,
         J: Fractionable = 0,
     ) -> Dimension:
-        return cls._from_monomial(Monomial(dict(zip(_ASCII_SYMBOLS, (T, L, M, I, Theta, N, J)))))
+        return cls._from_monomial(Monomial(dict(zip(_PHYSICAL_AXES, (T, L, M, I, Theta, N, J)))))
 
     @classmethod
     def _from_monomial(cls, monomial: Monomial[str], /) -> Dimension:
@@ -73,7 +71,13 @@ class Dimension(_Immutable):
 
     @classmethod
     def _product(cls, terms: Iterable[tuple[Dimension, Fraction]], /) -> Dimension:
-        """Combine powered dimensions without immutable intermediate products."""
+        """Combine `dimension**exponent` terms, batching multi-term products."""
+        terms = tuple(terms)
+        if not terms:
+            return DIMENSIONLESS
+        if len(terms) == 1:
+            dimension, exponent = terms[0]
+            return dimension**exponent
         product = _MutableMonomial[str]()
         for dimension, exponent in terms:
             product.multiply(dimension._monomial, exponent)
@@ -83,9 +87,11 @@ class Dimension(_Immutable):
     def _from_iter(cls, exponents: Iterable[Fraction], /) -> Dimension:
         """Construct the seven-axis physical projection. Internal use only."""
         exponents = tuple(exponents)
-        assert len(exponents) == _LEN, f'Expected {_LEN} exponents, got {len(exponents)}.'
+        assert len(exponents) == len(_PHYSICAL_AXES), (
+            f'Expected {len(_PHYSICAL_AXES)} exponents, got {len(exponents)}.'
+        )
         assert all(type(exp) is Fraction for exp in exponents), 'All exponents must be Fraction.'
-        return cls._from_monomial(Monomial(dict(zip(_ASCII_SYMBOLS, exponents))))
+        return cls._from_monomial(Monomial(dict(zip(_PHYSICAL_AXES, exponents))))
 
     @classmethod
     def _with_log(cls, physical: Dimension, exponent: Fractionable = 1) -> Dimension:
@@ -95,15 +101,22 @@ class Dimension(_Immutable):
     @property
     def physical(self) -> Dimension:
         """Project onto the seven physical axes, ignoring internal algebraic axes."""
-        if self._monomial.exponent_of('_log') == 0:
+        if '_log' not in self._monomial:
             return self
-        return self._from_iter(self.as_tuple())
+        components = {axis: exp for axis, exp in self._monomial.components() if axis != '_log'}
+        return self._from_monomial(Monomial._from_dict(components))
+
+    def _physical_components(self) -> Iterator[tuple[str, Fraction]]:
+        """Yield nonzero physical exponents in the canonical axis order."""
+        return (
+            (axis, exponent)
+            for axis in _PHYSICAL_AXES
+            if (exponent := self._monomial.exponent_of(axis))
+        )
 
     def __repr__(self) -> str:
         arguments = ', '.join(
-            f'{sym}={as_int_if_integral(exp)!r}'
-            for sym, exp in zip(_ASCII_SYMBOLS, self.as_tuple())
-            if exp
+            f'{sym}={as_int_if_integral(exp)!r}' for sym, exp in self._physical_components()
         )
         physical = f'{type(self).__name__}({arguments})'
         exponent = self._monomial.exponent_of('_log')
@@ -111,7 +124,7 @@ class Dimension(_Immutable):
 
     def __str__(self) -> str:
         formatted_expression = ''.join(
-            sym + superscript(exp) for sym, exp in zip(_SYMBOLS, self.as_tuple()) if exp
+            _PHYSICAL_AXES[axis] + superscript(exp) for axis, exp in self._physical_components()
         )
         return formatted_expression or '1'
 
@@ -143,7 +156,10 @@ class Dimension(_Immutable):
         return self._from_monomial(self._monomial / other._monomial)
 
     def __pow__(self, power: Fractionable) -> Dimension:
-        return self._from_monomial(self._monomial ** as_exponent(power))
+        exponent = as_exponent(power)
+        if exponent == 1:
+            return self
+        return self._from_monomial(self._monomial**exponent)
 
     def __rtruediv__(self, other: Literal[1]) -> Dimension:
         if type(other) is int and other == 1:
@@ -182,10 +198,12 @@ class Dimension(_Immutable):
     time, length, mass, current, temperature, amount, luminous = T, L, M, I, Θ, N, J
 
     def as_tuple(self) -> tuple[Fraction, ...]:
-        return tuple(self._monomial.exponent_of(axis) for axis in _ASCII_SYMBOLS)
+        """Return physical exponents in `T, L, M, I, Theta, N, J` order, including zeros."""
+        return tuple(self._monomial.exponent_of(axis) for axis in _PHYSICAL_AXES)
 
     def as_dict(self) -> dict[str, Fraction]:
-        return {sym: exp for sym, exp in zip(_ASCII_SYMBOLS, self.as_tuple()) if exp}
+        """Return nonzero physical exponents in canonical axis order."""
+        return dict(self._physical_components())
 
 
 DIMENSIONLESS = object.__new__(Dimension)

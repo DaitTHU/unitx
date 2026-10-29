@@ -33,9 +33,9 @@ def as_coordinate(unit: str | Unit | _LinearUnitSource) -> _Coordinate:
         error_message = 'A point coordinate must be a coordinate descriptor, Unit, or spelling.'
         raise TypeError(error_message)
     if linear.scale == one:
-        components = tuple(linear._monomial.components())
+        components = linear._monomial.components()
         if len(components) == 1:
-            base, exponent = components[0]
+            base, exponent = next(iter(components))
             if (
                 exponent == 1
                 and not base.has_prefix()

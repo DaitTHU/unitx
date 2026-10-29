@@ -93,10 +93,10 @@ def _peak_magnitude(value: Magnitude) -> Fraction | None:
 def compact_unit(unit: Unit, value: Magnitude) -> Unit:
     """Choose a single-factor prefix using the finite peak in stored magnitudes."""
     peak = _peak_magnitude(value)
-    components = tuple(unit._monomial.components())
+    components = unit._monomial.components()
     if peak is None or len(components) != 1:
         return unit
-    base, exponent = components[0]
+    base, exponent = next(iter(components))
     if not any(base._unit.allows_prefix(text) for text in (*base._unit.symbols, *base._unit.names)):
         return unit
     best_unit = unit

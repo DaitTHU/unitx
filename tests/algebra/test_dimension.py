@@ -225,11 +225,12 @@ def test_dimension_algebra_and_exact_numeric_inputs() -> None:
 
 
 @pytest.mark.parametrize('value', [True, False, '1/2', None, 1j])
-def test_dimension_rejects_invalid_exponents(value: object) -> None:
+@pytest.mark.parametrize('dimension', [DIMENSIONLESS, Dimension(L=1)])
+def test_dimension_rejects_invalid_exponents(dimension: Dimension, value: object) -> None:
     with pytest.raises(TypeError, match='Cannot convert'):
         Dimension(L=value)  # pyright: ignore[reportArgumentType]
     with pytest.raises(TypeError, match='Cannot convert'):
-        Dimension(L=1) ** value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
+        dimension**value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
 
 
 @pytest.mark.parametrize('value', [2, 1.0, True, None])
@@ -280,10 +281,28 @@ def test_dimension_exponent_aliases_and_order() -> None:
         (Decimal('Infinity'), OverflowError),
     ],
 )
+@pytest.mark.parametrize('dimension', [DIMENSIONLESS, Dimension(L=1)])
 def test_dimension_rejects_nonfinite_exponents(
-    value: float | Decimal, error: type[Exception]
+    dimension: Dimension, value: float | Decimal, error: type[Exception]
 ) -> None:
     with pytest.raises(error):
         Dimension(T=value)
     with pytest.raises(error):
-        Dimension(L=1) ** value  # pyright: ignore[reportUnusedExpression]
+        dimension**value  # pyright: ignore[reportUnusedExpression]
+
+
+def test_dimension_sparse_physical_projection() -> None:
+    physical = Dimension(J=Fraction(2, 3)) * Dimension(T=2, Theta=Fraction(-1, 2))
+    complete = Dimension._with_log(physical, Fraction(-2, 3))
+    original_hash = hash(complete)
+    projected = complete.physical
+    assert projected == physical
+    assert hash(projected) == hash(physical)
+    assert complete != projected and complete.physical.physical == projected
+    assert complete.as_tuple() == (2, 0, 0, 0, Fraction(-1, 2), 0, Fraction(2, 3))
+    assert list(complete.as_dict()) == ['T', 'Theta', 'J']
+    assert complete.as_dict() == {'T': 2, 'Theta': Fraction(-1, 2), 'J': Fraction(2, 3)}
+    assert repr(projected) == 'Dimension(T=2, Theta=Fraction(-1, 2), J=Fraction(2, 3))'
+    assert str(complete) == str(physical)
+    assert eval(repr(complete)) == complete
+    assert hash(complete) == original_hash

@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Reduce repeated NumPy input-recognition and ufunc-dispatch allocations with
+  fixed function groups and an empty-keyword path, preserving numerical,
+  protocol-override and staged-output behavior. Record same-machine timing
+  samples for common operations and complete scientific fitting.
+- Reuse exact identity factors and cancellations; derive empty and single-term
+  unit metadata directly and reuse evaluated factors at NumPy scaling boundaries.
+- Use native Python argument binding for direct array methods, with explicit
+  forwarding to the existing NumPy handlers instead of runtime signature binding.
+- Keep powered-product identities inside Factor and Dimension, normalize Factor
+  arithmetic operands once, and derive Dimension projections and display views
+  directly from sparse monomials while retaining canonical axis order.
+- Reuse normalized rational exponents and sparse views, and remove a redundant
+  coordinate check after linear-operand validation.
+
 ## [0.17.6] - 2026-10-28
 
 ### Added
