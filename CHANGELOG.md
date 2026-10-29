@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-29
+
 ### Added
 
 - Add the independent `unitx.information.information` catalogue with bit/shannon,
