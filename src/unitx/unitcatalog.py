@@ -1,15 +1,36 @@
 """Read-only unit catalogues collected after ordinary class-body execution."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from typing import ClassVar
 
 from ._constnamespace import ConstNamespace, _ConstNamespaceMeta
 from ._coordinates.resolve import _Coordinate
+from ._registry.prefixes import NO_PREFIX, PREFIX_DEFINITIONS, PREFIX_SYMBOL_ALIAS_TO_SYMBOL
 from ._registry.reconstruction import _publish_definitions
+from .monomial import Monomial
+from .singleunit import SingleUnit
 from .unit import Unit
 from .unitregistry import Registry, _collect_definitions
 
 __all__ = ['UnitCatalog']
+
+
+def _prefixed_units(unit: Unit, prefixes: str | tuple[str, ...]) -> Iterator[Unit]:
+    """Replace a single unit's prefix with each listed prefix.
+
+    Use `prefixes` as a string when every prefix is an individual character.
+    Unit without prefix can be included in the string as a space character.
+    Otherwise use a tuple of strings for multi-character prefixes.
+    """
+    [(base, exponent)] = unit._monomial.components()
+    assert exponent == 1
+    for spelling in prefixes:
+        prefix = (
+            PREFIX_DEFINITIONS[PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(spelling, spelling)]
+            if spelling != ' '
+            else NO_PREFIX
+        )
+        yield Unit._from_monomial(Monomial({SingleUnit._from_definitions(prefix, base._unit): 1}))
 
 
 class _UnitCatalogMeta(_ConstNamespaceMeta):
