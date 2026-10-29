@@ -36,6 +36,8 @@ __all__ = [
     'cbrt',
     'sin',
     'cos',
+    'sinpi',
+    'cospi',
     'tan',
     'asin',
     'acos',
@@ -195,14 +197,7 @@ def sqrt(x: _Input, /) -> _Result:
     return _unary(x, _math.sqrt, 'sqrt', power=Fraction(1, 2))
 
 
-@overload
-def cbrt(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def cbrt(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def cbrt(x: _Input, /) -> _Result:
     """Return the real cube root, with an exact third power of the input unit."""
     return _unary(x, _math.cbrt, 'cbrt', power=Fraction(1, 3))
@@ -220,40 +215,44 @@ def cos(x: _Input, /) -> _Result:
     return _unary(x, _math.cos, 'cos')
 
 
-@overload
-def tan(x: _ArrayInput, /) -> Quantity[Array]: ...
+def _trigpi(x: _Input, *, cosine: bool) -> _Result:
+    from ._numerics.trigonometry import numpy_trigpi, scalar_trigpi
+
+    q = _as_quantity(x)
+    value = q.value_in(si.one)
+    if is_numpy_object(value):
+        from ._numerics.numpy import _call_with_warnings
+
+        result = _call_with_warnings(numpy_trigpi, value, cosine=cosine)
+        return Quantity(cast(Array, result), si.one)
+    return Quantity(scalar_trigpi(value, cosine=cosine), si.one)
 
 
-@overload
-def tan(x: _ScalarInput, /) -> Quantity[float]: ...
+@_typed_real
+def sinpi(x: _Input, /) -> _Result:
+    """Return sin(pi*x), reducing coherent dimensionless x before multiplying pi."""
+    return _trigpi(x, cosine=False)
 
 
+@_typed_real
+def cospi(x: _Input, /) -> _Result:
+    """Return cos(pi*x), reducing coherent dimensionless x before multiplying pi."""
+    return _trigpi(x, cosine=True)
+
+
+@_typed_real
 def tan(x: _Input, /) -> _Result:
     """Return tangent after converting dimensionless input to coherent values."""
     return _unary(x, _math.tan, 'tan')
 
 
-@overload
-def asin(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def asin(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def asin(x: _Input, /) -> _Result:
     """Return inverse sine in radians."""
     return _unary(x, _math.asin, 'arcsin', angle=True)
 
 
-@overload
-def acos(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def acos(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def acos(x: _Input, /) -> _Result:
     """Return inverse cosine in radians."""
     return _unary(x, _math.acos, 'arccos', angle=True)
@@ -290,66 +289,31 @@ def conj(x: _ComplexInput, /) -> Quantity[Magnitude]:
     return Quantity(value.conjugate(), q.unit)
 
 
-@overload
-def expm1(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def expm1(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def expm1(x: _Input, /) -> _Result:
     """Return exp(x) - 1, preserving accuracy for small coherent x."""
     return _unary(x, _math.expm1, 'expm1')
 
 
-@overload
-def log(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def log(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def log(x: _Input, /) -> _Result:
     """Return the natural logarithm of coherent dimensionless input."""
     return _unary(x, _math.log, 'log')
 
 
-@overload
-def log1p(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def log1p(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def log1p(x: _Input, /) -> _Result:
     """Return log(1 + x), preserving accuracy for small coherent x."""
     return _unary(x, _math.log1p, 'log1p')
 
 
-@overload
-def log2(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def log2(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def log2(x: _Input, /) -> _Result:
     """Return the base-two logarithm of coherent dimensionless input."""
     return _unary(x, _math.log2, 'log2')
 
 
-@overload
-def log10(x: _ArrayInput, /) -> Quantity[Array]: ...
-
-
-@overload
-def log10(x: _ScalarInput, /) -> Quantity[float]: ...
-
-
+@_typed_real
 def log10(x: _Input, /) -> _Result:
     """Return the base-ten logarithm of coherent dimensionless input."""
     return _unary(x, _math.log10, 'log10')

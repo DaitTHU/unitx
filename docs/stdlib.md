@@ -43,6 +43,7 @@ identities or arbitrary-precision evaluation.
 | Functions | Input and result units |
 | --- | --- |
 | `sqrt(x)`, `cbrt(x)` | Any ordinary linear unit; result unit is its exact 1/2 or 1/3 power |
+| `sinpi(x)`, `cospi(x)` | Coherent dimensionless x; compute sin(πx) or cos(πx) with period reduction before multiplying π |
 | `sin(x)`, `cos(x)`, `tan(x)` | Dimensionless input, including deg/rad; coherent dimensionless result |
 | `asin(x)`, `acos(x)`, `atan(x)` | Dimensionless input; result in rad |
 | `exp(x)`, `expm1(x)` | Dimensionless input; coherent dimensionless result |
@@ -79,8 +80,7 @@ may differ from the standard library's multi-coordinate implementation.
 The wrappers accept positional inputs only, without `out` or `where`.
 Use the supported NumPy ufuncs directly for those options.
 
-The `sqrt`, `sin`, `cos`, `atan` and `exp` overloads retain known NumPy floating
-dtypes; `exp` and `conj` also retain known complex dtypes. Two-coordinate
+The real unary function overloads retain known NumPy floating dtypes; `exp` and `conj` also retain known complex dtypes. Two-coordinate
 float64 `hypot` calls with float64 or Python real inputs retain float64.
 The result includes a possible NumPy scalar, since zero-dimensional array
 operations can remove the array container. Other array overloads return
@@ -107,6 +107,36 @@ field *= math.exp(-1j * gouy)
 The phase formula needs no dtype argument or cast. Ordinary `np.exp(q)` and
 `np.conj(q)` still work at runtime, but their NumPy function signatures may
 infer a bare ndarray or an incomplete dtype. unitx does not alter those stubs.
+
+### Half-turn arguments
+
+`sinpi(x)` and `cospi(x)` reduce the argument's period before multiplying a
+small residual by numerical pi. Integer inputs give exactly zero for sinpi and
+±1 for cospi; half-integers give ±1 and zero respectively. Unlike
+`sin(pi*x)`, this avoids introducing pi approximation error before reduction.
+Near a node, nearby representable inputs are evaluated without tolerance-based
+snapping. Exact integer, Fraction and Decimal scalar periods are reduced before
+the residual is converted to float, independently of the Decimal context.
+
+```pycon
+>>> math.sinpi(1).value
+0.0
+>>> math.cospi(0.5).value == 0
+True
+>>> math.sinpi(50 * si.percent).value
+1.0
+
+```
+
+Inputs are real and dimensionless, including scaled units; output is a
+coherent dimensionless Quantity. An angle passed to sinpi is first normalized
+as usual and then multiplied by pi: use ordinary sin/cos when the input already
+represents the desired angle. Points, complex inputs and logarithmic degrees
+are rejected. The functions are numerical, not symbolic identities or
+arbitrary-precision trigonometry, and cannot recover information already lost
+in an input float. Scalar NaN/infinity behavior follows math; NumPy uses native
+trigonometric special-value warnings and error settings. Array floating dtypes
+are retained; integer arrays reduce exact periods before float64 evaluation.
 
 ## Clock readings
 

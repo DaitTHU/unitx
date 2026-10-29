@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from unitx import AffineQuantity, LogQuantity, LogUnit, Quantity, Unit
 from unitx import math as unitx_math
+from unitx import numpy as unp
 from unitx.cgs import emu, esu, gaussian, hl
 from unitx.exceptions import DimensionError, ImplicitConversionError, UnitOperationError
 from unitx.si import si
@@ -687,3 +688,17 @@ def check_reduction_methods(values: NDArray[np.float64], target: NDArray[np.floa
 
 
 check_reduction_methods(np.array([1.0, 2.0, 3.0]), np.array(0.0))
+
+# Explicit typed entries retain units and concrete allocation/derivative arrays.
+
+_typed_samples = Quantity(np.linspace(0.0, 1.0, 5), si.m)
+_typed_coordinates = Quantity(np.linspace(0.0, 2.0, 5), si.s)
+_typed_integral = unp.trapezoid(_typed_samples, _typed_coordinates)
+assert_type(_typed_integral, Quantity[NDArray[np.float64] | np.float64])
+assert_type(unp.zeros_like(_typed_samples), Quantity[NDArray[np.float64]])
+assert_type(unp.gradient(_typed_samples, _typed_coordinates, axis=0), Quantity[NDArray[np.float64]])
+assert _typed_integral.unit == si.m * si.s
+np.testing.assert_allclose(unp.gradient(_typed_samples, _typed_coordinates, axis=0).value, 0.5)
+
+assert_type(unitx_math.sinpi(_typed_coordinates / si.s), Quantity[NDArray[np.float64] | np.float64])
+np.testing.assert_array_equal(unitx_math.sinpi(_typed_coordinates / si.s).value, [0, 1, 0, -1, 0])

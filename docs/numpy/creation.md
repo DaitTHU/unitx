@@ -7,7 +7,13 @@ values are **readings in the template's unit**, including list/tuple fills.
 Quantity fills convert to that unit; point fills must be compatible points.
 The template must carry the unit: NumPy does not dispatch `full_like` on its
 fill argument alone. Allocations own their storage, and `empty_like` leaves
-values uninitialized.
+values uninitialized. `ones_like` represents one template-unit reading, not the
+multiplicative identity: a percent template produces 1% (coherent value 0.01),
+and an affine template produces a point at reading one. Do not multiply a
+wrapped `*_like` result by the template unit again.
+
+For explicit wrapped-input signatures, the finite `unitx.numpy` module exposes
+these four functions with the same runtime rules; see [typing](../typing.md#finite-typed-numpy-entries).
 
 `linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
 axis=0, *, device=None)` aligns compatible endpoints to the first wrapped

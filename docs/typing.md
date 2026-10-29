@@ -88,15 +88,18 @@ their native constructors control errors. NumPy magnitudes use their own
 `astype` operation and numeric dtypes, retaining ndarray/NumPy-scalar results.
 Only the dtype argument is supported; this method does not change units.
 
-Unit conversion retains wider annotations. Python's float annotation also
-accepts integer values, so even an object
+For scientific scalar formulas, `.to()` and `.value_in()` preserve the declared
+float domain, consistently with `.n` and float arithmetic. This is an inference
+convention, not a runtime coercion. Python's float annotation also accepts
+integer values, so even an object
 annotated `Quantity[float]` may store an int: `Quantity[float](1, 'cm').to('m')`
 really produces a Fraction. The float addition/subtraction overloads prioritize
 ordinary scientific float inputs: if an object annotated `Quantity[float]`
 actually stores an int, aligned addition can likewise produce a Fraction,
 despite the inferred float result. Concrete int/Fraction overloads preserve
 their wider result domains; runtime arithmetic remains exact for these inputs.
-Use `q.to(target).astype(float)` when an output must have a float magnitude.
+Use `q.to(target).astype(float)` when an output must have a float magnitude,
+rather than merely a float annotation.
 Mixed float/Decimal overloads likewise infer float for scientific formulas.
 If a float annotation hides an int, its interaction with Decimal can instead
 retain Decimal at runtime. Explicit int/Decimal inputs infer Decimal.
@@ -238,7 +241,8 @@ Fraction multiplication/division with integers or Fractions retain Fraction.
 Complex scalar arithmetic/conversion uses concrete complex or Number domains
 instead of the open Scalar fallback. A Python complex annotation can also hide
 an int, whose conversion may produce a Fraction; its conversion therefore keeps
-the Number union. Float conversion keeps the Real union for the same reason.
+the Number union. Float conversion follows the scientific float convention above;
+concrete int inputs retain the Real union.
 The `q.n` property evaluates `q.value_in(si.one)` at runtime. Its float
 inference follows the scientific-calculation convention described above.
 At runtime `n` is an ordinary read-only property; its stub uses
@@ -296,6 +300,43 @@ annotations may require an ndarray even when the runtime target is a Quantity;
 installed consumers exercise the public dispatch protocol in those cases.
 The adapters preserve units and concrete destination storage at runtime, but
 do not add blanket static inference for NumPy's function APIs.
+
+### Finite typed NumPy entries
+
+The optional `unitx.numpy` module provides `trapezoid`, `gradient`, `zeros_like`,
+`ones_like`, `empty_like` and `full_like` for wrapped inputs. Import it explicitly;
+it requires NumPy. It is a finite adapter, not a drop-in replacement for NumPy.
+
+```python
+import numpy as np
+from unitx import Quantity
+from unitx import numpy as unp
+from unitx.si import si
+
+samples = Quantity(np.linspace(0.0, 1.0, 5), si.m)
+coordinates = Quantity(np.linspace(0.0, 2.0, 5), si.s)
+area = unp.trapezoid(samples, coordinates)
+slope = unp.gradient(samples, coordinates, axis=0)
+workspace = unp.zeros_like(samples)
+```
+
+These calls use ordinary NumPy dispatch and the existing runtime unit rules.
+The explicit entry supplies signatures that upstream NumPy functions cannot
+infer from arbitrary dispatch. Integration requires linear Quantity samples;
+gradient and allocation also accept affine/log points. Bare-only computations
+continue to use NumPy. Known same-dtype floating/complex integration retains its
+numeric domain and the possible scalar result. An explicit single gradient axis
+returns a Quantity wrapping an ndarray; an unknown number of axes can return a
+tuple. Like allocations return ndarrays even for NumPy scalar templates, retain
+the coordinate family and preserve known template dtypes unless overridden.
+They preserve the complete unit; `ones_like` is one stored reading, not a
+coherent dimensionless mathematical constant.
+
+These entries do not infer arbitrary rank. A partial integral or Quantity
+arithmetic can still produce a NumPy scalar from a zero-dimensional result.
+If a model promises an array, validate that contract at its boundary and narrow
+the checked value; do not replace it with an unchecked cast, a widened public
+field or a numeric conversion solely to satisfy a checker.
 
 ### NumPy component inference
 

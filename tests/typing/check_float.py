@@ -5,7 +5,6 @@ from fractions import Fraction
 from typing import assert_type
 
 from unitx import Quantity
-from unitx._numerics import Real
 from unitx.math import sqrt
 from unitx.si import SI, si
 
@@ -43,7 +42,7 @@ def float_contracts(q: Quantity[float], integer: Quantity[int]) -> None:
     q /= 2
     q **= 2
     assert_type(q, Quantity[float])
-    assert_type(q.to(si.cm), Quantity[Real])
+    assert_type(q.to(si.cm), Quantity[float])
     assert_type(q + integer, Quantity[float])
     assert_type(q - q, Quantity[float])
     assert_type(q.to(si.cm).astype(float), Quantity[float])
@@ -53,7 +52,7 @@ def float_contracts(q: Quantity[float], integer: Quantity[int]) -> None:
     assert_type(q.astype(complex), Quantity[complex])
     assert_type(SI.e.astype(float), Quantity[float])
     assert_type(SI.re.astype(float), Quantity[float])
-    assert_type(Quantity[float](1, 'cm').to(si.m), Quantity[Real])
+    assert_type(Quantity[float](1, 'cm').to(si.m), Quantity[float])
 
 
 def add_one(x: Quantity[float]) -> Quantity[float]:

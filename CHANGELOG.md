@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add unit-aware `math.sinpi` and `math.cospi` with period reduction before
+  numerical pi multiplication, exact integer/half-integer nodes and scalar/NumPy
+  support, including scaled dimensionless inputs.
+- Add finite typed `unitx.numpy` entries for wrapped trapezoid integration,
+  gradients and zeros/ones/empty/full-like allocations, reusing NumPy dispatch.
+
+### Changed
+
+- Preserve known NumPy floating dtypes through all real unary math adapters.
+- Align scalar float `to` and `value_in` inference with `n` and scientific float
+  arithmetic, retaining exact int/Fraction/Decimal runtime behavior and documenting
+  the distinction between float annotations and guaranteed float magnitudes.
+- Use `unitx.typing.__all__` as the explicit public re-export declaration,
+  removing redundant same-name import aliases.
+
 ## [0.17.7] - 2026-10-29
 
 ### Changed

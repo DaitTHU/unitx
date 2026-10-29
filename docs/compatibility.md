@@ -13,6 +13,7 @@ members of those objects, and the following documented module entries:
 | --- | --- |
 | `unitx.si`, `unitx.imperial`, `unitx.cgs` | Documented catalogues, constants and explicit electromagnetic conversions |
 | `unitx.math`, `unitx.statistics`, `unitx.time` | Documented functions |
+| `unitx.numpy` | Finite typed wrapped-input integration, gradient and like allocations |
 | `unitx.scipy`, `unitx.matplotlib` | Documented finite adapters; registration remains explicit |
 | `unitx.serialization` | `to_dict`, `from_dict` and their documented record schema |
 | `unitx.typing` | `Scalar`, `Array`, `Magnitude`, `NumpyArray`, `NumpyValue` |
