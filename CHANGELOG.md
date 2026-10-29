@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.7] - 2026-10-29
+
 ### Changed
 
 - Reduce repeated NumPy input-recognition and ufunc-dispatch allocations with
