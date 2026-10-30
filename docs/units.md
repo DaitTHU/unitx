@@ -105,7 +105,6 @@ conversion involving an irrational factor evaluates it approximately.
 String output combines the scale and formal units into one product, with
 grouped denominator factors and multiplication dots between adjacent numbers.
 
-
 ## Conversion and arithmetic
 
 Use `.to()` to obtain a new quantity in a unit with the same physical dimensions,
@@ -183,7 +182,6 @@ dimensions and is not sufficient for this conversion.
 Points have no `n` shorthand. `np.asarray(q)` and `np.array(q)` still reject
 implicit unit removal, including for dimensionless quantities.
 
-
 ## Unit expressions
 
 Expressions support registered symbols, singular English names, SI prefixes,
@@ -230,7 +228,6 @@ dimensionless identity. Importing `unitx` also initializes the common units in
 `unitx.si`, including named derived units such as `N`. Mass scales are referenced
 to kilograms: `g` has factor `1/1000`, and `kg` has factor `1`.
 
-
 ## Units, dimensions, and equality
 
 A `Unit` retains its formal factors. A `Quantity` compares physical values
@@ -268,7 +265,6 @@ Fraction(1001, 1)
 
 ```
 
-
 ## Defining units
 
 See [custom units](custom-units.md) for extra exact scales, `.define()` signatures,
@@ -279,10 +275,6 @@ spelling-specific prefix policies, validation and process-local reconstruction.
 See the [catalogue's Unicode table](catalogues/si.md#unicode-unit-characters) for
 accepted aliases and the distinction between an alias and a compound symbol.
 
-[Documentation index](README.md) · [Scalar numerical behavior](scalars.md) ·
-[Points and differences](affine.md)
-
-
 ## Complete compatibility and physical dimensions
 
 `unit.dimension` is the complete algebraic signature used by conversion,
@@ -291,3 +283,6 @@ seven physical axes. Named exponents and Dimension tuple/dictionary/text views
 also describe only those seven axes. `unit.is_dimensionless()` is a physical
 question, so dB is physically dimensionless while remaining algebraically
 incompatible with an ordinary ratio. See [logarithmic quantities](logarithmic.md).
+
+[Documentation index](README.md) · [Scalar numerical behavior](scalars.md) ·
+[Points and differences](affine.md)

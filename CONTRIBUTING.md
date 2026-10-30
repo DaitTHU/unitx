@@ -55,6 +55,11 @@ Run the executable Markdown examples as well:
 python -m doctest README.md docs/*.md docs/catalogues/*.md docs/numpy/*.md
 ```
 
+This command checks `>>>` examples, including `pycon` fences. Plain `python`
+fences are not doctests; selected guide blocks, recipes and the README are
+executed by `tests/test_examples.py`. When editing other fenced recipes, run
+their blocks in document order with the required optional dependencies.
+
 Use tracked public guides for release validation; local ignored design notes
 are not release documentation. Documentation examples should be reproducible
 and avoid modifying source files. Notebook source is checked and executed by

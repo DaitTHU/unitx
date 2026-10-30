@@ -1,3 +1,9 @@
+"""Bound prefix/definition identities and their permitted canonical spellings.
+
+Public construction resolves one spelling in the default registry. Compound
+expressions belong to UnitParser; physical conversion belongs to quantities.
+"""
+
 from __future__ import annotations
 
 from ._immutable import _Immutable

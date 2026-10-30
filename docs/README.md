@@ -36,6 +36,7 @@ reading about an older version.
 | Run scientific examples | [Scientific examples](https://github.com/DaitTHU/unitx/blob/main/examples/README.md) |
 | Test or contribute a change | [Contributing](https://github.com/DaitTHU/unitx/blob/main/CONTRIBUTING.md) |
 | Understand model and implementation boundaries | [Architecture](architecture.md) |
+| Reproduce measured costs and identify their source snapshot | [Performance](https://github.com/DaitTHU/unitx/blob/main/benchmarks/performance.md) |
 
 For a first read, follow units and quantities, then the catalogue. Read the
 scalar numerical guide before relying on concrete result types or exact

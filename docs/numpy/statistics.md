@@ -91,7 +91,7 @@ weighted = np.multiply.reduce(lengths, axis=1, where=selected, initial=Quantity(
 assert weighted.unit == Unit('m2 s')
 ```
 
-Both entry points support the output [output rules](writes.md#output-buffers), including exact result
+Both entry points support the [output rules](writes.md#output-buffers), including exact result
 shape and unchanged targets on computation, unit, shape, or casting errors.
 `cumprod` and `nancumprod` support ordinary dimensionless input, normalizing its
 complete scale first. Dimensional cumulative products are explicitly rejected

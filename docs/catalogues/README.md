@@ -25,7 +25,7 @@ True
 `si`, `imperial`, `information`, `cgs`, `gaussian`, `esu`, `emu` and `hl` share the public `UnitCatalog` base.
 A catalogue exposes unit attributes and a `unit()` entry point, using its
 configured spelling environment. `si.unit()` uses the existing default
-environment; Imperial and CGS parsing use independent environments.
+environment; Imperial, information and CGS parsing use independent environments.
 The base preserves the existing non-instantiable, read-only namespace behavior.
 UnitCatalog collects public unit attributes after the class body finishes.
 Existing objects can also be shared with `units=`. Use earlier unit objects to

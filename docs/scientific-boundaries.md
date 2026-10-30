@@ -113,12 +113,13 @@ kernel's float domain explicitly. A Gaussian in log readings is a different
 physical distribution from a Gaussian in power.
 
 ```python
+from math import isfinite
 from random import Random
 
 center, width = 10.0 * si.cm, 2.0 * si.mm
 location = float(center.value_in(si.m))
 spread = float(width.value_in(si.m))
-assert np.isfinite(location) and np.isfinite(spread) and spread >= 0
+assert isfinite(location) and isfinite(spread) and spread >= 0
 rng = Random(20261028)
 state = rng.getstate()
 draw = rng.gauss(location, spread) * si.m
@@ -126,9 +127,8 @@ rng.setstate(state)
 assert draw == rng.gauss(location, spread) * si.m
 ```
 
-The sampling calls themselves need no NumPy; ordinary `math.isfinite` can
-validate their scalar inputs. This recipe keeps standard-library seed/state
-behavior visible, without adding a second random API. For repeated array Monte
+The sampling and validation need no NumPy. This recipe keeps standard-library
+seed/state behavior visible, without adding a second random API. For repeated array Monte
 Carlo, see the [pendulum example](https://github.com/DaitTHU/unitx/blob/main/examples/pendulum_uncertainty.ipynb).
 
 [NumPy support](numpy.md) · [SciPy callbacks](scipy.md) · [Array storage](array-storage.md)

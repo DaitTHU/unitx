@@ -1,3 +1,10 @@
+"""SI catalogue construction and common scientific unit definitions.
+
+Definitions bind to the default registry; exact scales, prefix shortcuts and
+coordinate descriptors are collected into the read-only `si` namespace.
+Physical constant values live in `constants.py`.
+"""
+
 import math as _math
 from decimal import Decimal
 from typing import Final
