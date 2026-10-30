@@ -89,6 +89,9 @@ class UnitParser:
     expression : str
         Unit expression to parse. An empty or whitespace-only expression
         represents the multiplicative identity.
+    registry : Registry or None, optional
+        Keyword-only spelling environment. Omission uses the default registry;
+        an explicit registry has no fallback to default spellings.
 
     Notes
     -----

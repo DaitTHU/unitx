@@ -1,7 +1,9 @@
 """Finite typed NumPy entry points for wrapped arrays.
 
-Import this optional module explicitly. Calls retain the ordinary NumPy dispatch,
-complete units, coordinate families and native numerical behavior.
+Import this optional module explicitly; importing it requires NumPy. Calls
+require wrapped inputs and retain ordinary NumPy dispatch, complete units,
+coordinate families and native numerical behavior. Public overloads live in
+`numpy.pyi`; this module owns runtime validation and forwarding.
 """
 
 from typing import Any, Literal
@@ -72,13 +74,24 @@ def full_like(
     *,
     device: Any = None,
 ) -> Any:
-    """Fill template-unit readings, converting wrapped fills before allocation."""
+    """Fill readings in the template's unit or coordinate, retaining its family.
+
+    Bare fills are stored readings, not coherent dimensionless values. Quantity
+    fills convert to the template unit; point fills require compatible points.
+    Dtype, shape, order and casting follow the existing NumPy allocation rules.
+    """
     _require_quantity(a)
     return np.full_like(a, fill_value, dtype, order, subok, shape, device=device)
 
 
 def trapezoid(y: Any, x: Any = None, dx: Any = 1.0, axis: int = -1) -> Any:
-    """Integrate linear Quantity samples with the existing NumPy unit rules."""
+    """Integrate linear Quantity samples, returning sample unit times coordinate unit.
+
+    With `x`, its unit supplies the coordinate unit and `dx` is ignored.
+    Otherwise `dx` must be scalar; bare spacing is dimensionless. Numerical
+    shapes, axis, orientation and sampling follow `numpy.trapezoid`. Points
+    are unsupported. See `docs/numpy/calculus.md` for the runtime contract.
+    """
     if not isinstance(y, Quantity):
         error_message = 'trapezoid requires linear Quantity samples.'
         raise TypeError(error_message)
@@ -86,6 +99,12 @@ def trapezoid(y: Any, x: Any = None, dx: Any = 1.0, axis: int = -1) -> Any:
 
 
 def gradient(f: Any, *varargs: Any, axis: Any = None, edge_order: Literal[1, 2] = 1) -> Any:
-    """Differentiate wrapped values; an explicit single axis returns one Quantity."""
+    """Differentiate wrapped values, using difference units for point coordinates.
+
+    Each result has the input difference unit divided by its spacing unit.
+    Bare spacing is dimensionless. A single selected axis returns one Quantity;
+    multiple axes return a tuple. NumPy controls shapes and numerical kernels.
+    See `docs/numpy/calculus.md` for coordinate and boundary rules.
+    """
     _require_quantity(f)
     return np.gradient(f, *varargs, axis=axis, edge_order=edge_order)

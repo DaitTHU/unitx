@@ -1,7 +1,7 @@
 # Compatibility sweep and remaining boundaries
 
-The 0.16.13 sweep closes the original roadmap's final three groups in one
-release. The [support matrix](../numpy.md#support-matrix) is the API contract;
+This guide collects additional supported paths and the remaining boundaries.
+The [support matrix](../numpy.md#support-matrix) is the API contract;
 being listed in NumPy's inventory does not itself imply unitx support.
 
 ## Additional supported paths

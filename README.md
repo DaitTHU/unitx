@@ -221,6 +221,8 @@ or go directly to a topic:
 | Exact extra scales and process-local registration | [Custom units](https://github.com/DaitTHU/unitx/blob/main/docs/custom-units.md) |
 | Fraction, Decimal, equality, powers and tolerances | [Scalar numerical behavior](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md) |
 | Notebook, text, LaTeX, HTML and siunitx output | [Display and formatting](https://github.com/DaitTHU/unitx/blob/main/docs/display.md) |
+| Array support and finite typed adapters | [NumPy](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md) and [typing](https://github.com/DaitTHU/unitx/blob/main/docs/typing.md#finite-typed-numpy-entries) |
+| Responsibilities, dependencies and measured costs | [Architecture](https://github.com/DaitTHU/unitx/blob/main/docs/architecture.md) and [performance](https://github.com/DaitTHU/unitx/blob/main/benchmarks/performance.md) |
 | Version changes | [Migration](https://github.com/DaitTHU/unitx/blob/main/docs/migration.md) and [changelog](https://github.com/DaitTHU/unitx/blob/main/CHANGELOG.md) |
 
 This README describes the current source tree. Public APIs may change during

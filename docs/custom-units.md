@@ -420,9 +420,6 @@ Neither format exports a self-contained set of custom definitions. The
 application supplies shared definition objects within a process, or compatible
 module-level catalogue declarations in each process.
 
-[Documentation index](README.md) · [Units and quantities](units.md) ·
-[SI spelling conventions](catalogues/si.md#spelling-and-scale-conventions)
-
 ## Low-level definitions
 
 `UnitDefinition` is the immutable registry record. Its ordinary constructor is
@@ -437,3 +434,6 @@ an existing unit, and `AffineUnit.define()` or `LogUnit.define()` for a coordina
 constructors preserve logarithmic degree and bound coordinate data automatically.
 The ordinary constructor does not expose `logarithmic`, `log_degree`, `reference`,
 `delta`, `kind`, or persistent identity options.
+
+[Documentation index](README.md) · [Units and quantities](units.md) ·
+[SI spelling conventions](catalogues/si.md#spelling-and-scale-conventions)

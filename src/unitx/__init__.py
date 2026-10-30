@@ -1,4 +1,9 @@
-"""An intuitive Python library for physical units and quantities."""
+"""Physical units, linear quantities and affine/logarithmic coordinate readings.
+
+Use `unitx.si.si` for units and `unitx.si.SI` for physical constants.
+Exact unit algebra is separate from magnitude arithmetic. NumPy, SciPy and
+Matplotlib integrations load at their explicit optional boundaries.
+"""
 
 from . import cgs, imperial, information, math, si, statistics, time
 from .affinequantity import AffineQuantity

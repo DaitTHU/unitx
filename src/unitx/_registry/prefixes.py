@@ -8,7 +8,7 @@ from ..factor import Factor, one, ten, two
 
 
 class PrefixDefinition(_Immutable):
-    """Immutable canonical symbol, exact scale, and accepted prefix names."""
+    """Immutable symbol, names, exact scale and decimal/binary family."""
 
     __slots__ = ('symbol', 'symbol_aliases', 'names', 'factor', 'family')
 

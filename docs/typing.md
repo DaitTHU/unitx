@@ -372,9 +372,10 @@ can return a NumPy scalar for a zero-dimensional ndarray. General `NDArray`
 annotations do not establish that an input has a nonzero number of axes.
 Conversions can also promote integer dtypes to floating types. Therefore the
 wider numerical result annotations are intentional; annotating all arithmetic
-as the input dtype or `Self` would hide real changes. A future typed adapter
-would require its own explicit signatures; unitx does not install global NumPy
-stub replacements or type-checker plugins.
+as the input dtype or `Self` would hide real changes. The
+[finite typed entries](#finite-typed-numpy-entries) provide explicit signatures
+for their documented calls; they do not change inference for arbitrary NumPy
+functions. unitx does not install global NumPy stub replacements or type-checker plugins.
 
 See NumPy's [component annotations](https://github.com/numpy/numpy/blob/v2.4.4/numpy/lib/_type_check_impl.pyi)
 and Python's [overload resolution rules](https://typing.python.org/en/latest/spec/overload.html).

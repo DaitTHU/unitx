@@ -61,8 +61,6 @@ unit changes, plus the finite scatter/fill paths below. Other Matplotlib APIs ma
 functions that coerce inputs before consulting axis converters need separate
 validation. The adapter does not claim support for every plotting function.
 
-[NumPy support](numpy.md) · [Typing](typing.md)
-
 ## Scatter, filled intervals and error bars
 
 `scatter(x, y)` and `fill_between(x, y1, y2)` support wrapped real numeric
@@ -101,3 +99,5 @@ chosen convention. If displaying physical power instead, transform the lower
 and upper reading bounds separately; symmetric log errors generally become
 asymmetric physical errors. The explicit boundary does not relax `np.asarray(q)`
 or promise that arbitrary plotting functions preserve units.
+
+[NumPy support](numpy.md) · [Typing](typing.md)

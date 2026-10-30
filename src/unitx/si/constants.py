@@ -1,3 +1,10 @@
+"""SI constants, particle data and named physical scales as Quantities.
+
+Derived catalogue values use an isolated 28-digit Decimal context at import.
+Measured inputs are nominal values; subsequent user arithmetic follows its own
+numerical domain. Sources and conventions are documented on each namespace.
+"""
+
 from decimal import (
     ROUND_HALF_EVEN,
     Context,

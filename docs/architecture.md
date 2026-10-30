@@ -7,16 +7,17 @@ supply readings in their respective coordinate families.
 
 ## Source layout
 
-Public objects keep their existing modules, such as `unitx.unit`,
+Public objects live in modules such as `unitx.unit`,
 `unitx.quantity` and `unitx.unitregistry`. The standard-library enhancements
-remain `unitx.math` and `unitx.time`, directly discoverable under their documented
-names. SI, Imperial and CGS retain their respective catalogue packages.
+are `unitx.math`, `unitx.statistics` and `unitx.time`. SI, Imperial, information
+and CGS units each have a catalogue package.
 
-Private implementations are grouped by responsibility:
+Implementations are grouped by responsibility:
 
 | Package | Responsibility |
 | --- | --- |
 | `_numerics/` | Scalar protocols and number theory, exact scaling, linear conversion, optional NumPy kernels and annotations |
+| `numpy.py` / `numpy.pyi` | Finite public wrapped-input adapters and static overloads, using the existing NumPy dispatch |
 | `scipy.py` | Finite, lazily loaded SciPy integration at an explicit numerical boundary |
 | `matplotlib.py` | Optional, explicitly registered axis conversion at Matplotlib's numeric plotting boundary |
 | `_formatting/` | Unicode unit notation shared with the parser, and rich rendering |
@@ -24,10 +25,12 @@ Private implementations are grouped by responsibility:
 | `_registry/` | Prefix data, root definitions and reconstruction lookup |
 | `_coordinates/` | Affine/log mappings, coordinate definitions, resolution and point helpers |
 
-The `_numerics` package entry retains the existing scalar implementation and
-module identity. Imports such as `unitx._numerics.Scalar`, pickled numerical
-markers and numerical-module monkeypatches therefore retain their meaning.
-It does not import its scaling, conversion or optional NumPy submodules.
+The `_numerics` package entry owns scalar protocols, rational normalization and
+the built-in number-theory helpers. Consumer annotations are exported through
+`unitx.typing`; the private implementation location is not an extension API.
+The package entry does not import its scaling, conversion or optional NumPy submodules.
+Importing public `unitx.numpy` explicitly requires NumPy; ordinary scalar imports
+and `unitx.typing` do not.
 Other private package initializers are lightweight and import no implementations;
 reading Unicode notation does not load the rich renderer. Small shared object
 and operand boundaries remain at the root rather than in a generic utilities bag.
@@ -68,8 +71,13 @@ a composite Unit derives it from its terms
 and extra scale. It is an immutable summary, not a second independent definition.
 The readable symbol is derived from the formal product.
 
-Unit derives conversion data by asking Factor and Dimension to combine powered
-terms. Each owns its empty/single-term product and exponent-one identities.
+Unit derives conversion data by collecting nonidentity Factor and Dimension
+terms in one traversal, then asking each model to combine its powered terms.
+Factor and Dimension own the empty/single-term and batched product paths.
+This removes redundant numerical metadata work without
+dropping formal unit terms. Empty Monomial powers reuse the immutable identity
+after validating the exponent. Factor and Dimension retain their exponent-one
+paths to reuse the containing object and its caches before entering Monomial.
 Nontrivial products accumulate rational exponents in private mutable monomials
 and freeze once, with Factor validating the resulting symbolic bases. A frozen
 snapshot owns its mapping and remains unchanged if accumulation continues.
@@ -91,6 +99,11 @@ serialization and SI base-unit expansion.
 Unit spellings group canonical symbols, names, aliases and prefix permissions.
 Their validation produces the accepted spellings before registration. Definition
 identity and coordinate data remain separate from spelling rules.
+Prefix definitions carry their decimal/binary family. `True` and spelling-list
+permissions enable decimal prefixes; PrefixFamily and spelling mappings can
+select either family or both. Validation, parsing, canonical output and compact
+representation consult the same stored policy. Catalogue prefix shortcuts use
+the shared `_prefixed_units` helper; they do not create new unit definitions.
 
 A registry's bindings own the symbol, name and alias indexes together. The
 registry adapts public unit objects to definitions, stages a complete binding
@@ -191,32 +204,34 @@ forwards their arguments to the same NumPy dispatch used by function calls.
 Coordinate and linear result construction stays in the existing handlers.
 Reshape keeps its explicit positional-shape normalization.
 
+NumPy operand validation, numerical normalization, scaling and unit alignment
+live in `_numerics/numpy_operands.py`. The dispatcher and the creation, histogram,
+selection and write adapters use these shared rules without routing back through
+the dispatcher. This module imports no operation or write handlers; validation
+is still performed at each public boundary. Output staging and concrete operation
+handlers retain their existing owners. Product adapters reuse the first operand's
+complete Unit before accumulating later operands, preserving its extra scale and
+formal identity without constructing an initial identity product.
+
 The point marker's type parameter describes the result of adding a difference,
 not the original magnitude type. This prevents the open scalar protocol from
 claiming point operands and preserves concrete result types without naming the
 coordinate families in Quantity's annotations.
 
-| Object | Stored fields |
+| Object | Authoritative state and derived data |
 | --- | --- |
-| Monomial | `_components` |
-| SymbolicConstant | `_symbol`, `_value` |
-| Factor | `_monomial`, `_value_cache`, `_decompose_cache` |
-| Dimension | `_monomial` |
-| PrefixDefinition | `symbol`, `symbol_aliases`, `names`, `factor` |
-| _UnitSpellings | `symbols`, `names`, `prefixable`, `accepted` |
-| _ConversionData | `factor`, `dimension` |
-| UnitDefinition | `_key`, `_spelling`, `_conversion`, `__weakref__` |
-| _CoordinateDefinition | inherited definition fields, `_mapping` |
-| SingleUnit | `_prefix`, `_unit` |
-| Unit | `_monomial`, `_scale`, `_conversion` |
-| Quantity, AffineQuantity, LogQuantity | `_value`, `_unit` on each concrete class |
-| _AffineMapping | `_origin`, `_delta_unit` |
-| _LogMapping | `_reference`, `_at`, `_delta_unit`, `_kind` |
-| AffineUnit, LogUnit | `_mapping`, `_definition` on each concrete class |
-| Registry | `_bindings`, `_prefixable` |
-| _Bindings | `definitions`, `names`, `aliases` |
-| UnitParser | `_expression`, `_registry`, `_result`, `_tokens`, `_token` |
-| Token | `kind`, `value` |
+| Monomial | Base/exponent mapping; multiplication and powers produce new mappings |
+| SymbolicConstant | Symbol and approximate value under its mathematical construction contract |
+| Factor | Exact monomial; evaluation and rationalized decomposition are derived caches |
+| Dimension | Complete algebraic monomial; physical-axis views are projections |
+| PrefixDefinition | Symbol, aliases, names, exact factor and decimal/binary family |
+| UnitDefinition | Independent identity, validated spelling policy and conversion data; accepted spellings derive from the policy |
+| SingleUnit | Shared prefix and unit definitions; display spellings respect their permissions |
+| Unit | Formal monomial and extra exact scale; total factor/dimension derive from them |
+| Quantity, AffineQuantity, LogQuantity | Stored magnitude and complete unit/coordinate on each concrete class |
+| AffineUnit, LogUnit | Mapping and optional named definition; a coordinate definition shares that mapping |
+| Registry | Spelling bindings and default prefix policy; lookup indexes refer to existing definitions |
+| UnitParser | Input/environment, per-call token state and one successful-result cache |
 
 The operand interfaces have empty slots. Catalogues remain class namespaces;
 their registry is a class attribute, not per-instance state. The private mapping
@@ -226,7 +241,43 @@ Keeping mapping records is deliberate: anonymous descriptors, named descriptors
 and retained linear projections share one immutable mathematical definition.
 Descriptors contain no forwarding methods for mathematical conversion; readings
 and the explicit integration adapters call the mapping directly. Removing this
-sharing while preserving current string/projection entry points would require
+sharing while preserving the string/projection entry points would require
 another association mechanism or duplicate the defining state. A separate
 coordinate registry and removal of those public entry points are not part of
-this refactor.
+the model.
+
+## Documentation boundaries
+
+Module docstrings describe responsibility and dependency boundaries. Class
+docstrings describe construction, identity and invariants; method docstrings
+describe the local input/result contract. They should explain what a caller
+needs without reproducing a guide's complete support matrix.
+
+The [project README](https://github.com/DaitTHU/unitx/blob/main/README.md) is the
+short runnable introduction. The [guide index](README.md) routes users to the
+current public contracts; the [NumPy matrix](numpy.md#support-matrix) owns the
+array support list. Migration notes describe changes from older behavior.
+Architecture explains ownership and dependencies rather than duplicating every
+private slot. Keep measured costs and source fingerprints in the
+[performance report](https://github.com/DaitTHU/unitx/blob/main/benchmarks/performance.md).
+
+## Investigating performance
+
+Separate repeated setup from per-value work before changing a model:
+
+- Reuse bound Unit objects, including powers and conversion targets, outside
+  numerical loops. A UnitParser caches only its own successful result;
+  `Unit(text)`, `Registry.parse()` and catalogue `unit()` create fresh parsers.
+- Profile formal-product construction separately from magnitude kernels.
+  Factor and Dimension already batch nontrivial products; repeated metadata
+  derivation in Unit is still a concrete place to measure allocations.
+- Keep scalar rational/Decimal conversion separate from NumPy scaling and
+  dispatch costs. Short-array fixed overhead and large-array memory traffic
+  need different measurements. Output staging must retain its failure and
+  overlapping-storage guarantees.
+
+These are investigation boundaries, not measured speedup claims. A cache or
+shared abstraction needs a demonstrated repeated cost and an explicit lifetime;
+it must not merge formal definitions, change registry lookup, or infer exact
+identity from numerical approximations. Use the existing warmed profiles and
+uninstrumented benchmarks before expanding state or changing public APIs.
