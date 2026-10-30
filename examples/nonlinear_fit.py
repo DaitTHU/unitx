@@ -13,12 +13,32 @@ from unitx.si import si
 from unitx.typing import Array, NumpyValue, Scalar
 
 
+def decay_jacobian(
+    parameters: NDArray[np.float64],
+    time: Quantity[Array],
+    sigma: Quantity[Scalar],
+) -> NDArray[np.float64]:
+    """Differentiate weighted residuals with respect to the numerical V/s vector."""
+    amplitude_scale, time_scale = 1.0 * si.V, 1.0 * si.s
+    amplitude = parameters[0] * amplitude_scale
+    lifetime = parameters[1] * time_scale
+    envelope = np.exp(-time / lifetime)
+    amplitude_column = amplitude_scale * envelope / sigma
+    lifetime_column = amplitude * envelope / sigma * (time / lifetime) * (time_scale / lifetime)
+    return np.column_stack((amplitude_column.n, lifetime_column.n))
+
+
 def fit_decay(
     time: Quantity[Array],
     signal: Quantity[Array],
     sigma: Quantity[Scalar],
+    *,
+    analytic_jacobian: bool = True,
 ) -> tuple[Quantity[NumpyValue], Quantity[NumpyValue], NDArray[np.float64]]:
-    """Return amplitude, decay time and covariance in numerical V/s scales."""
+    """Return amplitude, decay time and covariance in numerical V/s scales.
+
+    Set `analytic_jacobian=False` to compare SciPy's two-point finite differences.
+    """
     amplitude_scale, time_scale = 1.0 * si.V, 1.0 * si.s
 
     def residual(parameters: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -28,9 +48,14 @@ def fit_decay(
         # The solver sees dimensionless residuals, weighted by known errors.
         return np.asarray(((prediction - signal) / sigma).n)
 
+    def jacobian_callback(parameters: NDArray[np.float64]) -> NDArray[np.float64]:
+        return decay_jacobian(parameters, time, sigma)
+
     solution = least_squares(
         residual,
         np.array([2.0, 1.0]),
+        # SciPy's unannotated default infers str, although it accepts callables.
+        jac=jacobian_callback if analytic_jacobian else '2-point',  # pyright: ignore[reportArgumentType]
         bounds=([0.0, 0.01], [np.inf, np.inf]),
         x_scale=1.0,
         ftol=1e-10,

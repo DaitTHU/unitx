@@ -65,7 +65,10 @@ example documents local suppressions for its Quantity `initial` and `out` call.
 
 [Nonlinear decay fitting](nonlinear_fit.py) is a standalone script requiring
 `unitx[scipy]`. It shows heterogeneous parameter scales, weighted residuals,
-solver tolerances, a local covariance estimate and equivalent-unit validation.
+an analytic Jacobian, solver tolerances, a local covariance estimate and
+equivalent-unit validation. Pass `analytic_jacobian=False` to `fit_decay` for
+a two-point finite-difference comparison; `benchmarks/nonlinear_fit.py` measures
+both modes and counts their callbacks separately from timing.
 Run it with `python examples/nonlinear_fit.py`.
 
 The [array storage recipe](../docs/array-storage.md) pairs numeric `.npz` data

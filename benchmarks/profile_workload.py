@@ -14,33 +14,39 @@ from pathlib import Path
 
 
 def workload(name: str) -> Callable[[], object]:
-    if name == 'scalar':
+    if name in ('scalar', 'scalar-reused'):
         from unitx import Quantity
         from unitx.si import si
 
         q = 1.5 * si.m
+        if name == 'scalar-reused':
+            square_metre, square_centimetre = si.m**2, si.cm**2
+            return lambda: (q * q + Quantity(10000.0, square_centimetre)).value_in(square_metre)
         return lambda: (q * q + Quantity(10000.0, si.cm**2)).value_in(si.m**2)
     import numpy as np
 
     from unitx import Quantity
     from unitx.si import si
 
-    if name == 'fit':
+    if name in ('fit', 'fit-finite'):
         fit = runpy.run_path(
             str(Path(__file__).resolve().parents[1] / 'examples/nonlinear_fit.py')
         )['fit_decay']
         x = Quantity(np.linspace(0.0, 6.0, 41), si.s)
         y = 2.5 * si.V * np.exp(-x / (1.7 * si.s))
         sigma = 0.02 * si.V
-        return lambda: fit(x, y, sigma)
-    q = Quantity(np.linspace(1.0, 2.0, 41), si.m)
+        return lambda: fit(x, y, sigma, analytic_jacobian=name == 'fit')
+    size = 1000000 if name == 'array-large' else 41
+    q = Quantity(np.linspace(1.0, 2.0, size), si.m)
     denominator = 2.0 * si.m
     return lambda: np.exp(-q / denominator).mean()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('workload', choices=['scalar', 'array', 'fit'])
+    parser.add_argument(
+        'workload', choices=['scalar', 'scalar-reused', 'array', 'array-large', 'fit', 'fit-finite']
+    )
     parser.add_argument('--seconds', type=float, default=10.0)
     output = parser.add_mutually_exclusive_group()
     output.add_argument(
