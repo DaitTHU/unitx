@@ -1,3 +1,9 @@
+"""Exact scaled formal unit products, independent of numerical magnitudes.
+
+Single-unit definitions retain identity through algebra; conversion metadata
+is derived from those definitions and the additional exact scale.
+"""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -29,10 +35,11 @@ if TYPE_CHECKING:
 
 
 class Unit(_Immutable):
-    """A physical unit represented by a formal product of single units.
+    """A linear unit represented by a formal product and an exact extra scale.
 
     Unit always represents a linear scale, including temperature differences
-    such as degC and K. Absolute readings use AffineQuantity.
+    such as degC and K, and logarithmic differences such as dB. Absolute readings
+    use AffineQuantity or LogQuantity with their matching coordinate descriptors.
 
     Accept a string in `UnitParser` syntax, such as `'kg m/s2'`,
     `'m/(s A)'`, or `'m^(1/2)'`. Registered symbols, singular English names,
@@ -142,12 +149,17 @@ class Unit(_Immutable):
     def _from_monomial(cls, monomial: Monomial[SingleUnit], /, *, scale: Factor = one) -> Self:
         """Direct constructor from Monomial without copy. Internal use only."""
         obj = object.__new__(cls)
-        factor = Factor._product(
-            ((unit.factor, exponent) for unit, exponent in monomial.components()), scale
-        )
-        dimension = Dimension._product(
-            (unit.dimension, exponent) for unit, exponent in monomial.components()
-        )
+        factors: list[tuple[Factor, Fraction]] = []
+        dimensions: list[tuple[Dimension, Fraction]] = []
+        for unit, exponent in monomial.components():
+            factor = unit.factor
+            if factor._monomial.components():
+                factors.append((factor, exponent))
+            dimension = unit.dimension
+            if dimension is not DIMENSIONLESS:
+                dimensions.append((dimension, exponent))
+        factor = Factor._product(factors, scale)
+        dimension = Dimension._product(dimensions)
         object.__setattr__(obj, '_monomial', monomial)
         object.__setattr__(obj, '_scale', scale)
         object.__setattr__(obj, '_conversion', _ConversionData(factor, dimension))
@@ -346,7 +358,8 @@ class Unit(_Immutable):
         from .quantity import Quantity
 
         if is_numpy_object(other):
-            from ._numerics.numpy import apply_ufunc, validate_magnitude
+            from ._numerics.numpy import apply_ufunc
+            from ._numerics.numpy_operands import validate_magnitude
 
             validate_magnitude(other)
             return apply_ufunc('true_divide', self, other)
@@ -429,7 +442,10 @@ class Unit(_Immutable):
 
     @property
     def dimension(self) -> Dimension:
-        """Return the physical dimensions of the formal unit product."""
+        """Return complete algebraic dimensions, including logarithmic degree.
+
+        Use `dimension.physical` for the seven-axis physical projection.
+        """
         return self._conversion.dimension
 
     def is_dimensionless(self) -> bool:
@@ -462,7 +478,7 @@ class Unit(_Immutable):
         Otherwise no parser tables change. UnitCatalog collects public unit
         attributes after its class body finishes.
 
-        The new unit has this unit's exact SI factor and physical dimension,
+        The new unit has this unit's exact factor and complete algebraic dimension,
         but a distinct formal identity. Symbols and symbol aliases must each
         be one printable UnitParser unit token. Names and name aliases may
         contain multiple such tokens separated by single ASCII spaces or hyphens, without

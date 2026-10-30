@@ -37,7 +37,26 @@ T = TypeVar('T', bound=Magnitude, covariant=True)
 
 
 class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
-    """An affine reading; `.to()` stays in its coordinate family."""
+    """A real reading in a linear affine coordinate, distinct from a difference.
+
+    Construct with `AffineQuantity(value, coordinate)` or `value @ coordinate`.
+    The coordinate can be an AffineUnit, a bound linear Unit or a default-registry
+    spelling. An ordinary linear Unit supplies a zero-origin coordinate.
+    Construction retains the reading's magnitude type; supported NumPy arrays
+    use one coordinate for the entire array. Bools and complex readings reject.
+
+    Subtract compatible points to obtain a Quantity difference. Adding or
+    subtracting a compatible difference returns a point; point addition and
+    multiplication reject. `.to()` preserves the affine family even in kelvin;
+    `.to_quantity()` explicitly evaluates a physical linear quantity. Points
+    are unhashable, and array comparisons return masks.
+
+    >>> point = AffineQuantity(20, 'degC')
+    >>> point.value_in('K')
+    Fraction(5863, 20)
+    >>> point + Quantity(5, 'K') == AffineQuantity(25, 'degC')
+    True
+    """
 
     __slots__ = ('_value', '_unit')
 
@@ -47,7 +66,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
 
     def __init__(self, value: T, unit: str | Unit | AffineUnit, /) -> None:
         if is_numpy_object(value):
-            from ._numerics.numpy import validate_magnitude
+            from ._numerics.numpy_operands import validate_magnitude
 
             validate_magnitude(value)
             if getattr(value, 'dtype').kind == 'c':
@@ -131,6 +150,11 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     def value_in(self, unit: str | Unit | AffineUnit, /) -> Magnitude: ...
 
     def value_in(self, unit: str | Unit | AffineUnit, /) -> Magnitude:
+        """Return the reading in a compatible affine coordinate without a wrapper.
+
+        Apply both origin and difference-scale conversion. This is the numeric
+        reading of `self.to(unit)`, rather than a physical-quantity exit.
+        """
         return cast(
             Magnitude,
             self.unit._mapping._value_in(self.value, self._resolve_coordinate(unit)._mapping),
@@ -152,6 +176,11 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     ) -> AffineQuantity[Magnitude]: ...
 
     def to(self, unit: str | Unit | AffineUnit, /) -> AffineQuantity[Magnitude]:
+        """Return an affine point in the target coordinate, including its origin.
+
+        Strings use the default registry. Ordinary linear Units denote
+        zero-origin coordinates; logarithmic coordinates are incompatible.
+        """
         target = self._resolve_coordinate(unit)
         return AffineQuantity(self.unit._mapping._value_in(self.value, target._mapping), target)
 

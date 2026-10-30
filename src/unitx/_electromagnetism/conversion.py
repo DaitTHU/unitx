@@ -95,7 +95,7 @@ class _EMConversion:
 
         value = quantity.value
         if is_numpy_object(value):
-            from .._numerics.numpy import validate_magnitude
+            from .._numerics.numpy_operands import validate_magnitude
 
             validate_magnitude(value)
         elif type(value) not in (int, float, Fraction, complex):

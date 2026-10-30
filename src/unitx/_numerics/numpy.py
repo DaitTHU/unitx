@@ -1,4 +1,7 @@
-"""Optional NumPy kernels. Imported only for NumPy magnitudes or dispatch.
+"""Optional NumPy operation dispatch, kernels and staged output writes.
+
+Operand validation, normalization and scaling are shared through numpy_operands;
+ordinary array construction and linear conversion do not need this dispatcher.
 
 An identity scale retains storage. Integral scales use a Python int multiplier;
 nonintegral rational scales use one Python float multiplier, and irrational
@@ -24,15 +27,26 @@ from .._operands import _Point, linear_unit
 from ..affinequantity import AffineQuantity
 from ..dimension import DIMENSIONLESS
 from ..exceptions import _WARNING_SKIP_PREFIXES, DimensionError, UnitOperationError
-from ..factor import Factor, one
+from ..factor import one
 from ..logquantity import LogQuantity
 from ..quantity import Quantity
 from ..unit import Unit
 from . import as_exponent
 from .conversion import compatible
+from .numpy_operands import (
+    _UNITLESS,
+    _align_operands,
+    _delta_unit,
+    _is_supported_operand,
+    _linear_parts,
+    _numeric_value,
+    _operand_parts,
+    _selection_parts,
+    _validate_dtype,
+    _wrap,
+    scale_magnitude,
+)
 from .numpy_typing import _UNSET
-
-_UNITLESS = Unit()
 
 _MATRIX_VECTOR_UFUNCS = tuple(
     value for name in ('matvec', 'vecmat') if isinstance(value := getattr(np, name, None), np.ufunc)
@@ -85,103 +99,6 @@ _DIMENSIONLESS_UFUNCS = frozenset(
     )
 )
 _UFUNC_OPTIONS = frozenset(('where', 'dtype', 'casting', 'order', 'subok'))
-
-
-def _wrap(value: Any, unit: Unit | _Coordinate) -> Any:
-    return unit.__rmatmul__(value) if isinstance(unit, _Coordinate) else Quantity(value, unit)
-
-
-def _is_numpy_magnitude(value: Any) -> bool:
-    return (
-        type(value) is np.ndarray
-        or isinstance(value, np.number)
-        and type(value).__module__ == 'numpy'
-    ) and value.dtype.kind in 'iufc'
-
-
-def validate_magnitude(value: Any) -> None:
-    if not _is_numpy_magnitude(value):
-        raise TypeError('Only plain numeric ndarrays and NumPy numeric scalars are supported.')
-
-
-def astype_magnitude(value: Any, dtype: Any) -> Any:
-    _validate_dtype(dtype)
-    return value.astype(dtype)
-
-
-def _is_supported_operand(value: Any) -> bool:
-    if isinstance(value, (Quantity, _Point)):
-        value = value.value
-    return type(value) in (int, float, complex, Decimal, Fraction) or _is_numpy_magnitude(value)
-
-
-def _numeric_value(value: Any) -> Any:
-    # NumPy has no native Decimal/Fraction dtype. Enter its floating domain at
-    # this boundary, leaving scalar Quantity arithmetic and constants intact.
-    return float(value) if isinstance(value, (Decimal, Fraction)) else value
-
-
-def scale_magnitude(value: Any, factor: Factor, *, where: Any = True) -> Any:
-    if not _is_supported_operand(value):
-        raise TypeError('NumPy operations require numeric arrays or supported numeric scalars.')
-    value = _numeric_value(value)
-    if factor == one:
-        return value
-    multiplier = factor.value
-    if isinstance(multiplier, Fraction):
-        multiplier = float(multiplier)
-    # Do not pass a Fraction to NumPy (it would create object dtype).
-    return np.multiply(value, multiplier, where=where, out=None)
-
-
-def _operand_parts(value: Any) -> tuple[Any, Unit | _Coordinate]:
-    if isinstance(value, (Quantity, _Point)):
-        return _numeric_value(value.value), value.unit
-    if isinstance(value, (Unit, _Coordinate)):
-        return 1, value
-    return _numeric_value(value), _UNITLESS
-
-
-def _linear_parts(value: Any) -> tuple[Any, Unit]:
-    raw, unit = _operand_parts(value)
-    if not isinstance(unit, Unit):
-        error_message = 'This operation requires linear quantities or differences.'
-        raise UnitOperationError(error_message)
-    return raw, unit
-
-
-def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
-    a, u = _linear_parts(left)
-    b, v = _linear_parts(right)
-    if not compatible(u, v):
-        raise DimensionError('Cannot operate on incompatible dimensions or logarithmic degrees.')
-    # Addition retains the first Quantity's unit, even with a bare left input.
-    target = u if isinstance(left, Quantity) else v
-    return (
-        scale_magnitude(a, u.factor / target.factor),
-        scale_magnitude(b, v.factor / target.factor),
-        target,
-    )
-
-
-def _selection_parts(left: Any, right: Any) -> tuple[Any, Any, Unit | _Coordinate]:
-    """Align selection operands without crossing point/difference boundaries."""
-    if not all(_is_supported_operand(x) for x in (left, right)):
-        error_message = 'Selection requires numeric scalars, ndarrays, quantities or points.'
-        raise TypeError(error_message)
-    if isinstance(left, _Point) or isinstance(right, _Point):
-        if not isinstance(left, _Point) or not isinstance(right, _Point):
-            error_message = 'Selection cannot mix points and differences.'
-            raise UnitOperationError(error_message)
-        if not left.unit._compatible_with(right.unit):
-            error_message = 'Selection requires compatible points with the same convention.'
-            raise DimensionError(error_message)
-        return (
-            _numeric_value(left.value),
-            _numeric_value(convert(_numeric_value(right.value), right.unit, left.unit)),
-            left.unit,
-        )
-    return _align_operands(left, right)
 
 
 def _validate_where(kwargs: dict[str, Any]) -> None:
@@ -426,8 +343,17 @@ def _stage_output(
 def _dispatch_ufunc(
     ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    if not all(isinstance(x, (Unit, _Coordinate)) or _is_supported_operand(x) for x in inputs):
-        return NotImplemented
+    has_coordinate = False
+    has_point = False
+    for value in inputs:
+        if isinstance(value, Unit):
+            continue
+        if isinstance(value, _Coordinate):
+            has_coordinate = True
+            continue
+        if not _is_supported_operand(value):
+            return NotImplemented
+        has_point |= isinstance(value, _Point)
     if kwargs:
         if any(x is not None for x in kwargs.get('out', ())):
             return NotImplemented
@@ -443,8 +369,9 @@ def _dispatch_ufunc(
             if isinstance(inputs[1], _Coordinate)
             else AffineQuantity(inputs[0], inputs[1])
         )
-    inputs = tuple(linear_unit(x) if isinstance(x, _Coordinate) else x for x in inputs)
-    if any(isinstance(x, _Point) for x in inputs):
+    if has_coordinate:
+        inputs = tuple(linear_unit(x) if isinstance(x, _Coordinate) else x for x in inputs)
+    if has_point:
         return _affine_ufunc(ufunc, method, inputs, kwargs)
     if method != '__call__':
         return NotImplemented
@@ -459,38 +386,60 @@ def _dispatch_ufunc(
     if 'where' in kwargs:
         # A masked temporary intentionally has unspecified unused elements.
         kwargs = {**kwargs, 'out': (None,) * ufunc.nout}
+    if ufunc in _MULTIPLICATIVE_UFUNCS:
+        a, u = _linear_parts(inputs[0])
+        b, v = _linear_parts(inputs[1])
+        # Unit multiplication constructs a Quantity without copying the array.
+        if ufunc is np.multiply and not kwargs:
+            if isinstance(inputs[0], Unit):
+                return Quantity(b, u * v)
+            if isinstance(inputs[1], Unit):
+                return Quantity(a, u * v)
+        if ufunc in (np.divide, np.true_divide) and isinstance(inputs[1], Unit) and not kwargs:
+            return Quantity(a, u / v)
+        unit = u / v if ufunc in (np.divide, np.true_divide) else u * v
+        return Quantity(ufunc(a, b, **kwargs), unit)
+    if ufunc in _PRESERVE_UNIT_UFUNCS:
+        a, unit = _linear_parts(inputs[0])
+        return Quantity(ufunc(a, **kwargs), unit)
+    if ufunc in _DIMENSIONLESS_UFUNCS:
+        a, unit = _linear_parts(inputs[0])
+        if unit.dimension != DIMENSIONLESS:
+            error_message = 'This function requires dimensionless input.'
+            raise DimensionError(error_message)
+        return Quantity(ufunc(scale_magnitude(a, unit.factor), **kwargs), _UNITLESS)
     if ufunc in (np.add, np.subtract):
         if any(isinstance(x, Unit) for x in inputs):
             return NotImplemented
         a, b, unit = _align_operands(*inputs)
-        return _wrap(ufunc(a, b, **kwargs), unit)
+        return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.minimum, np.maximum, np.fmin, np.fmax):
         a, b, unit = _selection_parts(*inputs)
-        return _wrap(ufunc(a, b, **kwargs), unit)
+        return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.remainder, np.fmod, np.floor_divide, np.divmod):
         a, b, unit = _align_operands(*inputs)
         result = ufunc(a, b, **kwargs)
         if ufunc is np.divmod:
-            return _wrap(result[0], _UNITLESS), _wrap(result[1], unit)
-        return _wrap(result, _UNITLESS if ufunc is np.floor_divide else unit)
+            return Quantity(result[0], _UNITLESS), Quantity(result[1], unit)
+        return Quantity(result, _UNITLESS if ufunc is np.floor_divide else unit)
     if ufunc is np.copysign:
         a, unit = _linear_parts(inputs[0])
         b, _ = _linear_parts(inputs[1])
-        return _wrap(ufunc(a, b, **kwargs), unit)
+        return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.logaddexp, np.logaddexp2):
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
         if u.dimension != DIMENSIONLESS or v.dimension != DIMENSIONLESS:
             error_message = 'This function requires dimensionless inputs.'
             raise DimensionError(error_message)
-        return _wrap(
+        return Quantity(
             ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), _UNITLESS
         )
     if ufunc in (np.hypot, np.arctan2):
         a, b, unit = _align_operands(*inputs)
         if unit.dimension != unit.dimension.physical:
             raise DimensionError('Convert logarithmic quantities to physical ratios first.')
-        return _wrap(ufunc(a, b, **kwargs), Unit('rad') if ufunc is np.arctan2 else unit)
+        return Quantity(ufunc(a, b, **kwargs), Unit('rad') if ufunc is np.arctan2 else unit)
     if ufunc in _COMPARISON_UFUNC_SET:
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
@@ -506,62 +455,46 @@ def _dispatch_ufunc(
         if ratio == one:
             return ufunc(a, b, **kwargs)
         return ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs)
-    if ufunc in _MULTIPLICATIVE_UFUNCS:
-        a, u = _linear_parts(inputs[0])
-        b, v = _linear_parts(inputs[1])
-        assert isinstance(u, Unit) and isinstance(v, Unit)
-        # Unit multiplication constructs a Quantity without copying the array.
-        if ufunc is np.multiply and not kwargs:
-            if isinstance(inputs[0], Unit):
-                return _wrap(b, u * v)
-            if isinstance(inputs[1], Unit):
-                return _wrap(a, u * v)
-        if ufunc in (np.divide, np.true_divide) and isinstance(inputs[1], Unit) and not kwargs:
-            return _wrap(a, u / v)
-        unit = u / v if ufunc in (np.divide, np.true_divide) else u * v
-        return _wrap(ufunc(a, b, **kwargs), unit)
     a, unit = _linear_parts(inputs[0])
     if ufunc in (np.modf, np.frexp):
         first, second = ufunc(a, **kwargs)
         # Decompose the stored coordinates. Both modf parts, and the frexp
         # mantissa, carry the input unit; the binary exponent is a bare integer.
-        return _wrap(first, unit), _wrap(second, unit) if ufunc is np.modf else second
-    if ufunc in _PRESERVE_UNIT_UFUNCS:
-        return _wrap(ufunc(a, **kwargs), unit)
+        return Quantity(first, unit), Quantity(second, unit) if ufunc is np.modf else second
     if ufunc is np.ldexp:
         exponent, exponent_unit = _linear_parts(inputs[1])
         if exponent_unit.dimension != DIMENSIONLESS:
             error_message = 'ldexp requires dimensionless integer exponents.'
             raise DimensionError(error_message)
         exponent = scale_magnitude(exponent, exponent_unit.factor)
-        return _wrap(ufunc(a, exponent, **kwargs), unit)
+        return Quantity(ufunc(a, exponent, **kwargs), unit)
     if ufunc is np.nextafter:
         a, b, unit = _align_operands(*inputs)
-        return _wrap(ufunc(a, b, **kwargs), unit)
+        return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc is np.spacing:
-        return _wrap(ufunc(a, **kwargs), unit)
+        return Quantity(ufunc(a, **kwargs), unit)
     if ufunc is np.heaviside:
         b, v = _linear_parts(inputs[1])
         if v.dimension != DIMENSIONLESS:
             error_message = 'heaviside requires a dimensionless value at zero.'
             raise DimensionError(error_message)
-        return _wrap(ufunc(a, scale_magnitude(b, v.factor), **kwargs), _UNITLESS)
+        return Quantity(ufunc(a, scale_magnitude(b, v.factor), **kwargs), _UNITLESS)
     if ufunc is np.sign:
-        return _wrap(ufunc(a, **kwargs), _UNITLESS)
+        return Quantity(ufunc(a, **kwargs), _UNITLESS)
     if ufunc in (np.degrees, np.rad2deg, np.radians, np.deg2rad):
         if unit.dimension != DIMENSIONLESS:
             error_message = 'Angle conversion requires dimensionless input.'
             raise DimensionError(error_message)
         source = Unit('rad') if ufunc in (np.degrees, np.rad2deg) else Unit('deg')
         target = Unit('deg') if ufunc in (np.degrees, np.rad2deg) else Unit('rad')
-        return _wrap(ufunc(scale_magnitude(a, unit.factor / source.factor), **kwargs), target)
+        return Quantity(ufunc(scale_magnitude(a, unit.factor / source.factor), **kwargs), target)
     if ufunc in (np.isfinite, np.isnan, np.isinf, np.signbit):
         return ufunc(a, **kwargs)
     if ufunc in (np.square, np.sqrt, np.cbrt, np.reciprocal):
         power = {np.square: 2, np.sqrt: Fraction(1, 2), np.cbrt: Fraction(1, 3), np.reciprocal: -1}[
             ufunc
         ]
-        return _wrap(ufunc(a, **kwargs), unit**power)
+        return Quantity(ufunc(a, **kwargs), unit**power)
     if ufunc in (np.power, np.float_power):
         exponent, exponent_unit = _linear_parts(inputs[1])
         if exponent_unit.dimension != DIMENSIONLESS:
@@ -572,7 +505,7 @@ def _dispatch_ufunc(
             error_message = 'Exponents must be finite real values.'
             raise TypeError(error_message)
         if unit.dimension == DIMENSIONLESS:
-            return _wrap(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), _UNITLESS)
+            return Quantity(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), _UNITLESS)
         if np.ndim(exponent) != 0:
             raw, _ = _linear_parts(inputs[1])
             if not raw.size or not np.all(raw == raw.flat[0]):
@@ -589,15 +522,11 @@ def _dispatch_ufunc(
             power = Fraction(raw_exponent) * rational
         else:
             power = as_exponent(scalar) if type(scalar) in (int, float) else Fraction(str(scalar))
-        return _wrap(ufunc(a, exponent, **kwargs), unit**power)
+        return Quantity(ufunc(a, exponent, **kwargs), unit**power)
     if ufunc in (np.arcsin, np.arccos, np.arctan):
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
-        return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
-    if ufunc in _DIMENSIONLESS_UFUNCS:
-        if unit.dimension != DIMENSIONLESS:
-            raise DimensionError('This function requires dimensionless input.')
-        return _wrap(ufunc(scale_magnitude(a, unit.factor), **kwargs), _UNITLESS)
+        return Quantity(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
     # SciPy's public ufunc is already loaded when it dispatches here. Identity
     # lookup avoids importing SciPy or accepting an unrelated same-name ufunc.
     if ufunc is getattr(sys.modules.get('scipy.special'), 'jv', None):
@@ -606,7 +535,7 @@ def _dispatch_ufunc(
         if u.dimension != DIMENSIONLESS or v.dimension != DIMENSIONLESS:
             error_message = 'Bessel order and argument must be dimensionless.'
             raise DimensionError(error_message)
-        return _wrap(
+        return Quantity(
             ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), _UNITLESS
         )
     return NotImplemented
@@ -1096,8 +1025,9 @@ def _product_parts(operands: Any) -> tuple[list[Any], Unit]:
             error_message = 'Products require numeric scalars, ndarrays or linear quantities.'
             raise TypeError(error_message)
         value, source = _linear_parts(operand)
+        # The first operand already supplies a complete immutable Unit.
+        unit = unit * source if values else source
         values.append(value)
-        unit *= source
     return values, unit
 
 
@@ -1647,10 +1577,6 @@ def _cumsum(q: Any, axis: Any = None, dtype: Any = None, out: Any = None) -> Any
     return _write_output(_wrap(np.cumsum(q.value, axis=axis, dtype=dtype), q.unit), out)
 
 
-def _delta_unit(unit: Unit | _Coordinate) -> Unit:
-    return unit.delta_unit if isinstance(unit, _Coordinate) else unit
-
-
 def _ptp(a: Any, axis: Any = None, out: Any = None, keepdims: bool = False) -> Any:
     if not _is_supported_operand(a):
         error_message = 'Statistics require numeric scalars, ndarrays, quantities or points.'
@@ -1933,11 +1859,6 @@ def _std_var(
         unit,
     )
     return _write_output(result, out)
-
-
-def _validate_dtype(dtype: Any) -> None:
-    if dtype is not None and np.dtype(dtype).kind not in 'iufc':
-        raise TypeError('Only numeric output dtypes are supported.')
 
 
 def power(q: Any, exponent: Any) -> Any:

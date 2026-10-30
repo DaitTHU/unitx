@@ -12,19 +12,21 @@ from ..unit import Unit
 from .numpy import (
     _array_transform,
     _boolean_condition,
-    _delta_unit,
     _join_values,
+    _snapshot_index,
+    _validate_where,
+    _write_output,
+)
+from .numpy_creation import _readings
+from .numpy_operands import (
+    _delta_unit,
     _linear_parts,
     _operand_parts,
     _selection_parts,
-    _snapshot_index,
     _validate_dtype,
-    _validate_where,
     _wrap,
-    _write_output,
     scale_magnitude,
 )
-from .numpy_creation import _readings
 
 
 def _block(arrays: Any) -> Any:

@@ -21,6 +21,14 @@ def test_monomial_empty() -> None:
     assert monomial ** Fraction(-1, 2) == monomial
 
 
+@pytest.mark.parametrize('exponent', [0, 1, -2, 0.1, Fraction(1, 3), Decimal('0.5')])
+def test_monomial_empty_power(exponent: int | float | Fraction | Decimal) -> None:
+    monomial: Monomial[str] = Monomial()
+    result = monomial**exponent
+    assert result == monomial
+    assert {monomial: 'identity'}[result] == 'identity'
+
+
 def test_monomial_creation() -> None:
     monomial = Monomial({'x': 2, 'y': 3, 'deleted': 0})
     assert monomial == Monomial({'x': 2, 'y': 3})
@@ -179,21 +187,25 @@ def test_monomial_exact_exponents() -> None:
 
 
 @pytest.mark.parametrize('value', [True, False, '1/2'])
-def test_monomial_invalid_types(value: object) -> None:
+@pytest.mark.parametrize('components', [{}, {'x': 1}])
+def test_monomial_invalid_types(value: object, components: dict[str, int]) -> None:
     with pytest.raises(TypeError):
         Monomial({'x': value})  # pyright: ignore[reportArgumentType]
     with pytest.raises(TypeError):
-        Monomial({'x': 1}) ** value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
+        Monomial(components) ** value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
 
 
 @pytest.mark.parametrize(
     ('value', 'error'), [(float('nan'), ValueError), (float('inf'), OverflowError)]
 )
-def test_monomial_invalid_exponents(value: float, error: type[Exception]) -> None:
+@pytest.mark.parametrize('components', [{}, {'x': 1}])
+def test_monomial_invalid_exponents(
+    value: float, error: type[Exception], components: dict[str, int]
+) -> None:
     with pytest.raises(error):
         Monomial({'x': value})
     with pytest.raises(error):
-        Monomial({'x': 1}) ** value  # pyright: ignore[reportUnusedExpression]
+        Monomial(components) ** value  # pyright: ignore[reportUnusedExpression]
 
 
 def test_monomial_invalid_components() -> None:

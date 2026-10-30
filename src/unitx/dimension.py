@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from fractions import Fraction
 from typing import Literal
 
@@ -70,9 +70,8 @@ class Dimension(_Immutable):
         return obj
 
     @classmethod
-    def _product(cls, terms: Iterable[tuple[Dimension, Fraction]], /) -> Dimension:
-        """Combine `dimension**exponent` terms, batching multi-term products."""
-        terms = tuple(terms)
+    def _product(cls, terms: Sequence[tuple[Dimension, Fraction]], /) -> Dimension:
+        """Combine nonidentity `dimension**exponent` terms, batching products."""
         if not terms:
             return DIMENSIONLESS
         if len(terms) == 1:

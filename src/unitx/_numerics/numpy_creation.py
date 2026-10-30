@@ -9,7 +9,7 @@ from ..dimension import DIMENSIONLESS
 from ..exceptions import DimensionError
 from ..quantity import Quantity
 from ..unit import Unit
-from .numpy import (
+from .numpy_operands import (
     _delta_unit,
     _is_supported_operand,
     _linear_parts,

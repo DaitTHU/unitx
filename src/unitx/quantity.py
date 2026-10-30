@@ -1,3 +1,9 @@
+"""Linear magnitudes paired with complete units and explicit numerical exits.
+
+Scalar arithmetic follows the magnitude's domain. Optional NumPy operations
+delegate numerical kernels and preserve unit semantics at the array boundary.
+"""
+
 from __future__ import annotations
 
 # Core algebra uses shared descriptor/point boundaries, not concrete coordinate families.
@@ -165,7 +171,7 @@ class Quantity(Generic[T]):
 
     def __init__(self, value: T, unit: str | Unit | _LinearUnitSource, /) -> None:
         if is_numpy_object(value):
-            from ._numerics.numpy import validate_magnitude
+            from ._numerics.numpy_operands import validate_magnitude
 
             validate_magnitude(value)
         elif hasattr(value, '__array_interface__') or hasattr(value, '__array_ufunc__'):
@@ -242,6 +248,11 @@ class Quantity(Generic[T]):
         return self.to_html()
 
     def is_dimensionless(self) -> bool:
+        """Test physical dimensionlessness, ignoring scale and logarithmic degree.
+
+        This does not imply compatibility with `one`; use `n` to extract an
+        ordinary coherent dimensionless value with full compatibility checks.
+        """
         return self.dimension.physical is DIMENSIONLESS
 
     def __bool__(self) -> bool:
@@ -269,6 +280,13 @@ class Quantity(Generic[T]):
         return convert(self.value, self.unit, unit)
 
     def to(self, unit: str | Unit | _LinearUnitSource, /) -> Quantity[Magnitude]:
+        """Return a Quantity in a compatible linear unit, retaining exact unit rules.
+
+        Strings resolve in the default registry. Coordinate descriptors supply
+        their difference units; this operation does not create a point or apply
+        a logarithmic mapping. Magnitude types follow `value_in`, and an identity
+        conversion can share the original magnitude, including array storage.
+        """
         unit = linear_unit(unit)
         return Quantity(self.value_in(unit), unit)
 
@@ -329,7 +347,7 @@ class Quantity(Generic[T]):
         Quantity(1.25, Unit('m'))
         """
         if is_numpy_object(self.value):
-            from ._numerics.numpy import astype_magnitude
+            from ._numerics.numpy_operands import astype_magnitude
 
             return Quantity(astype_magnitude(self.value, dtype), self.unit)
         if not any(dtype is candidate for candidate in (int, float, complex, Fraction, Decimal)):
@@ -540,20 +558,26 @@ class Quantity(Generic[T]):
         rel_tol: object = 1e-9,
         abs_tol: object = 0,
     ) -> Any:
-        """Compare real scalar quantities using symmetric relative/absolute tolerances.
+        """Compare quantities using symmetric relative/absolute tolerances.
 
         In coherent SI units, the test is
-        ``abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)``.
+        `abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)`.
         Both tolerances must be finite and nonnegative. A nonzero absolute
         tolerance for dimensional quantities must be a Quantity with the same
         dimension; plain absolute tolerances and plain other operands represent
         unscaled dimensionless values. Different dimensions raise DimensionError.
 
-        Finite rational coefficients stay exact, including Decimal values and
-        floats' stored binary values. Residual irrational unit factors use their
-        numerical approximations, independently of the calling quantity's unit.
+        For real Python scalars, finite rational coefficients stay exact,
+        including Decimal values and floats' stored binary values.
+        Residual irrational unit factors use their numerical approximations,
+        independently of the calling quantity's unit.
         With both tolerances zero, the result is exact equality. NaNs are never
         close; infinities are close only to an infinity of the same sign.
+
+        NumPy inputs broadcast and return bare boolean masks. Their comparison
+        uses NumPy numerical evaluation in coherent units, including rounding,
+        rather than the exact scalar comparison. Tolerances can broadcast too.
+        Complex magnitudes are unsupported. See `docs/numpy.md` for array rules.
 
         >>> Quantity(0.1 + 0.2, 'm').isclose(Quantity(0.3, 'm'))
         True
@@ -830,9 +854,12 @@ class Quantity(Generic[T]):
         return result
 
     def _has_numpy_operand(self, *others: object) -> bool:
-        return is_numpy_object(self.value) or any(
-            is_numpy_object(x.value if _is_quantity(x) else x) for x in others
-        )
+        if is_numpy_object(self.value):
+            return True
+        for other in others:
+            if is_numpy_object(other.value if _is_quantity(other) else other):
+                return True
+        return False
 
     def __array__(self, dtype: object = None, copy: object = None) -> Any:
         error_message = 'Implicit unit removal is forbidden; use q.value_in(unit) or q.value.'
