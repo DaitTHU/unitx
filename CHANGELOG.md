@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.17.10] - 2026-10-30
+
+### Changed
+
+- Share NumPy operand validation, scaling and alignment through a dedicated
+  internal module, independent of operation dispatch and output staging.
+  Reuse the first contraction operand's complete unit instead of constructing
+  an initial identity product, including trace and single-input einsum.
+- Reuse empty monomials after validating powers and omit identity Factor and
+  Dimension terms from conversion-metadata accumulation. Preserve formal unit
+  identities, exact scales and complete logarithmic dimensions.
+- Shorten common NumPy ufunc routes and linear operand/result preparation;
+  collect Unit conversion terms in one pass. Add a direct Python scalar
+  recognition path without importing NumPy or caching types.
+- Use an analytic Jacobian in the weighted decay-fit example, with a separate
+  finite-difference comparison and callback counts in its benchmark.
+- Simplify Dimension reconstruction through its ordinary constructor and keep
+  internal logarithmic-exponent access inside the dimension model, preserving
+  the scalar JSON format and complete algebraic compatibility.
+- Clarify public object responsibilities, numerical exits and optional-backend
+  boundaries in docstrings and guides; expand reproducible performance records.
+
 ## [0.17.9] - 2026-10-29
 
 ### Added
