@@ -1,6 +1,12 @@
+"""Exact algebraic dimensions with explicit seven-axis physical projections.
+
+Compatibility and hashing retain internal logarithmic degree; named exponents,
+tuple/dictionary views and readable text describe the physical axes only.
+"""
+
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
 from fractions import Fraction
 from typing import Literal
 
@@ -28,6 +34,10 @@ class Dimension(_Immutable):
     Zero exponents represent the `DIMENSIONLESS` singleton. Use Fraction or
     Decimal for exact exponents; floats use their shortest decimal text,
     without a denominator limit, consistently with Monomial, Factor, and Unit.
+
+    Equality and hashing use the complete algebraic signature, which can also
+    contain an internal logarithmic axis. `physical`, named exponents,
+    `as_tuple()`, `as_dict()` and str() expose the seven physical axes only.
 
     >>> dim_velocity = Dimension(L=1, T=-1)
     >>> dim_force = Dimension(M=1, L=1, T=-2)
@@ -83,19 +93,14 @@ class Dimension(_Immutable):
         return cls._from_monomial(product.freeze())
 
     @classmethod
-    def _from_iter(cls, exponents: Iterable[Fraction], /) -> Dimension:
-        """Construct the seven-axis physical projection. Internal use only."""
-        exponents = tuple(exponents)
-        assert len(exponents) == len(_PHYSICAL_AXES), (
-            f'Expected {len(_PHYSICAL_AXES)} exponents, got {len(exponents)}.'
-        )
-        assert all(type(exp) is Fraction for exp in exponents), 'All exponents must be Fraction.'
-        return cls._from_monomial(Monomial(dict(zip(_PHYSICAL_AXES, exponents))))
-
-    @classmethod
     def _with_log(cls, physical: Dimension, exponent: Fractionable = 1) -> Dimension:
         """Attach the internal logarithmic axis at a model/serialization boundary."""
         return cls._from_monomial(physical._monomial * Monomial({'_log': exponent}))
+
+    @property
+    def _log_exponent(self) -> Fraction:
+        """Read the internal logarithmic exponent without exposing its storage."""
+        return self._monomial.exponent_of('_log')
 
     @property
     def physical(self) -> Dimension:
@@ -118,7 +123,7 @@ class Dimension(_Immutable):
             f'{sym}={as_int_if_integral(exp)!r}' for sym, exp in self._physical_components()
         )
         physical = f'{type(self).__name__}({arguments})'
-        exponent = self._monomial.exponent_of('_log')
+        exponent = self._log_exponent
         return f'Dimension._with_log({physical}, {exponent!r})' if exponent else physical
 
     def __str__(self) -> str:

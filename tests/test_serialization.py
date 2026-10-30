@@ -174,6 +174,7 @@ def test_decimal_specials_and_context(text: str) -> None:
         Unit('um/s^(1/3)'),
         Unit('dB/m'),
         Unit('dB^2'),
+        Unit('(dB/m)^(1/3)'),
         Unit('m', scale=Factor(1)),
         Unit('m/s', scale=pi ** Fraction(-1, 3)),
         Unit('cm', scale=(Factor(2) ** Fraction(1, 2)) * ln10),

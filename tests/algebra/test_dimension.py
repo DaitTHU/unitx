@@ -152,18 +152,6 @@ def test_dimension_immutable(dimension: Dimension, attribute: str) -> None:
         object.__setattr__(dimension, '_monomial', monomial)
 
 
-def test_dimension_from_iter() -> None:
-    """Test the internal `Dimension._from_iter`"""
-    original_dimension = Dimension(L=1, T=2)
-    restored_dimension = Dimension._from_iter(original_dimension.as_tuple())
-    assert restored_dimension == original_dimension
-    assert restored_dimension is not original_dimension
-    with pytest.raises(AssertionError, match='Expected 7 exponents'):
-        Dimension._from_iter(map(Fraction, [1, 2]))
-    with pytest.raises(AssertionError, match='All exponents must be Fraction'):
-        Dimension._from_iter((1, 2, 0, 0, 0, 0, 0))  # pyright: ignore[reportArgumentType]
-
-
 def test_dimension_copy_and_pickle() -> None:
     dimension = Dimension(L=Fraction(1, 3))
     assert copy(dimension) is dimension
