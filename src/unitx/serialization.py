@@ -245,7 +245,7 @@ def _unit_data(unit: Unit) -> dict[str, object]:
         'identity': _unit_identity(unit),
         'dimension': [_fraction_data(exp) for exp in unit.dimension.as_tuple()],
         'factor': _factor_data(unit.factor),
-        'log_degree': _fraction_data(unit.dimension._monomial.exponent_of('_log')),
+        'log_degree': _fraction_data(unit.dimension._log_exponent),
     }
     return record
 
@@ -338,7 +338,7 @@ def _unit(data: object, registry: Registry | None = None) -> Unit:
     if (
         not _matches_identity(unit, record['identity'])
         or Dimension._with_log(
-            Dimension._from_iter(_fraction(exp) for exp in dimension),
+            Dimension(*(_fraction(exp) for exp in dimension)),
             _fraction(record['log_degree']),
         )
         != unit.dimension
