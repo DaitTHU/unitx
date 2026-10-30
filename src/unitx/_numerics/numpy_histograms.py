@@ -7,8 +7,8 @@ import numpy as np  # pyright: ignore[reportMissingImports]
 from .._operands import _Point
 from ..quantity import Quantity
 from ..unit import Unit
-from .numpy import (
-    _call_with_warnings,
+from .numpy import _call_with_warnings
+from .numpy_operands import (
     _delta_unit,
     _is_supported_operand,
     _linear_parts,

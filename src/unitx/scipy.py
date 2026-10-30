@@ -29,7 +29,7 @@ def simpson(
     import numpy as np  # pyright: ignore[reportMissingImports]
     from scipy.integrate import simpson as integrate  # pyright: ignore[reportMissingImports]
 
-    from ._numerics.numpy import _is_supported_operand, _linear_parts
+    from ._numerics.numpy_operands import _is_supported_operand, _linear_parts
 
     if not _is_supported_operand(y):
         error_message = 'simpson requires numeric samples or a linear Quantity.'

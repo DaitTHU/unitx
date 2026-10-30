@@ -10,21 +10,23 @@ from ..exceptions import DimensionError
 from ..quantity import Quantity
 from ..unit import Unit
 from .numpy import (
-    _align_operands,
     _boolean_condition,
+    _prod,
+    _snapshot_index,
+    _sum,
+    _validate_where,
+    _write_output,
+    dispatch_ufunc,
+)
+from .numpy_operands import (
+    _align_operands,
     _is_supported_operand,
     _linear_parts,
     _numeric_value,
     _operand_parts,
-    _prod,
     _selection_parts,
-    _snapshot_index,
-    _sum,
     _validate_dtype,
-    _validate_where,
     _wrap,
-    _write_output,
-    dispatch_ufunc,
     scale_magnitude,
 )
 

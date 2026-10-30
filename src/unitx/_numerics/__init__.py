@@ -1,12 +1,13 @@
-"""Scalar protocols and numerical helpers, retaining the unitx._numerics entry.
+"""Scalar capabilities, rational normalization and bounded number theory.
 
 Scaling, conversion and optional NumPy support live in sibling submodules;
 this entry imports none of them.
 
-- `as_fraction`: Converts a number to a rational number (Fraction), handling
-  inexact floating-point representations.
-- `isprime`: Tests the primality of a number.
-- `factorint`: Factors a positive integer into its prime factors,
+`as_fraction` limits float denominators for scale construction; `as_exponent`
+uses shortest decimal text for formal float exponents. Neither policy applies
+to exact comparison of a stored float magnitude. `isprime` and `factorint`
+provide the built-in bounded factorization path used when SymPy is absent.
+Consumers import magnitude annotations from `unitx.typing`.
 """
 
 from __future__ import annotations
@@ -99,9 +100,13 @@ Real: TypeAlias = int | Fraction | float
 Number: TypeAlias = Real | complex
 Fractionable: TypeAlias = Real | Decimal
 
+_PYTHON_SCALAR_TYPES = frozenset((int, float, complex, Fraction, Decimal, bool))
+
 
 def is_numpy_object(value: object) -> bool:
     """Recognize NumPy objects and subclasses without importing NumPy."""
+    if type(value) in _PYTHON_SCALAR_TYPES:
+        return False
     for base in type(value).__mro__:
         module = base.__module__
         if module == 'numpy' or module.startswith('numpy.'):
@@ -113,7 +118,7 @@ def as_fraction(value: Fractionable, /, *, float_max_denominator: int = 1000000)
     """Convert a number to a Fraction.
 
     - For `int` and `Decimal`, the conversion is always exact.
-    - For `float`, the denominator is limited (under 1,000,000 by default).
+    - For `float`, the denominator is at most 1,000,000 by default.
 
     The conversion is useful for float results that are _expected_ to be
     rational numbers like 1/3 or 2/5, but may be inexact due to floating-point

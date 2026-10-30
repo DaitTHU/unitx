@@ -33,6 +33,19 @@ def test_unit_creation() -> None:
     assert repr(u) == "Unit('m * s**-1')"
 
 
+@pytest.mark.parametrize('exponent', [Fraction(1), Fraction(1, 3), Fraction(-2)])
+def test_unit_identity_metadata(exponent: Fraction) -> None:
+    from unitx.si import si
+
+    marker = si.rad.define('algebraMarker', prefixable=False)
+    unit = (marker * si.m * si.dB) ** exponent
+    physical_terms = (si.m * si.dB) ** exponent
+    assert unit.factor == si.dB.factor**exponent
+    assert unit.dimension == (si.m.dimension * si.dB.dimension) ** exponent
+    assert unit != physical_terms
+    assert unit / marker**exponent == physical_terms
+
+
 @pytest.mark.parametrize('value', [0, -2, 2.0, Fraction(3, 2), Decimal('1.2345'), 2j])
 @pytest.mark.parametrize(
     ('unit', 'reciprocal'),

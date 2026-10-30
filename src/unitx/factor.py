@@ -1,10 +1,16 @@
+"""Positive exact multiplicative scales and independent symbolic constants.
+
+Factor retains prime/symbolic bases and rational powers. Numerical evaluation
+is a separate, cached boundary and does not determine formal identity.
+"""
+
 from __future__ import annotations
 
 import math
 import operator
 import re
 import warnings
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from decimal import MAX_EMAX, MIN_EMIN, Context, Decimal, Overflow, localcontext
 from fractions import Fraction
 from typing import Any, Final, overload
@@ -279,9 +285,8 @@ class Factor:
         return obj
 
     @classmethod
-    def _product(cls, terms: Iterable[tuple[Factor, Fraction]], coefficient: Factor, /) -> Factor:
-        """Combine `factor**exponent` terms with an exact coefficient."""
-        terms = tuple(terms)
+    def _product(cls, terms: Sequence[tuple[Factor, Fraction]], coefficient: Factor, /) -> Factor:
+        """Combine nonidentity `factor**exponent` terms with an exact coefficient."""
         if not terms:
             return coefficient
         if len(terms) == 1:

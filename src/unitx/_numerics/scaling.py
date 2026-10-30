@@ -14,7 +14,7 @@ from . import Magnitude, Scalar, is_numpy_object
 def scale_value(value: Magnitude, factor: Factor) -> Magnitude:
     """Apply a unit ratio in the magnitude's numerical domain."""
     if is_numpy_object(value):
-        from .numpy import scale_magnitude
+        from .numpy_operands import scale_magnitude
 
         return cast(Magnitude, scale_magnitude(value, factor))
     value = cast(Scalar, value)

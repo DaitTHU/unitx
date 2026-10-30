@@ -37,7 +37,29 @@ T = TypeVar('T', bound=Magnitude, covariant=True)
 
 
 class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
-    """A logarithmic reading; `.to()` stays in its coordinate family."""
+    """A real reading relative to a positive logarithmic physical reference.
+
+    Construct with `LogQuantity(value, coordinate)` or `value @ coordinate`.
+    A LogUnit or a named coordinate's bound Unit/default-registry spelling
+    supplies the reference, logarithmic difference unit and power/amplitude
+    convention. A bare difference such as dB supplies no physical reference.
+    Construction retains the reading's magnitude type; supported NumPy arrays
+    use one coordinate for the entire array. Bools and complex readings reject.
+
+    Subtract compatible points to obtain a logarithmic Quantity difference.
+    Adding or subtracting such a difference returns a point. `.to()` stays
+    within logarithmic coordinates of the same physical dimension and can
+    explicitly change power/amplitude convention. `.to_quantity()` evaluates the
+    physical quantity, and `from_quantity()` performs the inverse mapping.
+    Means average readings, not physical powers. Points are unhashable, and
+    array comparisons return masks.
+
+    >>> point = LogQuantity(30, 'dBm')
+    >>> point.to_quantity('W') == Quantity(1, 'W')
+    True
+    >>> point.to('dBW')
+    LogQuantity(0, 'dBW')
+    """
 
     __slots__ = ('_value', '_unit')
 
@@ -47,7 +69,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
 
     def __init__(self, value: T, unit: str | Unit | LogUnit, /) -> None:
         if is_numpy_object(value):
-            from ._numerics.numpy import validate_magnitude
+            from ._numerics.numpy_operands import validate_magnitude
 
             validate_magnitude(value)
             if getattr(value, 'dtype').kind == 'c':
@@ -131,6 +153,11 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def value_in(self, unit: str | Unit | LogUnit, /) -> Magnitude: ...
 
     def value_in(self, unit: str | Unit | LogUnit, /) -> Magnitude:
+        """Return the reading in a compatible logarithmic coordinate without a wrapper.
+
+        This is the numeric reading of `self.to(unit)`. Use `to_quantity()`
+        to evaluate physical power or amplitude instead.
+        """
         return cast(
             Magnitude,
             self.unit._mapping._value_in(self.value, self._resolve_coordinate(unit)._mapping),
@@ -146,6 +173,13 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def to(self: LogQuantity[T], unit: str | Unit | LogUnit, /) -> LogQuantity[Magnitude]: ...
 
     def to(self, unit: str | Unit | LogUnit, /) -> LogQuantity[Magnitude]:
+        """Return a logarithmic point with compatible physical dimensions.
+
+        Strings use the default registry. The target must retain a logarithmic
+        physical reference; a difference unit or ordinary physical unit cannot
+        replace it. Conversion explicitly applies the target's power/amplitude
+        convention; comparison and subtraction require matching conventions.
+        """
         target = self._resolve_coordinate(unit)
         return LogQuantity(self.unit._mapping._value_in(self.value, target._mapping), target)
 

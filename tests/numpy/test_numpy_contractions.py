@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from unitx import AffineQuantity, LogQuantity, Quantity
+from unitx import AffineQuantity, LogQuantity, Quantity, Unit
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor, pi
 from unitx.si import si
@@ -76,6 +76,32 @@ def test_numpy_einsum_forms() -> None:
     assert view.unit == a.unit and np.shares_memory(view.value, a.value)
     view[0, 0] = Quantity(10, 'm')
     assert a.value[0, 0] == 10
+
+
+@pytest.mark.parametrize('unit', [Factor(2) * pi * si.m, si.cm / si.m, si.dB])
+def test_numpy_single_product_unit(unit: Unit) -> None:
+    marker = si.rad.define('contractionMarker', prefixable=False)
+    q = Quantity(np.arange(9.0).reshape(3, 3), marker * unit)
+    for result in (np.trace(q), np.einsum('ii->', q)):
+        assert result.unit == q.unit
+        assert result.unit != unit
+        assert result.unit.scale == q.unit.scale
+        assert result.unit.factor == q.unit.factor
+        assert result.dimension == q.dimension
+        assert result.value == 12
+    view = np.einsum('ij->ji', q)
+    assert view.unit == q.unit
+    assert np.shares_memory(view.value, q.value)
+
+
+@pytest.mark.parametrize('bare_first', [False, True])
+def test_numpy_product_bare_operand(bare_first: bool) -> None:
+    q = Quantity(np.array([2.0, 3.0]), Factor(2) * pi * si.cm)
+    bare = np.array([4.0, 5.0])
+    left, right = (bare, q) if bare_first else (q, bare)
+    for result in (np.dot(left, right), np.einsum('i,i->', left, right)):
+        assert result.unit == q.unit
+        assert result.value == 23
 
 
 def test_numpy_multi_dot() -> None:

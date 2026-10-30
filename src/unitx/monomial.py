@@ -1,3 +1,9 @@
+"""Sparse formal products of hashable bases with exact rational exponents.
+
+This layer combines exponents without interpreting units or evaluating bases.
+Domain-specific validation belongs to Factor, Dimension and Unit.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Hashable, ItemsView, Iterable, KeysView, Mapping, ValuesView
@@ -219,6 +225,8 @@ class Monomial[BaseT: Hashable](_Immutable):
         if not isinstance(other, Fractionable):
             return NotImplemented
         other_as_fraction = as_exponent(other)
+        if not self._components:
+            return self
         if other_as_fraction == 0:
             return self._from_dict({})
         return self._from_dict({base: exp * other_as_fraction for base, exp in self.components()})
