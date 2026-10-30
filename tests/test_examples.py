@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import runpy
 from pathlib import Path
 
 import pytest
@@ -95,6 +96,53 @@ def test_nonlinear_fit_example() -> None:
     pytest.importorskip('scipy')
     path = Path(__file__).resolve().parents[1] / 'examples/nonlinear_fit.py'
     exec(compile(path.read_text(), str(path), 'exec'), {'__name__': '__main__'})
+
+
+@pytest.mark.parametrize('time_unit,signal_unit', [('s', 'V'), ('ms', 'mV')])
+def test_decay_jacobian_normalized_derivatives(time_unit: str, signal_unit: str) -> None:
+    np = pytest.importorskip('numpy')
+    pytest.importorskip('scipy')
+    from unitx import Quantity
+    from unitx.si import si
+
+    path = Path(__file__).resolve().parents[1] / 'examples/nonlinear_fit.py'
+    jacobian = runpy.run_path(str(path))['decay_jacobian']
+    times = np.linspace(0.0, 6.0, 41)
+    time = Quantity(times, si.s).to(time_unit)
+    sigma = (0.02 * si.V).to(signal_unit)
+    # Check away from the initial guess and optimum, including zero amplitude.
+    for parameters in (np.array([2.5, 1.7]), np.array([0.0, 0.4]), np.array([0.3, 4.0])):
+        numerical = np.empty((times.size, 2))
+        for column in range(2):
+            offset = np.zeros(2)
+            offset[column] = 1e-5
+            high, low = parameters + offset, parameters - offset
+            numerical[:, column] = (
+                high[0] * np.exp(-times / high[1]) - low[0] * np.exp(-times / low[1])
+            ) / (2e-5 * 0.02)
+        actual = jacobian(parameters, time, sigma)
+        np.testing.assert_allclose(actual, numerical, rtol=1e-8, atol=1e-8)
+
+
+@pytest.mark.parametrize('noisy', [False, True])
+def test_decay_fit_jacobian_equivalence(noisy: bool) -> None:
+    np = pytest.importorskip('numpy')
+    pytest.importorskip('scipy')
+    from unitx import Quantity
+    from unitx.si import si
+
+    path = Path(__file__).resolve().parents[1] / 'examples/nonlinear_fit.py'
+    fit = runpy.run_path(str(path))['fit_decay']
+    time = Quantity(np.linspace(0.0, 6.0, 41), si.s)
+    signal = 2.5 * si.V * np.exp(-time / (1.7 * si.s))
+    if noisy:
+        signal += Quantity(np.random.default_rng(20261029).normal(0.0, 0.02, time.shape), si.V)
+    sigma = 0.02 * si.V
+    finite = fit(time, signal, sigma, analytic_jacobian=False)
+    analytic = fit(time.to(si.ms), signal.to(si.mV), sigma.to(si.mV))
+    for actual, expected in zip(analytic[:2], finite[:2], strict=True):
+        np.testing.assert_allclose(actual.value_in(expected.unit), expected.value, rtol=1e-7)
+    np.testing.assert_allclose(analytic[2], finite[2], rtol=1e-6)
 
 
 @pytest.mark.parametrize('guide', ['array-storage', 'scientific-boundaries'])

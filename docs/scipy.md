@@ -63,8 +63,6 @@ without SciPy installed.
 Backends: [SciPy jv](https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.jv.html),
 [SciPy simpson](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.simpson.html).
 
-[Documentation index](README.md) · [NumPy support](numpy.md)
-
 ## Nonlinear fit with heterogeneous parameter units
 
 The executable [decay-fit recipe](https://github.com/DaitTHU/unitx/blob/main/examples/nonlinear_fit.py)
@@ -79,6 +77,23 @@ values. Sigma is a known measurement standard deviation, so the objective is
 weighted least squares. Positive numerical bounds are in the selected parameter
 scales. The solver's `ftol`, `xtol` and `gtol` act on this normalized problem;
 they are not voltage or time tolerances.
+
+The analytic Jacobian differentiates the weighted residual with respect to the
+dimensionless solver parameters `p_A = amplitude / A0` and `p_tau = lifetime / tau0`,
+where `A0 = 1 V` and `tau0 = 1 s`. For each sample its columns are
+
+$$
+\frac{\partial r_i}{\partial p_A}
+ = \frac{A_0}{\sigma} e^{-t_i/\tau},\qquad
+\frac{\partial r_i}{\partial p_\tau}
+ = \frac{A}{\sigma} e^{-t_i/\tau}
+   \frac{t_i}{\tau}\frac{\tau_0}{\tau}.
+$$
+
+Both columns are dimensionless. The recipe evaluates them with quantities
+before extracting numerical columns. Set `analytic_jacobian=False` to compare
+two-point finite differences; the benchmark checks parameters and covariance
+and reports actual residual callback counts for both modes.
 
 The example uses SciPy's
 [`least_squares`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html)
@@ -100,3 +115,5 @@ The same dataset is fitted again in ms/mV, verifying matching physical parameter
 and covariance within floating tolerances. Solver kernels run in NumPy's floating
 domain; keeping quantities around the callback does not make them exact or
 arbitrary precision. No general `scipy.optimize` wrapper is added.
+
+[Documentation index](README.md) · [NumPy support](numpy.md)
