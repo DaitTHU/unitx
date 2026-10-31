@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Compute numerical pi in the working NumPy dtype for `sinpi` and `cospi`,
+  avoiding a float64 precision ceiling on platforms with extended `longdouble`.
+
 ## [0.17.10] - 2026-10-30
 
 ### Changed

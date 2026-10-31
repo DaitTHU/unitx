@@ -58,3 +58,22 @@ def test_math_trigpi_numpy_warning() -> None:
             result = math.cospi(np.array([np.inf]))
     assert np.isnan(result.value[0])
     assert len(caught) == 1 and caught[0].filename == __file__
+
+
+@pytest.mark.parametrize('dtype', [np.float16, np.float32, np.float64, np.longdouble])
+@pytest.mark.parametrize('scalar', [False, True])
+def test_math_trigpi_numpy_precision(dtype: Any, scalar: bool) -> None:
+    # At odd quarter turns both functions have magnitude sqrt(1/2), so this
+    # reference does not inherit a float64 approximation of pi.
+    values = np.array([0.25, 0.75, 1.25, 1.75], dtype=dtype)
+    if scalar:
+        values = values[0]
+    root = np.sqrt(dtype(0.5))
+    for function, signs in [
+        (math.sinpi, [1, 1, -1, -1]),
+        (math.cospi, [1, -1, -1, 1]),
+    ]:
+        expected = root if scalar else root * np.array(signs, dtype=dtype)
+        result = function(values).value
+        assert result.dtype == values.dtype
+        np.testing.assert_allclose(result, expected, rtol=2 * np.finfo(dtype).eps, atol=0)
