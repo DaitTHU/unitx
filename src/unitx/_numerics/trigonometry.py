@@ -47,7 +47,9 @@ def numpy_trigpi(value: Any, *, cosine: bool) -> Any:
         reduced = reduced.astype(np.float64)
     quadrant = np.rint(2 * reduced)
     residual = reduced - quadrant / 2
-    angle = np.pi * residual
+    # Compute pi in the working dtype: np.pi carries only float64 precision.
+    pi = np.arccos(np.full((), -1, dtype=residual.dtype))
+    angle = pi * residual
     sine, cosine_value = np.sin(angle), np.cos(angle)
     phase = np.remainder(quadrant, 4)
     if cosine:

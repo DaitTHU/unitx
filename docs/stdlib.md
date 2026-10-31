@@ -136,7 +136,8 @@ are rejected. The functions are numerical, not symbolic identities or
 arbitrary-precision trigonometry, and cannot recover information already lost
 in an input float. Scalar NaN/infinity behavior follows math; NumPy uses native
 trigonometric special-value warnings and error settings. Array floating dtypes
-are retained; integer arrays reduce exact periods before float64 evaluation.
+are retained, including numerical pi evaluation in that dtype; integer arrays
+reduce exact periods before float64 evaluation.
 
 ## Clock readings
 
