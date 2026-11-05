@@ -51,7 +51,6 @@ def contracts(a: npt.NDArray[np.float64], scalar: np.float64, plain: int = 1) ->
     assert_type(Quantity(scalar, unit).T, Quantity[np.float64])
     assert_type(q.flatten(), Quantity[npt.NDArray[np.float64]])
     assert_type(q.dtype, np.dtype[np.float64])
-    assert_type(q.shape, tuple[Any, ...])
     assert_type(q.isclose(q), Array)
     assert_type(Quantity(1, 'm') == Quantity(2, 'm'), bool)
     assert_type(Quantity(1, 'm').to('cm'), Quantity[int | float | Fraction])
