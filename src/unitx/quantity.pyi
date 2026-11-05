@@ -27,10 +27,11 @@ from ._numerics import (
     Scalar,
 )
 from ._numerics.numpy_typing import (
+    HasDType,
     HasImag,
     HasReal,
+    HasShape,
     NumpyArray,
-    NumpyDType,
     NumpyValue,
     WritableArray,
     _ArrayLeadingIndex,
@@ -49,6 +50,7 @@ from ._numerics.numpy_typing import (
     _NumpyScalar,
     _NumpyValueOf,
     _Shape,
+    _ShapeType,
     _TypedArray,
     _TypedScalar,
 )
@@ -524,6 +526,16 @@ class Quantity(Generic[T]):
     ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
     @overload
     def __add__(
+        self: Quantity[Fractionable],
+        other: Quantity[_DTypeValue[_Float64]] | _DTypeValue[_Float64],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __add__(
+        self: Quantity[complex], other: Quantity[_DTypeValue[_Float64]] | _DTypeValue[_Float64], /
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __add__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
     ) -> Quantity[NumpyValue]: ...
     @overload
@@ -582,6 +594,22 @@ class Quantity(Generic[T]):
     def __radd__(
         self: Quantity[Array], other: Quantity[Array] | Array, /
     ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __radd__(
+        self: Quantity[_DTypeValue[_Float64]], other: Fractionable, /
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __radd__(
+        self: Quantity[_DTypeValue[_Float64]], other: complex, /
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __radd__(
+        self: Quantity[Fractionable], other: _DTypeValue[_Float64], /
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __radd__(
+        self: Quantity[complex], other: _DTypeValue[_Float64], /
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
     @overload
     def __radd__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -664,6 +692,16 @@ class Quantity(Generic[T]):
     ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
     @overload
     def __sub__(
+        self: Quantity[Fractionable],
+        other: Quantity[_DTypeValue[_Float64]] | _DTypeValue[_Float64],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __sub__(
+        self: Quantity[complex], other: Quantity[_DTypeValue[_Float64]] | _DTypeValue[_Float64], /
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __sub__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
     ) -> Quantity[NumpyValue]: ...
     @overload
@@ -722,6 +760,22 @@ class Quantity(Generic[T]):
     def __rsub__(
         self: Quantity[Array], other: Quantity[Array] | Array, /
     ) -> Quantity[NumpyValue]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[_DTypeValue[_Float64]], other: Fractionable, /
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[_DTypeValue[_Float64]], other: complex, /
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[Fractionable], other: _DTypeValue[_Float64], /
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __rsub__(
+        self: Quantity[complex], other: _DTypeValue[_Float64], /
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
     @overload
     def __rsub__(
         self: Quantity[Array], other: Quantity[Magnitude] | Magnitude, /
@@ -1430,13 +1484,13 @@ class Quantity(Generic[T]):
     ) -> Any: ...
     def _array_value(self) -> Any: ...
     @property
-    def shape(self) -> tuple[int, ...]: ...
+    def shape(self: Quantity[HasShape[_ShapeType]]) -> _ShapeType: ...
     @property
     def ndim(self) -> int: ...
     @property
     def size(self) -> int: ...
     @property
-    def dtype(self: Quantity[Array]) -> NumpyDType: ...
+    def dtype[D](self: Quantity[HasDType[D]]) -> D: ...
     @property
     def T[A: Array](self: Quantity[A]) -> Quantity[A]: ...
     @property
@@ -1505,7 +1559,7 @@ class Quantity(Generic[T]):
     ) -> Quantity[NumpyValue]: ...
     @overload
     def ravel[S: _NumpyScalar](
-        self: Quantity[_TypedArray[S]],
+        self: Quantity[_DTypeValue[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
@@ -1515,7 +1569,7 @@ class Quantity(Generic[T]):
     ) -> Quantity[NumpyArray]: ...
     @overload
     def copy[S: _NumpyScalar](
-        self: Quantity[_TypedArray[S]],
+        self: Quantity[_DTypeValue[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
@@ -1630,6 +1684,110 @@ class Quantity(Generic[T]):
     ) -> Quantity[O]: ...
     @overload
     def std(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_FloatingScalar]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_IntegerScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_IntegerScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_Complex64]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float32]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_Complex64]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float32]]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_Complex128]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def std(
+        self: Quantity[_DTypeValue[_Complex128]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def std(
         self: Quantity[Array],
         axis: _Axis = None,
         dtype: object = None,
@@ -1667,6 +1825,110 @@ class Quantity(Generic[T]):
         mean: object = ...,
         correction: object = ...,
     ) -> Quantity[O]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_FloatingScalar]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_IntegerScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_IntegerScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_Complex64]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float32]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_Complex64]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float32]]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_Complex128]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def var(
+        self: Quantity[_DTypeValue[_Complex128]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
     @overload
     def var(
         self: Quantity[Array],
@@ -1707,6 +1969,24 @@ class Quantity(Generic[T]):
         correction: object = ...,
     ) -> Quantity[O]: ...
     @overload
+    def min[S: _NumpyNumber](
+        self: Quantity[_DTypeValue[S]],
+        axis: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[S]: ...
+    @overload
+    def min[S: _NumpyNumber](
+        self: Quantity[_DTypeValue[S]],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[_NumpyValueOf[S]]: ...
+    @overload
     def min(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1735,6 +2015,24 @@ class Quantity(Generic[T]):
         where: object = True,
     ) -> Quantity[O]: ...
     @overload
+    def max[S: _NumpyNumber](
+        self: Quantity[_DTypeValue[S]],
+        axis: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[S]: ...
+    @overload
+    def max[S: _NumpyNumber](
+        self: Quantity[_DTypeValue[S]],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> Quantity[_NumpyValueOf[S]]: ...
+    @overload
     def max(
         self: Quantity[Array],
         axis: _Axis = None,
@@ -1762,6 +2060,11 @@ class Quantity(Generic[T]):
         initial: object = ...,
         where: object = True,
     ) -> Quantity[O]: ...
+    @overload
+    def flatten[S: _NumpyScalar](
+        self: Quantity[_DTypeValue[S]], order: str = 'C'
+    ) -> Quantity[_NumpyArrayOf[S]]: ...
+    @overload
     def flatten(self: Quantity[Array], order: str = 'C') -> Quantity[NumpyArray]: ...
     @overload
     def __abs__(
@@ -1779,7 +2082,105 @@ class Quantity(Generic[T]):
     def __abs__(self: Quantity[Array]) -> Quantity[NumpyValue]: ...
     @overload
     def __abs__(self) -> Quantity[Magnitude]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_Float32]],
+        other: Quantity[_DTypeValue[_Complex64]] | _DTypeValue[_Complex64],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex64]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_Complex64]],
+        other: Quantity[_DTypeValue[_Float32]] | _DTypeValue[_Float32],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex64]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_Float64]],
+        other: Quantity[_DTypeValue[_Complex128]] | _DTypeValue[_Complex128],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_Complex128]],
+        other: Quantity[_DTypeValue[_Float64]] | _DTypeValue[_Float64],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_Float64]],
+        other: Quantity[_DTypeValue[_IntegerScalar]] | _DTypeValue[_IntegerScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __matmul__(
+        self: Quantity[_DTypeValue[_Complex128]],
+        other: Quantity[_DTypeValue[_IntegerScalar]] | _DTypeValue[_IntegerScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
     def __matmul__(self, other: object) -> Quantity[NumpyValue]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: Quantity[_DTypeValue[_FloatingScalar]] | _DTypeValue[_FloatingScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_ComplexScalar]],
+        other: Quantity[_DTypeValue[_ComplexScalar]] | _DTypeValue[_ComplexScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_ComplexScalar]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_Float32]],
+        other: Quantity[_DTypeValue[_Complex64]] | _DTypeValue[_Complex64],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex64]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_Complex64]],
+        other: Quantity[_DTypeValue[_Float32]] | _DTypeValue[_Float32],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex64]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_Float64]],
+        other: Quantity[_DTypeValue[_Complex128]] | _DTypeValue[_Complex128],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_Complex128]],
+        other: Quantity[_DTypeValue[_Float64]] | _DTypeValue[_Float64],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_Float64]],
+        other: Quantity[_DTypeValue[_IntegerScalar]] | _DTypeValue[_IntegerScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def __rmatmul__(
+        self: Quantity[_DTypeValue[_Complex128]],
+        other: Quantity[_DTypeValue[_IntegerScalar]] | _DTypeValue[_IntegerScalar],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+    @overload
     def __rmatmul__(self, other: object) -> Quantity[NumpyValue]: ...
 
 def quantity(value: float, /, unit: str | Unit | _LinearUnitSource) -> Quantity[Decimal]: ...

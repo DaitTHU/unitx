@@ -4,9 +4,10 @@ from importlib import import_module
 from typing import assert_type
 
 import numpy as np
+from numpy.typing import NDArray
 
 from unitx import Quantity
-from unitx.scipy import simpson
+from unitx.scipy import jv, simpson
 from unitx.si import si
 from unitx.typing import Array
 
@@ -22,3 +23,13 @@ area = simpson(y, x=x)
 assert_type(area, Quantity[Array])
 assert area.unit == si.W * si.s
 np.testing.assert_allclose(area.value_in(si.J), 64 / 3)
+
+# A real Bessel sum needs no local Quantity annotation, cast or dtype argument.
+arguments = np.linspace(0.1, 1.0, 5) * si.one
+orders = np.arange(3)
+bessel_values = jv(orders[None, :], arguments[:, None])
+overlap = bessel_values @ np.ones(3)
+assert_type(overlap, Quantity[NDArray[np.float64] | np.float64])
+np.testing.assert_allclose(
+    overlap.value, special.jv(orders[None, :], arguments.value[:, None]) @ np.ones(3)
+)

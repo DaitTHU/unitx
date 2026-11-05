@@ -2,8 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add a typed `unitx.scipy.jv` entry for dimensionless Bessel calculations,
+  retaining float64/complex128 inference through array formulas and accumulators.
+
 ### Fixed
 
+- Retain declared array metadata and known dtypes through native Quantity and
+  point flatten/copy/ravel methods and min/max/std/var reductions. Full reductions
+  infer scalar results without casts; partial reductions keep their shape uncertainty.
+- Preserve known floating/complex dtypes in Quantity matrix multiplication and
+  float64 array/scalar addition and subtraction, avoiding local type annotations
+  or numerical conversions in these scientific formulas.
 - Compute numerical pi in the working NumPy dtype for `sinpi` and `cospi`,
   avoiding a float64 precision ceiling on platforms with extended `longdouble`.
 

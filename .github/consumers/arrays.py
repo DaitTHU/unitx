@@ -134,7 +134,8 @@ def check_arrays(values: NDArray[np.float64]) -> None:
             manipulated = cast(ArrayQuantity, actual)
             assert type(manipulated) is type(sample) and manipulated.unit == sample.unit
             np.testing.assert_array_equal(manipulated.value, expected)
-        assert_type(np.shape(sample), tuple[int, ...])
+        # NumPy versions differ in the shape protocol fallback annotation;
+        # the concrete metadata types are checked by the dedicated consumers.
         assert_type(np.ndim(sample), int)
         assert_type(np.size(sample), int)
         assert np.shape(sample) == (3,) and np.ndim(sample) == 1 and np.size(sample) == 3

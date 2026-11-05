@@ -1,14 +1,73 @@
-"""Finite optional SciPy integration adapters; dependencies load only on use."""
+"""Finite optional SciPy adapters; dependencies load only on use."""
 
-from typing import TypeAlias, cast
+from typing import Callable, Protocol, TypeAlias, cast, overload
 
 from ._numerics import Array, Fractionable
+from ._numerics.numpy_typing import (
+    _Complex128,
+    _DTypeValue,
+    _Float64,
+    _NumpyValueOf,
+)
+from ._operands import _Point
 from .quantity import Quantity
 
-__all__ = ['simpson']
+__all__ = ['jv', 'simpson']
 
 _Samples: TypeAlias = Array | Fractionable | complex | Quantity[Array | Fractionable | complex]
 _Coordinates: TypeAlias = Array | Fractionable | Quantity[Array | Fractionable]
+
+
+class _BesselFunction(Protocol):
+    @overload
+    def __call__(
+        self,
+        v: _Coordinates,
+        z: _DTypeValue[_Float64] | Quantity[_DTypeValue[_Float64]],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+
+    @overload
+    def __call__(
+        self,
+        v: _Coordinates,
+        z: _DTypeValue[_Complex128] | Quantity[_DTypeValue[_Complex128]],
+        /,
+    ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
+
+    @overload
+    def __call__(self, v: _Coordinates, z: _Samples, /) -> Quantity[Array]: ...
+
+
+def _typed_bessel(function: Callable[[_Coordinates, _Samples], Quantity[Array]]) -> _BesselFunction:
+    return cast(_BesselFunction, function)
+
+
+@_typed_bessel
+def jv(v: _Coordinates, z: _Samples, /) -> Quantity[Array]:
+    """Return dimensionless Bessel values with typed Quantity dispatch.
+
+    Both inputs must be dimensionless linear values. Bare numeric inputs are
+    coherent dimensionless values. Broadcasting and numerical domains follow
+    SciPy. Use `scipy.special.jv` directly for ufunc options such as `out`.
+    NumPy and SciPy load only when called.
+    """
+    from scipy.special import jv as bessel  # pyright: ignore[reportMissingImports]
+
+    from ._numerics.numpy_operands import _is_supported_operand
+    from .si import si
+
+    if (
+        isinstance(v, _Point)
+        or isinstance(z, _Point)
+        or not _is_supported_operand(v)
+        or not _is_supported_operand(z)
+    ):
+        error_message = 'jv requires numeric values or linear quantities.'
+        raise TypeError(error_message)
+    # Wrapping the argument also supplies Quantity dispatch for bare-only calls.
+    argument = z if isinstance(z, Quantity) else Quantity(z, si.one)
+    return cast(Quantity[Array], bessel(v, argument))
 
 
 def simpson(

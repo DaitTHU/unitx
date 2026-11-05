@@ -25,6 +25,30 @@ value = jv(0, 2.0 * si.one)
 np.testing.assert_allclose(value.value, 0.22389077914123562)
 ```
 
+For automatic type inference, import `jv` from `unitx.scipy`. This finite typed
+entry accepts the two positional inputs and always returns a Quantity, including
+for bare numeric inputs. It uses the same SciPy ufunc and unit normalization.
+Known float64/complex128 arguments retain their dtype through Bessel sums and
+Quantity matrix multiplication; other argument dtypes retain a broader NumPy
+result domain. Use native `scipy.special.jv` for ufunc options such as `out`.
+
+```python
+from unitx.scipy import jv
+from unitx import numpy as unp
+
+arguments = np.linspace(0.1, 1.0, 5) * si.one
+orders = np.arange(3)
+values = jv(orders[None, :], arguments[:, None])
+overlap = values @ np.ones(3)
+accumulator = unp.zeros_like(arguments)
+accumulator += jv(0, arguments)
+```
+
+These intermediate variables need no explicit Quantity annotation, cast, dtype
+argument or numerical conversion. As with ordinary NumPy operations, the type
+of `overlap` includes a possible NumPy scalar: vector inner products return
+scalars, whereas matrix products return arrays.
+
 ## Simpson integration
 
 Use the explicit adapter `unitx.scipy.simpson(y, *, x=None, dx=1.0, axis=-1)`.
@@ -56,9 +80,9 @@ is accepted. The adapter does not add a quadrature algorithm or change SciPy's
 sampling assumptions.
 
 The native jv stubs do not describe unit-aware dispatch, as with NumPy's
-[typing limitation](typing.md#numpy-magnitude-types). The simpson adapter has
-NumPy-independent public annotations and can be imported and type-checked
-without SciPy installed.
+[typing limitation](typing.md#numpy-magnitude-types). Both adapters can be imported
+and type-checked without SciPy installed. Concrete NumPy result annotations
+require NumPy; without it the public annotations retain the Array protocol.
 
 Backends: [SciPy jv](https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.jv.html),
 [SciPy simpson](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.simpson.html).

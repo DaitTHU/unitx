@@ -18,6 +18,18 @@ _Shape: TypeAlias = SupportsIndex | tuple[SupportsIndex, ...]
 
 Component = TypeVar('Component', bound=Array, covariant=True)
 _ScalarType = TypeVar('_ScalarType', bound='_NumpyScalar', covariant=True)
+_DType = TypeVar('_DType', covariant=True)
+_ShapeType = TypeVar('_ShapeType', bound=tuple[int, ...], covariant=True)
+
+
+class HasDType(Array, Protocol[_DType]):
+    @property
+    def dtype(self) -> _DType: ...
+
+
+class HasShape(Array, Protocol[_ShapeType]):
+    @property
+    def shape(self) -> _ShapeType: ...
 
 
 class HasReal(Array, Protocol[Component]):

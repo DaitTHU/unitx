@@ -3,6 +3,7 @@
 from typing import assert_type
 
 from unitx import Quantity
+from unitx.scipy import jv
 from unitx.si import si
 from unitx.typing import Array, Magnitude, Scalar
 
@@ -21,3 +22,7 @@ def array[T: Array](q: Quantity[T]) -> T:
 
 assert_type(attach(1), Quantity[int])
 assert_type(scalar(attach(1.0)), float)
+
+
+def bessel_without_optional_imports() -> None:
+    assert_type(jv(0, 1.0 * si.one), Quantity[Array])

@@ -118,3 +118,19 @@ def test_numpy_workflow_sampled_spectrum(unit: Unit) -> None:
     with pytest.raises(DimensionError):
         np.fft.rfft(signal, out=invalid)
     np.testing.assert_array_equal(invalid.value, 7)
+
+
+def test_quantity_native_statistical_dtypes() -> None:
+    for dtype in (np.int16, np.float32, np.float64, np.complex64, np.complex128):
+        for shape in ((), (3,), (2, 3)):
+            values = np.ones(shape, dtype=dtype)
+            q = Quantity(values, 'm')
+            for name in ('min', 'max', 'std', 'var'):
+                actual = getattr(q, name)()
+                expected = getattr(values, name)()
+                assert actual.value.dtype == expected.dtype
+                assert actual.value.shape == expected.shape
+                np.testing.assert_allclose(actual.value, expected)
+            assert q.flatten().value.dtype == values.dtype
+            assert q.dtype == values.dtype
+            assert q.shape == values.shape

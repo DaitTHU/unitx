@@ -8,12 +8,49 @@ import pytest
 from unitx import AffineQuantity, Quantity
 from unitx.exceptions import DimensionError
 from unitx.factor import Factor
-from unitx.scipy import simpson
+from unitx.scipy import jv, simpson
 from unitx.si import si
 
 np = pytest.importorskip('numpy')
 special = pytest.importorskip('scipy.special')
 integrate = pytest.importorskip('scipy.integrate')
+
+
+@pytest.mark.parametrize('wrapped_order', [False, True])
+@pytest.mark.parametrize('wrapped_argument', [False, True])
+@pytest.mark.parametrize('complex_argument', [False, True])
+def test_jv_typed_entry(
+    wrapped_order: bool, wrapped_argument: bool, complex_argument: bool
+) -> None:
+    orders = np.arange(3)[:, None]
+    values = np.linspace(0.1, 1.0, 5)
+    if complex_argument:
+        values = values + 0.2j
+    order = Quantity(orders * 100, si.percent) if wrapped_order else orders
+    argument = Quantity(values * 100, si.percent) if wrapped_argument else values
+    result = jv(order, argument)
+    assert result.unit == si.one
+    assert result.value.dtype == (np.complex128 if complex_argument else np.float64)
+    np.testing.assert_allclose(result.value, special.jv(orders, values))
+
+
+@pytest.mark.parametrize('shape', [(), (3,), (2, 3)])
+def test_jv_typed_entry_shape(shape: tuple[int, ...]) -> None:
+    result = jv(0, np.full(shape, 0.2) * si.one)
+    assert result.value.shape == shape
+    assert isinstance(result.value, np.ndarray if shape else np.float64)
+
+
+@pytest.mark.parametrize('order, argument', [(0, 1 * si.m), (1 * si.s, 0)])
+def test_jv_typed_entry_invalid_dimension(order: Any, argument: Any) -> None:
+    with pytest.raises(DimensionError):
+        jv(order, argument)
+
+
+@pytest.mark.parametrize('argument', [[1.0], AffineQuantity(1, 'K')])
+def test_jv_typed_entry_invalid_argument(argument: Any) -> None:
+    with pytest.raises(TypeError, match='jv requires numeric values or linear quantities'):
+        jv(0, argument)
 
 
 @pytest.mark.parametrize(

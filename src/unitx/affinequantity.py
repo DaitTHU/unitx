@@ -13,15 +13,22 @@ from ._numerics import Array, Magnitude, Scalar, is_numpy_object
 from ._numerics.methods import call_numpy_method
 from ._numerics.numpy_typing import (
     _UNSET,
+    HasDType,
+    HasShape,
     NumpyArray,
-    NumpyDType,
     NumpyValue,
     WritableArray,
     _Axis,
+    _DTypeValue,
+    _Float64,
+    _FloatingScalar,
+    _IntegerScalar,
     _NumpyArrayOf,
     _NumpyNumber,
     _NumpyScalar,
+    _NumpyValueOf,
     _Shape,
+    _ShapeType,
     _TypedArray,
     _TypedScalar,
 )
@@ -481,7 +488,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         return self.value
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self: AffineQuantity[HasShape[_ShapeType]]) -> _ShapeType:
         return self._array_value().shape
 
     @property
@@ -493,7 +500,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         return self._array_value().size
 
     @property
-    def dtype(self: AffineQuantity[Array]) -> NumpyDType:
+    def dtype[D](self: AffineQuantity[HasDType[D]]) -> D:
         return self._array_value().dtype
 
     @property
@@ -593,7 +600,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
 
     @overload
     def ravel[S: _NumpyScalar](
-        self: AffineQuantity[_TypedArray[S]],
+        self: AffineQuantity[_DTypeValue[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
     @overload
@@ -610,7 +617,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
 
     @overload
     def copy[S: _NumpyScalar](
-        self: AffineQuantity[_TypedArray[S]],
+        self: AffineQuantity[_DTypeValue[S]],
         order: Literal['C', 'F', 'A', 'K'] = 'C',
     ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
     @overload
@@ -675,6 +682,58 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
             where=where,
         )
 
+    @overload
+    def std(
+        self: AffineQuantity[_DTypeValue[_FloatingScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_FloatingScalar]: ...
+    @overload
+    def std(
+        self: AffineQuantity[_DTypeValue[_FloatingScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def std(
+        self: AffineQuantity[_DTypeValue[_IntegerScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def std(
+        self: AffineQuantity[_DTypeValue[_IntegerScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
     @overload
     def std(
         self: AffineQuantity[Array],
@@ -742,6 +801,58 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
 
     @overload
     def var(
+        self: AffineQuantity[_DTypeValue[_FloatingScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_FloatingScalar]: ...
+    @overload
+    def var(
+        self: AffineQuantity[_DTypeValue[_FloatingScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def var(
+        self: AffineQuantity[_DTypeValue[_IntegerScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def var(
+        self: AffineQuantity[_DTypeValue[_IntegerScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        ddof: int | float = ...,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        mean: Never = ...,
+        correction: int | float = ...,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def var(
         self: AffineQuantity[Array],
         axis: _Axis = None,
         dtype: object = None,
@@ -806,6 +917,24 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         )
 
     @overload
+    def min[S: _NumpyNumber](
+        self: AffineQuantity[_DTypeValue[S]],
+        axis: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[S]: ...
+    @overload
+    def min[S: _NumpyNumber](
+        self: AffineQuantity[_DTypeValue[S]],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[_NumpyValueOf[S]]: ...
+    @overload
     def min(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -853,6 +982,24 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
         )
 
     @overload
+    def max[S: _NumpyNumber](
+        self: AffineQuantity[_DTypeValue[S]],
+        axis: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[S]: ...
+    @overload
+    def max[S: _NumpyNumber](
+        self: AffineQuantity[_DTypeValue[S]],
+        axis: _Axis = None,
+        out: None = None,
+        keepdims: bool = False,
+        initial: object = ...,
+        where: object = True,
+    ) -> AffineQuantity[_NumpyValueOf[S]]: ...
+    @overload
     def max(
         self: AffineQuantity[Array],
         axis: _Axis = None,
@@ -898,6 +1045,14 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
             initial=initial,
             where=where,
         )
+
+    @overload
+    def flatten[S: _NumpyScalar](
+        self: AffineQuantity[_DTypeValue[S]], order: str = 'C'
+    ) -> AffineQuantity[_NumpyArrayOf[S]]: ...
+
+    @overload
+    def flatten(self: AffineQuantity[Array], order: str = 'C') -> AffineQuantity[NumpyArray]: ...
 
     def flatten(self: AffineQuantity[Array], order: str = 'C') -> AffineQuantity[NumpyArray]:
         return AffineQuantity(self._array_value().flatten(order), self.unit)

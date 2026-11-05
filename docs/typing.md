@@ -146,7 +146,8 @@ also preserve that scalar type for known floating/complex dtypes.
 Indexing and iteration retain known numeric dtypes, including integers.
 Shape/copy methods retain a known ndarray dtype without retaining its shape.
 Other numerical paths use `Quantity[NDArray[Any] | numpy.number[Any]]`, including
-mixed NumPy dtypes, integer conversion and array/scalar aligned addition.
+mixed NumPy dtypes without a specific promotion overload, integer conversion
+and float32 array/scalar aligned addition.
 For example, scaling a Python scalar before addition can introduce a strong
 float64 NumPy scalar and promote a float32 array. General scalar annotations
 can also hide NumPy scalar subclasses; concrete dtype inference assumes inputs
@@ -223,6 +224,29 @@ float32/complex64 and float64/complex128 mixed arithmetic also retains the
 corresponding complex dtype; `abs(q)` retains the real component dtype.
 This avoids dependence on NumPy ufunc stubs that may return an incomplete
 ndarray. These functions do not require explicit dtype arguments or casts.
+
+For Bessel sums, `from unitx.scipy import jv` supplies the corresponding typed
+entry for float64/complex128 arguments. `jv(orders, argument)`,
+`unitx.numpy.zeros_like(argument)` and augmented accumulation infer their types
+without local Quantity annotations. See the [Bessel example](scipy.md#bessel-function).
+Quantity matrix products (`q @ other`) retain known same-precision floating and
+complex dtypes, including float32/complex64 and float64/complex128 mixtures.
+They keep an array/scalar union because a vector inner product returns a scalar.
+
+Float64 array addition/subtraction with real Python scalars or scalar Quantities
+also keeps float64; Python complex scalars produce complex128. When combining
+a bare ndarray with a scalar Quantity, put the Quantity on the left where the
+formula permits it: `offset + values` retains the wrapper's inferred type.
+NumPy's left-operand stubs can claim an ndarray for `values + offset` or
+`values @ q` despite Quantity dispatch at runtime. The reflected Quantity
+methods have dtype-aware signatures, but cannot override an earlier match in
+NumPy's own overloads.
+
+The precision available upstream still matters: NumPy 2.1 annotates ordinary
+`linspace` outputs as generic floating arrays, whereas NumPy 2.5 can infer
+float64. unitx cannot recover a missing input dtype in general. Public function
+parameters may describe known numerical inputs using `NDArray[np.float64]`;
+the Quantity intermediates then infer automatically, without local annotations.
 
 ```python
 import numpy as np
@@ -415,3 +439,35 @@ not establish that annotations were packaged correctly.
 
 [Documentation index](README.md) · [Scalar numerical behavior](scalars.md) ·
 [NumPy support](numpy.md)
+
+### Native array methods and metadata
+
+Quantity and point `dtype` and `shape` properties retain the magnitude's declared
+metadata types. `flatten`, `ravel` and `copy` retain a known NumPy dtype, including
+when the input magnitude is a NumPy scalar. These annotations do not change
+array storage or coerce magnitudes.
+
+`min` and `max` retain known numeric dtypes. With default dtype and no supplied
+mean, `std` and `var` retain floating precision; complex64/complex128 Quantity
+inputs produce float32/float64 results, and integer inputs produce float64.
+A complete reduction with `axis=None, keepdims=False` infers a NumPy scalar;
+partial reductions retain an array/scalar union. Explicit dtype, mean and output
+arguments use their corresponding broader or destination-specific signatures.
+
+For example, ordinary ndarray-style code needs no local type annotations:
+
+```python
+import numpy as np
+from unitx.si import si
+
+samples = np.ones((3, 4)) * si.m
+centered = samples - samples.mean()
+spread = centered.std()
+flat = centered.flatten()
+```
+
+This does not imply that `np.std(centered)` has the same static inference:
+NumPy's function stubs do not generally propagate custom dispatch return types.
+The runtime supports both forms. Neither rejecting implicit array conversion in
+annotations nor assuming every unknown-rank ndarray is nonzero-dimensional
+solves that upstream limitation without introducing other errors.

@@ -169,15 +169,11 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         from .numpy_writes import dispatch_method
 
         return dispatch_method(ufunc, method, inputs, kwargs)
-    if ufunc in (np.modf, np.frexp, np.divmod) and method == '__call__':
+    if ufunc in (np.modf, np.frexp, np.divmod):
         return _dispatch_multi_output(ufunc, inputs, kwargs)
     outputs = kwargs.get('out', ())
     if any(x is not None for x in outputs):
-        if (
-            method not in ('__call__', 'reduce', 'accumulate')
-            or ufunc.nout != 1
-            or len(outputs) != 1
-        ):
+        if ufunc.nout != 1 or len(outputs) != 1:
             return NotImplemented
         target = outputs[0]
         if ufunc in _COMPARISON_UFUNC_SET or ufunc in (
@@ -191,17 +187,17 @@ def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dic
         elif not isinstance(target, (Quantity, _Point)):
             return NotImplemented
         options = {k: v for k, v in kwargs.items() if k != 'out'}
-        result = _dispatch_ufunc(ufunc, method, inputs, options)
+        result = _dispatch_ufunc(ufunc, inputs, options)
         if result is NotImplemented:
             return NotImplemented
         return _write_output(
             result,
             target,
-            where=options.get('where', True) if method == '__call__' else True,
+            where=options.get('where', True),
             casting=options.get('casting', 'same_kind'),
-            broadcast=method == '__call__',
+            broadcast=True,
         )
-    return _dispatch_ufunc(ufunc, method, inputs, kwargs)
+    return _dispatch_ufunc(ufunc, inputs, kwargs)
 
 
 def _dispatch_multi_output(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
@@ -217,7 +213,7 @@ def _dispatch_multi_output(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str
         elif not isinstance(target, (Quantity, _Point)):
             return NotImplemented
     options = {k: v for k, v in kwargs.items() if k != 'out'}
-    result = _dispatch_ufunc(ufunc, '__call__', inputs, options)
+    result = _dispatch_ufunc(ufunc, inputs, options)
     if result is NotImplemented:
         return NotImplemented
     buffers = [
@@ -340,9 +336,7 @@ def _stage_output(
     return buffer, staged, mask
 
 
-def _dispatch_ufunc(
-    ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]
-) -> Any:
+def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     has_coordinate = False
     has_point = False
     for value in inputs:
@@ -359,7 +353,7 @@ def _dispatch_ufunc(
             return NotImplemented
         if 'out' in kwargs:
             kwargs = {k: v for k, v in kwargs.items() if k != 'out'}
-    if ufunc is np.matmul and method == '__call__' and isinstance(inputs[1], (Unit, _Coordinate)):
+    if ufunc is np.matmul and isinstance(inputs[1], (Unit, _Coordinate)):
         if isinstance(inputs[0], (Quantity, _Point, Unit, _Coordinate)):
             raise TypeError('Only a bare numeric magnitude can construct a point with @.')
         if kwargs:
@@ -372,9 +366,7 @@ def _dispatch_ufunc(
     if has_coordinate:
         inputs = tuple(linear_unit(x) if isinstance(x, _Coordinate) else x for x in inputs)
     if has_point:
-        return _affine_ufunc(ufunc, method, inputs, kwargs)
-    if method != '__call__':
-        return NotImplemented
+        return _affine_ufunc(ufunc, inputs, kwargs)
     if kwargs:
         allowed = _UFUNC_OPTIONS | {'axis', 'axes'} if ufunc is np.vecdot else _UFUNC_OPTIONS
         if kwargs.keys() - allowed:
@@ -737,35 +729,17 @@ def dispatch_function(
         return _searchsorted(*args, **kwargs)
     if func in (np.isin, np.intersect1d, np.union1d, np.setdiff1d, np.setxor1d):
         return _set_operation(func, *args, **kwargs)
-    if args and isinstance(args[0], (Quantity, _Point)) and isinstance(args[0].unit, _Coordinate):
-        if func not in _ARRAY_FUNCTIONS and func not in (
-            np.isclose,
-            np.allclose,
-            np.argmin,
-            np.argmax,
-            np.nanargmin,
-            np.nanargmax,
-            np.median,
-            np.mean,
-            np.std,
-            np.var,
-            np.nanmedian,
-            np.nanmean,
-            np.nanstd,
-            np.nanvar,
-            np.min,
-            np.max,
-            np.amin,
-            np.amax,
-            np.nanmin,
-            np.nanmax,
-            np.diff,
-            np.gradient,
-        ):
-            error_message = (
-                'This NumPy function does not support coordinate points; convert explicitly.'
-            )
-            raise TypeError(error_message)
+    if (
+        args
+        and isinstance(args[0], (Quantity, _Point))
+        and isinstance(args[0].unit, _Coordinate)
+        and func not in _POINT_FUNCTIONS
+        and func not in (np.isclose, np.allclose, np.diff, np.gradient)
+    ):
+        error_message = (
+            'This NumPy function does not support coordinate points; convert explicitly.'
+        )
+        raise TypeError(error_message)
     if func in (np.isclose, np.allclose):
         return _close_comparison(func, *args, **kwargs)
     if func in (np.concatenate, np.stack):
@@ -1921,12 +1895,9 @@ def affine_close_magnitude(
     return result | (np.isnan(a) & np.isnan(b)) if equal_nan else result
 
 
-def _affine_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+def _affine_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     from .._coordinates.points import _addition_parts, _compare
 
-    if method != '__call__':
-        error_message = 'Affine points cannot be accumulated or reduced with arithmetic ufuncs.'
-        raise UnitOperationError(error_message)
     if kwargs.keys() - {'where', 'dtype', 'casting', 'order', 'subok'}:
         return NotImplemented
     _validate_where(kwargs)
@@ -1997,7 +1968,7 @@ def _extremum(
     return _write_output(_wrap(func(q.value, **kwargs), q.unit), out)
 
 
-_ARRAY_FUNCTIONS = {
+_POINT_FUNCTIONS = {
     np.fft.fftshift: partial(_array_transform, np.fft.fftshift),
     np.fft.ifftshift: partial(_array_transform, np.fft.ifftshift),
     np.reshape: _reshape,
@@ -2055,10 +2026,28 @@ _ARRAY_FUNCTIONS = {
     np.round: _round,
     np.around: _round,
     np.fix: _fix,
+    np.argmin: partial(_argmin_max, np.argmin),
+    np.argmax: partial(_argmin_max, np.argmax),
+    np.nanargmin: partial(_argmin_max, np.nanargmin),
+    np.nanargmax: partial(_argmin_max, np.nanargmax),
+    np.median: partial(_median, np.median),
+    np.nanmedian: partial(_median, np.nanmedian),
+    np.std: partial(_std_var, np.std),
+    np.var: partial(_std_var, np.var),
+    np.nanstd: partial(_std_var, np.nanstd),
+    np.nanvar: partial(_std_var, np.nanvar),
+    np.mean: partial(_mean, np.mean),
+    np.nanmean: partial(_mean, np.nanmean),
+    np.min: partial(_extremum, np.min),
+    np.max: partial(_extremum, np.max),
+    np.amin: partial(_extremum, np.amin),
+    np.amax: partial(_extremum, np.amax),
+    np.nanmin: partial(_extremum, np.nanmin),
+    np.nanmax: partial(_extremum, np.nanmax),
 }
 
 _QUANTITY_FUNCTIONS = {
-    **_ARRAY_FUNCTIONS,
+    **_POINT_FUNCTIONS,
     np.linalg.trace: partial(_array_transform, np.linalg.trace),
     np.sort_complex: partial(_array_transform, np.sort_complex),
     np.real: partial(_array_transform, np.real),
@@ -2067,35 +2056,17 @@ _QUANTITY_FUNCTIONS = {
     np.angle: _angle,
     np.unwrap: _unwrap,
     np.sinc: _sinc,
-    np.argmin: partial(_argmin_max, np.argmin),
-    np.argmax: partial(_argmin_max, np.argmax),
-    np.nanargmin: partial(_argmin_max, np.nanargmin),
-    np.nanargmax: partial(_argmin_max, np.nanargmax),
-    np.median: partial(_median, np.median),
-    np.nanmedian: partial(_median, np.nanmedian),
     np.cumsum: _cumsum,
     np.nancumsum: partial(_cumulative, np.nancumsum),
     np.cumprod: partial(_cumulative, np.cumprod),
     np.nancumprod: partial(_cumulative, np.nancumprod),
     np.prod: partial(_prod, np.multiply.reduce),
     np.nanprod: partial(_prod, np.nanprod),
-    np.std: partial(_std_var, np.std),
-    np.var: partial(_std_var, np.var),
-    np.nanstd: partial(_std_var, np.nanstd),
-    np.nanvar: partial(_std_var, np.nanvar),
     np.sum: partial(_sum, np.add.reduce),
     np.nansum: partial(_sum, np.nansum),
-    np.mean: partial(_mean, np.mean),
-    np.nanmean: partial(_mean, np.nanmean),
     np.average: _average,
     np.quantile: partial(_quantile, np.quantile),
     np.percentile: partial(_quantile, np.percentile),
     np.nanquantile: partial(_quantile, np.nanquantile),
     np.nanpercentile: partial(_quantile, np.nanpercentile),
-    np.min: partial(_extremum, np.min),
-    np.max: partial(_extremum, np.max),
-    np.amin: partial(_extremum, np.amin),
-    np.amax: partial(_extremum, np.amax),
-    np.nanmin: partial(_extremum, np.nanmin),
-    np.nanmax: partial(_extremum, np.nanmax),
 }
