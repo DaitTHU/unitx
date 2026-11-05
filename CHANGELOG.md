@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.11] - 2026-11-05
+
 ### Added
 
 - Add a typed `unitx.scipy.jv` entry for dimensionless Bessel calculations,
