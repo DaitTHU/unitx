@@ -48,9 +48,11 @@ Multiplication is symmetric: `unit * value` and `value * unit` both construct
 `Quantity` objects and preserve the magnitude's type. Dividing a unit by an
 `int`, `Fraction`, or finite `Decimal` constructs a quantity with an exact
 `Fraction` reciprocal, so `degree / 60` loses no precision. Float divisors use
-native floating-point division without Factor's denominator limit. Booleans
-are not accepted as right-hand numeric operands. A `Factor` or
-`SymbolicConstant` on either side of a unit instead produces a `Unit`.
+native floating-point division without Factor's denominator limit. Python
+`bool` follows its integer values in these operations. Multiplication and
+`value / unit` preserve the boolean magnitude, and `unit / True` uses an exact
+reciprocal of one. `unit / False` raises `ZeroDivisionError`.
+A `Factor` or `SymbolicConstant` on either side of a unit produces a `Unit`.
 
 ```pycon
 >>> from unitx.factor import Factor

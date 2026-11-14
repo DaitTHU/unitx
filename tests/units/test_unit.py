@@ -477,11 +477,27 @@ def test_unit_division_invalid(unit: Unit, divisor: int | float | Fraction | Dec
 
 
 @pytest.mark.parametrize('unit', [Unit('m'), Unit('m', scale=Factor(2))])
-@pytest.mark.parametrize('operation', [operator.mul, operator.truediv])
 @pytest.mark.parametrize('value', [True, False])
-def test_unit_invalid_boolean(unit: Unit, value: bool, operation: Callable[..., object]) -> None:
-    with pytest.raises(TypeError, match='Boolean numeric operands'):
-        operation(unit, value)
+def test_unit_boolean_multiplication(unit: Unit, value: bool) -> None:
+    for quantity in (unit * value, value * unit):
+        assert quantity.unit == unit
+        assert quantity.value is value
+
+
+def test_unit_boolean_division() -> None:
+    unit = Unit('m', scale=Factor(2))
+    reciprocal = unit / True
+    assert reciprocal.unit == unit
+    assert type(reciprocal.value) is Fraction and reciprocal.value == 1
+    for value in (True, False):
+        quantity = value / unit
+        assert quantity.unit == unit**-1
+        assert quantity.value is value
+
+
+def test_unit_division_invalid_false() -> None:
+    with pytest.raises(ZeroDivisionError):
+        Unit('m') / False
 
 
 @pytest.mark.parametrize('value', [None, '1/2'])

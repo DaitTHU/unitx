@@ -328,8 +328,6 @@ class Unit(_Immutable):
         if is_numpy_object(other):
             return Quantity(cast(Array, other), self)
         if isinstance(other, Fractionable):
-            if isinstance(other, bool):
-                raise TypeError('Boolean numeric operands are not supported.')
             return Quantity(other, self)
         if isinstance(other, SymbolicConstant | Factor):
             scale = other if isinstance(other, Factor) else Factor(other)
@@ -364,8 +362,6 @@ class Unit(_Immutable):
             validate_magnitude(other)
             return apply_ufunc('true_divide', self, other)
         if isinstance(other, Fractionable):
-            if isinstance(other, bool):
-                raise TypeError('Boolean numeric operands are not supported.')
             reciprocal = 1 / other if isinstance(other, float) else 1 / Fraction(other)
             return Quantity(reciprocal, self)
         if isinstance(other, SymbolicConstant | Factor):
