@@ -423,7 +423,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def __iadd__(self, other: Quantity[Magnitude], /) -> LogQuantity[Magnitude]:
         result = self + other
         if is_numpy_object(self.value):
-            from ._numerics.numpy import write_inplace
+            from ._numerics.numpy_writes import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -445,7 +445,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
     def __isub__(self, other: Any, /) -> Quantity[Magnitude] | LogQuantity[Magnitude]:
         result = self - other
         if is_numpy_object(self.value):
-            from ._numerics.numpy import write_inplace
+            from ._numerics.numpy_writes import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -496,7 +496,7 @@ class LogQuantity(_Point['LogQuantity[Magnitude]'], Generic[T]):
         return LogQuantity(self._array_value()[key], self.unit)
 
     def __setitem__(self: LogQuantity[Array], key: Any, value: LogQuantity[Magnitude]) -> None:
-        from ._numerics.numpy import assign_item
+        from ._numerics.numpy_writes import assign_item
 
         assign_item(self, key, value)
 

@@ -204,12 +204,22 @@ forwards their arguments to the same NumPy dispatch used by function calls.
 Coordinate and linear result construction stays in the existing handlers.
 Reshape keeps its explicit positional-shape normalization.
 
-NumPy operand validation, numerical normalization, scaling and unit alignment
+NumPy operand/index validation, numerical normalization, scaling and unit alignment
 live in `_numerics/numpy_operands.py`. The dispatcher and the creation, histogram,
 selection and write adapters use these shared rules without routing back through
 the dispatcher. This module imports no operation or write handlers; validation
-is still performed at each public boundary. Output staging and concrete operation
-handlers retain their existing owners. Product adapters reuse the first operand's
+is still performed at each public boundary. Linear and affine magnitude conversion
+use this layer directly, without importing the operation dispatcher.
+
+`_numerics/numpy_writes.py` owns indexed assignment, fixed-buffer output staging
+and batch writes. The dispatcher computes results, then delegates output
+conversion, casting, alias handling and final writes to this module. Multiple
+outputs share one staging pass before any destination is modified. Indexed
+assignment does not import the dispatcher; ufunc methods enter it only when
+they need an ordinary operation or reduction. Output validation compares the
+complete dimension once, including its logarithmic degree.
+
+Product adapters reuse the first operand's
 complete Unit before accumulating later operands, preserving its extra scale and
 formal identity without constructing an initial identity product.
 

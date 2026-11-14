@@ -818,7 +818,7 @@ class Quantity(Generic[T]):
     def __iadd__(self, other: object, /) -> Quantity[Magnitude] | _Point[Any]:
         result = self.__add__(other)
         if is_numpy_object(self.value):
-            from ._numerics.numpy import write_inplace
+            from ._numerics.numpy_writes import write_inplace
 
             return write_inplace(
                 cast('_QuantityInterface[Magnitude]', self),
@@ -845,7 +845,7 @@ class Quantity(Generic[T]):
         if result is NotImplemented:
             return NotImplemented
         if is_numpy_object(self.value):
-            from ._numerics.numpy import write_inplace
+            from ._numerics.numpy_writes import write_inplace
 
             return write_inplace(
                 cast('_QuantityInterface[Magnitude]', self),
@@ -927,7 +927,7 @@ class Quantity(Generic[T]):
         """
         if not is_numpy_object(self.value):
             raise TypeError('Indexed assignment requires a plain numeric ndarray magnitude.')
-        from ._numerics.numpy import assign_item
+        from ._numerics.numpy_writes import assign_item
 
         assign_item(cast('_QuantityInterface[Array]', self), key, value)
 

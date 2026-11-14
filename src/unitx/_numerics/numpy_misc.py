@@ -9,24 +9,21 @@ from ..dimension import DIMENSIONLESS
 from ..exceptions import DimensionError
 from ..quantity import Quantity
 from ..unit import Unit
-from .numpy import (
-    _array_transform,
-    _boolean_condition,
-    _join_values,
-    _snapshot_index,
-    _validate_where,
-    _write_output,
-)
+from .numpy import _array_transform, _join_values
 from .numpy_creation import _readings
 from .numpy_operands import (
+    _boolean_condition,
     _delta_unit,
     _linear_parts,
     _operand_parts,
     _selection_parts,
+    _snapshot_index,
     _validate_dtype,
+    _validate_where,
     _wrap,
     scale_magnitude,
 )
+from .numpy_writes import _write_output
 
 
 def _block(arrays: Any) -> Any:
@@ -138,7 +135,7 @@ def _truth(
     *,
     where: Any = True,
 ) -> Any:
-    _validate_where({'where': where})
+    _validate_where(where)
     values, _ = _operand_parts(a)
     result = func(values, axis=axis, keepdims=keepdims, where=where)
     return _write_output(result, out)

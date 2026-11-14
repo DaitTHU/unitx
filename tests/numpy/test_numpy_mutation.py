@@ -343,6 +343,32 @@ assert 'numpy' not in sys.modules
     subprocess.run([sys.executable, '-c', script], check=True)
 
 
+@pytest.mark.parametrize(
+    'family,target_unit,source_unit,values,expected',
+    [
+        ('Quantity', 'm', 'cm', [300.0, 400.0], [3.0, 4.0]),
+        ('AffineQuantity', 'degC', 'K', [273.15, 274.15], [0.0, 1.0]),
+        ('LogQuantity', 'dBm', 'dBW', [0.0, 1.0], [30.0, 31.0]),
+    ],
+)
+def test_quantity_indexed_write_without_dispatch(
+    family: str, target_unit: str, source_unit: str, values: list[float], expected: list[float]
+) -> None:
+    script = f"""
+import sys
+import numpy as np
+from unitx import {family}
+buffer = np.zeros(2)
+target = {family}(buffer, {target_unit!r})
+source = {family}(np.array({values!r}), {source_unit!r})
+target[:] = source
+assert target.value is buffer
+np.testing.assert_allclose(buffer, {expected!r}, atol=1e-12)
+assert 'unitx._numerics.numpy' not in sys.modules
+"""
+    subprocess.run([sys.executable, '-c', script], check=True)
+
+
 def test_reused_output_temporary_still_checks_casting_option() -> None:
     q = Quantity(np.ones(3), 'm')
     with pytest.raises(ValueError):

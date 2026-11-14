@@ -432,7 +432,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     def __iadd__(self, other: Quantity[Magnitude], /) -> AffineQuantity[Magnitude]:
         result = self + other
         if is_numpy_object(self.value):
-            from ._numerics.numpy import write_inplace
+            from ._numerics.numpy_writes import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -460,7 +460,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     def __isub__(self, other: Any, /) -> Quantity[Magnitude] | AffineQuantity[Magnitude]:
         result = self - other
         if is_numpy_object(self.value):
-            from ._numerics.numpy import write_inplace
+            from ._numerics.numpy_writes import write_inplace
 
             return write_inplace(self, result)
         return result
@@ -513,7 +513,7 @@ class AffineQuantity(_Point['AffineQuantity[Magnitude]'], Generic[T]):
     def __setitem__(
         self: AffineQuantity[Array], key: Any, value: AffineQuantity[Magnitude]
     ) -> None:
-        from ._numerics.numpy import assign_item
+        from ._numerics.numpy_writes import assign_item
 
         assign_item(self, key, value)
 

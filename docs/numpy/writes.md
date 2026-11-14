@@ -116,8 +116,14 @@ Other function and reduction outputs must have exactly the ordinary result's sha
 including axes retained by `keepdims`; they do not broadcast into a larger
 target. Only true mask
 positions are written; false positions retain their original target values.
-Unit conversion also skips false positions. Input/output overlap and shared
-slices are handled through temporaries; a mask sharing output storage is copied.
+Elementwise input scaling and output conversion also skip false positions,
+including when `where` broadcasts an input into a larger result. This prevents
+inactive magnitudes from causing conversion overflow. Unit compatibility,
+dtype and shape checks still apply to the whole operation. Power exponents
+must still satisfy the finite-real and uniform-dimensional-exponent rules,
+even at false positions: the result has one unit for the entire array.
+Input/output overlap and shared slices are handled through temporaries;
+a mask sharing output storage is copied.
 
 The natural result dimension must match the target dimension. For example,
 multiplying lengths can write to an area target, but cannot write back to a

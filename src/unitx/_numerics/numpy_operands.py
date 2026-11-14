@@ -1,9 +1,10 @@
-"""Optional NumPy operand validation, normalization and unit alignment.
+"""Optional NumPy operand/index validation, conversion and unit alignment.
 
 Shared by operation adapters without importing their dispatch or write handlers.
 Magnitude validation remains at each public boundary; array storage can change.
 """
 
+import operator
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any
@@ -90,7 +91,8 @@ def _linear_parts(value: Any) -> tuple[Any, Unit]:
     return _numeric_value(value), _UNITLESS
 
 
-def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
+def _align_operands(left: Any, right: Any, *, where: Any = True) -> tuple[Any, Any, Unit]:
+    """Align compatible linear operands, evaluating scales only where selected."""
     a, u = _linear_parts(left)
     b, v = _linear_parts(right)
     if not compatible(u, v):
@@ -99,13 +101,15 @@ def _align_operands(left: Any, right: Any) -> tuple[Any, Any, Unit]:
     # Addition retains the first Quantity's unit, even with a bare left input.
     target = u if isinstance(left, Quantity) else v
     return (
-        scale_magnitude(a, u.factor / target.factor),
-        scale_magnitude(b, v.factor / target.factor),
+        scale_magnitude(a, u.factor / target.factor, where=where),
+        scale_magnitude(b, v.factor / target.factor, where=where),
         target,
     )
 
 
-def _selection_parts(left: Any, right: Any) -> tuple[Any, Any, Unit | _Coordinate]:
+def _selection_parts(
+    left: Any, right: Any, *, where: Any = True
+) -> tuple[Any, Any, Unit | _Coordinate]:
     """Align selection operands without crossing point/difference boundaries."""
     if not all(_is_supported_operand(x) for x in (left, right)):
         error_message = 'Selection requires numeric scalars, ndarrays, quantities or points.'
@@ -117,12 +121,15 @@ def _selection_parts(left: Any, right: Any) -> tuple[Any, Any, Unit | _Coordinat
         if not left.unit._compatible_with(right.unit):
             error_message = 'Selection requires compatible points with the same convention.'
             raise DimensionError(error_message)
+        raw = _numeric_value(right.value)
+        if where is not True:
+            raw = np.where(where, raw, 0)
         return (
             _numeric_value(left.value),
-            _numeric_value(convert(_numeric_value(right.value), right.unit, left.unit)),
+            _numeric_value(convert(raw, right.unit, left.unit)),
             left.unit,
         )
-    return _align_operands(left, right)
+    return _align_operands(left, right, where=where)
 
 
 def _delta_unit(unit: Unit | _Coordinate) -> Unit:
@@ -133,3 +140,60 @@ def _validate_dtype(dtype: Any) -> None:
     if dtype is not None and np.dtype(dtype).kind not in 'iufc':
         error_message = 'Only numeric output dtypes are supported.'
         raise TypeError(error_message)
+
+
+def _validate_where(mask: Any) -> None:
+    if (
+        type(mask) is not bool
+        and not (type(mask) is np.ndarray and mask.dtype == np.dtype(bool))
+        and type(mask) is not np.bool_
+    ):
+        error_message = 'where must be a unitless boolean mask.'
+        raise TypeError(error_message)
+
+
+def _boolean_condition(condition: Any) -> Any:
+    if isinstance(condition, (Quantity, _Point)) or (
+        isinstance(condition, np.ndarray) and type(condition) is not np.ndarray
+    ):
+        error_message = 'condition must be a bare boolean scalar, sequence or ndarray.'
+        raise TypeError(error_message)
+    if isinstance(condition, (list, tuple)) and not condition:
+        return np.array([], dtype=bool)
+    condition = np.asarray(condition)
+    if condition.dtype.kind != 'b':
+        error_message = 'condition must contain only bare booleans.'
+        raise TypeError(error_message)
+    return condition
+
+
+def _snapshot_index(key: Any) -> Any:
+    """Keep index arrays independent from storage modified by assignment."""
+    if isinstance(key, np.ndarray):
+        if type(key) is not np.ndarray or key.dtype.kind not in 'biu':
+            error_message = 'Array indices must be plain boolean or integer ndarrays.'
+            raise TypeError(error_message)
+        return key.copy()
+    if isinstance(key, (tuple, list)):
+        return type(key)(_snapshot_index(item) for item in key)
+    if isinstance(key, slice):
+        return slice(
+            *(
+                None if item is None else operator.index(item)
+                for item in (key.start, key.stop, key.step)
+            )
+        )
+    if key is None or key is Ellipsis or isinstance(key, (bool, np.bool_)):
+        return key
+    return operator.index(key)
+
+
+def affine_magnitude(value: Any, a: Any, b: Any) -> Any:
+    """Apply a coordinate scale and offset in NumPy's numerical domain."""
+    if np.iscomplexobj(value):
+        error_message = 'Affine coordinates require real magnitudes.'
+        raise TypeError(error_message)
+    a = int(a) if isinstance(a, Fraction) and a.denominator == 1 else _numeric_value(a)
+    b = int(b) if isinstance(b, Fraction) and b.denominator == 1 else _numeric_value(b)
+    result = np.multiply(value, a) if a != 1 else value
+    return np.add(result, b) if b != 0 else result

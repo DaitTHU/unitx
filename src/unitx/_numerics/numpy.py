@@ -1,7 +1,8 @@
-"""Optional NumPy operation dispatch, kernels and staged output writes.
+"""Optional NumPy operation dispatch and numerical kernels.
 
 Operand validation, normalization and scaling are shared through numpy_operands;
-ordinary array construction and linear conversion do not need this dispatcher.
+array construction and magnitude conversion do not need this dispatcher.
+Fixed-buffer writes are delegated to numpy_writes after the kernel returns.
 
 An identity scale retains storage. Integral scales use a Python int multiplier;
 nonintegral rational scales use one Python float multiplier, and irrational
@@ -36,17 +37,21 @@ from .conversion import compatible
 from .numpy_operands import (
     _UNITLESS,
     _align_operands,
+    _boolean_condition,
     _delta_unit,
     _is_supported_operand,
     _linear_parts,
     _numeric_value,
     _operand_parts,
     _selection_parts,
+    _snapshot_index,
     _validate_dtype,
+    _validate_where,
     _wrap,
     scale_magnitude,
 )
 from .numpy_typing import _UNSET
+from .numpy_writes import _write_output, _write_outputs
 
 _MATRIX_VECTOR_UFUNCS = tuple(
     value for name in ('matvec', 'vecmat') if isinstance(value := getattr(np, name, None), np.ufunc)
@@ -101,69 +106,6 @@ _DIMENSIONLESS_UFUNCS = frozenset(
 _UFUNC_OPTIONS = frozenset(('where', 'dtype', 'casting', 'order', 'subok'))
 
 
-def _validate_where(kwargs: dict[str, Any]) -> None:
-    mask = kwargs.get('where', True)
-    if (
-        type(mask) is not bool
-        and not (type(mask) is np.ndarray and mask.dtype == np.dtype(bool))
-        and type(mask) is not np.bool_
-    ):
-        raise TypeError('where must be a unitless boolean mask.')
-
-
-def _snapshot_index(key: Any) -> Any:
-    """Keep index arrays independent from storage modified by assignment."""
-    if isinstance(key, np.ndarray):
-        if type(key) is not np.ndarray or key.dtype.kind not in 'biu':
-            raise TypeError('Array indices must be plain boolean or integer ndarrays.')
-        return key.copy()
-    if isinstance(key, (tuple, list)):
-        return type(key)(_snapshot_index(item) for item in key)
-    if isinstance(key, slice):
-        return slice(
-            *(
-                None if item is None else operator.index(item)
-                for item in (key.start, key.stop, key.step)
-            )
-        )
-    if key is None or key is Ellipsis or isinstance(key, (bool, np.bool_)):
-        return key
-    return operator.index(key)
-
-
-def assign_item(target: Quantity[Any] | _Point[Any], key: Any, value: Any) -> None:
-    """Convert and stage selected values before modifying caller storage."""
-    buffer = target.value
-    if type(buffer) is not np.ndarray:
-        raise TypeError('Indexed assignment requires a plain numeric ndarray magnitude.')
-    if not buffer.flags.writeable:
-        raise ValueError('Assignment destination is read-only.')
-    if not _is_supported_operand(value):
-        raise TypeError('Assignment requires a numeric scalar, ndarray, or Quantity.')
-    raw, unit = _operand_parts(value)
-    if unit.dimension != target.dimension:
-        raise DimensionError('Assigned value has an incompatible dimension.')
-    key = _snapshot_index(key)
-    if isinstance(unit, _Coordinate) != isinstance(target.unit, _Coordinate):
-        raise DimensionError(
-            'Assignment requires matching point/difference semantics; convert explicitly.'
-        )
-    raw = _numeric_value(convert(raw, unit, target.unit))
-    staged = np.empty(np.shape(raw), dtype=buffer.dtype)
-    # Resolve every cast before entering NumPy indexed assignment, which leaves
-    # its target unchanged on index/shape errors but not on casting errors.
-    # Preserve RHS shape so native scalar/boolean assignment rules still apply.
-    np.copyto(staged, raw, casting='same_kind')
-    buffer[key] = staged
-
-
-def write_inplace(target: Quantity[Any] | _Point[Any], result: Quantity[Any] | _Point[Any]) -> Any:
-    # NumPy scalars stay immutable and follow ordinary result/rebinding rules.
-    if type(target.value) is not np.ndarray:
-        return result
-    return _write_output(result, target, broadcast=True)
-
-
 def dispatch_ufunc(ufunc: Any, method: str, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     if method != '__call__':
         from .numpy_writes import dispatch_method
@@ -216,124 +158,12 @@ def _dispatch_multi_output(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str
     result = _dispatch_ufunc(ufunc, inputs, options)
     if result is NotImplemented:
         return NotImplemented
-    buffers = [
-        x.value if isinstance(x, (Quantity, _Point)) else x for x in outputs if x is not None
-    ]
-    if any(type(buffer) is not np.ndarray for buffer in buffers):
-        raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
-    if len(buffers) == 2 and np.shares_memory(*buffers):
-        raise ValueError('Multiple output buffers must not overlap.')
-    # All outputs share the ufunc broadcast shape, including newly allocated
-    # outputs. Do not broadcast one provided output into another's larger shape.
-    shape = np.broadcast_shapes(np.shape(result[0].value), *(x.shape for x in buffers))
-    if any(buffer.shape != shape for buffer in buffers):
-        raise ValueError('All output buffers must have the ufunc broadcast shape.')
-    where = options.get('where', True)
-    if type(where) is np.ndarray:
-        # A mask can alias either output; retain it across both final writes.
-        where = where.copy()
-    returned = []
-    staged = []
-    for value, target in zip(result, outputs):
-        raw = value.value if isinstance(value, (Quantity, _Point)) else value
-        if np.shape(raw) != shape:
-            raw = np.broadcast_to(raw, shape).copy()
-            value = _wrap(raw, value.unit) if isinstance(value, (Quantity, _Point)) else raw
-        if target is not None:
-            staged.append(
-                _stage_output(
-                    value, target, where=where, casting=options.get('casting', 'same_kind')
-                )
-            )
-        returned.append(value if target is None else target)
-    # No caller storage changes until every output has converted and cast.
-    for buffer, temporary, mask in staged:
-        np.copyto(buffer, temporary, where=mask, casting='no')
-    return tuple(returned)
-
-
-def _write_output(
-    result: Any,
-    target: Any,
-    *,
-    where: Any = True,
-    casting: Any = 'same_kind',
-    broadcast: bool = False,
-) -> Any:
-    """Stage a single output without replacing its magnitude, dtype, or unit."""
-    if target is None:
-        return result
-    buffer, staged, mask = _stage_output(
-        result, target, where=where, casting=casting, broadcast=broadcast
+    return _write_outputs(
+        result,
+        outputs,
+        where=options.get('where', True),
+        casting=options.get('casting', 'same_kind'),
     )
-    np.copyto(buffer, staged, where=mask, casting='no')
-    return target
-
-
-def _stage_output(
-    result: Any,
-    target: Any,
-    *,
-    where: Any = True,
-    casting: Any = 'same_kind',
-    broadcast: bool = False,
-) -> tuple[Any, Any, Any]:
-    if isinstance(result, (Quantity, _Point)):
-        if not isinstance(target, (Quantity, _Point)) or type(target.value) is not np.ndarray:
-            raise TypeError('Quantity out requires a plain numeric ndarray buffer.')
-        if result.dimension != target.dimension:
-            raise DimensionError('out has an incompatible dimension.')
-        if isinstance(result.unit, _Coordinate) != isinstance(target.unit, _Coordinate):
-            raise DimensionError('out must preserve point/difference semantics.')
-        if (
-            not isinstance(result.unit, _Coordinate)
-            and not isinstance(target.unit, _Coordinate)
-            and not compatible(result.unit, target.unit)
-        ):
-            raise DimensionError('out has an incompatible logarithmic degree.')
-        if isinstance(result.unit, _Coordinate):
-            factor = one
-        else:
-            assert isinstance(target.unit, Unit)
-            factor = result.unit.factor / target.unit.factor
-        buffer = target.value
-    else:
-        kinds = 'b' if np.asarray(result).dtype.kind == 'b' else 'iu'
-        if type(target) is not np.ndarray or target.dtype.kind not in kinds:
-            raise TypeError('Unitless out requires a plain ndarray with the matching result kind.')
-        factor = one
-        buffer = target
-    if not buffer.flags.writeable:
-        raise ValueError('out buffer is read-only.')
-    value = result.value if isinstance(result, (Quantity, _Point)) else result
-    if not broadcast and np.shape(value) != buffer.shape:
-        raise ValueError('out must have exactly the result shape.')
-    if isinstance(result, (Quantity, _Point)):
-        if isinstance(result.unit, _Coordinate):
-            if where is not True:
-                value = np.where(where, value, 0)
-            value = convert(value, result.unit, cast(Any, target).unit)
-        else:
-            value = scale_magnitude(value, factor, where=where)
-    # Validate broadcasting and casting before touching shared storage. Casting
-    # also runs in temporary storage so e.g. float narrowing errors cannot
-    # partially overwrite the caller's buffer.
-    value = np.broadcast_to(value, buffer.shape)
-    mask = np.broadcast_to(where, buffer.shape)
-    if np.may_share_memory(mask, buffer):
-        mask = mask.copy()
-    # Kernels and nonidentity conversions usually already own a temporary.
-    # Reuse it when no cast or separation from the destination is needed.
-    # can_cast still validates an explicit casting option, even for equal dtypes.
-    if (
-        value.dtype == buffer.dtype
-        and np.can_cast(value.dtype, buffer.dtype, casting=casting)
-        and not np.may_share_memory(value, buffer)
-    ):
-        return buffer, value, mask
-    staged = np.empty(buffer.shape, dtype=buffer.dtype)
-    np.copyto(staged, value, where=mask, casting=casting)
-    return buffer, staged, mask
 
 
 def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
@@ -371,13 +201,16 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
         allowed = _UFUNC_OPTIONS | {'axis', 'axes'} if ufunc is np.vecdot else _UFUNC_OPTIONS
         if kwargs.keys() - allowed:
             return NotImplemented
-        _validate_where(kwargs)
+        _validate_where(kwargs.get('where', True))
     # Explicit dtype=object/str/etc must not escape the supported numerical domain.
     if 'dtype' in kwargs and np.dtype(kwargs['dtype']).kind not in 'biufc':
         return NotImplemented
     if 'where' in kwargs:
         # A masked temporary intentionally has unspecified unused elements.
         kwargs = {**kwargs, 'out': (None,) * ufunc.nout}
+    # Input scaling is part of the elementwise calculation, so it uses the
+    # same mask as the numerical kernel and the final output conversion.
+    where = kwargs.get('where', True)
     if ufunc in _MULTIPLICATIVE_UFUNCS:
         a, u = _linear_parts(inputs[0])
         b, v = _linear_parts(inputs[1])
@@ -399,17 +232,17 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
         if unit.dimension != DIMENSIONLESS:
             error_message = 'This function requires dimensionless input.'
             raise DimensionError(error_message)
-        return Quantity(ufunc(scale_magnitude(a, unit.factor), **kwargs), _UNITLESS)
+        return Quantity(ufunc(scale_magnitude(a, unit.factor, where=where), **kwargs), _UNITLESS)
     if ufunc in (np.add, np.subtract):
         if any(isinstance(x, Unit) for x in inputs):
             return NotImplemented
-        a, b, unit = _align_operands(*inputs)
+        a, b, unit = _align_operands(*inputs, where=where)
         return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.minimum, np.maximum, np.fmin, np.fmax):
-        a, b, unit = _selection_parts(*inputs)
+        a, b, unit = _selection_parts(*inputs, where=where)
         return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.remainder, np.fmod, np.floor_divide, np.divmod):
-        a, b, unit = _align_operands(*inputs)
+        a, b, unit = _align_operands(*inputs, where=where)
         result = ufunc(a, b, **kwargs)
         if ufunc is np.divmod:
             return Quantity(result[0], _UNITLESS), Quantity(result[1], unit)
@@ -425,10 +258,15 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
             error_message = 'This function requires dimensionless inputs.'
             raise DimensionError(error_message)
         return Quantity(
-            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), _UNITLESS
+            ufunc(
+                scale_magnitude(a, u.factor, where=where),
+                scale_magnitude(b, v.factor, where=where),
+                **kwargs,
+            ),
+            _UNITLESS,
         )
     if ufunc in (np.hypot, np.arctan2):
-        a, b, unit = _align_operands(*inputs)
+        a, b, unit = _align_operands(*inputs, where=where)
         if unit.dimension != unit.dimension.physical:
             raise DimensionError('Convert logarithmic quantities to physical ratios first.')
         return Quantity(ufunc(a, b, **kwargs), Unit('rad') if ufunc is np.arctan2 else unit)
@@ -446,7 +284,11 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
         ratio = u.factor / v.factor
         if ratio == one:
             return ufunc(a, b, **kwargs)
-        return ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs)
+        return ufunc(
+            scale_magnitude(a, u.factor, where=where),
+            scale_magnitude(b, v.factor, where=where),
+            **kwargs,
+        )
     a, unit = _linear_parts(inputs[0])
     if ufunc in (np.modf, np.frexp):
         first, second = ufunc(a, **kwargs)
@@ -458,10 +300,10 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
         if exponent_unit.dimension != DIMENSIONLESS:
             error_message = 'ldexp requires dimensionless integer exponents.'
             raise DimensionError(error_message)
-        exponent = scale_magnitude(exponent, exponent_unit.factor)
+        exponent = scale_magnitude(exponent, exponent_unit.factor, where=where)
         return Quantity(ufunc(a, exponent, **kwargs), unit)
     if ufunc is np.nextafter:
-        a, b, unit = _align_operands(*inputs)
+        a, b, unit = _align_operands(*inputs, where=where)
         return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc is np.spacing:
         return Quantity(ufunc(a, **kwargs), unit)
@@ -470,7 +312,7 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
         if v.dimension != DIMENSIONLESS:
             error_message = 'heaviside requires a dimensionless value at zero.'
             raise DimensionError(error_message)
-        return Quantity(ufunc(a, scale_magnitude(b, v.factor), **kwargs), _UNITLESS)
+        return Quantity(ufunc(a, scale_magnitude(b, v.factor, where=where), **kwargs), _UNITLESS)
     if ufunc is np.sign:
         return Quantity(ufunc(a, **kwargs), _UNITLESS)
     if ufunc in (np.degrees, np.rad2deg, np.radians, np.deg2rad):
@@ -479,7 +321,9 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
             raise DimensionError(error_message)
         source = Unit('rad') if ufunc in (np.degrees, np.rad2deg) else Unit('deg')
         target = Unit('deg') if ufunc in (np.degrees, np.rad2deg) else Unit('rad')
-        return Quantity(ufunc(scale_magnitude(a, unit.factor / source.factor), **kwargs), target)
+        return Quantity(
+            ufunc(scale_magnitude(a, unit.factor / source.factor, where=where), **kwargs), target
+        )
     if ufunc in (np.isfinite, np.isnan, np.isinf, np.signbit):
         return ufunc(a, **kwargs)
     if ufunc in (np.square, np.sqrt, np.cbrt, np.reciprocal):
@@ -492,12 +336,16 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
         if exponent_unit.dimension != DIMENSIONLESS:
             error_message = 'Exponents must be dimensionless.'
             raise DimensionError(error_message)
+        # Exponent validation covers the whole operand, including inactive
+        # entries: dimensional results must carry one uniform formal unit.
         exponent = scale_magnitude(exponent, exponent_unit.factor)
         if np.iscomplexobj(exponent) or not np.all(np.isfinite(exponent)):
             error_message = 'Exponents must be finite real values.'
             raise TypeError(error_message)
         if unit.dimension == DIMENSIONLESS:
-            return Quantity(ufunc(scale_magnitude(a, unit.factor), exponent, **kwargs), _UNITLESS)
+            return Quantity(
+                ufunc(scale_magnitude(a, unit.factor, where=where), exponent, **kwargs), _UNITLESS
+            )
         if np.ndim(exponent) != 0:
             raw, _ = _linear_parts(inputs[1])
             if not raw.size or not np.all(raw == raw.flat[0]):
@@ -518,7 +366,7 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
     if ufunc in (np.arcsin, np.arccos, np.arctan):
         if unit.dimension != DIMENSIONLESS:
             raise DimensionError('This function requires dimensionless input.')
-        return Quantity(ufunc(scale_magnitude(a, unit.factor), **kwargs), Unit('rad'))
+        return Quantity(ufunc(scale_magnitude(a, unit.factor, where=where), **kwargs), Unit('rad'))
     # SciPy's public ufunc is already loaded when it dispatches here. Identity
     # lookup avoids importing SciPy or accepting an unrelated same-name ufunc.
     if ufunc is getattr(sys.modules.get('scipy.special'), 'jv', None):
@@ -528,7 +376,12 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
             error_message = 'Bessel order and argument must be dimensionless.'
             raise DimensionError(error_message)
         return Quantity(
-            ufunc(scale_magnitude(a, u.factor), scale_magnitude(b, v.factor), **kwargs), _UNITLESS
+            ufunc(
+                scale_magnitude(a, u.factor, where=where),
+                scale_magnitude(b, v.factor, where=where),
+                **kwargs,
+            ),
+            _UNITLESS,
         )
     return NotImplemented
 
@@ -1062,7 +915,7 @@ def _trace(
 
 
 def _where(condition: Any, x: Any, y: Any, /) -> Any:
-    _validate_where({'where': condition})
+    _validate_where(condition)
     a, b, unit = _selection_parts(x, y)
     return _wrap(np.where(condition, a, b), unit)
 
@@ -1090,17 +943,18 @@ def _clip(
     if kwargs.keys() - {'where', 'dtype', 'casting', 'order', 'subok'}:
         error_message = 'Unsupported clip keyword.'
         raise TypeError(error_message)
-    _validate_where(kwargs)
+    _validate_where(kwargs.get('where', True))
     if 'dtype' in kwargs and np.dtype(kwargs['dtype']).kind not in 'iufc':
         error_message = 'clip requires a numeric output dtype.'
         raise TypeError(error_message)
-    lower = None if a_min is None else _selection_parts(a, a_min)[1]
-    upper = None if a_max is None else _selection_parts(a, a_max)[1]
+    where = kwargs.get('where', True)
+    lower = None if a_min is None else _selection_parts(a, a_min, where=where)[1]
+    upper = None if a_max is None else _selection_parts(a, a_max, where=where)[1]
     result = _wrap(np.clip(_numeric_value(a.value), lower, upper, **kwargs), a.unit)
     return _write_output(
         result,
         out,
-        where=kwargs.get('where', True),
+        where=where,
         casting=kwargs.get('casting', 'same_kind'),
         broadcast=True,
     )
@@ -1211,21 +1065,6 @@ def _take_along_axis(arr: Any, indices: Any, axis: Any = _UNSET) -> Any:
     # installed kernel own that version-specific signature behavior.
     options = {} if axis is _UNSET else {'axis': axis}
     return _wrap(np.take_along_axis(arr.value, indices, **options), arr.unit)
-
-
-def _boolean_condition(condition: Any) -> Any:
-    if isinstance(condition, (Quantity, _Point)) or (
-        isinstance(condition, np.ndarray) and type(condition) is not np.ndarray
-    ):
-        error_message = 'condition must be a bare boolean scalar, sequence or ndarray.'
-        raise TypeError(error_message)
-    if isinstance(condition, (list, tuple)) and not condition:
-        return np.array([], dtype=bool)
-    condition = np.asarray(condition)
-    if condition.dtype.kind != 'b':
-        error_message = 'condition must contain only bare booleans.'
-        raise TypeError(error_message)
-    return condition
 
 
 def _compress(condition: Any, a: Any, axis: Any = None, out: Any = None) -> Any:
@@ -1639,7 +1478,7 @@ def _mean(
     where: Any = True,
 ) -> Any:
     _validate_dtype(dtype)
-    _validate_where({'where': where})
+    _validate_where(where)
     result = _wrap(func(q.value, axis=axis, dtype=dtype, keepdims=keepdims, where=where), q.unit)
     return _write_output(result, out)
 
@@ -1723,7 +1562,7 @@ def _sum(
     where: Any = True,
 ) -> Any:
     _validate_dtype(dtype)
-    _validate_where({'where': where})
+    _validate_where(where)
     value, unit = _linear_parts(q)
     initial_value = None
     if initial is not None:
@@ -1760,7 +1599,7 @@ def _prod(
     where: Any = True,
 ) -> Any:
     _validate_dtype(dtype)
-    _validate_where({'where': where})
+    _validate_where(where)
     initial_value, initial_unit = None, _UNITLESS
     if initial is not None:
         if not _is_supported_operand(initial):
@@ -1816,7 +1655,7 @@ def _std_var(
     correction: Any = _UNSET,
 ) -> Any:
     _validate_dtype(dtype)
-    _validate_where({'where': where})
+    _validate_where(where)
     delta = q.unit.delta_unit if isinstance(q.unit, _Coordinate) else q.unit
     unit = delta**2 if func in (np.var, np.nanvar) else delta
     options = {}
@@ -1846,15 +1685,6 @@ def power(q: Any, exponent: Any) -> Any:
 
 # These handlers share the validated Quantity-first input contract. Sequence
 # and mixed-input functions retain their separate dispatch paths above.
-
-
-def affine_magnitude(value: Any, a: Any, b: Any) -> Any:
-    if np.iscomplexobj(value):
-        raise TypeError('Affine coordinates require real magnitudes.')
-    a = int(a) if isinstance(a, Fraction) and a.denominator == 1 else _numeric_value(a)
-    b = int(b) if isinstance(b, Fraction) and b.denominator == 1 else _numeric_value(b)
-    result = np.multiply(value, a) if a != 1 else value
-    return np.add(result, b) if b != 0 else result
 
 
 def logarithm_magnitude(value: Any) -> Any:
@@ -1900,7 +1730,7 @@ def _affine_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any]) -
 
     if kwargs.keys() - {'where', 'dtype', 'casting', 'order', 'subok'}:
         return NotImplemented
-    _validate_where(kwargs)
+    _validate_where(kwargs.get('where', True))
     if 'dtype' in kwargs and np.dtype(kwargs['dtype']).kind not in 'biuf':
         raise TypeError('Affine operations require real numeric output.')
     if 'where' in kwargs:
@@ -1958,7 +1788,7 @@ def _extremum(
     initial: Any = _UNSET,
     where: Any = True,
 ) -> Any:
-    _validate_where({'where': where})
+    _validate_where(where)
     kwargs = dict(axis=axis, keepdims=keepdims, where=where)
     if initial is not _UNSET:
         if not isinstance(initial, (Quantity, _Point)):

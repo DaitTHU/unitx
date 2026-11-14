@@ -51,7 +51,7 @@ def affine_value(value: Any, a: Any, b: Any) -> Any:
     if a == 1 and b == 0:
         return value
     if is_numpy_object(value):
-        from .numpy import affine_magnitude
+        from .numpy_operands import affine_magnitude
 
         return affine_magnitude(value, a, b)
     if isinstance(value, Decimal):
