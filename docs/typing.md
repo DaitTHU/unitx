@@ -9,6 +9,8 @@ The parameter in `Quantity[T]`
 or `AffineQuantity[T]` / `LogQuantity[T]` describes the magnitude type, not a physical dimension.
 Units and compatible dimensions are validated at runtime.
 
+CI checks the source and installed-wheel typing examples with Pyright.
+
 ## Scalar construction and arithmetic
 
 ```pycon

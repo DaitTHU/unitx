@@ -5,27 +5,22 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/DaitTHU/unitx/blob/main/LICENSE)
 
 Write physical formulas with units and constants in Python.
-`unitx` provides unit conversion, dimensional checks, exact unit algebra,
-and type hints for scalar calculations, with optional NumPy integration.
+`unitx` keeps unit scales and rational powers exact. It checks dimensions at
+runtime and provides type hints for magnitudes. Use it for scalar quantities,
+temperature and logarithmic readings, and optional NumPy arrays.
 
 ## Install
 
-Python **3.12 or later**, with no mandatory runtime dependencies:
+Requires Python **3.12 or later**. The base package has no runtime dependencies.
 
 ```sh
 pip install unitx
 ```
 
-If NumPy **2.1 or later** is already installed, the same package works with
-arrays. To install NumPy alongside unitx, use:
-
-```sh
-pip install 'unitx[numpy]'
-```
-
 ## Calculate with units
 
-Import ready-to-use units from `si` and physical constants from `SI`:
+Use `si` for units and `SI` for physical constants. For example, `si.c` is a
+speed unit and `SI.c` is the speed of light as a quantity.
 
 ```pycon
 >>> from unitx.si import SI, si
@@ -36,53 +31,32 @@ Import ready-to-use units from `si` and physical constants from `SI`:
 1.5 m/s
 >>> print(speed.to(si.cm / si.s))
 150.0 cm/s
->>> print(SI.c)
-299792458 m/s
 >>> rest_energy = (SI.me * SI.c**2).to(si.MeV)
->>> round(float(rest_energy.value), 6)
+>>> print(round(rest_energy.value, 6))
 0.510999
 
 ```
 
-Addition aligns compatible units; multiplication, division and powers combine
-them. Incompatible conversions and arithmetic raise `DimensionError`.
-Use strings when units come from data or configuration:
+Addition aligns compatible units. Multiplication, division and powers combine
+units. A conversion between incompatible dimensions raises `DimensionError`.
 
 ```pycon
->>> from unitx import Quantity, Unit
->>> length = Quantity(1, 'm') + Quantity(50, 'cm')
->>> print(length)
-3/2 m
->>> length.value_in('cm')
-Fraction(150, 1)
->>> Quantity(1, 'm') == Quantity(100, 'cm')
-True
->>> Unit('m') == Unit('cm')
-False
+>>> distance.to(si.s)
+Traceback (most recent call last):
+    ...
+unitx.exceptions.DimensionError: Cannot convert quantity with dimension L to unit with incompatible algebraic dimension T.
 
 ```
 
-`.value` is the stored magnitude in `.unit`; `.to(unit)` returns a new
-quantity, and `.value_in(unit)` returns only the converted magnitude.
-Unit scales and rational exponents retain exact structure. Numerical results
-follow the magnitude's domain: Fraction supports rational arithmetic,
-Decimal follows its context, and float calculations can round.
-Use `.isclose()` for approximate comparisons.
-
 ## Temperatures and logarithmic readings
 
-Use `@` for an absolute coordinate reading and `*` for a linear difference:
+Use `@` for an absolute reading and `*` for a difference.
 
 ```pycon
->>> from unitx.imperial import imperial
 >>> difference = 20 * si.degC  # A temperature difference of 20 degrees
 >>> room = 20 @ si.degC  # A reading of 20 degrees Celsius
 >>> difference.value_in(si.K)
 20
->>> room.value_in(si.K)
-Fraction(5863, 20)
->>> print(room.to(imperial.degF))
-68 °F
 >>> print(room + 5 * si.K)
 25 °C
 >>> (30 @ si.degC) - room == 10 * si.K
@@ -92,96 +66,17 @@ True
 
 ```
 
-Linear affine points are `AffineQuantity` objects and logarithmic readings are
-`LogQuantity` objects; differences are `Quantity` objects.
-Multiplying by `si.degC` constructs a difference; use `@` or the explicit
-`AffineQuantity(20, si.degC)` constructor for an absolute reading.
-Adding two points raises `TypeError`; subtract them to obtain a difference.
-Use `.to_quantity()` to turn a point into an ordinary physical quantity for
-further arithmetic. Read the [point and difference guide](https://github.com/DaitTHU/unitx/blob/main/docs/affine.md)
-for temperatures and [logarithmic quantities](https://github.com/DaitTHU/unitx/blob/main/docs/logarithmic.md) for
-dBm/dBW/dBV and ratio rules.
-
-## Mathematical functions and time
-
-```pycon
->>> from unitx import math, pi, time
->>> math.sqrt(9 * si.m**2)
-Quantity(3.0, Unit('m'))
->>> math.sin(90 * si.deg).value
-1.0
->>> math.sin(pi / 2).value
-1.0
->>> start = time.perf_counter()
->>> elapsed = time.perf_counter() - start
->>> isinstance(elapsed.value, int) and elapsed.unit == si.ns
-True
-
-```
-
-`unitx.math` checks units for roots, trigonometry, exponentials, logarithms,
-`hypot`, and `atan2`. `unitx.time` returns `AffineQuantity[int]` clock readings
-in nanoseconds; subtract readings from the same clock to obtain a Quantity
-duration. It also adapts durations to `sleep` and `datetime.timedelta`, and
-converts aware `datetime` objects to and from Unix time points with
-`time.from_datetime()` / `time.to_datetime()`.
-Readings do not carry clock, process, or thread identities; mixing clock
-contexts is not detected.
-See [standard-library enhancements](https://github.com/DaitTHU/unitx/blob/main/docs/stdlib.md)
-for the supported functions, numerical backends, and clock semantics.
-
-## Work with NumPy
-
-One Quantity wraps a whole array with one unit:
-
-```python
-import numpy as np
-
-from unitx import Quantity
-from unitx.si import si
-
-positions = Quantity(np.array([1.0, 2.0, 3.0]), si.m)
-velocity = positions / (2 * si.s)
-mean_velocity = np.mean(velocity)
-assert mean_velocity == 1 * si.m / si.s
-np.testing.assert_allclose(velocity.value_in(si.cm / si.s), [50, 100, 150])
-```
-
-NumPy handles broadcasting and numerical kernels; unitx checks and combines
-units. Comparisons return boolean masks. Supported reductions, integration,
-gradients, and output buffers follow the [NumPy support matrix](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md).
-Array assignment and augmented arithmetic preserve the destination unit and dtype.
-
-Exact unit algebra preserves the scale `1/100` for centimetres to metres.
-Applying that scale to a numerical array follows NumPy's dtype, rounding, and
-overflow rules; it does not turn the array into exact rational numbers:
-
-```python
-from fractions import Fraction
-
-exact = Quantity(1, 'cm').value_in('m')
-approximate = Quantity(np.array([1.0]), 'cm').value_in('m')
-assert exact == Fraction(1, 100)
-assert Fraction(float(approximate[0])) != exact  # Binary float approximates 1/100
-```
-
-Use `.value` or `.value_in(unit)` at external-library boundaries.
-The optional [Matplotlib adapter](https://github.com/DaitTHU/unitx/blob/main/docs/matplotlib.md)
-supports direct `ax.plot(t, q)` with automatic axis conversion.
-`np.asarray(quantity)` and `np.array(quantity)` raise TypeError to prevent
-implicit unit removal. NumPy's type stubs do not describe every wrapped
-operation; see the [typing guide](https://github.com/DaitTHU/unitx/blob/main/docs/typing.md).
-
-The [scientific examples](https://github.com/DaitTHU/unitx/blob/main/examples/README.md)
-cover reaction-rate fitting, blackbody radiation, damped motion, wave-packet
-spreading, attenuation, and measurement uncertainty.
+Subtracting two points gives a difference. Adding two points raises
+`TypeError`. See [points and differences](https://github.com/DaitTHU/unitx/blob/main/docs/affine.md)
+and [logarithmic quantities](https://github.com/DaitTHU/unitx/blob/main/docs/logarithmic.md).
 
 ## Blackbody radiation
 
-Install plotting support with `pip install 'unitx[numpy]' matplotlib`, then run
-this complete example. Planck's formula keeps units and constants throughout;
-NumPy broadcasts the wavelength column against three temperatures. Convert the
-spectral radiance to a readable display unit before plotting:
+![Blackbody spectral radiance at 3000, 4000 and 5000 K](https://raw.githubusercontent.com/DaitTHU/unitx/main/docs/images/blackbody.svg)
+
+Run `pip install 'unitx[matplotlib]'` to try this example. NumPy broadcasts the
+wavelength column against three temperatures in Planck's formula. The plot
+uses the numerical values in the chosen display units.
 
 ```python
 import numpy as np
@@ -207,7 +102,66 @@ ax.grid(True, alpha=0.25)
 plt.show()
 ```
 
-![Blackbody spectral radiance at 3000, 4000 and 5000 K](https://raw.githubusercontent.com/DaitTHU/unitx/main/docs/images/blackbody.svg)
+For automatic axis conversion with `ax.plot(t, q)`, see the
+[Matplotlib adapter](https://github.com/DaitTHU/unitx/blob/main/docs/matplotlib.md).
+
+## Scalar results and comparisons
+
+True division of two Python integers gives a float, as in the speed example.
+When unit alignment requires a rational scale, integer magnitudes can yield
+a `Fraction`. Use float magnitudes for floating-point calculations.
+
+```pycon
+>>> from unitx import Quantity
+>>> print(Quantity(1, 'm') + Quantity(50, 'cm'))
+3/2 m
+>>> print(Quantity(1.0, 'm') + Quantity(50, 'cm'))
+1.5 m
+>>> Quantity(1, 'm') == Quantity(100, 'cm')
+True
+>>> a, b = Quantity(0.1, 'm'), Quantity(10, 'cm')
+>>> a == b
+False
+>>> a.isclose(b)
+True
+
+```
+
+Exact scalar comparison uses the stored binary value of a float, so `0.1`
+metres differs from exactly one tenth of a metre. Use `.isclose()` when a
+tolerance is appropriate. See [scalar numerical behavior](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md)
+for result types, Decimal arithmetic and tolerances.
+
+Strings passed to `Quantity` and `.to()` use the default registry, where
+`MB` means megabel. For megabytes, pass `information.MB` or
+`information.unit('MB')` from the [information catalogue](https://github.com/DaitTHU/unitx/blob/main/docs/catalogues/information.md).
+
+## Work with NumPy
+
+Array support requires NumPy **2.1 or later**. Install both packages with
+`pip install 'unitx[numpy]'`. One Quantity wraps a whole array with one unit.
+
+```python
+import numpy as np
+
+from unitx import Quantity
+from unitx.si import si
+
+positions = Quantity(np.array([1.0, 2.0, 3.0]), si.m)
+velocity = positions / (2 * si.s)
+mean_velocity = np.mean(velocity)
+assert mean_velocity == 1 * si.m / si.s
+np.testing.assert_allclose(velocity.value_in(si.cm / si.s), [50, 100, 150])
+```
+
+NumPy handles broadcasting, dtypes and rounding. unitx checks and combines
+units, and comparisons return boolean masks. See the
+[NumPy support matrix](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md).
+
+`.value` gives the magnitude in the stored unit, and `.value_in(unit)`
+converts before returning the magnitude. Use either to pass plain numerical
+values to another library. `np.asarray(quantity)` and `np.array(quantity)`
+raise `TypeError` to prevent implicit unit removal.
 
 ## Read more
 
@@ -218,10 +172,11 @@ or go directly to a topic:
 | --- | --- |
 | Construction, arithmetic, conversion and unit expressions | [Units and quantities](https://github.com/DaitTHU/unitx/blob/main/docs/units.md) |
 | Ready-to-use units, constants and spelling conventions | [Catalogue](https://github.com/DaitTHU/unitx/blob/main/docs/catalogues/README.md) |
-| Exact extra scales and process-local registration | [Custom units](https://github.com/DaitTHU/unitx/blob/main/docs/custom-units.md) |
-| Fraction, Decimal, equality, powers and tolerances | [Scalar numerical behavior](https://github.com/DaitTHU/unitx/blob/main/docs/scalars.md) |
+| Custom definitions and cross-process restoration | [Custom units](https://github.com/DaitTHU/unitx/blob/main/docs/custom-units.md) and [serialization](https://github.com/DaitTHU/unitx/blob/main/docs/serialization.md#registry-requirements) |
+| Unit-aware math, statistics and clock readings | [Standard-library enhancements](https://github.com/DaitTHU/unitx/blob/main/docs/stdlib.md) |
 | Notebook, text, LaTeX, HTML and siunitx output | [Display and formatting](https://github.com/DaitTHU/unitx/blob/main/docs/display.md) |
-| Array support and finite typed adapters | [NumPy](https://github.com/DaitTHU/unitx/blob/main/docs/numpy.md) and [typing](https://github.com/DaitTHU/unitx/blob/main/docs/typing.md#finite-typed-numpy-entries) |
+| Magnitude types and NumPy inference | [Typing](https://github.com/DaitTHU/unitx/blob/main/docs/typing.md) |
+| Fitting, wave packets and measurement uncertainty | [Scientific examples](https://github.com/DaitTHU/unitx/blob/main/examples/README.md) |
 | Responsibilities, dependencies and measured costs | [Architecture](https://github.com/DaitTHU/unitx/blob/main/docs/architecture.md) and [performance](https://github.com/DaitTHU/unitx/blob/main/benchmarks/performance.md) |
 | Version changes | [Migration](https://github.com/DaitTHU/unitx/blob/main/docs/migration.md) and [changelog](https://github.com/DaitTHU/unitx/blob/main/CHANGELOG.md) |
 

@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Internal
+
+- Give the NumPy write module ownership of indexed assignment and single/multiple
+  output staging. Share mask/index validation and affine magnitude conversion
+  through the operand layer, so indexed writes do not load operation dispatch.
+
+### Fixed
+
+- Respect `where` during NumPy elementwise input scaling and clip-bound
+  conversion, avoiding overflow from inactive values before staged output writes.
+- Keep a published catalogue location bound to its live definition when
+  redeclaring the catalogue. A new definition at that location uses a local
+  UUID, so JSON distinguishes the two.
+- Allow multiword names with hyphens when the unbracketed spelling cannot
+  already parse as a unit product.
+- Let Python `bool` follow integer rules for multiplication and division with
+  linear units. Both multiplication orders preserve the boolean magnitude.
+
+### Documentation
+
+- Lead the README with dimensional checks, coordinate readings and a runnable
+  blackbody example. Show exact and approximate scalar comparisons and explain
+  how to select the information catalogue for byte spellings.
+
 ## [0.17.11] - 2026-11-05
 
 ### Added
@@ -11,9 +35,10 @@
 
 ### Fixed
 
-- Retain declared array metadata and known dtypes through native Quantity and
-  point flatten/copy/ravel methods and min/max/std/var reductions. Full reductions
-  infer scalar results without casts; partial reductions keep their shape uncertainty.
+- Full `min`, `max`, `std` and `var` method reductions infer scalar magnitudes
+  without casts. Partial reductions reflect shape uncertainty. `flatten`, `copy`
+  and `ravel` preserve known dtypes and declared array metadata for quantities
+  and points.
 - Preserve known floating/complex dtypes in Quantity matrix multiplication and
   float64 array/scalar addition and subtraction, avoiding local type annotations
   or numerical conversions in these scientific formulas.
@@ -23,6 +48,16 @@
 ## [0.17.10] - 2026-10-30
 
 ### Changed
+
+- Use an analytic Jacobian in the weighted decay-fit example, with a separate
+  finite-difference comparison and callback counts in its benchmark.
+
+### Documentation
+
+- Clarify public object responsibilities, numerical exits and optional-backend
+  boundaries in docstrings and guides. Expand reproducible performance records.
+
+### Internal
 
 - Share NumPy operand validation, scaling and alignment through a dedicated
   internal module, independent of operation dispatch and output staging.
@@ -34,13 +69,9 @@
 - Shorten common NumPy ufunc routes and linear operand/result preparation;
   collect Unit conversion terms in one pass. Add a direct Python scalar
   recognition path without importing NumPy or caching types.
-- Use an analytic Jacobian in the weighted decay-fit example, with a separate
-  finite-difference comparison and callback counts in its benchmark.
 - Simplify Dimension reconstruction through its ordinary constructor and keep
   internal logarithmic-exponent access inside the dimension model, preserving
   the scalar JSON format and complete algebraic compatibility.
-- Clarify public object responsibilities, numerical exits and optional-backend
-  boundaries in docstrings and guides; expand reproducible performance records.
 
 ## [0.17.9] - 2026-10-29
 
@@ -78,6 +109,9 @@
 - Align scalar float `to` and `value_in` inference with `n` and scientific float
   arithmetic, retaining exact int/Fraction/Decimal runtime behavior and documenting
   the distinction between float annotations and guaranteed float magnitudes.
+
+### Internal
+
 - Use `unitx.typing.__all__` as the explicit public re-export declaration,
   removing redundant same-name import aliases.
 
@@ -85,10 +119,14 @@
 
 ### Changed
 
+- Reduce allocation overhead in common NumPy operations and record same-machine
+  timings for individual operations and a complete scientific fit.
+
+### Internal
+
 - Reduce repeated NumPy input-recognition and ufunc-dispatch allocations with
   fixed function groups and an empty-keyword path, preserving numerical,
-  protocol-override and staged-output behavior. Record same-machine timing
-  samples for common operations and complete scientific fitting.
+  protocol-override and staged-output behavior.
 - Reuse exact identity factors and cancellations; derive empty and single-term
   unit metadata directly and reuse evaluated factors at NumPy scaling boundaries.
 - Use native Python argument binding for direct array methods, with explicit
@@ -101,12 +139,12 @@
 
 ## [0.17.6] - 2026-10-28
 
-### Added
+### Documentation
 
 - Add validated float64 comparisons with NumPy, Pint, Astropy and unyt, warmed
   scalar/array/fit profiling commands, and a reproducible performance study.
 
-### Changed
+### Internal
 
 - Accumulate composite-unit factors and dimensions in private mutable monomials
   and freeze each product once, preserving exact scale and formal identity.
@@ -482,10 +520,9 @@ The supported model remains one unit per array with explicit numerical exits.
 
 ### Changed
 
-- Rename `UnitCatalog.parse(expression)` to `UnitCatalog.unit(expression)` across
-  built-in and custom catalogues. Remove the old method; keep `Registry.parse()`
-  and `UnitParser.parse()` unchanged. Update examples, typing consumers and
-  migration guidance.
+- **Breaking:** Replace `catalogue.parse(expression)` with
+  `catalogue.unit(expression)` for built-in and custom catalogues. Continue to
+  use `Registry.parse()` and `UnitParser.parse()`.
 
 ### Added
 
@@ -653,7 +690,7 @@ The supported model remains one unit per array with explicit numerical exits.
 
 ### Changed
 
-- Clock functions in `unitx.time` return `AffineQuantity[int]` points in ns.
+- **Breaking:** Clock functions in `unitx.time` return `AffineQuantity[int]` points in ns.
   Point subtraction returns a duration Quantity; point addition and
   multiplicative point arithmetic are rejected. Duration adapters are unchanged.
   Clock domains remain untagged; only compare/subtract readings from the same context.
@@ -713,13 +750,13 @@ The supported model remains one unit per array with explicit numerical exits.
 
 ### Changed
 
-- Public factor constants use lowercase `one`, `two`, `ten`, `pi`, and `ln10`;
-  uppercase names are removed. Update imports and references accordingly.
+- **Breaking:** Import the factor constants `one`, `two`, `ten` and `pi` using
+  lowercase names. This release removes the former uppercase names.
 - Unit and ScaledUnit now enforce immutable attributes, including deletion;
   copying and pickle reconstruction preserve unit identity and exact scales.
-- Unit(text) always returns a linear Unit, including degC/degF and the difference
-  scales of dBm/dBW/dBV. Quantity.unit is Unit; ordinary Quantity conversion
-  never applies an origin or changes into an affine object.
+- **Breaking:** `Unit(text)` returns a linear Unit, including the difference
+  scales for degC, degF, dBm, dBW and dBV. Use `value @ descriptor` or
+  `AffineQuantity` for an absolute reading.
 - Independent AffineQuantity represents absolute points, including zero-origin
   K/W/V coordinates. Use value @ unit or AffineQuantity(value, unit). Point
   conversion preserves point identity; to_quantity(unit) explicitly evaluates
@@ -745,7 +782,8 @@ The supported model remains one unit per array with explicit numerical exits.
   comparison and tolerance rules in AffineQuantity.
 - Add explicit Unicode unit aliases without compatibility normalization;
   aliases preserve canonical unit identity, prefix policies and coordinate metadata.
-- Disable SI prefixes on the built-in atmosphere unit `atm`.
+- **Breaking:** The built-in `atm` no longer accepts SI prefixes. Use a
+  magnitude in `atm`, for example `Quantity(1000, 'atm')` for a kiloatmosphere.
 
 ## [0.11.0] - 2026-10-21
 
@@ -770,9 +808,9 @@ The supported model remains one unit per array with explicit numerical exits.
 
 ### Removed
 
-- Remove the uppercase `K` alias for kilo. Use `k` for kilo and `K` for kelvin;
-  `Km` and `Kg` now fail unless
-  explicitly registered. Micro aliases `u` and `μ` remain supported.
+- **Breaking:** Use lowercase `k` for kilo, for example `km` and `kg`.
+  The uppercase prefix alias is removed. `K` is the kelvin symbol. Micro
+  aliases `u` and `μ` remain supported.
 
 ## [0.10.1] - 2026-10-21
 
@@ -815,9 +853,9 @@ The supported model remains one unit per array with explicit numerical exits.
 
 ### Changed
 
-- Array augmented arithmetic now updates shared storage instead of rebinding to
-  a new result. Aliases observe writes; integer true division or dimensional
-  changes can now fail where ordinary arithmetic and rebinding would succeed.
+- **Breaking:** Array augmented arithmetic updates shared storage. Aliases
+  observe writes, and integer true division or dimensional changes can fail.
+  Use `q = q / 2` or `q = q ** 2` to compute a new quantity and rebind.
 
 ## [0.8.6] - 2026-10-20
 
@@ -1136,8 +1174,9 @@ The supported model remains one unit per array with explicit numerical exits.
 
 ## [0.4.0] - 2026-10-16
 
-Replace the implementation previously published on PyPI as 0.3.0. The 0.0.x
-entries below retain this repository's development milestones.
+**Breaking:** Replace the implementation previously published on PyPI as 0.3.0.
+See the [migration notes](docs/migration.md#upgrading-from-030) for upgrade
+steps. The 0.0.x entries below retain this repository's development milestones.
 
 ### Changed
 
