@@ -2,11 +2,7 @@
 
 ## [Unreleased]
 
-### Internal
-
-- Give the NumPy write module ownership of indexed assignment and single/multiple
-  output staging. Share mask/index validation and affine magnitude conversion
-  through the operand layer, so indexed writes do not load operation dispatch.
+## [0.17.12] - 2026-11-15
 
 ### Fixed
 
@@ -25,6 +21,12 @@
 - Lead the README with dimensional checks, coordinate readings and a runnable
   blackbody example. Show exact and approximate scalar comparisons and explain
   how to select the information catalogue for byte spellings.
+
+### Internal
+
+- Give the NumPy write module ownership of indexed assignment and single/multiple
+  output staging. Share mask/index validation and affine magnitude conversion
+  through the operand layer, so indexed writes do not load operation dispatch.
 
 ## [0.17.11] - 2026-11-05
 
