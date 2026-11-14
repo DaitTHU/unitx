@@ -12,8 +12,8 @@ from uuid import UUID
 
 import pytest
 
-from unitx import AffineUnit, Registry, Unit, UnitCatalog
-from unitx.exceptions import UnitRegistryError, UnitSymbolError
+from unitx import AffineUnit, LogUnit, Registry, Unit, UnitCatalog
+from unitx.exceptions import SerializationError, UnitRegistryError, UnitSymbolError
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
 from unitx.unitdefinition import UnitDefinition
@@ -141,6 +141,33 @@ def test_unit_catalog_module_recreation_independent() -> None:
     assert first != second and first.dimension != second.dimension
     assert pickle.loads(saved) == first
     assert namespace['survey'].unit('span') == second
+
+
+@pytest.mark.parametrize('source', [si.m, si.degC, si.dBm])
+def test_unit_catalog_redefinition_preserves_json_identity(
+    source: Unit | AffineUnit | LogUnit,
+) -> None:
+    namespace = {'__name__': 'json_catalogue', 'UnitCatalog': UnitCatalog, 'source': source}
+    declaration = "class survey(UnitCatalog):\n    reading = source.define('surveyReading')"
+    exec(declaration, namespace)
+    first = namespace['survey'].reading
+    first_registry = Registry([first])
+    first_record = to_dict(first)
+
+    exec(declaration, namespace)
+    second = namespace['survey'].reading
+    second_registry = Registry([second])
+    second_record = to_dict(second)
+
+    assert first != second
+    assert to_dict(first) == first_record
+    assert second_record != first_record
+    assert from_dict(first_record, registry=first_registry) == first
+    assert from_dict(second_record, registry=second_registry) == second
+    with pytest.raises(SerializationError, match='conflicts'):
+        from_dict(first_record, registry=second_registry)
+    with pytest.raises(SerializationError, match='conflicts'):
+        from_dict(second_record, registry=first_registry)
 
 
 @pytest.mark.parametrize('dependency', ['reference', 'delta', 'nested_reference'])

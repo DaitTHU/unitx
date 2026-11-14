@@ -273,7 +273,9 @@ A complete registered multiword name is recognized before parsing a product.
 Within expressions, use `[survey span] / s` or the unit's symbol. A definition
 may not give its own aliases conflicting prefix meanings. When binding to a
 registry, its texts must also avoid every existing meaning, including generated
-prefixes and implicit products such as `metre second`.
+prefixes and implicit products such as `metre second`. A hyphenated factor
+requires brackets, so `survey-foot second` can be a name even when
+`[survey-foot] second` is a valid product.
 
 Quantity definitions require positive finite int, Fraction, Decimal or float
 magnitudes. Fraction and Decimal scales stay exact. Float input follows Factor's
@@ -386,9 +388,11 @@ annotations on published attributes for static rebinding diagnostics.
   No public identity namespace or per-definition ID is needed.
 
 Independent definitions remain distinct each time a declaration executes,
-including when reloading the same module-level catalogue. They do not become the same unit merely because
-their class names or symbols match. Identity and hashing are final before
-`.define()` returns, including inside a class body.
+including when reloading the same module-level catalogue. A published location
+can identify one live definition at a time. If the original definition is still
+live, it retains the location. A new definition at that location uses its
+process-local UUID. Identity and hashing are final before `.define()` returns,
+including inside a class body.
 
 ## Reconstruction and exchange
 

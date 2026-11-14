@@ -112,8 +112,11 @@ Custom definitions follow these sharing rules:
 | Definitions without a published catalogue location | Their UUID handles refer to live definitions in the originating process; they do not provide cross-process reconstruction. This includes units kept only in ordinary blocks or local classes. |
 
 Repeating `.define()` creates a new identity, even with identical spelling,
-dimension and scale. It does not recreate a saved definition. JSON carries
-definition references and validation data, not an installable definition bundle.
+dimension and scale. When a module-level catalogue is redefined while its
+original definition is still live, that definition retains the published
+location. The new definition uses its process-local UUID for that location
+conflict. Read each record with a registry containing the corresponding
+definition. JSON carries definition references and validation data.
 Decoding never imports catalogue modules, constructs missing definitions,
 registers spellings or replaces definitions. Unknown spellings raise
 SerializationError with the original UnitSymbolError retained as `__cause__`.

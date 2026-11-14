@@ -135,7 +135,8 @@ class _Bindings:
             else:
                 error_message = f'Unit text {text!r} already resolves to a registered unit.'
                 raise UnitRegistryError(error_message)
-            if ' ' in text:
+            # A hyphenated name needs brackets when used as a product factor.
+            if ' ' in text and '-' not in text:
                 try:
                     for word in text.split(' '):
                         self.resolve(word)
@@ -274,4 +275,5 @@ class Registry:
 default_registry = Registry()
 """The environment used by bare unit strings; extra catalogues do not change it."""
 default_registry._bind(_UNIT_ENTRIES)
-_publish_definitions(__name__, '', default_registry._bindings.definitions.values())
+# This location is part of the v2 JSON format.
+_publish_definitions('unitx.unitregistry', '', default_registry._bindings.definitions.values())

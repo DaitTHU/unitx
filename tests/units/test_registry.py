@@ -17,7 +17,7 @@ from threading import Barrier
 import pytest
 
 from unitx import AffineQuantity, AffineUnit, Quantity, Registry, Unit, UnitCatalog
-from unitx.exceptions import SerializationError, UnitRegistryError, UnitSymbolError
+from unitx.exceptions import SerializationError, UnitRegistryError, UnitSymbolError, UnitSyntaxError
 from unitx.factor import Factor, pi
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
@@ -83,6 +83,21 @@ def test_registry_conflicting_symbol() -> None:
     assert Unit('B') == si.B and Unit('B').dimension != si.one.dimension
     with pytest.raises(UnitSymbolError):
         alternate.parse('bel')
+
+
+def test_registry_multiword_name_with_hyphen() -> None:
+    registry = Registry([si.s])
+    registry.define(si.m, 'survey', prefixable=False)
+    foot = registry.define(si.m, 'surveyFoot', 'survey-foot', prefixable=False)
+    span_name = 'survey-foot second'
+    with pytest.raises(UnitSyntaxError):
+        registry.parse(span_name)
+    assert registry.parse('[survey-foot] second') == foot * si.s
+
+    span = registry.define(si.m, 'surveySpan', span_name)
+    assert registry.parse(span_name) == span
+    assert registry.parse('kilo' + span_name) == registry.parse('ksurveySpan')
+    assert registry.parse('[survey-foot] second') == foot * si.s
 
 
 def test_registry_no_fallback() -> None:

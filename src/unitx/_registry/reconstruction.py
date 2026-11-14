@@ -71,6 +71,9 @@ def _publish_definitions(
     for definition in definitions:
         if definition not in _LOCATIONS:
             location = (module, catalogue, definition.symbol)
+            # Preserve location-based records that can still resolve to a live definition.
+            if location in _PUBLISHED:
+                continue
             _LOCATIONS[definition] = location
             _PUBLISHED[location] = definition
 
