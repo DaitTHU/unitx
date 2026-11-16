@@ -11,8 +11,74 @@ from unitx.monomial import Monomial
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
 from unitx.unitparser import Token, UnitParser
+from unitx.unitregistry import Registry
 
 _WHITESPACE = [' ', '\t', '\n', '\r', '\r\n', '\v', '\f', '\xa0', '\u2003', '\u2028', '\u2029']
+
+
+@pytest.mark.parametrize(
+    'expression, column',
+    [('kg / (m s^2', 12), ('m^(1/0)', 6), ('m ) m', 3), ('1000 m', 1), ('m^', 3)],
+)
+def test_unit_parser_invalid_location(expression: str, column: int) -> None:
+    parser = UnitParser(expression)
+    for _ in range(2):
+        with pytest.raises(UnitSyntaxError) as caught:
+            parser.parse()
+        assert caught.value.__notes__ == [
+            f'Unit expression, line 1, column {column}:\n  {expression}\n  {" " * (column - 1)}^'
+        ]
+
+
+def test_unit_parser_invalid_multiline_location() -> None:
+    with pytest.raises(UnitSymbolError, match="Did you mean 'second'") as caught:
+        Unit('m /\n\tsecnd')
+    assert caught.value.__notes__ == [
+        'Unit expression, line 2, column 2:\n          secnd\n          ^'
+    ]
+
+
+def test_unit_parser_invalid_symbol_suggestions() -> None:
+    with pytest.raises(UnitSymbolError, match="'millimeter'") as caught:
+        Unit('kg / milimeter')
+    assert caught.value.__notes__ == [
+        'Unit expression, line 1, column 6:\n  kg / milimeter\n       ^'
+    ]
+    assert Unit('millimeter') == Unit('mm')
+
+
+def test_unit_parser_invalid_suggestions_use_registry() -> None:
+    registry = Registry([Unit('m')])
+    with pytest.raises(UnitSymbolError) as caught:
+        registry.parse('secnd')
+    assert 'second' not in str(caught.value)
+    assert 'Did you mean' not in str(caught.value)
+    registry.include(Unit('s'))
+    with pytest.raises(UnitSymbolError, match="Did you mean 'second'"):
+        registry.parse('secnd')
+
+
+def test_unit_parser_invalid_suggestions_respect_prefix_policy() -> None:
+    registry = Registry()
+    registry.define(Unit('m'), 'rod', 'rodlength', prefixable=False)
+    with pytest.raises(UnitSymbolError) as caught:
+        registry.parse('millirodlenght')
+    assert 'millirodlength' not in str(caught.value)
+
+
+def test_unit_parser_invalid_name_suggestions_exclude_symbols() -> None:
+    registry = Registry()
+    registry.define(Unit('m'), 'sprocket', 'distance', prefixable=False)
+    with pytest.raises(UnitSymbolError) as caught:
+        registry.parse('[sproket]')
+    assert 'sprocket' not in str(caught.value)
+    with pytest.raises(UnitSymbolError, match="Did you mean 'sprocket'"):
+        registry.parse('sproket')
+
+
+def test_unit_parser_invalid_magnitude_hint() -> None:
+    with pytest.raises(UnitSyntaxError, match=r'Quantity\(value, unit\)'):
+        Unit('1000 m')
 
 
 def test_token_equality() -> None:

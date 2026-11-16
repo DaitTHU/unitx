@@ -503,10 +503,11 @@ class Quantity(Generic[T]):
                 return NotImplemented
             other = Quantity(cast(Scalar, other), _ONE_UNIT)
         if self.dimension != other.dimension:
-            raise DimensionError(
-                'Cannot compare quantities with different dimensions: '
-                f'{self.dimension} and {other.dimension}.'
+            error_message = (
+                f'Cannot compare quantities with units {str(self.unit)!r} ({self.dimension}) '
+                f'and {str(other.unit)!r} ({other.dimension}): incompatible dimensions.'
             )
+            raise DimensionError(error_message)
         if (
             self.unit.factor == other.unit.factor
             or isinstance(self.value, complex)
@@ -665,9 +666,12 @@ class Quantity(Generic[T]):
             conversion_factor = 1 / self.unit.factor
         else:
             if self.dimension != other.dimension:
+                operation = 'add' if op is operator.add else 'subtract'
                 error_message = (
-                    'Cannot operate on quantities with different dimensions: '
-                    f'{self.dimension!r} and {other.dimension!r}.'
+                    f'Cannot {operation} quantities with units '
+                    f'{str(self.unit)!r} ({self.dimension}) and '
+                    f'{str(other.unit)!r} ({other.dimension}): '
+                    'incompatible dimensions or logarithmic degrees.'
                 )
                 raise DimensionError(error_message)
             other_value = cast(Scalar, other.value)

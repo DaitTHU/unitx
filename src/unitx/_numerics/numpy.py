@@ -230,13 +230,17 @@ def _dispatch_ufunc(ufunc: Any, inputs: tuple[Any, ...], kwargs: dict[str, Any])
     if ufunc in _DIMENSIONLESS_UFUNCS:
         a, unit = _linear_parts(inputs[0])
         if unit.dimension != DIMENSIONLESS:
-            error_message = 'This function requires dimensionless input.'
+            error_message = (
+                f'{ufunc.__name__} requires dimensionless input; got unit '
+                f'{str(unit)!r} (dimension {unit.dimension}). '
+                'Divide by a reference quantity with the same dimension first.'
+            )
             raise DimensionError(error_message)
         return Quantity(ufunc(scale_magnitude(a, unit.factor, where=where), **kwargs), _UNITLESS)
     if ufunc in (np.add, np.subtract):
         if any(isinstance(x, Unit) for x in inputs):
             return NotImplemented
-        a, b, unit = _align_operands(*inputs, where=where)
+        a, b, unit = _align_operands(*inputs, where=where, operation=ufunc.__name__)
         return Quantity(ufunc(a, b, **kwargs), unit)
     if ufunc in (np.minimum, np.maximum, np.fmin, np.fmax):
         a, b, unit = _selection_parts(*inputs, where=where)

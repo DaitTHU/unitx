@@ -226,7 +226,7 @@ def test_quantity_value_in(
 
 @pytest.mark.parametrize('unit', ['s', Unit('s')])
 def test_quantity_value_in_invalid_dimension(unit: str | Unit) -> None:
-    with pytest.raises(DimensionError, match='Cannot convert quantity with dimension'):
+    with pytest.raises(DimensionError, match='Cannot convert unit'):
         Quantity(1, 'm').value_in(unit)
 
 
@@ -751,21 +751,19 @@ def test_quantity_nonfinite_comparison(value: float) -> None:
 
 
 def test_quantity_invalid_conversion() -> None:
-    with pytest.raises(DimensionError, match='Cannot convert quantity with dimension'):
+    with pytest.raises(DimensionError, match='Cannot convert unit'):
         Quantity(1, 'm').to('s')
 
 
 @pytest.mark.parametrize('op', [operator.add, operator.sub])
 def test_quantity_invalid_addition(op: Callable[..., object]) -> None:
-    with pytest.raises(
-        DimensionError, match='Cannot operate on quantities with different dimensions'
-    ):
+    with pytest.raises(DimensionError, match='Cannot (add|subtract) quantities with units'):
         op(Quantity(1, 'm'), Quantity(1, 's'))
 
 
 @pytest.mark.parametrize('op', [operator.lt, operator.le, operator.gt, operator.ge])
 def test_quantity_invalid_comparison(op: Callable[..., object]) -> None:
-    with pytest.raises(DimensionError, match='Cannot compare quantities with different dimensions'):
+    with pytest.raises(DimensionError, match='Cannot compare quantities with units'):
         op(Quantity(1, 'm'), Quantity(1, 's'))
 
 

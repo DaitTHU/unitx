@@ -71,6 +71,10 @@ a composite Unit derives it from its terms
 and extra scale. It is an immutable summary, not a second independent definition.
 The readable symbol is derived from the formal product.
 
+Canonical spellings in `repr` are checked against current registry bindings
+directly. A missing or different definition selects identity-based reconstruction;
+this internal lookup does not parse an expression or generate typo suggestions.
+
 Unit derives conversion data by collecting nonidentity Factor and Dimension
 terms in one traversal, then asking each model to combine its powered terms.
 Factor and Dimension own the empty/single-term and batched product paths.

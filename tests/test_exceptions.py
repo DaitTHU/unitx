@@ -3,7 +3,7 @@
 import pytest
 
 from unitx import AffineQuantity, LogQuantity, Quantity
-from unitx.exceptions import ImplicitConversionError, UnitOperationError, UnitxError
+from unitx.exceptions import DimensionError, ImplicitConversionError, UnitOperationError, UnitxError
 from unitx.si import si
 
 
@@ -34,3 +34,31 @@ def test_unit_operation_error_native_numeric() -> None:
     with pytest.raises(ZeroDivisionError) as caught:
         Quantity(1, si.m) / 0
     assert not isinstance(caught.value, UnitxError)
+
+
+def test_dimension_error_conversion_context() -> None:
+    with pytest.raises(DimensionError) as caught:
+        (1 * si.cm).to(si.s)
+    assert "'cm' (dimension L)" in str(caught.value)
+    assert "'s' (dimension T)" in str(caught.value)
+
+
+def test_dimension_error_array_addition_context() -> None:
+    np = pytest.importorskip('numpy')
+    with pytest.raises(DimensionError) as caught:
+        np.add(Quantity(np.ones(2), si.m), 1 * si.s)
+    assert "Cannot add quantities with units 'm' (L) and 's' (T)" in str(caught.value)
+
+
+def test_dimension_error_exponential_hint() -> None:
+    np = pytest.importorskip('numpy')
+    with pytest.raises(DimensionError) as caught:
+        np.exp(Quantity(np.ones(2), si.s))
+    assert 'exp requires dimensionless input' in str(caught.value)
+    assert "unit 's'" in str(caught.value)
+    assert 'Divide by a reference quantity' in str(caught.value)
+
+
+def test_unit_operation_error_point_addition_hint() -> None:
+    with pytest.raises(UnitOperationError, match='Subtract points to obtain a difference'):
+        (20 @ si.degC) + (10 @ si.degC)

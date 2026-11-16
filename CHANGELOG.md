@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Improved
+
+- Check canonical bindings directly for Unit/SingleUnit repr, avoiding parser
+  work and user-facing typo suggestions during internal reconstruction checks.
+- Include source locations in unit-expression errors and suggest a few valid
+  spellings from the selected registry without correcting input automatically.
+- Show operand units and dimensions in conversion, scalar arithmetic and NumPy
+  addition errors; explain how to correct dimensional exponential arguments,
+  numeric magnitudes inside unit expressions and point addition.
+
 ## [0.17.12] - 2026-11-15
 
 ### Fixed

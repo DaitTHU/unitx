@@ -10,7 +10,7 @@ from ._immutable import _Immutable
 from ._registry.prefixes import NO_PREFIX, PrefixDefinition, _format_prefixed_name
 from ._registry.reconstruction import _definition_by_id
 from .dimension import Dimension
-from .exceptions import UnitSymbolError, UnitSyntaxError
+from .exceptions import UnitSymbolError
 from .factor import Factor
 from .unitdefinition import UnitDefinition
 from .unitregistry import default_registry
@@ -71,7 +71,10 @@ class SingleUnit(_Immutable):
         if not isinstance(text, str):
             error_message = f'Unit symbol or name must be str, got {type(text).__name__}.'
             raise TypeError(error_message)
-        prefix, unit = default_registry._resolve(text)
+        try:
+            prefix, unit = default_registry._resolve(text)
+        except UnitSymbolError:
+            raise default_registry._unknown_unit(text) from None
         return cls._from_definitions(prefix, unit)
 
     @classmethod
@@ -90,7 +93,10 @@ class SingleUnit(_Immutable):
         if not isinstance(name, str):
             error_message = f'Unit name must be str, got {type(name).__name__}.'
             raise TypeError(error_message)
-        prefix, unit = default_registry._resolve_name(name)
+        try:
+            prefix, unit = default_registry._resolve_name(name)
+        except UnitSymbolError:
+            raise default_registry._unknown_unit(name, names_only=True) from None
         return cls._from_definitions(prefix, unit)
 
     @classmethod
@@ -102,13 +108,17 @@ class SingleUnit(_Immutable):
         return obj
 
     def __repr__(self) -> str:
-        try:
-            resolved = SingleUnit(self.symbol)
-        except (UnitSymbolError, UnitSyntaxError):
-            resolved = None
-        if resolved == self:
+        if self._is_default_bound():
             return f'{type(self).__name__}({self.symbol!r})'
         return f'SingleUnit._from_identity({self._unit._key.int!r}, {self.prefix_symbol!r})'
+
+    def _is_default_bound(self) -> bool:
+        """Check canonical spelling without constructing a unit or diagnosing a miss."""
+        try:
+            prefix, definition = default_registry._resolve(self.symbol)
+        except UnitSymbolError:
+            return False
+        return prefix.symbol == self.prefix_symbol and definition is self._unit
 
     def __str__(self) -> str:
         return self.symbol

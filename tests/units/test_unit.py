@@ -16,7 +16,9 @@ from unitx.exceptions import InexactFloatWarning, UnitSymbolError, UnitSyntaxErr
 from unitx.factor import Factor, SymbolicConstant, one, pi
 from unitx.monomial import Monomial
 from unitx.quantity import Quantity
+from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
+from unitx.unitregistry import Registry, default_registry
 
 
 def test_unit_creation() -> None:
@@ -442,6 +444,41 @@ def test_unit_repr_roundtrip(text: str) -> None:
     assert rebuilt.dimension == unit.dimension
     assert rebuilt.factor == unit.factor
     assert {unit: 'found'}[rebuilt] == 'found'
+
+
+def test_unit_repr_avoids_error_diagnostics(monkeypatch: pytest.MonkeyPatch) -> None:
+    local = Unit('m').define('reprlocal', prefixable=False)
+    shadow = Unit('s').define('m', prefixable=False)
+    units = [Unit('m'), local, shadow, Unit(local / Unit('s'), scale=pi)]
+
+    def unexpected_diagnostic(
+        self: Registry, text: str, *, names_only: bool = False
+    ) -> UnitSymbolError:
+        error_message = 'repr must not generate user-facing spelling suggestions.'
+        raise AssertionError(error_message)
+
+    monkeypatch.setattr(Registry, '_unknown_unit', unexpected_diagnostic)
+    for unit in units:
+        rebuilt = eval(repr(unit))
+        assert rebuilt == unit and rebuilt.factor == unit.factor
+        assert rebuilt.dimension == unit.dimension
+        for base in unit._monomial.bases():
+            assert eval(repr(base), {'SingleUnit': SingleUnit}) == base
+
+
+def test_unit_repr_tracks_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(default_registry, '_bindings', default_registry._bindings.copy())
+    local = Unit('m').define('reprbinding', 'repr binding', prefixable={'repr binding': True})
+    before = repr(local)
+    assert eval(before) == local
+    default_registry.include(local)
+    assert repr(local) == "Unit('reprbinding')"
+    assert eval(before) == local  # The identity-based form still reconstructs.
+    prefixed = Unit('[kilorepr binding]')
+    assert repr(prefixed) == "Unit('[kilorepr binding]')"
+    assert eval(repr(prefixed)) == prefixed
+    base = next(iter(prefixed._monomial.bases()))
+    assert eval(repr(base), {'SingleUnit': SingleUnit}) == base
 
 
 @pytest.mark.parametrize('value', [123, None, [], True, b'm'])

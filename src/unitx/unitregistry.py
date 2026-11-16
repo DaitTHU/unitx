@@ -234,6 +234,44 @@ class Registry:
     def _resolve_name(self, text: str, /) -> tuple[PrefixDefinition, UnitDefinition]:
         return self._bindings.resolve_name(text)
 
+    def _unknown_unit(self, text: str, *, names_only: bool = False) -> UnitSymbolError:
+        """Suggest a few permitted spellings, only after public lookup has failed."""
+        from difflib import get_close_matches
+
+        from ._registry.prefixes import _format_prefixed_name
+
+        candidates: set[str] = set()
+        for definition in self._bindings.definitions.values():
+            for name in definition.names:
+                if name:
+                    candidates.add(name)
+                    for prefix in PREFIX_DEFINITIONS.values():
+                        if definition.allows_prefix(name, prefix):
+                            candidates.add(_format_prefixed_name(prefix, name))
+                            candidates.update(prefix_name + name for prefix_name in prefix.names)
+            if not names_only:
+                for symbol in definition.symbols:
+                    if symbol:
+                        candidates.add(symbol)
+                        for prefix in PREFIX_DEFINITIONS.values():
+                            if definition.allows_prefix(symbol, prefix):
+                                candidates.update(
+                                    spelling + symbol
+                                    for spelling in (prefix.symbol, *prefix.symbol_aliases)
+                                )
+        # Short symbols are too dense for useful fuzzy matching. Case-only
+        # alternatives still help with common slips such as uppercase kilo.
+        if len(text) <= 2:
+            suggestions = sorted(word for word in candidates if word.casefold() == text.casefold())[
+                :3
+            ]
+        else:
+            suggestions = get_close_matches(text, sorted(candidates), n=3, cutoff=0.8)
+        error_message = f'{text!r} is not a valid unit symbol.'
+        if suggestions:
+            error_message += ' Did you mean ' + ', '.join(map(repr, suggestions)) + '?'
+        return UnitSymbolError(error_message)
+
     def parse(self, expression: str, /) -> Unit:
         """Parse using only this environment and return a bound Unit.
 

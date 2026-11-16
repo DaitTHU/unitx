@@ -186,6 +186,15 @@ implicit unit removal, including for dimensionless quantities.
 
 ## Unit expressions
 
+Invalid expressions raise `UnitSyntaxError` or `UnitSymbolError`. Tracebacks
+include a source line and caret, with one-based line/column positions; tabs
+are expanded for display. Unknown spellings may include up to three suggestions
+drawn from the selected registry, respecting its prefix permissions. A name
+reference only suggests names. Suggestions do not register or correct input,
+and failed parses can be retried after adding the missing definition.
+Exception categories are stable; exact diagnostic wording and candidate order
+are not a compatibility contract.
+
 Expressions support registered symbols, singular English names, SI prefixes,
 multiplication, division, parentheses, and rational powers:
 

@@ -31,7 +31,11 @@ def _addition_parts(
         raise UnitOperationError(error_message)
     if isinstance(right, _Point):
         if not subtract:
-            error_message = 'Two affine points cannot be added.'
+            error_message = (
+                'Two affine points cannot be added. '
+                'Subtract points to obtain a difference, or add a difference '
+                '(value * unit) to a point (value @ coordinate).'
+            )
             raise UnitOperationError(error_message)
         if not left.unit._compatible_with(right.unit):
             error_message = 'Point subtraction requires the same coordinate convention.'

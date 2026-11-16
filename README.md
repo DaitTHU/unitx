@@ -44,7 +44,7 @@ units. A conversion between incompatible dimensions raises `DimensionError`.
 >>> distance.to(si.s)
 Traceback (most recent call last):
     ...
-unitx.exceptions.DimensionError: Cannot convert quantity with dimension L to unit with incompatible algebraic dimension T.
+unitx.exceptions.DimensionError: Cannot convert unit 'm' (dimension L) to unit 's' (dimension T): incompatible dimensions.
 
 ```
 

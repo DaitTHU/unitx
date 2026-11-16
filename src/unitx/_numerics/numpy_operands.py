@@ -91,12 +91,17 @@ def _linear_parts(value: Any) -> tuple[Any, Unit]:
     return _numeric_value(value), _UNITLESS
 
 
-def _align_operands(left: Any, right: Any, *, where: Any = True) -> tuple[Any, Any, Unit]:
+def _align_operands(
+    left: Any, right: Any, *, where: Any = True, operation: str = 'align'
+) -> tuple[Any, Any, Unit]:
     """Align compatible linear operands, evaluating scales only where selected."""
     a, u = _linear_parts(left)
     b, v = _linear_parts(right)
     if not compatible(u, v):
-        error_message = 'Cannot operate on incompatible dimensions or logarithmic degrees.'
+        error_message = (
+            f'Cannot {operation} quantities with units {str(u)!r} ({u.dimension}) '
+            f'and {str(v)!r} ({v.dimension}): incompatible dimensions or logarithmic degrees.'
+        )
         raise DimensionError(error_message)
     # Addition retains the first Quantity's unit, even with a bare left input.
     target = u if isinstance(left, Quantity) else v

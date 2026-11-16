@@ -15,7 +15,6 @@ from ._numerics import Array, Fractionable, Magnitude, as_exponent, is_numpy_obj
 from ._numerics.numpy_typing import NumpyValue
 from ._registry.prefixes import NO_PREFIX
 from .dimension import DIMENSIONLESS, Dimension
-from .exceptions import UnitSymbolError, UnitSyntaxError
 from .factor import Factor, SymbolicConstant, one
 from .monomial import Monomial
 from .singleunit import SingleUnit
@@ -193,11 +192,7 @@ class Unit(_Immutable):
         )
 
     def __repr__(self) -> str:
-        try:
-            resolved = Unit(self.expression())
-        except (UnitSymbolError, UnitSyntaxError):
-            resolved = None
-        if resolved is not None and resolved._monomial == self._monomial:
+        if all(base._is_default_bound() for base in self._monomial.bases()):
             if self.scale == one:
                 return f'Unit({self.expression()!r})'
             return f'Unit({self.expression()!r}, scale={self.scale!r})'

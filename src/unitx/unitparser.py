@@ -49,10 +49,11 @@ class Token:
     `SingleUnit` and occurs during parsing, rather than token construction.
     """
 
-    __slots__ = ('kind', 'value')
+    __slots__ = ('kind', 'value', '_start')
 
     def __init__(self, kind: str | None, value: str) -> None:
         self.kind, self.value = kind, value
+        self._start = 0
         if kind == 'UNMATCHED':
             error_message = f'Unmatched character {value!r}.'
             raise UnitSyntaxError(error_message)
@@ -60,7 +61,9 @@ class Token:
     @classmethod
     def from_match(cls, match: re.Match[str]) -> Token:
         """Build a token from the match's last named group and matched text."""
-        return cls(match.lastgroup, match.group())
+        token = cls(match.lastgroup, match.group())
+        token._start = match.start()
+        return token
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Token):
@@ -190,7 +193,7 @@ class UnitParser:
     __slots__ = ('_expression', '_result', '_tokens', '_token', '_registry')
     _expression: str
     _result: Monomial[SingleUnit] | None
-    _tokens: Iterator[Token]
+    _tokens: Iterator[re.Match[str]]
     _token: Token
 
     def __init__(self, expression: str, *, registry: Registry | None = None) -> None:
@@ -230,7 +233,8 @@ class UnitParser:
         if self._result is not None:
             return self._result
         if not isinstance(self._expression, str):
-            raise TypeError('Unit expression must be str.')
+            error_message = 'Unit expression must be str.'
+            raise TypeError(error_message)
 
         # Resolve a complete registered name before interpreting its words as factors.
         result = self._try_parse_name()
@@ -238,7 +242,7 @@ class UnitParser:
             self._result = result
             return result
 
-        self._tokens = map(Token.from_match, _TOKEN_RE.finditer(self._expression))
+        self._tokens = _TOKEN_RE.finditer(self._expression)
         self.next_token()
         if self.current_nonempty_token is EOF:
             result = Monomial()
@@ -250,6 +254,24 @@ class UnitParser:
         self._expect_end()
         self._result = result
         return result
+
+    def _add_context(self, error: UnitSyntaxError | UnitSymbolError, position: int) -> None:
+        """Attach a source location without changing the exception category."""
+        start = self._expression.rfind('\n', 0, position) + 1
+        end = self._expression.find('\n', position)
+        if end < 0:
+            end = len(self._expression)
+        line = self._expression.count('\n', 0, position) + 1
+        column = position - start + 1
+        excerpt = self._expression[start:end].expandtabs()
+        padding = ' ' * len(self._expression[start:position].expandtabs())
+        error.add_note(f'Unit expression, line {line}, column {column}:\n  {excerpt}\n  {padding}^')
+
+    def _syntax_error(self, error_message: str, token: Token | None = None) -> UnitSyntaxError:
+        error = UnitSyntaxError(error_message)
+        token = self.token if token is None else token
+        self._add_context(error, len(self._expression) if token is EOF else token._start)
+        return error
 
     def _try_parse_name(self) -> Monomial[SingleUnit] | None:
         """Try a complete multiword or hyphenated registered name before tokenization."""
@@ -284,9 +306,9 @@ class UnitParser:
                 "Leading '/' followed by more than one factor is ambiguous. "
                 "Use '1/(multiple_factors)' instead."
             )
-            raise UnitSyntaxError(error_message)
+            raise self._syntax_error(error_message, token)
         error_message = f'Unparsed redundant suffix {token.value!r}.'
-        raise UnitSyntaxError(error_message)
+        raise self._syntax_error(error_message, token)
 
     @property
     def token(self) -> Token:
@@ -295,7 +317,15 @@ class UnitParser:
 
     def next_token(self) -> None:
         """Advance to the next raw token, or remain at `EOF` after exhaustion."""
-        self._token = next(self._tokens, EOF)
+        match = next(self._tokens, None)
+        if match is None:
+            self._token = EOF
+            return
+        try:
+            self._token = Token.from_match(match)
+        except UnitSyntaxError as error:
+            self._add_context(error, match.start())
+            raise
 
     @property
     def current_nonempty_token(self) -> Token:
@@ -351,7 +381,7 @@ class UnitParser:
             exponent = token.value.translate(SUP_TO_DIGIT)
             if _INTEGER_RE.fullmatch(exponent) is None:
                 error_message = f'Invalid superscript exponent {token.value!r}.'
-                raise UnitSyntaxError(error_message)
+                raise self._syntax_error(error_message, token)
             return base ** Fraction(exponent)
         if token := self.match('NUM', skip_space=False):
             return base ** Fraction(token.value)
@@ -364,29 +394,39 @@ class UnitParser:
 
         base := UNIT | NAME_REF | "1" | "(" product ")"
         """
-        if token := self.match('UNIT'):
-            return Monomial(
-                {SingleUnit._from_definitions(*self._registry._resolve(token.value)): 1}
-            )
-        elif token := self.match('NAME_REF'):
-            name = ' '.join(token.value[1:-1].split())
+        if (token := self.match('UNIT')) or (token := self.match('NAME_REF')):
+            names_only = token.kind == 'NAME_REF'
+            name = ' '.join(token.value[1:-1].split()) if names_only else token.value
             if not name:
                 error_message = 'Unit name reference must not be empty.'
-                raise UnitSyntaxError(error_message)
-            return Monomial({SingleUnit._from_definitions(*self._registry._resolve_name(name)): 1})
+                raise self._syntax_error(error_message, token)
+            try:
+                definition = (
+                    self._registry._resolve_name(name)
+                    if names_only
+                    else self._registry._resolve(name)
+                )
+            except UnitSymbolError:
+                error = self._registry._unknown_unit(name, names_only=names_only)
+                self._add_context(error, token._start)
+                raise error from None
+            return Monomial({SingleUnit._from_definitions(*definition): 1})
         elif token := self.match('NUM'):
             if token.value != '1':
-                error_message = f'Invalid number {token.value!r} as a base.'
-                raise UnitSyntaxError(error_message)
+                error_message = (
+                    f'Invalid number {token.value!r} as a base. '
+                    'Put the magnitude in Quantity(value, unit), for example Quantity(1000, "m").'
+                )
+                raise self._syntax_error(error_message, token)
             return Monomial()
         elif self.match('LPAREN'):
             product = self._parse_product()
             if not self.match('RPAREN'):
                 error_message = f'Product parenthesis not closed, got {self.token.value!r}.'
-                raise UnitSyntaxError(error_message)
+                raise self._syntax_error(error_message)
             return product
         error_message = f'Expected unit or parenthesized expression, got {self.token.value!r}.'
-        raise UnitSyntaxError(error_message)
+        raise self._syntax_error(error_message)
 
     def _parse_exponent_value(self) -> Fraction:
         """Parse an exact number or parenthesized fraction with an optional outer sign.
@@ -404,14 +444,14 @@ class UnitParser:
                 sign = -1
             if not self.match('LPAREN', skip_space=False):
                 error_message = f'Expected parenthesized fraction, got {self.token.value!r}.'
-                raise UnitSyntaxError(error_message)
+                raise self._syntax_error(error_message)
         elif not self.match('LPAREN'):
             error_message = f'Expected number or parenthesized fraction, got {self.token.value!r}.'
-            raise UnitSyntaxError(error_message)
+            raise self._syntax_error(error_message)
         fraction = self._parse_fraction()
         if not self.match('RPAREN'):
             error_message = f'Fraction exponent parenthesis not closed, got {self.token.value!r}.'
-            raise UnitSyntaxError(error_message)
+            raise self._syntax_error(error_message)
         return sign * fraction
 
     def _parse_fraction(self) -> Fraction:
@@ -427,14 +467,14 @@ class UnitParser:
         """
         if not (numerator := self.match('NUM')):
             error_message = f'Expected numerator in fraction, got {self.token.value!r}.'
-            raise UnitSyntaxError(error_message)
+            raise self._syntax_error(error_message)
         if not self.match('DIV'):
             return Fraction(numerator.value)
         if not (denominator := self.match('NUM')):
             error_message = f'Expected denominator in fraction, got {self.token.value!r}.'
-            raise UnitSyntaxError(error_message)
+            raise self._syntax_error(error_message)
         try:
             return Fraction(numerator.value) / Fraction(denominator.value)
         except ZeroDivisionError:
             error_message = f'Division by zero: {numerator.value}/{denominator.value}.'
-            raise UnitSyntaxError(error_message)
+            raise self._syntax_error(error_message, denominator) from None

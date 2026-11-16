@@ -28,8 +28,9 @@ def convert(value: Magnitude, source: Unit, target: Unit) -> Magnitude:
             )
         else:
             error_message = (
-                f'Cannot convert quantity with dimension {source.dimension} '
-                f'to unit with incompatible algebraic dimension {target.dimension}.'
+                f'Cannot convert unit {str(source)!r} (dimension {source.dimension}) '
+                f'to unit {str(target)!r} (dimension {target.dimension}): '
+                'incompatible dimensions.'
             )
         raise DimensionError(error_message)
     return scale_value(value, source.factor / target.factor)
