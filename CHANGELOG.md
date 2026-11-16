@@ -6,6 +6,10 @@
 
 - Check canonical bindings directly for Unit/SingleUnit repr, avoiding parser
   work and user-facing typo suggestions during internal reconstruction checks.
+- Reuse immutable conversion data when constructing from an existing Unit or
+  unprefixed definition. Compose exact factors and complete dimensions directly
+  during unit arithmetic, retaining formal identities and extra scales. Avoid
+  rebuilding dimensions for identity operations and exact cancellation.
 - Include source locations in unit-expression errors and suggest a few valid
   spellings from the selected registry without correcting input automatically.
 - Show operand units and dimensions in conversion, scalar arithmetic and NumPy

@@ -71,18 +71,34 @@ a composite Unit derives it from its terms
 and extra scale. It is an immutable summary, not a second independent definition.
 The readable symbol is derived from the formal product.
 
+Parsing and reconstruction derive Unit conversion data by collecting nonidentity
+Factor and Dimension terms in one traversal, then asking each model to combine
+its powered terms. Construction from an existing Unit shares its immutable
+formal product and conversion data; an additional exact scale updates the scale
+and total factor. An unprefixed definition already owns the required conversion
+data, so wrapping it does not derive that data again.
+
+Unit multiplication, division and powers apply the same exact operation to the
+formal product, extra scale and conversion data. This reuses the operands'
+validated summaries without traversing every resulting SingleUnit again.
+Internal assembly accepts these consistent parts; there is no public constructor
+for independently supplying a formal product and contradictory conversion data.
+Identity powers reuse the immutable parts after exponent validation. Dimension
+arithmetic reuses immutable operands for dimensionless factors and returns the
+dimensionless singleton on exact cancellation, including logarithmic axes. Formal
+unit identity remains separate from physical equivalence, and no magnitude or
+approximate Factor value participates in this construction.
+
 Canonical spellings in `repr` are checked against current registry bindings
 directly. A missing or different definition selects identity-based reconstruction;
 this internal lookup does not parse an expression or generate typo suggestions.
 
-Unit derives conversion data by collecting nonidentity Factor and Dimension
-terms in one traversal, then asking each model to combine its powered terms.
 Factor and Dimension own the empty/single-term and batched product paths.
 This removes redundant numerical metadata work without
 dropping formal unit terms. Empty Monomial powers reuse the immutable identity
 after validating the exponent. Factor and Dimension retain their exponent-one
 paths to reuse the containing object and its caches before entering Monomial.
-Nontrivial products accumulate rational exponents in private mutable monomials
+Batched products accumulate rational exponents in private mutable monomials
 and freeze once, with Factor validating the resulting symbolic bases. A frozen
 snapshot owns its mapping and remains unchanged if accumulation continues.
 Public Monomial, Factor, Dimension and Unit objects retain their immutable

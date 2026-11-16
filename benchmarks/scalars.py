@@ -45,6 +45,8 @@ def main() -> None:
     half = Fraction(1, 2)
     mixed = Unit('mg*mm/us2', scale=pi)
     other = Unit('mV*ohm', scale=Factor(Fraction(7, 3)))
+    local = si.m.define('benchmarklocal', prefixable=False)
+    assert eval(repr(local)) == local
 
     def formula_inline_units() -> object:
         return (length * length + Quantity(10000.0, si.cm**2)).value_in(si.m**2)
@@ -54,6 +56,8 @@ def main() -> None:
 
     assert formula_inline_units() == formula_reused_units() == 3.25
     assert force * si.m == Unit('kg*m2/s2')
+    assert force / force == si.one
+    assert si.one * force == force
     assert scaled**half == Unit('cm^(1/2)', scale=Factor(pi) ** half)
     assert mixed * other == Unit('mg*mm*mV*ohm/us2', scale=pi * Factor(Fraction(7, 3)))
     cases = {
@@ -74,15 +78,25 @@ def main() -> None:
         'unit_fractional_power': lambda: scaled**half,
         'unit_product': lambda: force * si.m,
         'unit_mixed_product': lambda: mixed * other,
+        'unit_cancel': lambda: force / force,
+        'unit_dimensionless_product': lambda: si.one * force,
         'unit_copy': lambda: Unit(force),
+        'unit_named_copy': lambda: Unit(si.N),
+        'unit_scaled_copy': lambda: Unit(force, scale=pi),
+        'unit_identity_power': lambda: force**1,
         'unit_empty': lambda: Unit(),
+        'repr_builtin_unit': lambda: repr(si.m),
+        'repr_local_unit': lambda: repr(local),
     }
     results = {}
     for name, operation in cases.items():
         operation()
+        # Limit the slow baseline's local-repr diagnostic path while keeping
+        # the same repeat counts for before/after comparisons.
+        number = min(options.number, 100) if name == 'repr_local_unit' else options.number
         samples = [
-            elapsed / options.number
-            for elapsed in timeit.repeat(operation, repeat=options.repeat, number=options.number)
+            elapsed / number
+            for elapsed in timeit.repeat(operation, repeat=options.repeat, number=number)
         ]
         tracemalloc.start()
         result = operation()
@@ -91,6 +105,7 @@ def main() -> None:
         del result
         results[name] = {
             'seconds': statistics.median(samples),
+            'number': number,
             'samples': samples,
             'peak_bytes': peak,
         }

@@ -212,6 +212,18 @@ def test_dimension_algebra_and_exact_numeric_inputs() -> None:
     assert dimension ** Decimal('0.5') == dimension ** Fraction(1, 2)
 
 
+def test_dimension_identity_operations_preserve_logarithmic_axes() -> None:
+    physical = Dimension(L=Fraction(1, 3))
+    complete = Dimension._with_log(physical, Fraction(-2, 3))
+    assert complete * DIMENSIONLESS == DIMENSIONLESS * complete == complete
+    assert complete / DIMENSIONLESS == complete
+    assert complete / Dimension._with_log(physical, Fraction(-2, 3)) is DIMENSIONLESS
+    residual = complete / physical
+    assert residual is not DIMENSIONLESS
+    assert residual.physical is DIMENSIONLESS
+    assert residual._log_exponent == Fraction(-2, 3)
+
+
 @pytest.mark.parametrize('value', [True, False, '1/2', None, 1j])
 @pytest.mark.parametrize('dimension', [DIMENSIONLESS, Dimension(L=1)])
 def test_dimension_rejects_invalid_exponents(dimension: Dimension, value: object) -> None:

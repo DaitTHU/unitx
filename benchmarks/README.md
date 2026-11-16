@@ -15,6 +15,11 @@ outside the timed operations; each parsing call constructs a new parser.
 It also compares repeated formulas with inline/reused compound units and
 isolates unit powers, products and construction. The new formula/product cases
 validate their exact results before measurement.
+Named/local-unit `repr`, copies with and without extra scales, cancellation,
+dimensionless products and identity powers cover reconstruction checks and reuse
+of immutable conversion data.
+The local-unit repr case caps calls per sample at 100 to keep slow baselines
+practical; each case records its actual call count.
 The JSON output records per-call medians and individual samples, separate peak
 traced allocations, source SHA-256 fingerprints, an optional `--label`,
 Python/platform, factorization backend, Decimal precision and timing parameters. SymPy is used

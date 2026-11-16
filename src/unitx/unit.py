@@ -61,8 +61,8 @@ class Unit(_Immutable):
     preserves the magnitude and its type. Dividing a magnitude by a Unit also
     preserves it and uses the reciprocal unit. Dividing a Unit by an int,
     Fraction, or finite Decimal constructs a Quantity with an exact Fraction
-    reciprocal; float divisors use native floating-point division. Booleans
-    are not accepted as right-hand numeric operands.
+    reciprocal; float divisors use native floating-point division. Boolean
+    magnitudes follow Python's integer rules.
     Factor and SymbolicConstant operands add an exact scale to the unit.
     Optional NumPy support constructs
     one Quantity for the entire numeric array, preserving the input object.
@@ -129,10 +129,8 @@ class Unit(_Immutable):
     ) -> Self:
         if isinstance(base, str):
             monomial = UnitParser(base).parse()
-            base_scale = one
         elif isinstance(base, Unit):
             monomial = base._monomial
-            base_scale = base.scale
         else:
             error_message = f'Unit base must be str or Unit, got {type(base).__name__}.'
             raise TypeError(error_message)
@@ -142,12 +140,30 @@ class Unit(_Immutable):
             )
             raise TypeError(error_message)
         exact_scale = scale if isinstance(scale, Factor) else Factor(scale)
-        return cls._from_monomial(monomial, scale=base_scale * exact_scale)
+        if isinstance(base, Unit):
+            if exact_scale == one:
+                return cls._from_parts(monomial, base.scale, base._conversion)
+            return cls._from_parts(
+                monomial,
+                base.scale * exact_scale,
+                _ConversionData(base.factor * exact_scale, base.dimension),
+            )
+        return cls._from_monomial(monomial, scale=exact_scale)
+
+    @classmethod
+    def _from_parts(
+        cls, monomial: Monomial[SingleUnit], scale: Factor, conversion: _ConversionData, /
+    ) -> Self:
+        """Assemble consistent immutable parts derived by the calling operation."""
+        obj = object.__new__(cls)
+        object.__setattr__(obj, '_monomial', monomial)
+        object.__setattr__(obj, '_scale', scale)
+        object.__setattr__(obj, '_conversion', conversion)
+        return obj
 
     @classmethod
     def _from_monomial(cls, monomial: Monomial[SingleUnit], /, *, scale: Factor = one) -> Self:
         """Direct constructor from Monomial without copy. Internal use only."""
-        obj = object.__new__(cls)
         factors: list[tuple[Factor, Fraction]] = []
         dimensions: list[tuple[Dimension, Fraction]] = []
         for unit, exponent in monomial.components():
@@ -159,15 +175,14 @@ class Unit(_Immutable):
                 dimensions.append((dimension, exponent))
         factor = Factor._product(factors, scale)
         dimension = Dimension._product(dimensions)
-        object.__setattr__(obj, '_monomial', monomial)
-        object.__setattr__(obj, '_scale', scale)
-        object.__setattr__(obj, '_conversion', _ConversionData(factor, dimension))
-        return obj
+        return cls._from_parts(monomial, scale, _ConversionData(factor, dimension))
 
     @classmethod
     def _from_definition(cls, definition: UnitDefinition) -> Unit:
-        return Unit._from_monomial(
-            Monomial({SingleUnit._from_definitions(NO_PREFIX, definition): 1})
+        return Unit._from_parts(
+            Monomial({SingleUnit._from_definitions(NO_PREFIX, definition): 1}),
+            one,
+            definition._conversion,
         )
 
     def _as_product(self) -> _UnitProduct:
@@ -329,7 +344,11 @@ class Unit(_Immutable):
             return Unit(self, scale=scale)
         if not isinstance(other, Unit):
             return NotImplemented
-        return Unit._from_monomial(self._monomial * other._monomial, scale=self.scale * other.scale)
+        return Unit._from_parts(
+            self._monomial * other._monomial,
+            self.scale * other.scale,
+            _ConversionData(self.factor * other.factor, self.dimension * other.dimension),
+        )
 
     @overload
     def __truediv__(self, other: Array) -> Quantity[NumpyValue]: ...
@@ -364,7 +383,11 @@ class Unit(_Immutable):
             return Unit(self, scale=scale)
         if not isinstance(other, Unit):
             return NotImplemented
-        return Unit._from_monomial(self._monomial / other._monomial, scale=self.scale / other.scale)
+        return Unit._from_parts(
+            self._monomial / other._monomial,
+            self.scale / other.scale,
+            _ConversionData(self.factor / other.factor, self.dimension / other.dimension),
+        )
 
     @overload
     def __rmul__[T: Magnitude](self, other: T) -> Quantity[T]: ...
@@ -398,7 +421,13 @@ class Unit(_Immutable):
         if not isinstance(exponent, Fractionable):
             return NotImplemented
         power = as_exponent(exponent)
-        return Unit._from_monomial(self._monomial**power, scale=self.scale**power)
+        if power == 1:
+            return Unit._from_parts(self._monomial, self.scale, self._conversion)
+        return Unit._from_parts(
+            self._monomial**power,
+            self.scale**power,
+            _ConversionData(self.factor**power, self.dimension**power),
+        )
 
     def __rmatmul__[T: Magnitude](self, value: T, /) -> AffineQuantity[T]:
         """Construct an absolute reading: value at this unit's coordinate."""

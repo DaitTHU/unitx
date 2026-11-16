@@ -48,6 +48,57 @@ def test_unit_identity_metadata(exponent: Fraction) -> None:
     assert unit / marker**exponent == physical_terms
 
 
+@pytest.mark.parametrize(
+    'left_text,right_text',
+    [('mg*mm/us2', 'mV*ohm'), ('cm', 'm'), ('dB*m', 'Np/s'), ('rad', 'deg'), ('Hz', 'Bq')],
+)
+@pytest.mark.parametrize(
+    'left_scale,right_scale', [(one, one), (pi, Factor(Fraction(7, 3))), (pi, 1 / pi)]
+)
+@pytest.mark.parametrize('operation,symbol', [(operator.mul, '*'), (operator.truediv, '/')])
+def test_unit_arithmetic_matches_parsing(
+    left_text: str,
+    right_text: str,
+    left_scale: Factor | SymbolicConstant,
+    right_scale: Factor,
+    operation: Callable[[Unit, Unit], Unit],
+    symbol: str,
+) -> None:
+    left, right = Unit(left_text, scale=left_scale), Unit(right_text, scale=right_scale)
+    # Populating approximate caches must not determine the exact result.
+    _ = left.factor.value, right.factor.value
+    with localcontext() as context:
+        context.prec = 2
+        result = operation(left, right)
+        scale = left.scale * right.scale if symbol == '*' else left.scale / right.scale
+        expected = Unit(f'({left_text}) {symbol} ({right_text})', scale=scale)
+    assert result == expected and hash(result) == hash(expected)
+    assert result.factor == expected.factor and result.dimension == expected.dimension
+    assert result.scale == expected.scale
+
+
+@pytest.mark.parametrize('text', ['mg*mm/us2', 'dB*m/Np', 'rad/deg', 'Hz/Bq'])
+@pytest.mark.parametrize('power', [0, 1, -1, 2, Fraction(1, 3), Decimal('0.1')])
+def test_unit_power_matches_parsing(text: str, power: int | Fraction | Decimal) -> None:
+    unit = Unit(text, scale=pi / 180)
+    _ = unit.factor.value
+    result = unit**power
+    expected = Unit(f'({text})^({power})', scale=unit.scale**power)
+    assert result == expected and hash(result) == hash(expected)
+    assert result.factor == expected.factor and result.dimension == expected.dimension
+    assert result.scale == expected.scale
+
+
+def test_unit_arithmetic_retains_independent_definitions() -> None:
+    left, right = Unit('m').define('independent'), Unit('m').define('independent')
+    ratio = left / right
+    assert ratio.factor == one and ratio.dimension == DIMENSIONLESS
+    assert ratio != Unit()
+    assert ratio * right == left
+    assert left / left == Unit()
+    assert eval(repr(ratio)) == ratio
+
+
 @pytest.mark.parametrize('value', [0, -2, 2.0, Fraction(3, 2), Decimal('1.2345'), 2j])
 @pytest.mark.parametrize(
     ('unit', 'reciprocal'),
@@ -702,6 +753,24 @@ def test_unit_scale_copy(unit: Unit, rebuild: Callable[[Unit], Unit]) -> None:
     assert rebuilt.symbol == unit.symbol
     assert {unit: 'found'}[rebuilt] == 'found'
     assert (repr(unit), unit.factor, hash(unit)) == before
+
+
+@pytest.mark.parametrize('scale', [one, Factor(1), pi, Factor(Fraction(7, 3))])
+def test_unit_copy_preserves_complete_value(scale: Factor | SymbolicConstant) -> None:
+    class DerivedUnit(Unit):
+        pass
+
+    source = Unit('mg*mm/dB/us2', scale=pi / 180)
+    expected = Unit('mg*mm/dB/us2', scale=source.scale * scale)
+    with localcontext() as context:
+        context.prec = 2
+        for constructor in (Unit, DerivedUnit):
+            result = constructor(source, scale=scale)
+            assert type(result) is constructor and result is not source
+            assert result == expected and hash(result) == hash(expected)
+            assert result.factor == expected.factor and result.dimension == expected.dimension
+            assert result.scale == expected.scale
+    assert source == Unit('mg*mm/dB/us2', scale=pi / 180)
 
 
 @pytest.mark.parametrize('protocol', range(2, pickle.HIGHEST_PROTOCOL + 1))

@@ -152,11 +152,19 @@ class Dimension(_Immutable):
     def __mul__(self, other: Dimension) -> Dimension:
         if not isinstance(other, Dimension):
             return NotImplemented
+        if self is DIMENSIONLESS:
+            return other
+        if other is DIMENSIONLESS:
+            return self
         return self._from_monomial(self._monomial * other._monomial)
 
     def __truediv__(self, other: Dimension) -> Dimension:
         if not isinstance(other, Dimension):
             return NotImplemented
+        if other is DIMENSIONLESS:
+            return self
+        if self._monomial == other._monomial:
+            return DIMENSIONLESS
         return self._from_monomial(self._monomial / other._monomial)
 
     def __pow__(self, power: Fractionable) -> Dimension:
