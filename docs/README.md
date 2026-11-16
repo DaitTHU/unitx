@@ -1,7 +1,9 @@
 # unitx documentation
 
-Use the [project README](https://github.com/DaitTHU/unitx/blob/main/README.md)
-for installation and a first calculation.
+Start with [your first ten minutes](quickstart.md), then try a
+[complete scientific workflow](workflows.md). The
+[project README](https://github.com/DaitTHU/unitx/blob/main/README.md)
+also has installation instructions and a short blackbody example.
 These guides describe the current source tree; select a release tag when
 reading about an older version.
 
@@ -9,6 +11,8 @@ reading about an older version.
 
 | Task | Guide |
 | --- | --- |
+| Install, calculate, correct a mistake and make a first plot | [Ten-minute introduction](quickstart.md) |
+| Run a formula, a fit or sampled integration with storage | [Three scientific workflows](workflows.md) |
 | Construct, combine, convert or compare quantities | [Units and quantities](units.md) |
 | Expand SI base units, combine like units, choose prefixes or obtain a value–unit pair | [Unit representations](representation.md) |
 | Choose and parse a unit catalogue | [Unit catalogues](catalogues/README.md) |
@@ -38,7 +42,7 @@ reading about an older version.
 | Understand model and implementation boundaries | [Architecture](architecture.md) |
 | Reproduce measured costs and identify their source snapshot | [Performance](https://github.com/DaitTHU/unitx/blob/main/benchmarks/performance.md) |
 
-For a first read, follow units and quantities, then the catalogue. Read the
+After the introduction, use units and quantities and the catalogue as references. Read the
 scalar numerical guide before relying on concrete result types or exact
 comparisons. Array users should also read NumPy's storage and conversion rules.
 

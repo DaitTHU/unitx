@@ -68,6 +68,7 @@ jobs:
           python -m pip install --force-reinstall --no-deps dist/*.whl
           mkdir -p "$RUNNER_TEMP/unitx-consumers"
           cp .github/consumers/*.py .github/consumers/pyrightconfig.json "$RUNNER_TEMP/unitx-consumers/"
+          cp examples/blackbody_spectrum.py examples/measurement_fit.py examples/nonlinear_fit.py examples/sampled_signal.py tests/numpy_typing/check_workflows.py "$RUNNER_TEMP/unitx-consumers/"
 
       - name: Check installed scalar runtime and types without NumPy
         working-directory: ${{ runner.temp }}/unitx-consumers
@@ -103,6 +104,14 @@ jobs:
         run: |
           python -I scipy_support.py
           python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" scipy_support.py
+
+      - name: Check installed scientific workflows
+        working-directory: ${{ runner.temp }}/unitx-consumers
+        env:
+          MPLBACKEND: Agg
+        run: |
+          python check_workflows.py
+          python -m pyright --project pyrightconfig.json --pythonpath "$(command -v python)" check_workflows.py
 
       - name: Store distributions
         uses: actions/upload-artifact@v5

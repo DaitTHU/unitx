@@ -10,7 +10,7 @@ from scipy.optimize import least_squares
 
 from unitx import Quantity
 from unitx.si import si
-from unitx.typing import Array, NumpyValue, Scalar
+from unitx.typing import Array, Scalar
 
 
 def decay_jacobian(
@@ -34,7 +34,7 @@ def fit_decay(
     sigma: Quantity[Scalar],
     *,
     analytic_jacobian: bool = True,
-) -> tuple[Quantity[NumpyValue], Quantity[NumpyValue], NDArray[np.float64]]:
+) -> tuple[Quantity[float], Quantity[float], NDArray[np.float64]]:
     """Return amplitude, decay time and covariance in numerical V/s scales.
 
     Set `analytic_jacobian=False` to compare SciPy's two-point finite differences.
@@ -74,7 +74,8 @@ def fit_decay(
         error_message = 'The example fit has unidentifiable parameters.'
         raise ValueError(error_message)
     covariance = (vh.T / singular_values**2) @ vh
-    return parameters[0] * amplitude_scale, parameters[1] * time_scale, covariance
+    # Leave the solver's vector domain with two scalar parameter values.
+    return parameters.item(0) * amplitude_scale, parameters.item(1) * time_scale, covariance
 
 
 def main() -> None:

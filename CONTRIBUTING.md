@@ -36,7 +36,12 @@ the consumers in `.github/consumers/`. Each job copies those scripts and their
 independent Pyright configuration outside the checkout, first checking scalar
 runtime and types without NumPy, then installing NumPy and checking array
 runtime and types. It then installs Matplotlib and checks the optional axis
-converter, followed by the SciPy integration consumer. The minimum job uses
+converter, followed by the SciPy integration consumer. It also copies the actual
+`blackbody_spectrum.py`, `measurement_fit.py`, `nonlinear_fit.py` and
+`sampled_signal.py` scripts with `tests/numpy_typing/check_workflows.py`, running
+the three scientific workflows and checking their inferred types outside the
+checkout. These use the installed package and a noninteractive plotting backend.
+The minimum job uses
 NumPy 2.1, Matplotlib 3.9 and SciPy 1.14; the current job uses current versions.
 The release workflow runs the same consumers with current dependencies before
 uploading distributions. Source tests also cover both dependency combinations.
@@ -67,6 +72,10 @@ the tests when its optional dependencies are present; see the
 [notebook policy](examples/README.md#keep-git-history-small).
 With NumPy and Matplotlib installed, the tests also execute the README's
 `python` code blocks in order and check the blackbody plot's numerical data.
+The ten-minute introduction's scalar blocks run as Markdown doctests; its
+plotting block is executed and type-checked from the actual guide source.
+The three scientific workflow scripts check equivalent-unit results and storage
+round trips; pytest also checks the plotted curves and measurement error bars.
 
 ## Documentation site
 

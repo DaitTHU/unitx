@@ -16,6 +16,17 @@
   addition errors; explain how to correct dimensional exponential arguments,
   numeric magnitudes inside unit expressions and point addition.
 
+### Documentation
+
+- Add a ten-minute introduction from scalar formulas and error recovery to
+  arrays and plotting, with executable examples and type checks.
+- Add three runnable scientific workflows for blackbody spectra, measured decay
+  fitting with error bars, and sampled pulse integration with array storage.
+  Validate the actual scripts' numerical results, plot data and inferred types,
+  including installed-wheel consumers with minimum/current optional dependencies.
+- Return scalar parameter quantities from the example decay fitter at its
+  numerical solver boundary, preserving useful types in the plotting workflow.
+
 ## [0.17.12] - 2026-11-15
 
 ### Fixed

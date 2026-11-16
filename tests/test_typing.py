@@ -51,8 +51,46 @@ def test_numpy_type_hints() -> None:
     if find_spec('numpy') is None:
         pytest.skip('NumPy is optional')
     directory = Path(__file__).resolve().parent / 'numpy_typing'
-    paths = sorted(str(path) for path in directory.glob('*.py') if path.name != 'check_asarray.py')
+    paths = sorted(
+        str(path)
+        for path in directory.glob('*.py')
+        if path.name not in ('check_asarray.py', 'check_workflows.py')
+    )
     _check_type_hints(*paths)
+
+
+def test_scientific_workflow_type_hints() -> None:
+    for dependency in ('numpy', 'matplotlib', 'scipy'):
+        if find_spec(dependency) is None:
+            pytest.skip(f'{dependency} is optional')
+    _check_type_hints(
+        'examples/blackbody_spectrum.py',
+        'examples/measurement_fit.py',
+        'examples/sampled_signal.py',
+        'examples/nonlinear_fit.py',
+        'tests/numpy_typing/check_workflows.py',
+    )
+
+
+def test_quickstart_type_hints(tmp_path: Path) -> None:
+    if find_spec('numpy') is None or find_spec('matplotlib') is None:
+        pytest.skip('NumPy and Matplotlib are optional')
+    import re
+
+    path = Path(__file__).resolve().parents[1] / 'docs/quickstart.md'
+    source = '\n'.join(re.findall(r'^```python\n(.*?)^```', path.read_text(), re.M | re.S))
+    assert source
+    source += """
+from typing import assert_type
+from matplotlib.axes import Axes
+from unitx import Unit
+assert_type(position.unit, Unit)
+assert_type(position.mean().unit, Unit)
+assert_type(ax, Axes)
+"""
+    consumer = tmp_path / 'quickstart.py'
+    consumer.write_text(source)
+    _check_type_hints(str(consumer))
 
 
 def test_numpy_example_type_hints(tmp_path: Path) -> None:

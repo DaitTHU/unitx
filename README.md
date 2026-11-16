@@ -17,6 +17,10 @@ Requires Python **3.12 or later**. The base package has no runtime dependencies.
 pip install unitx
 ```
 
+New to unitx? Follow the [ten-minute introduction](https://daitthu.github.io/unitx/quickstart/)
+from a first formula to an array and plot, then try the
+[three complete scientific workflows](https://daitthu.github.io/unitx/workflows/).
+
 ## Calculate with units
 
 Use `si` for units and `SI` for physical constants. For example, `si.c` is a

@@ -14,6 +14,67 @@ from ._notebooks import notebook_source
 NOTEBOOKS = sorted((Path(__file__).resolve().parents[1] / 'examples').glob('*.ipynb'))
 
 
+@pytest.mark.parametrize('name', ['blackbody_spectrum', 'measurement_fit', 'sampled_signal'])
+def test_scientific_workflow(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    np = pytest.importorskip('numpy')
+    matplotlib = pytest.importorskip('matplotlib')
+    if name == 'measurement_fit':
+        pytest.importorskip('scipy')
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+
+    from unitx.si import si
+
+    examples = Path(__file__).resolve().parents[1] / 'examples'
+    monkeypatch.syspath_prepend(str(examples))
+    monkeypatch.setattr(plt, 'show', lambda: None)
+    try:
+        result = runpy.run_path(str(examples / f'{name}.py'), run_name='__main__')
+        lines = result['ax'].get_lines()
+        if name == 'blackbody_spectrum':
+            assert len(lines) == 3
+            for index, line in enumerate(lines):
+                np.testing.assert_array_equal(line.get_ydata(), result['radiance'].value[:, index])
+        elif name == 'measurement_fit':
+            np.testing.assert_array_equal(lines[0].get_xdata(), result['time'].value_in(si.ms))
+            np.testing.assert_array_equal(lines[0].get_ydata(), result['signal'].value_in(si.mV))
+            np.testing.assert_array_equal(
+                lines[-1].get_ydata(), result['prediction'].value_in(si.mV)
+            )
+            segments = result['ax'].collections[0].get_segments()
+            widths = np.array([segment[1, 1] - segment[0, 1] for segment in segments])
+            np.testing.assert_allclose(widths, 2 * result['sigma'].value_in(si.mV))
+        else:
+            np.testing.assert_array_equal(
+                lines[0].get_ydata(), result['restored_power'].value_in(si.W)
+            )
+    finally:
+        plt.close('all')
+
+
+def test_quickstart_plot(monkeypatch: pytest.MonkeyPatch) -> None:
+    np = pytest.importorskip('numpy')
+    matplotlib = pytest.importorskip('matplotlib')
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+
+    from unitx.si import si
+
+    path = Path(__file__).resolve().parents[1] / 'docs/quickstart.md'
+    blocks = re.findall(r'^```python\n(.*?)^```', path.read_text(), re.M | re.S)
+    assert blocks
+    namespace = {'__name__': '__main__'}
+    monkeypatch.setattr(plt, 'show', lambda: None)
+    try:
+        for source in blocks:
+            exec(compile(source, str(path), 'exec'), namespace)
+        assert namespace['position'][-1] == 12 * si.m
+        line = namespace['ax'].get_lines()[0]
+        np.testing.assert_array_equal(line.get_ydata(), namespace['position'].value_in(si.m))
+    finally:
+        plt.close('all')
+
+
 @pytest.mark.parametrize(
     'guide', ['compatibility', 'creation', 'fft', 'histograms', 'methods', 'writes']
 )

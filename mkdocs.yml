@@ -10,6 +10,8 @@ theme:
 
 nav:
   - Overview: README.md
+  - Your first ten minutes: quickstart.md
+  - Three scientific workflows: workflows.md
   - Units and quantities: units.md
   - Unit representations: representation.md
   - Catalogues:

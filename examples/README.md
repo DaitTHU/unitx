@@ -1,5 +1,12 @@
 # Scientific examples
 
+Start with the [three complete workflows](../docs/workflows.md):
+`blackbody_spectrum.py`, `measurement_fit.py` (with `nonlinear_fit.py`), and
+`sampled_signal.py`. They run as ordinary scripts with `unitx[scipy,matplotlib]`,
+show plots when run directly, and check equivalent-unit results. The sampled
+pulse also saves and restores an in-memory array archive. Runtime and type
+consumers exercise the same scripts against installed wheels.
+
 For a small extension without optional dependencies, see
 [Extending Quantity: complex impedances](impedance.md). Its standalone Python
 script uses a Quantity subclass for series `+` and parallel `//` composition
