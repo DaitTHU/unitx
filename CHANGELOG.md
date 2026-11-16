@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.13] - 2026-11-16
+
 ### Improved
 
 - Check canonical bindings directly for Unit/SingleUnit repr, avoiding parser
