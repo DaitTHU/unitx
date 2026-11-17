@@ -113,6 +113,22 @@ Use `.to()` to obtain a new quantity in a unit with the same physical dimensions
 or `.value_in(unit)` to obtain only its numerical value. The target unit is
 required and accepts a string or `Unit`, including a scale specified with
 `Unit(text, scale=Factor(...))`.
+
+An inverse-unit target is `si.s**-1` or `'1/s'`. The expression `1 / si.s`
+constructs a Quantity, just as `2 / si.s` does, and is not a conversion target.
+When using another quantity's unit, pass `other.unit` explicitly; that selects
+its stored unit without including its magnitude. To express a result as a
+multiple of a physical reference quantity, use `(q / reference).n` instead.
+
+```pycon
+>>> rate = 2.0 / si.min
+>>> rate.to(si.s**-1) == rate.to('1/s')
+True
+>>> rate.value_in(si.s**-1) == 2.0 / 60
+True
+
+```
+
 `.value_in(unit)` returns the same value and concrete type as `.to(unit).value`,
 without constructing a temporary quantity. Both follow the conversion rules
 below. A conversion with scale one preserves the original magnitude; Decimal

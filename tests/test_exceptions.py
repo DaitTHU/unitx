@@ -62,3 +62,26 @@ def test_dimension_error_exponential_hint() -> None:
 def test_unit_operation_error_point_addition_hint() -> None:
     with pytest.raises(UnitOperationError, match='Subtract points to obtain a difference'):
         (20 @ si.degC) + (10 @ si.degC)
+
+
+@pytest.mark.parametrize('operation', ['to', 'value_in', 'construct'])
+@pytest.mark.parametrize('magnitude', [0, 1, 2])
+def test_quantity_invalid_unit_hint(operation: str, magnitude: int) -> None:
+    source = 3 / si.s
+    target = magnitude / si.s
+    with pytest.raises(TypeError, match='got a Quantity') as caught:
+        if operation == 'construct':
+            Quantity(3, target)
+        else:
+            getattr(source, operation)(target)
+    message = str(caught.value)
+    assert "use si.s**-1 or '1/s'" in message
+    assert 'quantity.unit' in message
+    assert source.to(si.s**-1) == source.to('1/s') == source
+    assert source.value_in(target.unit) == 3
+
+
+def test_quantity_invalid_unit_array_hint() -> None:
+    np = pytest.importorskip('numpy')
+    with pytest.raises(TypeError, match='got a Quantity'):
+        (3 / si.s).to(np.array([1, 2]) / si.s)

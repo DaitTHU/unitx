@@ -52,5 +52,16 @@ def linear_unit(unit: object) -> Unit:
         return Unit(unit)
     if isinstance(unit, _LinearUnitSource):
         return unit._as_linear_unit()
-    error_message = 'Expected a Unit, coordinate descriptor, or unit spelling.'
+    from .quantity import Quantity
+
+    if isinstance(unit, Quantity):
+        error_message = (
+            'Expected a Unit, coordinate descriptor, or unit spelling; got a Quantity. '
+            "For inverse units, use si.s**-1 or '1/s'; 1 / si.s constructs a Quantity. "
+            "To select a quantity's stored unit without its magnitude, pass quantity.unit."
+        )
+        raise TypeError(error_message)
+    error_message = (
+        f'Expected a Unit, coordinate descriptor, or unit spelling; got {type(unit).__name__}.'
+    )
     raise TypeError(error_message)
