@@ -1,5 +1,22 @@
 # Migration notes
 
+## Upgrading to 0.19.0
+
+### Mercury columns and Torr
+
+`si.mHg` and `si.mmHg` now use the same conventional mercury density and
+standard gravity as `us.inHg`. One `mmHg` is exactly `133.322387415 Pa`,
+instead of `101325/760 Pa`, an increase of about 0.1425 parts per million.
+`us.inHg` retains its value; `1 inHg = 25.4 mmHg` now holds exactly.
+`si.Torr` and its prefixes retain the independent definition `1 Torr = 1/760 atm`.
+
+To preserve physical values of old magnitudes stored with `mmHg`, relabel
+them as `Torr`. For other mercury-column prefixes or expressions, convert
+to Pa using the old version before exchanging the records. Old JSON and
+pickle definitions for `mHg` and its prefixes are incompatible and are
+rejected; migrate them through the old version and export Pa quantities.
+Records using Torr or `us.inHg` retain compatible definitions.
+
 ## Upgrading to 0.18.0
 
 The default scientific year now uses the Julian convention consistently:

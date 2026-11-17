@@ -83,8 +83,8 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('nmile', 'm', 1852),
         ('knot', 'm/s', Fraction(463, 900)),
         ('atm', 'Pa', 101325),
-        ('mHg', 'Pa', Fraction(2533125, 19)),
-        ('mmHg', 'Pa', Fraction(20265, 152)),
+        ('mHg', 'Pa', Fraction('133322.387415')),
+        ('mmHg', 'Pa', Fraction('133.322387415')),
         ('Torr', 'Pa', Fraction(20265, 152)),
         ('ly', 'm', 9460730472580800),
         ('a', 'm2', 100),
@@ -258,7 +258,8 @@ assert Planck.mass.unit == si.kg
 assert Unit('N') == si.N
 assert Unit('astronomical unit') == si.au
 assert 1 * si.eV == SI.e * si.V
-assert (760 * si.mmHg).to(si.atm).value == 1
+assert (760 * si.Torr).to(si.atm).value == 1
+assert (1 * si.mmHg).value_in(si.Pa) * 10**9 == 133322387415
 assert (1 * si.ly).to(si.m).value == 9460730472580800
 importlib.import_module('unitx.si')
 """
@@ -363,9 +364,7 @@ def test_si_binding_policies() -> None:
 
 def test_si_mercury_prefixes() -> None:
     assert si.mmHg == Unit('millimetre of mercury')
-    assert (760 * si.mmHg).to(si.atm).value == 1
     assert (1000 * si.mmHg).to(si.mHg).value == 1
-    assert (1 * si.Torr).to(si.mmHg).value == 1
     assert Unit('µmHg').factor == si.mHg.factor / 10**6
     assert Unit('kt') == si.knot
     for unit in (si.mHg, si.mmHg, si.Torr):
@@ -374,6 +373,21 @@ def test_si_mercury_prefixes() -> None:
     for text in ('mmmHg', 'kmmHg', 'millimillimetre of mercury'):
         with pytest.raises(UnitSymbolError):
             Unit(text)
+
+
+def test_si_mercury_convention() -> None:
+    assert (1 * si.mHg).value_in(si.Pa) == Fraction('13595.1') * Fraction('9.80665')
+    assert (760 * si.Torr).value_in(si.atm) == 1
+    assert si.mmHg != si.Torr
+    assert 1 * si.mmHg > 1 * si.Torr
+    assert (1 * si.Torr).value_in(si.mmHg) == Fraction(101325, 760) / Fraction('133.322387415')
+    assert hash(1 * si.mmHg) == hash(Fraction('133.322387415') * si.Pa)
+    assert (10**30 * si.mmHg).value_in(si.Pa) == 133322387415 * 10**21
+    with localcontext() as context:
+        context.prec = 6
+        value = (Decimal(1) * si.mmHg).value_in(si.Pa)
+        assert value == Decimal('133.322')
+        assert (Decimal(1) * si.mmHg).value_in(si.mmHg) == Decimal(1)
 
 
 def test_si_light_year() -> None:
@@ -449,6 +463,9 @@ def test_si_ascii_micro() -> None:
         'u',
         'Da',
         'mTorr',
+        'mHg',
+        'mmHg',
+        'Torr',
         'c',
         'gf',
         'VA',

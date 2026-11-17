@@ -68,6 +68,14 @@ def test_us_column_pressure_convention(unit: Unit, density: Fraction) -> None:
     assert (1 * unit).value_in(si.Pa) == density * Fraction('9.80665') * Fraction('0.0254')
 
 
+def test_us_mercury_metric_relation() -> None:
+    assert (1 * us.inHg).value_in(si.mmHg) == Fraction('25.4')
+    assert (1 * us.inHg).value_in(si.mHg) == Fraction('0.0254')
+    assert 1 * us.inHg == Fraction('25.4') * si.mmHg
+    assert hash(1 * us.inHg) == hash(Fraction('25.4') * si.mmHg)
+    assert (1 * us.inHg).value_in(si.Torr) != Fraction('25.4')
+
+
 @pytest.mark.parametrize('precision', [2, 8, 28])
 def test_imperial_decimal_context(precision: int) -> None:
     # Load just this module after SI initialization: SI constant approximations
@@ -82,6 +90,7 @@ def test_imperial_decimal_context(precision: int) -> None:
         assert (1 * module.us.us_survey_foot).value_in(si.m) == Fraction(1200, 3937)
         assert (1 * module.imperial.btu_th).value_in(si.J) == Fraction(23722880951, 22500000)
         assert module.us.circular_mil.factor == us.circular_mil.factor
+        assert (1 * module.us.inHg).value_in(si.mmHg) == Fraction('25.4')
 
 
 @pytest.mark.parametrize(

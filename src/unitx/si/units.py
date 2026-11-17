@@ -251,11 +251,16 @@ class si(_si, registry=default_registry):
     """Bar or its SI prefixes; `1 bar = 100000 Pa` exactly."""
     atm: Final = (101_325 * _si.Pa).define('atm', name='atmosphere', prefixable=False)
     """Standard atmosphere, `1 atm = 101325 Pa` exactly."""
-    mHg: Final = (1000 * (atm / 760)).define('mHg', name='metre of mercury')
-    """Metre of mercury; library convention `1 mHg = (1000/760) atm`."""
+    mHg: Final = (Decimal('133322.387415') * _si.Pa).define('mHg', name='metre of mercury')
+    """Conventional metre of mercury, exactly `133322.387415 Pa`.
+
+    Uses mercury density `13595.1 kg/m**3` and standard gravity `9.80665 m/s**2`.
+    The decimal product is stored directly to avoid ambient-context rounding.
+    https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9
+    """
     mmHg: Final = next(_prefixed_units(mHg, 'm'))
-    """Millimetre of mercury; library convention `1 mmHg = 1/760 atm`."""
-    Torr: Final = mmHg.define('Torr', 'torr', 'torricelli')
+    """Conventional millimetre of mercury, exactly `133.322387415 Pa`."""
+    Torr: Final = (atm / 760).define('Torr', 'torr', 'torricelli')
     """Torr, `1 Torr = 1/760 atm`; independent named definition."""
     mTorr: Final = next(_prefixed_units(Torr, 'm'))
     """Millitorr, `1 mTorr = 0.001 Torr`; pressure."""

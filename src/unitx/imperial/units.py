@@ -327,7 +327,7 @@ with Registry(prefixable=False).defining() as _us_registry:
         """kilopound-force per square inch, 1 ksi = 1000 psi, pressure"""
         # Conventional column pressures: rho * g_n * inch, with defined densities
         # 13595.1 and 1000 kg/m3. These are not temperature-specific measurements.
-        inHg: Final = (Decimal('3386.388640341') * si.Pa).define(
+        inHg: Final = (si.mHg * (imperial.inch / si.m)).define(
             'inHg', 'inch of mercury', 'conventional inch of mercury'
         )
         """conventional inch of mercury, 1 inHg = 3386.388640341 Pa, pressure"""

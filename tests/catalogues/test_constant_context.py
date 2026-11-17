@@ -20,9 +20,12 @@ import json
 context = decimal.getcontext()
 before = repr(context)
 from unitx import Quantity
-from unitx.si import SI, Particle, Planck, au, nu
+from unitx.si import SI, Particle, Planck, au, nu, si
+from fractions import Fraction
 assert repr(context) == before
 assert decimal.getcontext() is context
+assert (1 * si.mmHg).value_in(si.Pa) == Fraction('133.322387415')
+assert (760 * si.Torr).value_in(si.atm) == 1
 print(json.dumps({{
     cls.__name__: {{name: str(q.value) for name, q in vars(cls).items() if isinstance(q, Quantity)}}
     for cls in (SI, Particle, Planck, au, nu)

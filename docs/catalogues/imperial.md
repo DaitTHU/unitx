@@ -92,7 +92,17 @@ conventions are 3386.388640341 and 249.08891 Pa. They represent fixed
 conventions, rather than temperature-dependent fluid properties; see
 [NIST's pressure conversion table](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9).
 The conventional mercury scale is distinct from converting a column through
-the catalogue's `si.Torr` scale.
+the catalogue's `si.Torr` scale. `us.inHg` is derived from `si.mHg` using the
+international inch, so metric and inch mercury columns share one definition:
+
+```pycon
+>>> from fractions import Fraction
+>>> (1 * us.inHg).value_in(si.mmHg) == Fraction('25.4')
+True
+>>> 1 * si.mmHg > 1 * si.Torr
+True
+
+```
 
 The water-column attribute is spelled `inH2O` in Python. Its parser symbol is
 `inH₂O` with a subscript two; the ASCII name `inch of water` is also accepted.

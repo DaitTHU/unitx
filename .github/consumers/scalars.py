@@ -28,7 +28,7 @@ from unitx import (
 from unitx.cgs import cgs, emu, esu, gaussian, hl
 from unitx.exceptions import ImplicitConversionError, UnitOperationError, UnitxError
 from unitx.factor import Factor
-from unitx.imperial import imperial
+from unitx.imperial import imperial, us
 from unitx.information import information
 from unitx.quantity import quantity as decimal_quantity
 from unitx.scipy import simpson
@@ -73,6 +73,12 @@ assert (1 * si.cycle).value_in(si.deg) == 360
 assert (1 * si.ppm).value_in(si.one) == Fraction(1, 10**6)
 assert_type(si.Ci, Unit)
 assert_type(si.uCi, Unit)
+assert_type(si.mmHg, Unit)
+assert_type(si.Torr, Unit)
+assert (1 * si.mmHg).value_in(si.Pa) == Fraction('133.322387415')
+assert (1 * us.inHg).value_in(si.mmHg) == Fraction('25.4')
+assert (760 * si.Torr).value_in(si.atm) == 1
+assert 1 * si.Torr < 1 * si.mmHg
 assert_type(si.a_j, Unit)
 assert_type(si.a_t, Unit)
 assert_type((1.0 * si.uCi).to(si.Bq), Quantity[float])

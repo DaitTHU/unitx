@@ -182,9 +182,26 @@ vowel-elision rule is applied.
 `ly` is defined using the speed of light and the Julian year; `eV` uses the
 elementary charge and volt. Both reuse the defining constants exposed by `SI`.
 `mHg` is the registered metre-of-mercury unit and `mmHg` is its milli-prefixed
-form; `760 * si.mmHg` converts to `si.atm` with value 1 under the library's
-existing pressure convention. Prefixes do not stack: `mmmHg` and `kmmHg` are
-invalid. `kt` retains its meaning as a knot alias; tonne remains unprefixable.
+form. They use conventional mercury density 13595.1 kg/m³ and standard gravity
+9.80665 m/s²: `1 mmHg = 133.322387415 Pa` exactly under this convention.
+The [US catalogue](imperial.md) derives `inHg` from the same scale, giving
+exactly `1 inHg = 25.4 mmHg`. These are fixed conventional pressures, not
+temperature-dependent fluid measurements; see
+[NIST's pressure conversion table](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9).
+`Torr` is defined independently as exactly `1/760 atm`; it is slightly smaller
+than `mmHg`. Prefixes do not stack: `mmmHg` and `kmmHg` are invalid.
+`kt` retains its meaning as a knot alias; tonne remains unprefixable.
+
+```pycon
+>>> from fractions import Fraction
+>>> (1 * si.mmHg).value_in(si.Pa) == Fraction('133.322387415')
+True
+>>> (760 * si.Torr).value_in(si.atm)
+Fraction(1, 1)
+>>> 1 * si.Torr < 1 * si.mmHg
+True
+
+```
 
 `si.mas` and `si.uas` provide milli- and microarcseconds as namespace shortcuts;
 their registered expressions are `marcsec` and `µarcsec`. The strings `mas`
