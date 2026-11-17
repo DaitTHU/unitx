@@ -20,6 +20,9 @@ def test_si_unit_types() -> None:
     assert_type(si.kDa, Unit)
     assert_type(si.c, Unit)
     assert_type(si.kgf, Unit)
+    assert_type(si.Ci, Unit)
+    assert_type(si.uCi, Unit)
+    assert_type((1.0 * si.uCi).to(si.Bq), Quantity[float])
     assert_type(2 * si.m, Quantity[int])
     assert_type(Decimal('0.5') * si.s, Quantity[Decimal])
 

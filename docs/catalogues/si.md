@@ -46,6 +46,7 @@ of accepted parser spellings:
 | Mass and mechanics | t, Da, u, c, Gal, knot, gf, kgf |
 | Pressure and energy | bar, atm, mHg, mmHg, Torr, mTorr, Wh, eV, cal |
 | Spectral flux density | Jy, nJy, uJy, mJy, kJy |
+| Radioactivity | Bq, kBq, MBq, GBq, Ci, pCi, nCi, uCi, mCi, kCi |
 | Electrical variants | VA, var, mho |
 | Temperature and logarithmic coordinates | degC, dBm, dBW, dBV |
 | Logarithmic differences | Np, B, dB |
@@ -148,6 +149,20 @@ It accepts decimal SI prefixes; nJy, uJy, mJy and kJy are convenience attributes
 This is spectral flux density per frequency. Converting to a per-wavelength
 density requires a spectral coordinate and its Jacobian, rather than an ordinary
 unit conversion. Binary prefixes require explicit permission; metres reject `Kim`.
+
+`si.Ci` is the curie, a non-SI activity unit defined as exactly
+`37_000_000_000 Bq` by [CGPM Resolution 7 (1964)](https://www.bipm.org/en/committees/cg/cgpm/12-1964/resolution-7).
+It accepts decimal SI prefixes; pCi, nCi, uCi, mCi and kCi are convenience
+attributes. `Unit('curie')` and `Unit('microcurie')` accept the corresponding
+names. Both Unicode micro spellings and ASCII `uCi` are supported.
+
+```pycon
+>>> (1 * si.uCi).value_in(si.Bq)
+37000
+>>> (1 * si.Bq).value_in(si.Ci)
+Fraction(1, 37000000000)
+
+```
 
 Symbols and names are case-sensitive. Lowercase `k` is kilo and uppercase
 `K` is kelvin: `km` is kilometre; `K m` is kelvin times metre. Unsupported

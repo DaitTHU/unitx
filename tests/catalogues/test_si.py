@@ -65,6 +65,12 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('yr', 's', 31536000),
         ('a_j', 's', 31557600),
         ('mo', 's', 2629800),
+        ('Ci', 'Bq', 37000000000),
+        ('pCi', 'Bq', Fraction(37, 1000)),
+        ('nCi', 'Bq', 37),
+        ('uCi', 'Bq', 37000),
+        ('mCi', 'Bq', 37000000),
+        ('kCi', 'Bq', 37000000000000),
         ('L', 'm3', Fraction(1, 1000)),
         ('t', 'kg', 1000),
         ('angstrom', 'm', Fraction(1, 10**10)),
@@ -137,6 +143,11 @@ def test_si_angles() -> None:
         ('mHg', 'metre of mercury'),
         ('mmHg', 'millimetre of mercury'),
         ('a_j', 'Julian year'),
+        ('Ci', 'curie'),
+        ('uCi', 'microcurie'),
+        ('uCi', 'µCi'),
+        ('uCi', 'μCi'),
+        ('uCi', 'uCi'),
     ],
 )
 def test_si_unit_names(attribute: str, text: str) -> None:
@@ -359,6 +370,16 @@ def test_si_light_year() -> None:
     assert 1 * si.eV == SI.e * si.V
 
 
+def test_si_curie_exact_conversion() -> None:
+    assert (1 * si.Bq).value_in(si.Ci) == Fraction(1, 37000000000)
+    assert (Fraction(1, 37) * si.nCi).value_in(si.Bq) == 1
+    assert si.Ci != si.Bq
+    assert hash(1 * si.uCi) == hash(37000 * si.Bq)
+    with localcontext() as context:
+        context.prec = 6
+        assert (Decimal('0.001') * si.mCi).value_in(si.Bq) == Decimal(37000)
+
+
 def test_si_dalton_aliases() -> None:
     assert si.u == si.Da == Unit('unified atomic mass unit')
     assert hash(si.u) == hash(si.Da)
@@ -381,9 +402,27 @@ def test_si_ascii_micro() -> None:
 
 @pytest.mark.parametrize(
     'attribute',
-    ['mas', 'uas', 'u', 'Da', 'mTorr', 'c', 'gf', 'VA', 'Ah', 'turn', 'cycle', 'ppm', 'Jy'],
+    [
+        'mas',
+        'uas',
+        'u',
+        'Da',
+        'mTorr',
+        'c',
+        'gf',
+        'VA',
+        'Ah',
+        'turn',
+        'cycle',
+        'ppm',
+        'Jy',
+        'Ci',
+        'uCi',
+    ],
 )
 def test_si_unit_roundtrip(attribute: str) -> None:
+    from unitx.serialization import from_dict, to_dict
+
     unit = getattr(si, attribute)
     assert Unit(unit.expression()) == unit
     assert eval(repr(unit), {'Unit': Unit}) == unit
@@ -391,6 +430,7 @@ def test_si_unit_roundtrip(attribute: str) -> None:
     restored = pickle.loads(pickle.dumps(unit))
     assert restored == unit
     assert hash(restored) == hash(unit)
+    assert from_dict(to_dict(unit)) == unit
 
 
 @pytest.mark.parametrize('name', ['volt-ampere reactive', 'kilovolt-ampere reactive'])

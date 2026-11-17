@@ -250,6 +250,15 @@ class si(_si, registry=default_registry):
     """Thermochemical calorie, `1 cal = 4.184 J` exactly."""
     kcal: Final = next(_prefixed_units(cal, 'k'))
     """Thermochemical kilocalorie, `1 kcal = 4184 J` exactly."""
+    # radioactivity
+    Ci: Final = (37_000_000_000 * _si.Bq).define('Ci', name='curie')
+    """Curie, exactly `1 Ci = 37000000000 Bq`; non-SI radionuclide activity.
+
+    https://www.bipm.org/en/committees/cg/cgpm/12-1964/resolution-7
+    """
+    pCi, nCi, uCi, mCi, kCi = _prefixed_units(Ci, 'pnumk')
+    """Decimal curie multiples; `1 uCi = 37000 Bq` exactly."""
+    # electrical power
     VA: Final = (_si.V * _si.A).define('VA', name='volt-ampere')
     """Volt-ampere or its SI prefixes; `1 VA = 1 V*A`; apparent power."""
     kVA, MVA = _prefixed_units(VA, 'kM')
