@@ -173,10 +173,12 @@ formal identity and scale; deg has exact factor pi/180.
 
 `arcsec` and `arcsecond` accept prefixes, for example `marcsec` and
 `milliarcsecond`; `″` and `"` do not. `as` continues to mean attosecond,
-and `mas` is not an arcsecond alias. `a` (are) and `ha` (hectare) are separate
-unprefixable units; `Pa` remains pascal.
-The name exceptions `megohm` and `kilohm` are supported alongside the older
-`megaohm` and `kiloohm` spellings; `gigaohm` retains both vowels. No general
+and `mas` is not an arcsecond alias. `a` (are) permits only the `h` prefix:
+`ha` is its hecto-prefixed form,
+not a separate definition. `SingleUnit('ha').without_prefix()` returns `a`;
+`Pa` remains pascal.
+The name exceptions `megohm`, `kilohm` and `hectare` are supported alongside
+`megaohm`, `kiloohm` and `hectoare`; `gigaohm` retains both vowels. No general
 vowel-elision rule is applied.
 
 `ly` is defined using the speed of light and the Julian year; `eV` uses the
@@ -344,6 +346,8 @@ True
 True
 >>> Unit.from_unicode('㏏') == si.kn
 True
+>>> SingleUnit('ha').without_prefix()
+SingleUnit('a')
 
 ```
 

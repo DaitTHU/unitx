@@ -212,10 +212,10 @@ class si(_si, registry=default_registry):
         'Å', 'ångström', 'angstrom', symbol_aliases=('Å', 'Å')
     )  # symbol: chr(0xC5), chr(0x212B), 'A'+chr(0x30A)
     """Angstrom, `1 angstrom = 1e-10 m` exactly; microscopic length."""
-    a: Final = (100 * _si.m**2).define('a', name='are', prefixable=False)
-    """Are, `1 a = 100 m**2`; land area."""
-    ha: Final = (100 * a).define('ha', name='hectare', prefixable=False)
-    """Hectare, `1 ha = 10000 m**2`; land area."""
+    a: Final = (100 * _si.m**2).define('a', name='are', prefixable='h')
+    """Are, `1 a = 100 m**2`; only the hecto prefix is permitted."""
+    ha: Final = next(_prefixed_units(a, 'h'))
+    """Hectare, the hecto-prefixed are; `1 ha = 10000 m**2`."""
     b: Final = (_si.m**2 / ten**28).define('b', name='barn')
     """Barn, `1 b = 1e-28 m**2`; interaction cross section."""
     L: Final = (dm**3).define('L', 'litre', 'liter', symbol_aliases=('l', 'ℓ'))

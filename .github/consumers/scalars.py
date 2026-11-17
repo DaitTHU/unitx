@@ -79,6 +79,7 @@ assert_type(Unit.from_unicode('㏖'), Unit)
 assert Unit.from_unicode('㏖') == si.mol
 assert Unit.from_unicode('㎏/㎡') == si.kg / si.m**2
 assert Unit.from_unicode('㏊') == si.ha
+assert (10000 * si.a).compact().unit == si.ha
 assert_type(si.kt, Unit)
 assert_type(si.Mt, Unit)
 assert_type(si.Gt, Unit)

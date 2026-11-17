@@ -53,7 +53,14 @@ Decode these with the old version, convert to kg or m/s, and export those
 quantities. Imperial knot records remain compatible. Do not edit serialized
 metadata to bypass validation.
 
-### CJK square characters
+### Hectare and CJK square characters
+
+`si.ha` now represents the `h` prefix of `si.a`, with the unchanged physical
+value of 10,000 m². Are permits only `h`; `Pa` remains pascal. Both `hectare`
+and `hectoare` parse as `ha`, and `SingleUnit('ha').without_prefix()` returns
+`SingleUnit('a')`. Old hectare JSON and pickle records must be decoded with
+the old version and exported as m² quantities in JSON. Old are pickle records
+also change because are now permits `h`; its old JSON identity is unchanged.
 
 CJK square unit characters move from registered aliases to
 `Unit.from_unicode(...)`. Replace `Unit('㏖')` with
@@ -66,10 +73,10 @@ retain their existing syntax.
 
 Removing square-character aliases changes pickle metadata for the affected
 SI roots and named units (including mol, cd, rad, sr, Hz, Pa, Wb, lm, lx,
-Bq, Gy, Sv, au, pc, ha, kn, bar and cal). Old pickle expressions containing those
+Bq, Gy, Sv, au, pc, kn, bar and cal). Old pickle expressions containing those
 definitions are rejected. Decode them using the previous version and export
-JSON using canonical symbols. Except for the separately changed mercury
-definition, their JSON records retain the same identities and scales.
+JSON using canonical symbols. Except for the separately changed mercury and
+hectare definitions, their JSON records retain the same identities and scales.
 Do not use old-version pickle as the migration interchange format; even a
 base-unit expression can contain a definition whose spelling metadata changed.
 

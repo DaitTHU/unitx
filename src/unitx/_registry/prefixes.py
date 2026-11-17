@@ -44,7 +44,7 @@ NO_PREFIX = PrefixDefinition('', '', factor=one)
 """Identity prefix for unprefixed units."""
 
 
-_PREFIXED_NAME_EXCEPTIONS = {'megaohm': 'megohm', 'kiloohm': 'kilohm'}
+_PREFIXED_NAME_EXCEPTIONS = {'megaohm': 'megohm', 'kiloohm': 'kilohm', 'hectoare': 'hectare'}
 _PREFIXED_NAME_EXPANSIONS = {
     contracted: expanded for expanded, contracted in _PREFIXED_NAME_EXCEPTIONS.items()
 }

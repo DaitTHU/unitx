@@ -538,3 +538,18 @@ def test_si_tonne_spelling_boundaries() -> None:
 def test_si_tonne_prefix_invalid(text: str) -> None:
     with pytest.raises(UnitSymbolError):
         Unit(text)
+
+
+def test_si_hectare_prefix_identity() -> None:
+    assert Unit('ha') == Unit('hectare') == Unit('hectoare') == si.ha
+    single = SingleUnit('ha')
+    assert single.prefix_symbol == 'h'
+    assert single.name == 'hectare'
+    assert single.without_prefix() == SingleUnit('a')
+    assert 1 * si.ha == 100 * si.a == 10000 * si.m**2
+    assert (10000 * si.a).compact().unit == si.ha
+    assert Unit('Pa') == si.Pa
+    assert pickle.loads(pickle.dumps(si.ha)) == from_dict(to_dict(si.ha)) == si.ha
+    for text in ('ka', 'mha', 'khectare', 'hectohectare'):
+        with pytest.raises(UnitSymbolError):
+            Unit(text)

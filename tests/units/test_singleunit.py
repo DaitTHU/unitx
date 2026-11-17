@@ -54,6 +54,7 @@ def test_single_unit_combinations() -> None:
             expected_name = {
                 ('M', 'Ω'): 'megohm',
                 ('k', 'Ω'): 'kilohm',
+                ('h', 'a'): 'hectare',
             }.get((prefix, symbol), prefix_definition.name + unit_definition.name)
             if prefix and not unit_definition.allows_prefix(unit_definition.name):
                 # Da permits prefixed symbols but no prefixed names.
