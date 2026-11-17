@@ -208,7 +208,7 @@ def test_quantity_compact_boundaries() -> None:
     assert Quantity(Fraction(999999999999999999, 10**15), si.m).compact().unit == si.m
     assert (1000 * si.deg).compact().unit == si.deg
     assert (1000 * si.m / si.s).compact().unit == si.m / si.s
-    custom = si.m.define('compactNameOnly', name='compact name', prefixable='compact name')
+    custom = si.m.define('compactNameOnly', name='compact name', prefixable={'compact name': True})
     result = (1000 * custom).compact()
     assert result.value == 1
     assert result.unit.expression() == '[kilocompact name]'

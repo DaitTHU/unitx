@@ -275,7 +275,7 @@ def test_unit_definition_coordinate_metadata() -> None:
     assert definition._mapping.delta_unit == si.K
     assert definition.factor == Factor(1)
     assert definition.dimension == si.K.dimension
-    assert definition.prefixable is False
+    assert definition.prefixable == frozenset()
     assert default_registry._bindings.definitions[si.dBm.symbol]._mapping is si.dBm._mapping
     assert si.dBm._mapping.origin == 1 * si.mW
     assert not hasattr(default_registry._bindings.definitions['K'], '_mapping')

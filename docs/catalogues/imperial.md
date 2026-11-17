@@ -111,3 +111,6 @@ ASCII digits in unit tokens remain reserved for parser exponents, so the text
 
 [Catalogue overview](README.md) · [SI units and constants](si.md) ·
 [Documentation index](../README.md)
+
+`imperial.kn` and `imperial.knot` refer to the same knot Unit; accepted text is
+`kn` or `knot`. The SI catalogue also exposes `si.kn` and `si.knot`.

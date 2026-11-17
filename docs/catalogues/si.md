@@ -43,7 +43,7 @@ of accepted parser spellings:
 | Angles and ratios | turn, cycle, deg, arcmin, arcsec, mas, uas, percent, permille, ppm |
 | Time and frequency | min, h, d, yr, a_j, a_g, a_t, a_s, a_c, kyr, Myr, Gyr, mo_j, rpm |
 | Length, area and volume | au, pc, ly, nmile, angstrom, a, ha, b, L |
-| Mass and mechanics | t, Da, u, c, Gal, knot, gf, kgf |
+| Mass and mechanics | t, kt, Mt, Gt, Da, u, c, Gal, kn, knot, gf, kgf |
 | Pressure and energy | bar, atm, mHg, mmHg, Torr, mTorr, Wh, eV, cal |
 | Spectral flux density | Jy, nJy, uJy, mJy, kJy |
 | Radioactivity | Bq, kBq, MBq, GBq, Ci, pCi, nCi, uCi, mCi, kCi |
@@ -190,7 +190,6 @@ temperature-dependent fluid measurements; see
 [NIST's pressure conversion table](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9).
 `Torr` is defined independently as exactly `1/760 atm`; it is slightly smaller
 than `mmHg`. Prefixes do not stack: `mmmHg` and `kmmHg` are invalid.
-`kt` retains its meaning as a knot alias; tonne remains unprefixable.
 
 ```pycon
 >>> from fractions import Fraction
@@ -208,7 +207,28 @@ their registered expressions are `marcsec` and `µarcsec`. The strings `mas`
 and `uas` are not registered aliases. `si.Da` and `si.u` now share one formal
 unit identity; only the spelling `Da` accepts prefixes, such as `kDa`.
 `si.mTorr` is available, and Torr accepts SI prefixes. Tonne uses `t` or
-`tonne`; the ambiguous spelling `ton` is not registered.
+`tonne` and permits only the `k`, `M` and `G` prefixes. `si.kt`, `si.Mt` and
+`si.Gt` are convenience attributes for those prefixed units.
+`SingleUnit('kt').without_prefix()` returns `SingleUnit('t')`. This deliberate subset preserves
+`nt` / `nit` as luminance and avoids unrelated parser changes; unitx does not
+implement the UCUM grammar or its complete prefix permissions. Knot uses `kn`
+or `knot`; `si.kn` and `si.knot` are the same Unit. The old `kt` knot alias is
+now kilotonne. The ambiguous spelling `ton` is not registered.
+
+```pycon
+>>> (1 * si.kt).value_in(si.kg)
+1000000
+>>> si.unit('megatonne') == si.Mt
+True
+>>> from unitx.singleunit import SingleUnit
+>>> SingleUnit('kt').without_prefix()
+SingleUnit('t')
+>>> si.unit('nt') == si.unit('nit') == si.nt
+True
+>>> si.unit('kn') == si.kn == si.knot
+True
+
+```
 
 `si.rpm` represents rotational frequency: `60 * si.rpm` converts to `si.Hz`
 with value 1. For angular velocity, multiply that frequency by `2 * pi` and

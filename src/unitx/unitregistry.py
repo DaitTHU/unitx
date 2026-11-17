@@ -27,7 +27,7 @@ from ._registry.prefixes import (
 )
 from ._registry.reconstruction import _publish_definitions
 from .exceptions import UnitRegistryError, UnitSymbolError
-from .unitdefinition import PrefixFamily, PrefixPolicy, UnitDefinition
+from .unitdefinition import PrefixPolicy, PrefixSelection, UnitDefinition, _prefix_symbols
 
 if TYPE_CHECKING:
     from ._coordinates.resolve import _Coordinate
@@ -163,19 +163,16 @@ class Registry:
 
     `prefixable` supplies the default for definitions made by this registry
     or within its defining() blocks: True enables decimal prefixes, False
-    disables prefixes, and a PrefixFamily selects decimal, binary or both.
+    disables prefixes; a PrefixFamily or explicit symbols select a prefix set.
     Included units retain their own policy.
     """
 
     __slots__ = ('_bindings', '_prefixable')
 
     def __init__(
-        self, units: Iterable[Unit | _Coordinate] = (), *, prefixable: bool | PrefixFamily = True
+        self, units: Iterable[Unit | _Coordinate] = (), *, prefixable: PrefixSelection = True
     ) -> None:
-        if not isinstance(prefixable, (bool, PrefixFamily)):
-            error_message = 'Registry prefixable default must be bool or PrefixFamily.'
-            raise TypeError(error_message)
-        self._prefixable = prefixable
+        self._prefixable = _prefix_symbols(prefixable)
         self._bindings = _Bindings({'': _UNIT_ENTRIES[0]}, {}, {})
         units = tuple(units)
         if units:

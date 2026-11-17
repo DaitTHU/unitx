@@ -121,7 +121,9 @@ def test_registry_parser_retry() -> None:
     parser = UnitParser('[private distance] / s', registry=private)
     with pytest.raises(UnitSymbolError):
         parser.parse()
-    distance = private.define(si.m, 'span', 'private distance', prefixable='private distance')
+    distance = private.define(
+        si.m, 'span', 'private distance', prefixable={'private distance': True}
+    )
     result = parser.parse()
     assert result is parser.parse()
     assert Unit._from_monomial(result) == distance / si.s
@@ -384,7 +386,7 @@ def test_registry_prefix_default() -> None:
     assert registry.parse('[span]') == span
     with registry.defining():
         duration = si.s.define('duration')
-        enabled = si.s.define('enabled', prefixable='enabled')
+        enabled = si.s.define('enabled', prefixable={'enabled': True})
     assert registry.parse('kenabled').factor == 1000
     assert registry.parse('duration') == duration
     for text in ('kspan', 'kduration'):
@@ -393,9 +395,9 @@ def test_registry_prefix_default() -> None:
     assert enabled.dimension == enabled.dimension.physical
 
 
-@pytest.mark.parametrize('policy', [None, 1, 'span', ()])
-def test_registry_invalid_prefix_default(policy: None | int | str | tuple[object, ...]) -> None:
-    with pytest.raises(TypeError, match='default must be bool'):
+@pytest.mark.parametrize('policy', [None, 1, {'span': True}])
+def test_registry_invalid_prefix_default(policy: None | int | dict[str, bool]) -> None:
+    with pytest.raises(TypeError, match='Prefix selection must be'):
         Registry(prefixable=policy)
 
 
@@ -412,7 +414,7 @@ def test_imperial_prefix_permissions() -> None:
                 catalogue.__name__,
                 definition.symbol,
             ):
-                assert definition.prefixable is False
+                assert definition.prefixable == frozenset()
                 with pytest.raises(UnitSymbolError):
                     catalogue.unit('k' + definition.symbol)
     assert imperial.unit('point') == imperial.point

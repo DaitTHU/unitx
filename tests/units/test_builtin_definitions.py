@@ -96,7 +96,7 @@ def test_unit_definition_values(
     assert definition.dimension == dimension
     assert definition.factor.value == factor
     assert type(definition.factor.value) is type(factor)
-    assert definition.prefixable is prefixable
+    assert definition.allows_prefix(symbol) is prefixable
     if name:
         assert default_registry._bindings.names[name] == symbol
     else:

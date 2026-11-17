@@ -126,8 +126,10 @@ with Registry(prefixable=False).defining() as _imperial_registry:
         """degree Fahrenheit: difference 1 °F = 5/9 K; point 32 °F = 0 °C, temperature"""
 
         # Navigation, heat and power
-        knot: Final = si.knot.define('kn', 'knot')
+        kn: Final = si.kn.define('kn', 'knot')
         """knot, 1 kn = 1 international nautical mile per hour, speed"""
+        knot: Final = kn
+        """Knot; the same Unit as `kn`."""
         btu_IT: Final = (Decimal('1055.05585262') * si.N * si.m).define(
             'Btu_IT', 'International Table British thermal unit'
         )

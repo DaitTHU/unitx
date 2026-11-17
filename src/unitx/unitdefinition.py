@@ -8,7 +8,6 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from fractions import Fraction
 from types import MappingProxyType
-from typing import Literal
 from uuid import UUID, uuid4
 
 from ._formatting.unicode import SUPERSCRIPTS
@@ -18,13 +17,15 @@ from ._registry.prefixes import (
     ALL_PREFIXES,
     BINARY_PREFIXES,
     DECIMAL_PREFIXES,
+    PREFIX_DEFINITIONS,
+    PREFIX_SYMBOL_ALIAS_TO_SYMBOL,
     PrefixDefinition,
 )
 from .dimension import DIMENSIONLESS, Dimension
 from .exceptions import UnitRegistryError
 from .factor import Factor, one
 
-__all__ = ['PrefixFamily', 'PrefixPolicy', 'UnitDefinition']
+__all__ = ['PrefixFamily', 'PrefixSelection', 'PrefixPolicy', 'UnitDefinition']
 
 _UNIT_SYMBOL_PATTERN = r'[^\s\d' + re.escape('*^()/+-[]' + SUPERSCRIPTS) + ']+'
 _UNIT_SYMBOL_RE = re.compile(_UNIT_SYMBOL_PATTERN)
@@ -32,19 +33,58 @@ _UNIT_NAME_RE = re.compile(f'{_UNIT_SYMBOL_PATTERN}(?:[ -]{_UNIT_SYMBOL_PATTERN}
 
 
 class PrefixFamily(Enum):
-    """Allowed prefix families, distinct from unit spelling strings."""
+    """Named prefix sets, expanded to the same symbols as explicit selections."""
 
     DECIMAL = 'decimal'
     BINARY = 'binary'
     ALL = 'all'
 
 
-type PrefixPolicy = (
-    bool | PrefixFamily | str | tuple[str, ...] | Mapping[str, PrefixFamily | Literal[True]]
-)
-type _StoredPrefixPolicy = (
-    bool | PrefixFamily | tuple[str, ...] | Mapping[str, PrefixFamily | Literal[True]]
-)
+type PrefixSelection = bool | PrefixFamily | str | tuple[str, ...] | set[str] | frozenset[str]
+type PrefixPolicy = PrefixSelection | Mapping[str, PrefixSelection]
+type _StoredPrefixPolicy = frozenset[str] | Mapping[str, frozenset[str]]
+
+
+def _prefix_symbols(selection: PrefixSelection) -> frozenset[str]:
+    """Normalize named sets and explicit symbols, including prefix aliases."""
+    if isinstance(selection, (bool, PrefixFamily)):
+        prefixes = (
+            ()
+            if selection is False
+            else BINARY_PREFIXES
+            if selection is PrefixFamily.BINARY
+            else ALL_PREFIXES
+            if selection is PrefixFamily.ALL
+            else DECIMAL_PREFIXES
+        )
+        return frozenset(prefix.symbol for prefix in prefixes)
+    if isinstance(selection, str):
+        # Longest symbol first: da and Ki are single prefixes; kMG is three.
+        tokens: list[str] = []
+        offset = 0
+        while offset < len(selection):
+            token = selection[offset : offset + 2]
+            if token not in PREFIX_DEFINITIONS:
+                token = selection[offset]
+            tokens.append(token)
+            offset += len(token)
+        selection = tuple(tokens)
+    if not isinstance(selection, (tuple, set, frozenset)):
+        error_message = 'Prefix selection must be bool, PrefixFamily, str, tuple, set or frozenset.'
+        raise TypeError(error_message)
+    symbols: set[str] = set()
+    for symbol in selection:
+        if not isinstance(symbol, str):
+            error_message = f'Prefix symbols must be str, got {type(symbol).__name__}.'
+            raise TypeError(error_message)
+        canonical = PREFIX_SYMBOL_ALIAS_TO_SYMBOL.get(symbol, symbol)
+        if canonical not in PREFIX_DEFINITIONS:
+            error_message = f'Unknown prefix symbol {symbol!r}.'
+            raise ValueError(error_message)
+        symbols.add(canonical)
+    return frozenset(symbols)
+
+
 type UnitTerms = tuple[tuple[PrefixDefinition, UnitDefinition, Fraction], ...]
 
 
@@ -89,45 +129,17 @@ class _UnitSpellings:
         return self.names[0]
 
     def _prefixes(self) -> tuple[PrefixDefinition, ...]:
-        """Select candidate families once, before iterating individual prefixes."""
+        """Enumerate permitted symbols in the standard prefix order."""
         policy = self.prefixable
-        if policy is True:
-            return DECIMAL_PREFIXES
-        if policy is False:
-            return ()
-        if isinstance(policy, tuple):
-            return DECIMAL_PREFIXES if policy else ()
-        if isinstance(policy, PrefixFamily):
-            if policy is PrefixFamily.DECIMAL:
-                return DECIMAL_PREFIXES
-            if policy is PrefixFamily.BINARY:
-                return BINARY_PREFIXES
-            return ALL_PREFIXES
-        rules = policy.values()
-        decimal = any(r is True or r in (PrefixFamily.DECIMAL, PrefixFamily.ALL) for r in rules)
-        binary = any(r in (PrefixFamily.BINARY, PrefixFamily.ALL) for r in rules)
-        if decimal and binary:
-            return ALL_PREFIXES
-        if decimal:
-            return DECIMAL_PREFIXES
-        if binary:
-            return BINARY_PREFIXES
-        return ()
+        symbols = policy if isinstance(policy, frozenset) else frozenset().union(*policy.values())
+        return tuple(prefix for prefix in ALL_PREFIXES if prefix.symbol in symbols)
 
     def allows_prefix(self, spelling: str, prefix: PrefixDefinition | None = None) -> bool:
-        policy = self.prefixable
-        if policy is True:
-            return prefix is None or prefix.family == 'decimal'
-        if policy is False:
+        if spelling not in self.symbols and spelling not in self.names:
             return False
-        if isinstance(policy, tuple):
-            return (prefix is None or prefix.family == 'decimal') and spelling in policy
-        rule = policy if isinstance(policy, PrefixFamily) else policy.get(spelling, False)
-        if rule is True:
-            return prefix is None or prefix.family == 'decimal'
-        return rule is not False and (
-            prefix is None or rule is PrefixFamily.ALL or prefix.family == rule.value
-        )
+        policy = self.prefixable
+        symbols = policy if isinstance(policy, frozenset) else policy.get(spelling, frozenset())
+        return bool(symbols) if prefix is None else prefix.symbol in symbols
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +214,9 @@ class UnitDefinition(_Immutable):
         spelling = _UnitSpellings(
             (symbol, *symbol_aliases),
             (symbol if name is None else name, *name_aliases),
-            (prefixable,) if isinstance(prefixable, str) else prefixable,
+            {text: _prefix_symbols(rule) for text, rule in prefixable.items()}
+            if isinstance(prefixable, Mapping)
+            else _prefix_symbols(prefixable),
             _identity=_identity,
         )
         object.__setattr__(self, '_spelling', spelling)
@@ -297,7 +311,7 @@ class UnitDefinition(_Immutable):
         return self._spelling.accepted
 
     def allows_prefix(self, spelling: str, prefix: PrefixDefinition | None = None) -> bool:
-        """Check a spelling and, when supplied, the prefix's family."""
+        """Check a spelling and, when supplied, an individual prefix."""
         return self._spelling.allows_prefix(spelling, prefix)
 
     def _prefixes(self) -> tuple[PrefixDefinition, ...]:
@@ -312,18 +326,6 @@ def _validate_spellings(definition: _UnitSpellings) -> tuple[str, ...]:
     """Validate a definition's own spellings without consulting an environment."""
     symbol, *symbol_aliases = definition.symbols
     policy = definition.prefixable
-    if not isinstance(policy, (bool, PrefixFamily, tuple, Mapping)):
-        wrong_type = type(policy).__name__
-        error_message = (
-            'Prefixable must be bool, str or tuple of spellings, a PrefixFamily, '
-            f'or a spelling mapping, got {wrong_type}.'
-        )
-        raise TypeError(error_message)
-    if isinstance(policy, Mapping):
-        for rule in policy.values():
-            if rule is not True and not isinstance(rule, PrefixFamily):
-                error_message = 'Prefix mapping values must be True or a PrefixFamily.'
-                raise TypeError(error_message)
     # Validate every spelling and alias, including generated prefixed spellings.
     for kind, texts in (
         ('symbol', (symbol,)),
@@ -349,7 +351,7 @@ def _validate_spellings(definition: _UnitSpellings) -> tuple[str, ...]:
 
     symbols = dict.fromkeys(text for text in (symbol, *symbol_aliases) if text)
     names = dict.fromkeys(name for name in definition.names if name)
-    if isinstance(policy, (tuple, Mapping)):
+    if isinstance(policy, Mapping):
         for text in policy:
             if not isinstance(text, str):
                 error_message = f'Prefixable spellings must be str, got {type(text).__name__}.'

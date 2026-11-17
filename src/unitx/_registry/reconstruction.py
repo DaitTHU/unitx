@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from decimal import Decimal
 from fractions import Fraction
-from typing import TYPE_CHECKING, Literal, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .._numerics import UnfactoredInteger
@@ -19,7 +19,7 @@ from ..exceptions import UnitRegistryError
 from ..factor import Factor, SymbolicConstant
 
 if TYPE_CHECKING:
-    from ..unitdefinition import PrefixFamily, UnitDefinition, UnitTerms
+    from ..unitdefinition import PrefixFamily, PrefixSelection, UnitDefinition, UnitTerms
 
 type DefinitionLocation = tuple[str, str, str]  # module, catalogue, canonical symbol
 type DefinitionId = int | DefinitionLocation
@@ -39,7 +39,11 @@ class _DefinitionState(NamedTuple):
     factors: tuple[tuple[tuple[str, ...], int, int], ...]
     dimension: Dimension
     prefixable: (
-        bool | PrefixFamily | tuple[str, ...] | tuple[tuple[str, PrefixFamily | Literal[True]], ...]
+        bool
+        | PrefixFamily
+        | frozenset[str]
+        | tuple[str, ...]
+        | tuple[tuple[str, PrefixSelection], ...]
     )
     reference: (
         tuple[
@@ -183,13 +187,29 @@ def _matches_terms(current: tuple[_TermState, ...], saved: tuple[_TermState, ...
     return True
 
 
+def _prefix_permissions(state: _DefinitionState) -> dict[str, frozenset[str]]:
+    """Compare permissions semantically, including pre-0.19 spelling selectors."""
+    from ..unitdefinition import _prefix_symbols
+
+    policy = state.prefixable
+    if isinstance(policy, tuple):
+        permissions: dict[str, frozenset[str]] = {}
+        for item in policy:
+            text, rule = (item, True) if isinstance(item, str) else item
+            if symbols := _prefix_symbols(rule):
+                permissions[text] = symbols
+        return permissions
+    symbols = _prefix_symbols(policy)
+    return {text: symbols for text in (*state.symbols, *state.names) if text} if symbols else {}
+
+
 def _matches_state(current: _DefinitionState, saved: _DefinitionState) -> bool:
     if (
         current.symbols,
         current.names,
         current.factors,
         current.dimension,
-        current.prefixable,
+        _prefix_permissions(current),
         current.kind,
         current.at,
     ) != (
@@ -197,7 +217,7 @@ def _matches_state(current: _DefinitionState, saved: _DefinitionState) -> bool:
         saved.names,
         saved.factors,
         saved.dimension,
-        saved.prefixable,
+        _prefix_permissions(saved),
         saved.kind,
         saved.at,
     ):

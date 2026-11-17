@@ -295,19 +295,27 @@ policy overrides the default. `prefixable` has the following forms:
 | --- | --- |
 | `True` (default) | Decimal SI prefixes on every spelling |
 | `False` | No prefixes |
-| `PrefixFamily.DECIMAL`, `.BINARY`, `.ALL` | The selected prefix family on every spelling |
-| A spelling string or tuple of spellings | Decimal prefixes on only those spellings |
-| A mapping from spellings to `True` or a `PrefixFamily` | The selected family on each listed spelling; others accept no prefixes |
+| `PrefixFamily.DECIMAL`, `.BINARY`, `.ALL` | The named set of prefixes on every spelling |
+| A string such as `'kMG'`, or a tuple/set of prefix symbols | Exactly those prefixes on every spelling |
+| A mapping from unit spellings to any selection above | The selected prefixes on each listed spelling; others accept none |
 
-Import `PrefixFamily` and the annotation alias `PrefixPolicy` from
-`unitx.unitdefinition`. Enum members cannot be confused with spelling strings.
-An empty tuple or mapping disables prefixes. Mapping values are `True` (decimal)
-or a `PrefixFamily`, not strings or `False`. Omit a spelling to disable its
-prefixes. Unknown spellings and invalid rules are errors. Definitions copy the
-mapping into a read-only view; later changes to the input cannot change parsing.
-This policy belongs to the immutable definition, whether or not it has been bound
-to a parser. `Registry(prefixable=PrefixFamily.BINARY)` can supply a family default
-for new definitions; included definitions keep their original policies.
+A family is shorthand for a set of individual prefix symbols: DECIMAL contains
+`Q`, `R`, `Y`, …, `da`, …, `r`, `q`; BINARY contains `Ki`, `Mi`, …, `Qi`.
+There is no separate family-based permission rule. Strings match the longest
+prefix symbol first: `'daKiM'` selects deca, kibi and mega. For deci and atto
+separately, use `('d', 'a')` or `{'d', 'a'}`. Prefix names such as `'kilo'`
+are not selections. Micro aliases `'u'` and `'μ'` normalize to `'µ'`.
+An empty selection or mapping disables prefixes.
+
+Import `PrefixFamily`, `PrefixSelection` (one selection) and `PrefixPolicy`
+(a selection or spelling mapping) from `unitx.unitdefinition` for annotations.
+`UnitDefinition.prefixable` exposes a `frozenset` of canonical symbols, or a
+read-only spelling mapping of such sets. Inputs are copied and normalized;
+later changes cannot change parsing. Unknown prefixes and unregistered spelling
+keys are errors. This policy belongs to the immutable definition, independently
+of registration. `Registry(prefixable='kMG')` supplies the same selection as a
+default for new definitions; registry defaults cannot be spelling mappings.
+Included units keep their original permissions.
 
 ```pycon
 >>> from unitx.unitdefinition import PrefixFamily
@@ -333,7 +341,7 @@ and byte, without changing the default meanings of B (bel) or b (barn).
 ...     'demoTick',
 ...     'survey interval',
 ...     symbol_aliases='demoT',
-...     prefixable=('demoT', 'survey interval'),
+...     prefixable={'demoT': True, 'survey interval': True},
 ... )
 >>> ticks.parse('[millisurvey interval]') == ticks.parse('mdemoT')
 True

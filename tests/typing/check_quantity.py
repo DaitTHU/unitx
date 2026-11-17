@@ -121,19 +121,22 @@ def test_unit_numeric_scaling(unit: Unit, scaled: Unit) -> None:
 
 
 def test_unit_define() -> None:
-    policy: PrefixPolicy = ('rvpolicy',)
+    policy: PrefixPolicy = {'rvpolicy': True}
     assert_type(si.m.define('rvpolicy', 'review policy', prefixable=policy), Unit)
-    single_policy: PrefixPolicy = 'rvpolicy'
+    single_policy: PrefixPolicy = 'kMG'
     assert_type(si.m.define('rvpolicy', 'review policy', prefixable=single_policy), Unit)
-    assert_type((pi * Unit('m')).define('rvpolicy', 'review policy', prefixable='rvpolicy'), Unit)
     assert_type(
-        Quantity(2, 'm').define('rvpolicy', 'review policy', prefixable='review policy'), Unit
+        (pi * Unit('m')).define('rvpolicy', 'review policy', prefixable={'rvpolicy': True}), Unit
+    )
+    assert_type(
+        Quantity(2, 'm').define('rvpolicy', 'review policy', prefixable={'review policy': True}),
+        Unit,
     )
     assert_type(
         si.m.define(
             'rvbound',
             'review bound',
-            prefixable=('rvbound', 'review bound'),
+            prefixable={'rvbound': True, 'review bound': True},
         ),
         Unit,
     )
@@ -142,7 +145,7 @@ def test_unit_define() -> None:
         Unit,
     )
     assert_type(
-        Quantity(2, 'm').define('rvbound', 'review bound', prefixable=('review bound',)),
+        Quantity(2, 'm').define('rvbound', 'review bound', prefixable={'review bound': True}),
         Unit,
     )
     assert_type(si.m.define('rvlen', name='reviewlength'), Unit)

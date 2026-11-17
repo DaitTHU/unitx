@@ -5,7 +5,7 @@ from unitx import Quantity, Registry, Unit, UnitCatalog
 from unitx.imperial import imperial
 from unitx.serialization import from_dict, to_dict
 from unitx.si import si
-from unitx.unitdefinition import PrefixFamily, PrefixPolicy
+from unitx.unitdefinition import PrefixFamily, PrefixPolicy, PrefixSelection
 from unitx.unitparser import UnitParser
 
 assert_type(imperial.ft, Unit)
@@ -60,3 +60,8 @@ policy: PrefixPolicy = {'span': PrefixFamily.ALL, 'survey span': True}
 assert_type(private.define(si.m, 'span', 'survey span', prefixable=policy), Unit)
 assert_type(si.m.define('span', prefixable=PrefixFamily.BINARY), Unit)
 assert_type((2 * si.m).define('span', prefixable={'span': PrefixFamily.ALL}), Unit)
+
+selection: PrefixSelection = {'k', 'M', 'G'}
+assert_type(Registry(prefixable=selection), Registry)
+assert_type(private.define(si.m, 'selected', prefixable='kMG'), Unit)
+assert_type(si.m.define('selected', prefixable={'selected': ('k', 'Ki')}), Unit)

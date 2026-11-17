@@ -135,7 +135,7 @@ class si(_si, registry=default_registry):
         '″',
         name='arcsecond',
         symbol_aliases=('"', 'arcsec'),
-        prefixable=('arcsec', 'arcsecond'),
+        prefixable={'arcsec': True, 'arcsecond': True},
     )
     """Arcsecond or its SI prefixes; `1 arcsec = 1/3600 degree`."""
     mas, uas = _prefixed_units(arcsec, 'mu')
@@ -223,10 +223,12 @@ class si(_si, registry=default_registry):
     fL, pL, nL, uL, mL, cL, dL, kL, ML = _prefixed_units(L, 'fpnumcdkM')
     """Litre or its SI prefixes; `1 L = 1 dm**3 = 0.001 m**3`."""
     # mass related
-    t: Final = (1000 * _si.kg).define('t', name='tonne', prefixable=False)
-    """Tonne, `1 t = 1000 kg`; mass."""
+    t: Final = (1000 * _si.kg).define('t', name='tonne', prefixable='kMG')
+    """Tonne, `1 t = 1000 kg`; accepts only kilo, mega and giga prefixes."""
+    kt, Mt, Gt = _prefixed_units(t, 'kMG')
+    """Tonne multiples; `1 kt = 1000 t = 1000000 kg`."""
     Da: Final = (Decimal('1.660_539_068_92e-27') * _si.kg).define(
-        'Da', 'dalton', 'unified atomic mass unit', symbol_aliases='u', prefixable='Da'
+        'Da', 'dalton', 'unified atomic mass unit', symbol_aliases='u', prefixable={'Da': True}
     )
     """Dalton, `m(carbon-12)/12`; nominal CODATA 2022 scale `1.66053906892e-27 kg`."""
     kDa, MDa = _prefixed_units(Da, 'kM')
@@ -238,8 +240,10 @@ class si(_si, registry=default_registry):
     """Speed unit, `1 c = 299792458 m/s`; `SI.c` and `si.em.c` are Quantities."""
     Gal: Final = (cm / _si.s**2).define('Gal', 'gal', 'galileo')
     """Galileo, `1 Gal = 1 cm/s**2`; acceleration."""
-    knot: Final = (nmile / h).define('kn', 'knot', symbol_aliases=('kt', '㏏'))
+    kn: Final = (nmile / h).define('kn', 'knot', symbol_aliases='㏏')
     """Knot, `1 kn = 1 nautical mile/hour = 1852/3600 m/s`."""
+    knot: Final = kn
+    """Knot; the same Unit as `kn`."""
     # dynamic related
     gf: Final = (_SI.g * g).define('gf', 'gram-force', 'gram force')
     """Gram-force, `1 gf = 0.00980665 N`, using standard gravity."""

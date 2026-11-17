@@ -119,9 +119,9 @@ serialization and SI base-unit expansion.
 Unit spellings group canonical symbols, names, aliases and prefix permissions.
 Their validation produces the accepted spellings before registration. Definition
 identity and coordinate data remain separate from spelling rules.
-Prefix definitions carry their decimal/binary family. `True` and spelling-list
-permissions enable decimal prefixes; PrefixFamily and spelling mappings can
-select either family or both. Validation, parsing, canonical output and compact
+Prefix definitions carry their decimal/binary family. Permissions normalize to
+frozen sets of prefix symbols. `True` and PrefixFamily members select named sets;
+explicit selections allow any subset, optionally per unit spelling. Validation, parsing, canonical output and compact
 representation consult the same stored policy. Catalogue prefix shortcuts use
 the shared `_prefixed_units` helper; they do not create new unit definitions.
 

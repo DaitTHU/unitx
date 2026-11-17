@@ -97,15 +97,13 @@ def compact_unit(unit: Unit, value: Magnitude) -> Unit:
     if peak is None or len(components) != 1:
         return unit
     base, exponent = next(iter(components))
-    if not any(base._unit.allows_prefix(text) for text in (*base._unit.symbols, *base._unit.names)):
+    prefixes = base._unit._prefixes()
+    if not prefixes:
         return unit
-    decimal_allowed = any(
-        base._unit.allows_prefix(text, PREFIX_DEFINITIONS['k'])
-        for text in (*base._unit.symbols, *base._unit.names)
-    )
+    decimal_allowed = any(prefix.family == 'decimal' for prefix in prefixes)
     best_unit = unit
     best_score: tuple[Fraction | float, bool, Fraction | float, str] | None = None
-    for prefix in (NO_PREFIX, *base._unit._prefixes()):
+    for prefix in (NO_PREFIX, *prefixes):
         candidate = Unit._from_monomial(
             Monomial({SingleUnit._from_definitions(prefix, base._unit): exponent})
         )

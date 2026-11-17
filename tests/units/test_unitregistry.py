@@ -46,7 +46,7 @@ def test_unit_define_binding_policy(source: Unit | Quantity[Magnitude]) -> None:
         'review binding',
         'review distance',
         symbol_aliases=('rvallowed', 'rvblocked'),
-        prefixable=('rvallowed', 'review distance'),
+        prefixable={'rvallowed': True, 'review distance': True},
     )
     assert type(unit) is Unit
     for text in ('rvbind', 'rvallowed', 'rvblocked', 'review binding', 'review distance'):
@@ -71,7 +71,7 @@ def test_unit_define_prefix_alias(prefix: str) -> None:
         Unit('m'),
         'rvselect',
         'review selected',
-        prefixable=('rvselect', 'review selected'),
+        prefixable={'rvselect': True, 'review selected': True},
     )
     assert Unit(prefix + 'rvselect') == Unit('microreview selected')
     assert Unit(prefix + 'rvselect').factor == unit.factor / 10**6
@@ -88,7 +88,7 @@ def test_single_unit_name_fallback(name: str) -> None:
         Unit('m'),
         'rvnameonly',
         name,
-        prefixable=(name,),
+        prefixable={name: True},
     )
     single = SingleUnit('kilo' + name)
     assert single.symbol == single.name == 'kilo' + name
@@ -108,7 +108,7 @@ def test_single_unit_name_fallback(name: str) -> None:
 
 def test_single_unit_symbol_fallback() -> None:
     default_registry.define(
-        Unit('s'), 'rvonlysymbol', 'review symbol', prefixable=('rvonlysymbol',)
+        Unit('s'), 'rvonlysymbol', 'review symbol', prefixable={'rvonlysymbol': True}
     )
     single = SingleUnit('krvonlysymbol')
     assert single.name == single.symbol == 'krvonlysymbol'
@@ -127,7 +127,7 @@ def test_single_unit_empty_aliases(allowed: str) -> None:
         '',
         'review permitted',
         symbol_aliases=('', 'rvallowed'),
-        prefixable=allowed,
+        prefixable={allowed: True},
     )
     spelling = 'krvallowed' if allowed == 'rvallowed' else 'kiloreview permitted'
     single = SingleUnit(spelling)
@@ -146,10 +146,8 @@ def test_unit_define_prefix_disabled(policy: bool | tuple[object, ...]) -> None:
             Unit(text)
 
 
-def test_unit_define_duplicate_spellings() -> None:
-    default_registry.define(
-        Unit('m'), 'rvpolicy', 'review policy', prefixable=('rvpolicy', 'rvpolicy')
-    )
+def test_unit_define_selected_spelling() -> None:
+    default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable={'rvpolicy': True})
     assert Unit('mrvpolicy').factor == Factor(Fraction(1, 1000))
     with pytest.raises(UnitSymbolError):
         Unit('millireview policy')
@@ -157,14 +155,14 @@ def test_unit_define_duplicate_spellings() -> None:
 
 @pytest.mark.parametrize('source', [Unit('m'), pi * Unit('m'), Quantity(Fraction(3, 7), 'm')])
 @pytest.mark.parametrize('spelling', ['rvselect', 'rvselected', 'review selected', 'review alias'])
-def test_unit_define_string_policy(source: Unit | Quantity[Magnitude], spelling: str) -> None:
+def test_unit_define_spelling_policy(source: Unit | Quantity[Magnitude], spelling: str) -> None:
     unit = default_registry.define(
         source,
         'rvselect',
         'review selected',
         'review alias',
         symbol_aliases='rvselected',
-        prefixable=spelling,
+        prefixable={spelling: True},
     )
     for text in ('rvselect', 'rvselected', 'review selected', 'review alias'):
         assert Unit(text) == unit
@@ -182,7 +180,7 @@ def test_unit_define_invalid_policy(
     policy: list[object] | list[str] | dict[str, object] | int,
     unit_registry: RegistrySnapshot,
 ) -> None:
-    with pytest.raises(TypeError, match='Prefixable must be bool, str or tuple of spellings'):
+    with pytest.raises(TypeError, match='Prefix selection must be'):
         default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable=policy)
     assert (
         default_registry._bindings.definitions,
@@ -196,10 +194,8 @@ def test_unit_define_invalid_policy_type(
     text: int | None | bool | tuple[str, ...],
     unit_registry: RegistrySnapshot,
 ) -> None:
-    with pytest.raises(TypeError, match='Prefixable spellings must be str'):
-        default_registry.define(
-            Unit('m'), 'rvpolicy', 'review policy', prefixable=('rvpolicy', text)
-        )
+    with pytest.raises(TypeError, match='Prefix symbols must be str'):
+        default_registry.define(Unit('m'), 'rvpolicy', 'review policy', prefixable=('k', text))
     assert (
         default_registry._bindings.definitions,
         default_registry._bindings.names,
@@ -208,10 +204,8 @@ def test_unit_define_invalid_policy_type(
 
 
 @pytest.mark.parametrize('text', ['unknown', '', 'mrvpolicy', 'm', 'µ'])
-@pytest.mark.parametrize('as_tuple', [False, True])
 def test_unit_define_invalid_policy_spelling(
     text: str,
-    as_tuple: bool,
     unit_registry: RegistrySnapshot,
 ) -> None:
     with pytest.raises(ValueError, match='is not a registered spelling'):
@@ -219,7 +213,7 @@ def test_unit_define_invalid_policy_spelling(
             Unit('m'),
             'rvpolicy',
             'review policy',
-            prefixable=('rvpolicy', text) if as_tuple else text,
+            prefixable={text: True},
         )
     assert (
         default_registry._bindings.definitions,
@@ -231,7 +225,9 @@ def test_unit_define_invalid_policy_spelling(
 @pytest.mark.parametrize('first', [True, False])
 def test_unit_define_policy_conflict(first: bool) -> None:
     if first:
-        default_registry.define(Unit('m'), 'rvconf', 'review collision', prefixable=('rvconf',))
+        default_registry.define(
+            Unit('m'), 'rvconf', 'review collision', prefixable={'rvconf': True}
+        )
         before = tuple(
             table.copy()
             for table in (
@@ -253,7 +249,9 @@ def test_unit_define_policy_conflict(first: bool) -> None:
             )
         )
         with pytest.raises(UnitRegistryError):
-            default_registry.define(Unit('m'), 'rvconf', 'review collision', prefixable=('rvconf',))
+            default_registry.define(
+                Unit('m'), 'rvconf', 'review collision', prefixable={'rvconf': True}
+            )
     assert (
         default_registry._bindings.definitions,
         default_registry._bindings.names,
@@ -347,7 +345,9 @@ def test_unit_definition_immutable(
 
 
 def test_single_unit_registration_stability() -> None:
-    default_registry.define(Unit('m'), 'rvstable', 'review stable', prefixable='review stable')
+    default_registry.define(
+        Unit('m'), 'rvstable', 'review stable', prefixable={'review stable': True}
+    )
     single = SingleUnit('kiloreview stable')
     lookup = {single: 'original'}
     before = single.symbol, single.name, single.factor, single.dimension, hash(single)
@@ -496,7 +496,7 @@ def test_unit_resolver_permissions() -> None:
         'review record',
         'review permitted',
         symbol_aliases='rvallowed',
-        prefixable=('rvallowed', 'review permitted'),
+        prefixable={'rvallowed': True, 'review permitted': True},
     )
     prefix, definition = default_registry._resolve('urvallowed')
     name_prefix, name_definition = default_registry._resolve_name('microreview permitted')

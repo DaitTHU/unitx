@@ -127,3 +127,9 @@ def test_us_reconstruction(unit: Unit) -> None:
     assert eval(repr(unit)) == unit
     restored = from_dict(to_dict(unit), registry=us._registry)
     assert restored == unit and hash(restored) == hash(unit)
+
+
+def test_imperial_knot_alias() -> None:
+    assert imperial.kn is imperial.knot
+    assert imperial.unit('kn') == imperial.unit('knot') == imperial.kn
+    assert 1 * imperial.kn == 1 * si.kn

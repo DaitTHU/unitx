@@ -260,7 +260,7 @@ def test_custom_names_prefix_permissions_and_quoted_symbols(isolated_registry: N
         Quantity(Fraction(3, 7), 'm'),
         "sx'\\",
         'serialization length',
-        prefixable='serialization length',
+        prefixable={'serialization length': True},
     )
     prefixed = Unit('[kiloserialization length] / s')
     for original in (custom, prefixed, Quantity(Decimal('1.20'), prefixed)):
@@ -317,7 +317,7 @@ def test_registry_does_not_rebind_changed_alias_identity(isolated_registry: None
         'sxprimary',
         'serialization primary',
         symbol_aliases='sxalias',
-        prefixable='sxalias',
+        prefixable={'sxalias': True},
     )
     data = to_dict(Unit('ksxalias'))
     registry.default_registry._bindings.aliases.pop('sxalias')

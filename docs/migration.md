@@ -17,6 +17,42 @@ pickle definitions for `mHg` and its prefixes are incompatible and are
 rejected; migrate them through the old version and export Pa quantities.
 Records using Torr or `us.inHg` retain compatible definitions.
 
+### Explicit prefix sets
+
+`prefixable` strings and tuples now select **prefix symbols**, not unit
+spellings. For example, `prefixable='kMG'` permits only kilo, mega and giga.
+`True`, `False` and `PrefixFamily` members remain accepted shorthands for sets.
+Use a spelling mapping to preserve an old spelling selector:
+
+| Before | After |
+| --- | --- |
+| `prefixable='Da'` | `prefixable={'Da': True}` |
+| `prefixable=('arcsec', 'arcsecond')` | `prefixable={'arcsec': True, 'arcsecond': True}` |
+
+`UnitDefinition.prefixable` now exposes frozen canonical symbol sets, directly
+or as values in a read-only spelling mapping. Registry defaults accept prefix
+selections too. Permission checks, prefix rendering and `compact()` all use
+these sets. Equivalent old pickle permissions remain compatible despite the
+new internal representation; spelling or physical-definition changes are
+still checked.
+
+### Tonne prefixes and knot
+
+`t` / `tonne` now accept only `k`, `M` and `G` prefixes; `si.kt`, `si.Mt` and
+`si.Gt` expose the common multiples. Text `kt` changes from knot to kilotonne,
+exactly 1,000,000 kg. Replace old knot text with `kn` or `knot`, including
+prefixed or composite expressions (`mkt` becomes `mkn`). Update stored text
+and calls to parsers, `.to(...)` and `.value_in(...)` before upgrading.
+`si.kn` and `imperial.kn` are new aliases for the existing `knot` attributes.
+`nt`, `nit`, `si.nt` and their existing prefixes retain their luminance meaning.
+
+Old JSON records for tonne and knot remain compatible: canonical identities
+and physical scales are unchanged. Old pickle definitions for SI tonne and
+knot are rejected because their prefix permissions or spellings changed.
+Decode these with the old version, convert to kg or m/s, and export those
+quantities. Imperial knot records remain compatible. Do not edit serialized
+metadata to bypass validation.
+
 ## Upgrading to 0.18.0
 
 The default scientific year now uses the Julian convention consistently:

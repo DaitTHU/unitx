@@ -606,7 +606,7 @@ def test_unit_define_invalid_symbol_aliases() -> None:
 
 
 def test_unit_define_invalid_prefixable() -> None:
-    with pytest.raises(TypeError, match='Prefixable must be bool'):
+    with pytest.raises(TypeError, match='Prefix selection must be bool'):
         default_registry.define(Unit('m'), 'rvlen', name='reviewlength', prefixable=1)  # pyright: ignore[reportArgumentType]
 
 

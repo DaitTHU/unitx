@@ -520,11 +520,12 @@ class Unit(_Immutable):
         also checks existing units, prefixed forms and implicit unit products.
         Complex names work standalone or in `[name]` references in expressions.
         `prefixable` accepts True (decimal), False (none), a PrefixFamily,
-        one spelling string, a tuple of spellings, or a mapping from spellings
-        to True (decimal) or a PrefixFamily. String and tuple spellings accept
-        decimal prefixes only. Mapping permissions apply only to listed spellings;
-        the mapping is copied, so later changes cannot alter this definition.
-        Unknown spellings and invalid policy values are errors.
+        a prefix-symbol string (such as "kMG"), a tuple or set of prefix symbols,
+        or a mapping from unit spellings to those selections. Multi-character
+        prefixes in strings match longest first ("da", "Ki"); use a tuple or set
+        to specify individual symbols explicitly. Permissions normalize to frozen
+        symbol sets. Mapping permissions apply only to listed spellings. Input
+        mutation cannot alter the definition. Unknown spellings or prefixes are errors.
         Invalid definitions raise TypeError, ValueError, or UnitRegistryError
         before returning the definition or changing an explicit registry.
         """

@@ -75,6 +75,16 @@ assert_type(si.Ci, Unit)
 assert_type(si.uCi, Unit)
 assert_type(si.mmHg, Unit)
 assert_type(si.Torr, Unit)
+assert_type(si.kt, Unit)
+assert_type(si.Mt, Unit)
+assert_type(si.Gt, Unit)
+assert_type(si.kn, Unit)
+assert_type(imperial.kn, Unit)
+assert (1 * si.kt).value_in(si.kg) == 10**6
+assert (1 * si.Gt).to(si.t).value == 10**9
+assert Unit('nt') == si.nt
+assert si.kn is si.knot
+assert (1000 * si.t).compact().unit == si.kt
 assert (1 * si.mmHg).value_in(si.Pa) == Fraction('133.322387415')
 assert (1 * us.inHg).value_in(si.mmHg) == Fraction('25.4')
 assert (760 * si.Torr).value_in(si.atm) == 1
@@ -99,6 +109,11 @@ assert pickle.loads(pickle.dumps(information.MiB)) == information.MiB
 information_registry = Registry((information.B,))
 assert from_dict(to_dict(3 * information.MiB), registry=information_registry) == 3 * information.MiB
 prefix_policy: PrefixPolicy = {'octet': PrefixFamily.ALL, 'sample byte': True}
+restricted = Registry(prefixable='kMG')
+span = restricted.define(si.m, 'span', 'survey span')
+assert_type(span, Unit)
+assert restricted.parse('Mspan') == restricted.parse('[megasurvey span]')
+assert (1000 * span).compact().unit == restricted.parse('kspan')
 private_information = Registry()
 octet = private_information.define(si.one, 'octet', 'sample byte', prefixable=prefix_policy)
 assert_type(octet, Unit)

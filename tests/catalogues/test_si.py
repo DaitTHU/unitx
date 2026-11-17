@@ -18,6 +18,7 @@ from unitx._constnamespace import ConstNamespace
 from unitx.exceptions import UnitSymbolError
 from unitx.factor import pi
 from unitx.quantity import Quantity, quantity
+from unitx.serialization import from_dict, to_dict
 from unitx.si import SI, Particle, Planck, au, nu, si
 from unitx.singleunit import SingleUnit
 from unitx.unit import Unit
@@ -366,7 +367,6 @@ def test_si_mercury_prefixes() -> None:
     assert si.mmHg == Unit('millimetre of mercury')
     assert (1000 * si.mmHg).to(si.mHg).value == 1
     assert Unit('µmHg').factor == si.mHg.factor / 10**6
-    assert Unit('kt') == si.knot
     for unit in (si.mHg, si.mmHg, si.Torr):
         assert Unit(unit.expression()) == unit
     assert Quantity(1, 'kTorr').to(si.Torr).value == 1000
@@ -505,3 +505,36 @@ def test_si_reactive_power_name(name: str) -> None:
 @pytest.mark.parametrize('name', ['re', 'epsilon0', 'kappa', 'alpha', 'sigma', 'c1L'])
 def test_si_computed_constant_decimal(name: str) -> None:
     assert type(getattr(SI, name).value) is Decimal
+
+
+@pytest.mark.parametrize(
+    ('symbol', 'name', 'scale'),
+    [('kt', 'kilotonne', 10**6), ('Mt', 'megatonne', 10**9), ('Gt', 'gigatonne', 10**12)],
+)
+def test_si_tonne_prefixes(symbol: str, name: str, scale: int) -> None:
+    unit = getattr(si, symbol)
+    assert Unit(symbol) == Unit(name) == unit
+    assert (1 * unit).value_in(si.kg) == scale
+    assert SingleUnit(symbol).without_prefix() == SingleUnit('t')
+    assert Unit(unit.expression()) == unit
+    assert pickle.loads(pickle.dumps(unit)) == unit
+    assert from_dict(to_dict(unit)) == unit
+
+
+def test_si_tonne_spelling_boundaries() -> None:
+    assert si.kn is si.knot
+    assert Unit('kn') == Unit('knot') == Unit('㏏') == si.kn
+    assert Unit('kt').dimension != si.kn.dimension
+    assert Unit('nt') == Unit('nit') == si.nt
+    assert Unit('mnt') == Unit('millinit')
+    assert (1 * si.nt).value_in(si.cd / si.m**2) == 1
+    assert (1000 * si.t).compact().unit == si.kt
+    assert (10**12 * si.t).compact().unit == si.Gt
+
+
+@pytest.mark.parametrize(
+    'text', ['mt', 'Tt', 'microtonne', 'nanotonne', 'kkt', 'mMt', 'mkt', 'Kit', 'kilokilotonne']
+)
+def test_si_tonne_prefix_invalid(text: str) -> None:
+    with pytest.raises(UnitSymbolError):
+        Unit(text)
