@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-17
+
+### Changed
+
+- Normalize prefix permissions to immutable sets of prefix symbols. Strings
+  such as `prefixable='kMG'` select prefixes; spelling restrictions now use
+  mappings such as `{'Da': True}`. Named decimal/binary families remain
+  shorthand sets. Registry defaults accept the same explicit selections.
+- Enable only kilo, mega and giga prefixes for tonne, with `si.kt`, `si.Mt`
+  and `si.Gt`. The old `kt` knot alias now denotes kilotonne; use `kn` or
+  `knot`. Add `si.kn` and `imperial.kn`; retain nit's `nt` spelling.
+- Move CJK square unit characters to `Unit.from_unicode(...)`, which expands
+  86 supported complete glyphs while preserving unit identity and expression
+  grouping. Reject external prefixes such as `k㏖` and `µ㏖`; retain ordinary
+  Unicode unit symbols in the standard parser.
+- Represent hectare as the hecto-prefixed are. Are permits only `h`; `ha`,
+  `hectare` and `hectoare` share one prefix identity and naturally deprefix to
+  `a`. Physical values are unchanged.
+
+### Fixed
+
+- Unify SI and US mercury columns using conventional density and standard
+  gravity: `1 mmHg = 133.322387415 Pa` and `1 inHg = 25.4 mmHg` exactly.
+  Torr retains its independent definition of exactly `1/760 atm`.
+- Make `compact()` inspect the allowed decimal prefix set instead of assuming
+  that permitting any decimal prefix also permits kilo.
+
+Migration notes cover changed text meanings and old JSON/pickle records.
+Equivalent prefix permissions remain compatible across the representation
+change; changed identities, scales and spelling metadata are still checked.
+
 ## [0.18.0] - 2026-11-17
 
 ### Added
