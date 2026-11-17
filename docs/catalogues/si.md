@@ -318,83 +318,71 @@ for the changed meaning of `yr` and stored-data migration.
 
 ## Unicode unit characters
 
-Unicode includes dedicated unit characters in
-[Letterlike Symbols](https://www.unicode.org/charts/PDF/U2100.pdf) and
-[CJK Compatibility](https://www.unicode.org/charts/PDF/U3300.pdf).
-The following characters are accepted as symbol aliases for existing units;
-they preserve canonical unit identity, hashes and output spellings.
-Load the catalogue with `from unitx.si import si` (also loaded by `unitx`).
-Use strings such as `Unit('㍴')`; these aliases do not add Python attributes to `si`.
+Ordinary Unicode unit symbols and existing letterlike aliases remain accepted
+by `Unit(...)`, including `µ`, `Ω`, `℃`, `ℓ`, `Ω`, `K`, `Å` and `℧`.
+Temperature characters keep point/difference semantics: `Unit('℃')` is a
+difference unit, while `AffineQuantity(0, '℃')` is a Celsius point.
 
-| Character | Code point | Canonical spelling / namespace |
-| --- | --- | --- |
-| ℃ | U+2103 | °C / si.degC |
-| ℓ | U+2113 | L / si.L |
-| Ω | U+2126 | Ω / si.ohm |
-| K | U+212A | K / si.K |
-| Å | U+212B | Å / si.angstrom (already supported) |
-| ℧ | U+2127 | mho / si.mho (already supported) |
-| ㍳ | U+3373 | au / si.au |
-| ㍴ | U+3374 | bar / si.bar |
-| ㍶ | U+3376 | pc / si.pc |
-| ㎈ | U+3388 | cal / si.cal |
-| ㎐ | U+3390 | Hz / si.Hz |
-| ㎩ | U+33A9 | Pa / si.Pa |
-| ㎭ | U+33AD | rad / si.rad |
-| ㏃ | U+33C3 | Bq / si.Bq |
-| ㏅ | U+33C5 | cd / si.cd |
-| ㏉ | U+33C9 | Gy / si.Gy |
-| ㏊ | U+33CA | ha / si.ha |
-| ㏏ | U+33CF | kn / si.knot |
-| ㏐ | U+33D0 | lm / si.lm |
-| ㏓ | U+33D3 | lx / si.lx |
-| ㏖ | U+33D6 | mol / si.mol |
-| ㏛ | U+33DB | sr / si.sr |
-| ㏜ | U+33DC | Sv / si.Sv |
-| ㏝ | U+33DD | Wb / si.Wb |
-
-Aliases follow each unit's existing prefix policy: `m㍴`, `kΩ` and `mℓ`
-are accepted, while temperature coordinates disable prefixes.
-`Unit('℃')` denotes a temperature difference, and
-`AffineQuantity(0, '℃')` denotes a Celsius point, following the same rules as
-`degC`. The characters do not change point/difference semantics.
+CJK square unit characters require the explicit `Unit.from_unicode(text)`
+entry. It parses an expression in the default SI environment and expands the
+supported complete tokens below. No new unit identities are registered.
+Aliases, prefix permissions, coordinate rules and exact algebra then follow
+the ordinary parser. Canonical output uses ordinary unit expressions.
+The mappings are based on the
+[Unicode CJK Compatibility chart](https://www.unicode.org/charts/PDF/U3300.pdf).
 
 ```pycon
->>> Unit('㍴') == si.bar
+>>> Unit.from_unicode('㏖') == si.mol
 True
->>> Unit('㎩') == si.Pa
+>>> Unit.from_unicode('㎏/㎡') == si.kg / si.m**2
 True
->>> Unit('kΩ') == si.kohm
+>>> Unit.from_unicode('m/㎧') == si.s
 True
->>> from unitx import AffineQuantity
->>> from unitx.imperial import imperial
->>> AffineQuantity(32, imperial.unit('℉')) == AffineQuantity(0, '℃')
+>>> Unit.from_unicode('㎨²') == si.m**2 / si.s**4
+True
+>>> Unit.from_unicode('㏊') == si.ha
+True
+>>> Unit.from_unicode('㏏') == si.kn
 True
 
 ```
 
-Other Unicode characters already contain prefixes or compound expressions:
+Each glyph is a complete factor. External prefixes and adjoining letters are
+rejected: use `kmol`, `µmol` and `mbar`, not `k㏖`, `µ㏖` or `m㍴`.
+Separate products with spaces or operators; `㎏ ㎡` is a product, while
+`㎏㎡` is invalid. Division and powers act on the whole glyph, including
+compound expansions such as `㎨`. Bracketed registered names remain literal;
+this entry does not rewrite text inside `[name]`.
 
-| Characters | Corresponding unit expressions (not character aliases) |
+| Characters | Corresponding unit expressions, in order |
 | --- | --- |
-| ㍱, ㎪, ㎫, ㎬ | hPa, kPa, MPa, GPa |
-| ㎏, ㎎, ㎍ | kg, mg, ug |
-| ㎞, ㎝, ㎜, ㎛, ㎚ | km, cm, mm, um, nm |
-| ㎡, ㎢, ㎠, ㎟ | m², km², cm², mm² |
-| ㎥, ㎦, ㎤, ㎣ | m³, km³, cm³, mm³ |
-| ㎧, ㎨, ㎮, ㎯ | m/s, m/s², rad/s, rad/s² |
-| ㎑, ㎒, ㎓, ㎔ | kHz, MHz, GHz, THz |
-| ㏀, ㏁, ㏈ | kΩ, MΩ, dB |
-| ㎉, ㎖, ㎕ | kcal, mL, uL |
-| ㏞, ㏟ | V/m, A/m |
+| ㍱, ㎩, ㎪, ㎫, ㎬ | hPa, Pa, kPa, MPa, GPa |
+| ㍳, ㍴, ㍶ | au, bar, pc |
+| ㍷, ㍸, ㍹ | dm, dm², dm³ |
+| ㎀, ㎁, ㎂, ㎃, ㎄ | pA, nA, µA, mA, kA |
+| ㎈, ㎉ | cal, kcal |
+| ㎊, ㎋, ㎌ | pF, nF, µF |
+| ㎍, ㎎, ㎏ | µg, mg, kg |
+| ㎐, ㎑, ㎒, ㎓, ㎔ | Hz, kHz, MHz, GHz, THz |
+| ㎕, ㎖, ㎗, ㎘ | µL, mL, dL, kL |
+| ㎙, ㎚, ㎛, ㎜, ㎝, ㎞ | fm, nm, µm, mm, cm, km |
+| ㎟, ㎠, ㎡, ㎢ | mm², cm², m², km² |
+| ㎣, ㎤, ㎥, ㎦ | mm³, cm³, m³, km³ |
+| ㎧, ㎨, ㎭, ㎮, ㎯ | m/s, m/s², rad, rad/s, rad/s² |
+| ㎰, ㎱, ㎲, ㎳ | ps, ns, µs, ms |
+| ㎴, ㎵, ㎶, ㎷, ㎸, ㎹ | pV, nV, µV, mV, kV, MV |
+| ㎺, ㎻, ㎼, ㎽, ㎾, ㎿ | pW, nW, µW, mW, kW, MW |
+| ㏀, ㏁, ㏃, ㏅, ㏆ | kΩ, MΩ, Bq, cd, C/kg |
+| ㏈, ㏉, ㏊, ㏏, ㏐, ㏓ | dB, Gy, ha, kn, lm, lx |
+| ㏖, ㏙, ㏛, ㏜, ㏝, ㏞, ㏟ | mol, ppm, sr, Sv, Wb, V/m, A/m |
 
-These characters are listed for reference and are not currently accepted as
-aliases. Registering `㎏` as an alias of `g`, for example, would assign the
-wrong scale; defining another unit for it would lose the formal identity of
-`kg`. The parser does not apply blanket Unicode compatibility normalization.
-The block also contains byte, horsepower, inch, pH, mathematical operators,
-and Japanese phonetic unit forms; their presence in Unicode does not imply
-support in this catalogue. For portable input, use ordinary unit expressions.
+The supported table is explicit. Byte, horsepower, inch, pH, mathematical
+operators and Japanese phonetic forms in the same Unicode block are not
+silently interpreted as SI expressions. In particular, `㎆` does not become
+`MB` (megabel in the default environment). No blanket NFKC normalization is
+applied: it would turn the knot glyph `㏏` into `kt`, now meaning kilotonne.
+The input still supports ordinary expressions such as `Unit.from_unicode('µmol')`.
+For portable stored data, use `expression()` or the JSON serialization API.
 
 
 [Documentation index](../README.md) · [Unit expressions](../units.md#unit-expressions) ·

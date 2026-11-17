@@ -151,6 +151,27 @@ class Unit(_Immutable):
         return cls._from_monomial(monomial, scale=exact_scale)
 
     @classmethod
+    def from_unicode(cls, expression: str, /) -> Self:
+        """Parse an expression containing supported CJK square unit characters.
+
+        Expand complete character tokens into ordinary default-registry expressions,
+        preserving prefix identity and grouping. External prefixes are invalid:
+        use `kmol`, not `k㏖`. Ordinary Unicode symbols and bracketed registered
+        names retain their existing meaning; no blanket normalization is applied.
+        See the SI catalogue guide for the supported character table.
+
+        >>> Unit.from_unicode('㏖') == Unit('mol')
+        True
+        >>> Unit.from_unicode('㎏/㎡') == Unit('kg/m2')
+        True
+        >>> Unit.from_unicode('㎨²') == Unit('(m/s2)**2')
+        True
+        """
+        from .unitparser import _expand_unicode_units
+
+        return cls(_expand_unicode_units(expression))
+
+    @classmethod
     def _from_parts(
         cls, monomial: Monomial[SingleUnit], scale: Factor, conversion: _ConversionData, /
     ) -> Self:

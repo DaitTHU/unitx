@@ -15,6 +15,7 @@ def test_si_unit_types() -> None:
     assert_type(si.ly, Unit)
     assert_type(si.mHg, Unit)
     assert_type(si.mmHg, Unit)
+    assert_type(Unit.from_unicode('㏊'), Unit)
     assert_type(si.kt, Unit)
     assert_type(si.Mt, Unit)
     assert_type(si.Gt, Unit)

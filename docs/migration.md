@@ -53,6 +53,26 @@ Decode these with the old version, convert to kg or m/s, and export those
 quantities. Imperial knot records remain compatible. Do not edit serialized
 metadata to bypass validation.
 
+### CJK square characters
+
+CJK square unit characters move from registered aliases to
+`Unit.from_unicode(...)`. Replace `Unit('㏖')` with
+`Unit.from_unicode('㏖')`, for example. This entry also accepts prefixed and
+compound glyphs such as `㎏` and `㎨`, preserving their ordinary formal units.
+It rejects external prefixes such as `k㏖` and `µ㏖`; use `kmol` and `µmol`.
+The supported table is in the [SI guide](catalogues/si.md#unicode-unit-characters).
+Ordinary Unicode symbols and letterlike aliases such as `µ`, `Ω` and `℃`
+retain their existing syntax.
+
+Removing square-character aliases changes pickle metadata for the affected
+SI roots and named units (including mol, cd, rad, sr, Hz, Pa, Wb, lm, lx,
+Bq, Gy, Sv, au, pc, ha, kn, bar and cal). Old pickle expressions containing those
+definitions are rejected. Decode them using the previous version and export
+JSON using canonical symbols. Except for the separately changed mercury
+definition, their JSON records retain the same identities and scales.
+Do not use old-version pickle as the migration interchange format; even a
+base-unit expression can contain a definition whose spelling metadata changed.
+
 ## Upgrading to 0.18.0
 
 The default scientific year now uses the Julian convention consistently:

@@ -9,6 +9,12 @@ A Quantity pairs one numerical magnitude with one linear Unit. Start with the
 
 ```
 
+CJK square unit characters such as `㎏`, `㏖` and `㏊` use the explicit
+`Unit.from_unicode(...)` entry. It preserves compound-token grouping and
+rejects external prefixes such as `k㏖`. Ordinary Unicode symbols, including
+`µ`, `Ω` and superscript exponents, remain part of `Unit(...)` syntax. See the
+[supported characters and boundaries](catalogues/si.md#unicode-unit-characters).
+
 ## Constructing units and quantities
 
 For unit expressions and explicit construction, import the classes:

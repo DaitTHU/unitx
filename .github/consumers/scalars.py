@@ -75,6 +75,10 @@ assert_type(si.Ci, Unit)
 assert_type(si.uCi, Unit)
 assert_type(si.mmHg, Unit)
 assert_type(si.Torr, Unit)
+assert_type(Unit.from_unicode('㏖'), Unit)
+assert Unit.from_unicode('㏖') == si.mol
+assert Unit.from_unicode('㎏/㎡') == si.kg / si.m**2
+assert Unit.from_unicode('㏊') == si.ha
 assert_type(si.kt, Unit)
 assert_type(si.Mt, Unit)
 assert_type(si.Gt, Unit)

@@ -36,15 +36,15 @@ class _si(UnitCatalog, registry=default_registry):
 
     # SI derived unit
 
-    rad: Final = one.define('rad', name='radian', symbol_aliases='㎭')
+    rad: Final = one.define('rad', name='radian')
     """Radian, plane angle given by arc length/radius; `1 rad = 1 m/m`."""
-    sr: Final = one.define('sr', name='steradian', symbol_aliases='㏛')
+    sr: Final = one.define('sr', name='steradian')
     """Steradian, solid angle given by area/radius squared; `1 sr = 1 m**2/m**2`."""
-    Hz: Final = (s**-1).define('Hz', name='hertz', symbol_aliases='㎐')
+    Hz: Final = (s**-1).define('Hz', name='hertz')
     """Hertz, `1 Hz = 1/s`; frequency."""
     N: Final = (kg * m / s**2).define('N', name='newton')
     """Newton, `1 N = 1 kg*m/s**2`; force."""
-    Pa: Final = (N / m**2).define('Pa', name='pascal', symbol_aliases='㎩')
+    Pa: Final = (N / m**2).define('Pa', name='pascal')
     """Pascal, `1 Pa = 1 N/m**2`; pressure or stress."""
     J: Final = (N * m).define('J', name='joule')
     """Joule, `1 J = 1 N*m`; energy, work or heat."""
@@ -60,21 +60,21 @@ class _si(UnitCatalog, registry=default_registry):
     """Ohm, `1 ohm = 1 V/A`; resistance or impedance."""
     S: Final = (A / V).define('S', name='siemens')
     """Siemens, `1 S = 1 A/V`; electrical conductance."""
-    Wb: Final = (V * s).define('Wb', name='weber', symbol_aliases='㏝')
+    Wb: Final = (V * s).define('Wb', name='weber')
     """Weber, `1 Wb = 1 V*s`; magnetic flux."""
     T: Final = (Wb / m**2).define('T', name='tesla')
     """Tesla, `1 T = 1 Wb/m**2`; magnetic flux density."""
     H: Final = (Wb / A).define('H', name='henry')
     """Henry, `1 H = 1 Wb/A`; inductance."""
-    lm: Final = (cd * sr).define('lm', name='lumen', symbol_aliases='㏐')
+    lm: Final = (cd * sr).define('lm', name='lumen')
     """Lumen, `1 lm = 1 cd*sr`; luminous flux."""
-    lx: Final = (lm / m**2).define('lx', name='lux', symbol_aliases='㏓')
+    lx: Final = (lm / m**2).define('lx', name='lux')
     """Lux, `1 lx = 1 lm/m**2`; illuminance."""
-    Bq: Final = (s**-1).define('Bq', name='becquerel', symbol_aliases='㏃')
+    Bq: Final = (s**-1).define('Bq', name='becquerel')
     """Becquerel, `1 Bq = 1/s`; radionuclide activity."""
-    Gy: Final = (J / kg).define('Gy', name='gray', symbol_aliases='㏉')
+    Gy: Final = (J / kg).define('Gy', name='gray')
     """Gray, `1 Gy = 1 J/kg`; absorbed dose."""
-    Sv: Final = (J / kg).define('Sv', name='sievert', symbol_aliases='㏜')
+    Sv: Final = (J / kg).define('Sv', name='sievert')
     """Sievert, `1 Sv = 1 J/kg`; equivalent or effective dose."""
     kat: Final = (mol / s).define('kat', name='katal')
     """Katal, `1 kat = 1 mol/s`; catalytic activity."""

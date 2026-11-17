@@ -523,7 +523,7 @@ def test_si_tonne_prefixes(symbol: str, name: str, scale: int) -> None:
 
 def test_si_tonne_spelling_boundaries() -> None:
     assert si.kn is si.knot
-    assert Unit('kn') == Unit('knot') == Unit('㏏') == si.kn
+    assert Unit('kn') == Unit('knot') == si.kn
     assert Unit('kt').dimension != si.kn.dimension
     assert Unit('nt') == Unit('nit') == si.nt
     assert Unit('mnt') == Unit('millinit')

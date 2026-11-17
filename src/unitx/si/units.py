@@ -197,10 +197,10 @@ class si(_si, registry=default_registry):
     """Revolutions per minute, `1 rpm = 1/60 Hz`; rotational frequency, not rad/s."""
     # length/area/volume related
     au: Final = (149_597_870_700 * _si.m).define(
-        'au', name='astronomical unit', symbol_aliases=('AU', '㍳')
+        'au', name='astronomical unit', symbol_aliases='AU'
     )
     """Astronomical unit, `1 au = 149597870700 m` exactly."""
-    pc: Final = (au / arcsec).define('pc', name='parsec', symbol_aliases='㍶')
+    pc: Final = (au / arcsec).define('pc', name='parsec')
     """Parsec or its SI prefixes; `1 pc = (648000/pi) au`."""
     kpc, Mpc, Gpc, Tpc = _prefixed_units(pc, 'kMGT')
     """Parsec or its SI prefixes; `1 pc = (648000/pi) au`."""
@@ -214,7 +214,7 @@ class si(_si, registry=default_registry):
     """Angstrom, `1 angstrom = 1e-10 m` exactly; microscopic length."""
     a: Final = (100 * _si.m**2).define('a', name='are', prefixable=False)
     """Are, `1 a = 100 m**2`; land area."""
-    ha: Final = (100 * a).define('ha', name='hectare', symbol_aliases='㏊', prefixable=False)
+    ha: Final = (100 * a).define('ha', name='hectare', prefixable=False)
     """Hectare, `1 ha = 10000 m**2`; land area."""
     b: Final = (_si.m**2 / ten**28).define('b', name='barn')
     """Barn, `1 b = 1e-28 m**2`; interaction cross section."""
@@ -240,7 +240,7 @@ class si(_si, registry=default_registry):
     """Speed unit, `1 c = 299792458 m/s`; `SI.c` and `si.em.c` are Quantities."""
     Gal: Final = (cm / _si.s**2).define('Gal', 'gal', 'galileo')
     """Galileo, `1 Gal = 1 cm/s**2`; acceleration."""
-    kn: Final = (nmile / h).define('kn', 'knot', symbol_aliases='㏏')
+    kn: Final = (nmile / h).define('kn', 'knot')
     """Knot, `1 kn = 1 nautical mile/hour = 1852/3600 m/s`."""
     knot: Final = kn
     """Knot; the same Unit as `kn`."""
@@ -249,7 +249,7 @@ class si(_si, registry=default_registry):
     """Gram-force, `1 gf = 0.00980665 N`, using standard gravity."""
     kgf: Final = next(_prefixed_units(gf, 'k'))
     """Kilogram-force, `1 kgf = 9.80665 N`, using standard gravity."""
-    bar: Final = (ten**5 * _si.Pa).define('bar', name='bar', symbol_aliases='㍴')
+    bar: Final = (ten**5 * _si.Pa).define('bar', name='bar')
     """Bar or its SI prefixes; `1 bar = 100000 Pa` exactly."""
     ubar, mbar = _prefixed_units(bar, 'um')
     """Bar or its SI prefixes; `1 bar = 100000 Pa` exactly."""
@@ -283,7 +283,7 @@ class si(_si, registry=default_registry):
     """
     nJy, uJy, mJy, kJy = _prefixed_units(Jy, 'numk')
     """Decimal jansky multiples; `1 mJy = 1e-3 Jy`."""
-    cal: Final = (4184 * mJ).define('cal', name='calorie', symbol_aliases='㎈')
+    cal: Final = (4184 * mJ).define('cal', name='calorie')
     """Thermochemical calorie, `1 cal = 4.184 J` exactly."""
     kcal: Final = next(_prefixed_units(cal, 'k'))
     """Thermochemical kilocalorie, `1 kcal = 4184 J` exactly."""

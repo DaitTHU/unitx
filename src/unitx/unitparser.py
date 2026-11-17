@@ -32,6 +32,123 @@ _TOKEN_RE = re.compile('|'.join(f'(?P<{kind}>{pattern})' for kind, pattern in _P
 _INTEGER_RE = re.compile(r'[+-]?[0-9]+')
 
 
+# Explicit SI-compatible expansions, based on the Unicode CJK Compatibility chart.
+# https://www.unicode.org/charts/PDF/U3300.pdf
+# Do not apply NFKC: e.g. ㏏ expands to "kt", which unitx uses for kilotonne.
+_UNICODE_UNIT_EXPRESSIONS = {
+    '㍱': 'hPa',
+    '㍳': 'au',
+    '㍴': 'bar',
+    '㍶': 'pc',
+    '㍷': 'dm',
+    '㍸': 'dm2',
+    '㍹': 'dm3',
+    '㎀': 'pA',
+    '㎁': 'nA',
+    '㎂': 'uA',
+    '㎃': 'mA',
+    '㎄': 'kA',
+    '㎈': 'cal',
+    '㎉': 'kcal',
+    '㎊': 'pF',
+    '㎋': 'nF',
+    '㎌': 'uF',
+    '㎍': 'ug',
+    '㎎': 'mg',
+    '㎏': 'kg',
+    '㎐': 'Hz',
+    '㎑': 'kHz',
+    '㎒': 'MHz',
+    '㎓': 'GHz',
+    '㎔': 'THz',
+    '㎕': 'uL',
+    '㎖': 'mL',
+    '㎗': 'dL',
+    '㎘': 'kL',
+    '㎙': 'fm',
+    '㎚': 'nm',
+    '㎛': 'um',
+    '㎜': 'mm',
+    '㎝': 'cm',
+    '㎞': 'km',
+    '㎟': 'mm2',
+    '㎠': 'cm2',
+    '㎡': 'm2',
+    '㎢': 'km2',
+    '㎣': 'mm3',
+    '㎤': 'cm3',
+    '㎥': 'm3',
+    '㎦': 'km3',
+    '㎧': 'm/s',
+    '㎨': 'm/s2',
+    '㎩': 'Pa',
+    '㎪': 'kPa',
+    '㎫': 'MPa',
+    '㎬': 'GPa',
+    '㎭': 'rad',
+    '㎮': 'rad/s',
+    '㎯': 'rad/s2',
+    '㎰': 'ps',
+    '㎱': 'ns',
+    '㎲': 'us',
+    '㎳': 'ms',
+    '㎴': 'pV',
+    '㎵': 'nV',
+    '㎶': 'uV',
+    '㎷': 'mV',
+    '㎸': 'kV',
+    '㎹': 'MV',
+    '㎺': 'pW',
+    '㎻': 'nW',
+    '㎼': 'uW',
+    '㎽': 'mW',
+    '㎾': 'kW',
+    '㎿': 'MW',
+    '㏀': 'kΩ',
+    '㏁': 'MΩ',
+    '㏃': 'Bq',
+    '㏅': 'cd',
+    '㏆': 'C/kg',
+    '㏈': 'dB',
+    '㏉': 'Gy',
+    '㏊': 'ha',
+    '㏏': 'kn',
+    '㏐': 'lm',
+    '㏓': 'lx',
+    '㏖': 'mol',
+    '㏙': 'ppm',
+    '㏛': 'sr',
+    '㏜': 'Sv',
+    '㏝': 'Wb',
+    '㏞': 'V/m',
+    '㏟': 'A/m',
+}
+
+
+def _expand_unicode_units(expression: str) -> str:
+    """Expand whole compatibility tokens; preserve the ordinary expression grammar."""
+    if not isinstance(expression, str):
+        error_message = 'Unit expression must be str.'
+        raise TypeError(error_message)
+
+    def expand(match: re.Match[str]) -> str:
+        token = match.group()
+        # Bracketed registered names remain literal, as in the ordinary parser.
+        if match.lastgroup != 'UNIT' or not any('\u3300' <= c <= '\u33ff' for c in token):
+            return token
+        if token not in _UNICODE_UNIT_EXPRESSIONS:
+            error_message = (
+                f'{token!r} is not a supported standalone Unicode unit character. '
+                'Use ordinary unit symbols for prefixes, '
+                'and separate factors with spaces or operators.'
+            )
+            raise UnitSymbolError(error_message)
+        # A square glyph denotes one factor even when its expansion is a quotient.
+        return '(' + _UNICODE_UNIT_EXPRESSIONS[token] + ')'
+
+    return _TOKEN_RE.sub(expand, expression)
+
+
 class Token:
     """A lexical token identified by its kind and matched text.
 
