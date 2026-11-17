@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-17
+
+### Added
+
+- Add the non-SI curie (`si.Ci`, exactly 37,000,000,000 Bq), decimal prefix
+  parsing and pCi/nCi/uCi/mCi/kCi convenience attributes.
+- Add explicit common (`a_c`), mean Gregorian (`a_g`), tropical (`a_t`, UCUM)
+  and sidereal (`a_s`, IERS reference) years, with documented sources and limits
+  of the astronomical approximations.
+
+### Changed
+
+- Make `yr` / `year` use the Julian convention of exactly 365.25 days, sharing
+  the existing `a_j` definition and displaying as `yr`. Use `a_c` for the
+  previous 365-day interval. Add kyr/Myr/Gyr shortcuts; `a` remains the are.
+- Rename `mo` / `month` to the explicit `mo_j` / `Julian month`, retaining the
+  fixed interval of one twelfth of a Julian year. Document migration of code
+  and stored data; the light-year length is unchanged.
+
+### Improved
+
+- Explain Quantity inputs at linear-unit boundaries, including the common
+  inverse-unit mistake `.to(1 / si.s)`, with valid target examples.
+- Document dataset-specific year conventions and explicit reference-quantity
+  ratios without changing numeric/unit arithmetic.
+
 ## [0.17.13] - 2026-11-16
 
 ### Improved

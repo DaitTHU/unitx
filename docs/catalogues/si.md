@@ -275,7 +275,7 @@ A fixed 366-day interval is simply `366 * si.d`. Other orbital periods, such
 as anomalistic and draconic years, require an explicit model or reference
 convention and are not currently catalogued. Calendar arithmetic and
 astronomical ephemerides remain outside fixed-factor unit conversion.
-See the [migration notes](../migration.md#year-and-month-units-unreleased)
+See the [migration notes](../migration.md#upgrading-to-0180)
 for the changed meaning of `yr` and stored-data migration.
 
 

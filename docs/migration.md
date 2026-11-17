@@ -1,6 +1,6 @@
 # Migration notes
 
-## Year and month units (unreleased)
+## Upgrading to 0.18.0
 
 The default scientific year now uses the Julian convention consistently:
 
