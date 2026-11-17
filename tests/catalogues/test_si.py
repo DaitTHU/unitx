@@ -62,9 +62,13 @@ def test_si_coherent_units(attribute: str, expression: str) -> None:
         ('min', 's', 60),
         ('h', 's', 3600),
         ('d', 's', 86400),
-        ('yr', 's', 31536000),
+        ('yr', 's', 31557600),
         ('a_j', 's', 31557600),
-        ('mo', 's', 2629800),
+        ('a_c', 's', 31536000),
+        ('a_g', 's', 31556952),
+        ('a_t', 's', Decimal('31556925.216')),
+        ('a_s', 's', Decimal('31558149.7635456')),
+        ('mo_j', 's', 2629800),
         ('Ci', 'Bq', 37000000000),
         ('pCi', 'Bq', Fraction(37, 1000)),
         ('nCi', 'Bq', 37),
@@ -143,6 +147,13 @@ def test_si_angles() -> None:
         ('mHg', 'metre of mercury'),
         ('mmHg', 'millimetre of mercury'),
         ('a_j', 'Julian year'),
+        ('yr', 'year'),
+        ('yr', 'annum'),
+        ('a_c', 'common year'),
+        ('a_g', 'Gregorian year'),
+        ('a_t', 'tropical year'),
+        ('a_s', 'sidereal year'),
+        ('mo_j', 'Julian month'),
         ('Ci', 'curie'),
         ('uCi', 'microcurie'),
         ('uCi', 'µCi'),
@@ -370,6 +381,36 @@ def test_si_light_year() -> None:
     assert 1 * si.eV == SI.e * si.V
 
 
+def test_si_year_conventions() -> None:
+    assert si.yr is si.a_j
+    assert Unit('a_j') == si.yr
+    assert si.a == Unit('are')
+    assert si.a.dimension != si.yr.dimension
+    assert 400 * si.a_g == (400 * 365 + 97) * si.d
+    assert (1 * si.yr - 1 * si.a_c) == 6 * si.h
+    assert 12 * si.mo_j == 1 * si.yr
+    # Source-specific rounded years must not silently become UCUM reference years.
+    assert 31556926 * si.s != 1 * si.a_t
+
+
+@pytest.mark.parametrize(('unit', 'years'), [(si.kyr, 10**3), (si.Myr, 10**6), (si.Gyr, 10**9)])
+def test_si_year_prefixes(unit: Unit, years: int) -> None:
+    assert (1 * unit).value_in(si.a_j) == years
+    assert Unit(unit.expression()) == unit
+    assert Unit('megayear') == si.Myr
+
+
+@pytest.mark.parametrize('text', ['mo', 'month', 'y'])
+def test_si_year_invalid_spelling(text: str) -> None:
+    with pytest.raises(UnitSymbolError):
+        Unit(text)
+
+
+def test_si_month_invalid_attribute() -> None:
+    with pytest.raises(AttributeError):
+        _ = si.mo
+
+
 def test_si_curie_exact_conversion() -> None:
     assert (1 * si.Bq).value_in(si.Ci) == Fraction(1, 37000000000)
     assert (Fraction(1, 37) * si.nCi).value_in(si.Bq) == 1
@@ -418,6 +459,12 @@ def test_si_ascii_micro() -> None:
         'Jy',
         'Ci',
         'uCi',
+        'a_j',
+        'a_c',
+        'a_g',
+        'a_t',
+        'a_s',
+        'mo_j',
     ],
 )
 def test_si_unit_roundtrip(attribute: str) -> None:

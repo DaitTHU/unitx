@@ -1,5 +1,30 @@
 # Migration notes
 
+## Year and month units (unreleased)
+
+The default scientific year now uses the Julian convention consistently:
+
+| Previous spelling or API | Current behavior or replacement | Numerical effect |
+| --- | --- | --- |
+| `si.a_j`, `'a_j'` | Retained as an alias of `si.yr`, displayed as `yr` | Still exactly 365.25 days |
+| `si.yr`, `'yr'`, `'year'` | Use `si.a_c` or `'common year'` to preserve old values | `yr` / `year` now mean 365.25 days instead of 365 |
+| `si.mo`, `'mo'`, `'month'` | Use `si.mo_j`, `'mo_j'` or `'Julian month'` | Same fixed interval of 2,629,800 seconds; explicit mean-month convention |
+
+`kyr`, `Myr` and `Gyr` are convenience attributes. `a` remains the are,
+so it cannot also be a year spelling. Removed unqualified month names raise
+instead of silently selecting a new meaning. `si.ly` retains its exact
+existing length, based on the Julian year. The new `a_g`, `a_t` and `a_s`
+have explicit fixed conventions described in the
+[SI guide](catalogues/si.md#years-and-calendar-boundaries).
+
+Audit persisted magnitudes paired with textual units before upgrading: old
+`yr` / `year` records must use `a_c` to retain their physical values.
+Old JSON definition metadata for renamed or changed units is not automatically
+migrated; decode with the previous version, convert to seconds, then export
+for the new version. Recreate old pickle payloads through the same route.
+Do not relabel dataset years as Julian or tropical without checking their
+source's seconds-per-year convention.
+
 ## Upgrading to 0.17.5
 
 Derived SI/Particle/atomic/natural/Planck constants now use a fixed 28-digit

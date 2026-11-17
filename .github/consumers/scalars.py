@@ -73,10 +73,21 @@ assert (1 * si.cycle).value_in(si.deg) == 360
 assert (1 * si.ppm).value_in(si.one) == Fraction(1, 10**6)
 assert_type(si.Ci, Unit)
 assert_type(si.uCi, Unit)
+assert_type(si.a_j, Unit)
+assert_type(si.a_t, Unit)
 assert_type((1.0 * si.uCi).to(si.Bq), Quantity[float])
 assert (1 * si.uCi).value_in(si.Bq) == 37000
 assert (1 * si.Bq).value_in(si.Ci) == Fraction(1, 37000000000)
 assert Unit('microcurie') == si.uCi
+assert si.yr is si.a_j
+assert (1 * si.mo_j).value_in(si.s) == 2629800
+assert (1 * si.Myr).value_in(si.yr) == 10**6
+assert (1 * si.a_c).value_in(si.s) == 31536000
+assert (1 * si.a_g).value_in(si.s) == 31556952
+assert (1 * si.a_t).value_in(si.s) == Decimal('31556925.216')
+assert (1 * si.a_s).value_in(si.s) == Decimal('31558149.7635456')
+assert from_dict(to_dict(si.a_t)) == si.a_t
+assert pickle.loads(pickle.dumps(si.a_j)) == si.yr
 assert (1 * si.Jy).value_in(si.W / si.m**2 / si.Hz) == Fraction(1, 10**26)
 assert pickle.loads(pickle.dumps(information.MiB)) == information.MiB
 information_registry = Registry((information.B,))

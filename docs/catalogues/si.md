@@ -41,7 +41,7 @@ of accepted parser spellings:
 | Named derived units | rad, sr, Hz, N, Pa, J, W, C, V, F, ohm, S, Wb, T, H, lm, lx, Bq, Gy, Sv, kat |
 | Common prefixes | ns, ms, um, cm, km, MeV, kW, mA |
 | Angles and ratios | turn, cycle, deg, arcmin, arcsec, mas, uas, percent, permille, ppm |
-| Time and frequency | min, h, d, yr, a_j, mo, rpm |
+| Time and frequency | min, h, d, yr, a_j, a_g, a_t, a_s, a_c, kyr, Myr, Gyr, mo_j, rpm |
 | Length, area and volume | au, pc, ly, nmile, angstrom, a, ha, b, L |
 | Mass and mechanics | t, Da, u, c, Gal, knot, gf, kgf |
 | Pressure and energy | bar, atm, mHg, mmHg, Torr, mTorr, Wh, eV, cal |
@@ -174,9 +174,7 @@ formal identity and scale; deg has exact factor pi/180.
 `arcsec` and `arcsecond` accept prefixes, for example `marcsec` and
 `milliarcsecond`; `″` and `"` do not. `as` continues to mean attosecond,
 and `mas` is not an arcsecond alias. `a` (are) and `ha` (hectare) are separate
-unprefixable units; `Pa` remains pascal. `yr` remains exactly 365 days.
-`a_j` is the Julian year of exactly 365.25 days (31,557,600 seconds), while
-`mo` is one twelfth of that interval, rather than a variable calendar month.
+unprefixable units; `Pa` remains pascal.
 The name exceptions `megohm` and `kilohm` are supported alongside the older
 `megaohm` and `kiloohm` spellings; `gigaohm` retains both vowels. No general
 vowel-elision rule is applied.
@@ -206,6 +204,79 @@ ASCII micro spellings such as `um` and `us` remain supported without warnings,
 so entering non-ASCII characters is optional. `um`, `µm`, `μm`, and
 `micrometre` all mean micrometres; the explicit product `u m` instead means
 unified atomic mass unit times metre.
+
+## Years and calendar boundaries
+
+`si.yr` and `si.a_j` are the same Unit, displayed as `yr`.
+The spellings `yr`, `a_j`, `year`, `Julian year` and `annum` mean exactly
+365.25 days, following the
+[IAU scientific-year convention](https://iauarchive.eso.org/publications/proceedings_rules/units/).
+IAU recommends `a`; unitx uses `yr` because `a` already denotes the are
+(100 m²). Parsing never chooses between area and time from context.
+Decimal prefixes are supported, including `si.kyr`, `si.Myr` and `si.Gyr`.
+
+| Attribute / symbol | Parsed name | Days of 86,400 seconds | Convention |
+| --- | --- | --- | --- |
+| `yr` / `a_j` | `Julian year`, `year`, `annum` | 365.25 | Exact scientific year |
+| `a_c` | `common year` | 365 | Fixed common-year interval |
+| `a_g` | `Gregorian year` | 365.2425 | Exact 400-year calendar average |
+| `a_t` | `tropical year` | 365.24219 | Fixed UCUM approximation |
+| `a_s` | `sidereal year` | 365.256363004 | Fixed IERS tabulated approximation |
+
+The qualified symbols `a_j`, `a_g`, `a_t` and their numerical definitions
+follow [UCUM](https://ucum.org/ucum). This is not a UCUM parser: unitx retains
+its own grammar, allows decimal prefixes on these years, and keeps `a` for
+area. `a_c` and `a_s` are **unitx-specific symbols**.
+The Gregorian average follows 97 leap days per 400-year cycle;
+see [USNO's explanation](https://aa.usno.navy.mil/faq/leap_years).
+The sidereal reference comes from the
+[IERS useful-constants table](https://hpiers.obspm.fr/eop-pc/models/constants.html),
+which cites Simon et al. (1994).
+
+unitx stores each decimal scale exactly for reproducible conversion. The
+astronomical interpretation of tropical and sidereal years is approximate:
+neither is an exact period valid at every epoch, and the stored digits do
+not represent an uncertainty model. In particular, UCUM's tropical-year
+convention differs from the IERS table's 365.242190402 days. More digits in a
+different convention do not make it the correct choice for a particular dataset.
+
+```pycon
+>>> si.yr is si.a_j
+True
+>>> (1 * si.Myr).value_in(si.yr)
+1000000
+>>> (1 * si.a_g).value_in(si.s)
+31556952
+>>> from decimal import Decimal
+>>> (1 * si.a_t).value_in(si.s) == Decimal('31556925.216')
+True
+
+```
+
+A dataset's `y` label still needs its source definition. For example,
+[NUBASE2020, section 2.3](https://www-nds.iaea.org/amdc/ame2020/NUBASE2020.pdf)
+uses 31,556,926 seconds, which differs from all five built-in years.
+Express that interval directly, without changing the default registry:
+
+```pycon
+>>> dataset_year = (31_556_926 * si.s).define('dataset_year', prefixable=False)
+>>> (2 * dataset_year).value_in(si.s)
+63113852
+>>> 1 * dataset_year == 1 * si.a_t
+False
+
+```
+
+`si.mo_j`, parsed as `mo_j` or `Julian month`, is the fixed mean Julian month:
+exactly one twelfth of `si.yr`, or 2,629,800 seconds, following UCUM.
+Unqualified `mo` / `month` are not provided. A calendar month requires a date
+and a calendar; a fixed mean month cannot implement that operation.
+A fixed 366-day interval is simply `366 * si.d`. Other orbital periods, such
+as anomalistic and draconic years, require an explicit model or reference
+convention and are not currently catalogued. Calendar arithmetic and
+astronomical ephemerides remain outside fixed-factor unit conversion.
+See the [migration notes](../migration.md#year-and-month-units-unreleased)
+for the changed meaning of `yr` and stored-data migration.
 
 
 ## Unicode unit characters

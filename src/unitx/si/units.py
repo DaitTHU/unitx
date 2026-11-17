@@ -159,12 +159,40 @@ class si(_si, registry=default_registry):
     """Hour, `1 h = 3600 s`; time."""
     d: Final = (24 * h).define('d', name='day', prefixable=False)
     """Day, `1 d = 86400 s`; time."""
-    yr: Final = (365 * d).define('yr', name='year', prefixable=False)
-    """Simple year, `1 yr = 365 d`; fixed library interval, not a calendar year."""
-    a_j: Final = (365.25 * d).define('a_j', 'Julian year', 'annum')
-    """Julian year, `1 a_j = 365.25 d = 31557600 s`."""
-    mo: Final = (a_j / 12).define('mo', name='month', prefixable=False)
-    """Mean month, `1 mo = 1/12 Julian year`; fixed library interval."""
+    yr: Final = (31_557_600 * _si.s).define(
+        'yr', 'Julian year', 'year', 'annum', symbol_aliases='a_j'
+    )
+    """Julian year, exactly `365.25 d`; default scientific year, not a calendar period.
+
+    https://iauarchive.eso.org/publications/proceedings_rules/units/
+    """
+    a_j: Final = yr
+    """Explicit Julian-year symbol used by UCUM; the same definition as `yr`."""
+    kyr, Myr, Gyr = _prefixed_units(yr, 'kMG')
+    """Decimal Julian-year multiples; `1 Myr = 1000000 yr`."""
+    a_c: Final = (365 * d).define('a_c', 'common year')
+    """Fixed 365-day interval; `a_c` is a library symbol, not calendar arithmetic."""
+    a_g: Final = (Decimal('365.2425') * d).define('a_g', 'Gregorian year')
+    """Mean Gregorian year, exactly `365.2425 d` from 97 leap days per 400 years.
+
+    https://aa.usno.navy.mil/faq/leap_years
+    """
+    a_t: Final = (Decimal('365.24219') * d).define('a_t', 'tropical year')
+    """Fixed tropical-year convention: `365.24219 d`, following UCUM.
+
+    Exact stored decimal scale of an approximate astronomical period, not an
+    epoch-dependent ephemeris or a dataset-specific year convention.
+    https://ucum.org/ucum
+    """
+    a_s: Final = (Decimal('365.256363004') * d).define('a_s', 'sidereal year')
+    """Fixed sidereal-year reference: `365.256363004 d` from the IERS table.
+
+    Exact stored decimal scale of an approximate astronomical period, not an
+    epoch-dependent ephemeris. `a_s` is a library symbol, not a UCUM code.
+    https://hpiers.obspm.fr/eop-pc/models/constants.html
+    """
+    mo_j: Final = (yr / 12).define('mo_j', 'Julian month', prefixable=False)
+    """Mean Julian month, exactly `1/12 yr`; UCUM convention, not a calendar month."""
     rpm: Final = (1 / min).define('rpm', name='revolutions per minute', prefixable=False)
     """Revolutions per minute, `1 rpm = 1/60 Hz`; rotational frequency, not rad/s."""
     # length/area/volume related
@@ -176,7 +204,7 @@ class si(_si, registry=default_registry):
     """Parsec or its SI prefixes; `1 pc = (648000/pi) au`."""
     kpc, Mpc, Gpc, Tpc = _prefixed_units(pc, 'kMGT')
     """Parsec or its SI prefixes; `1 pc = (648000/pi) au`."""
-    ly: Final = (_SI.c * a_j).define('ly', name='light year', prefixable=False)
+    ly: Final = (_SI.c * yr).define('ly', name='light year', prefixable=False)
     """Light-year, distance travelled by vacuum light in one Julian year."""
     nmile: Final = (1852 * _si.m).define('nmi', 'nautical mile', symbol_aliases='NM')
     """International nautical mile, `1 nmi = 1852 m` exactly."""
