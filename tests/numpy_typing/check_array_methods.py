@@ -1,5 +1,6 @@
 """Direct methods preserve array wrappers, known shape dtypes and out types."""
 
+from decimal import Decimal
 from typing import assert_type
 
 import numpy as np
@@ -38,13 +39,13 @@ def check_array_methods(values: NDArray[np.complex64], target: NDArray[np.float3
     assert_type(temperatures.reshape(-1), AffineQuantity[NDArray[np.float32]])
     assert_type(temperatures.ravel(), AffineQuantity[NDArray[np.float32]])
     assert_type(temperatures.copy(), AffineQuantity[NDArray[np.float32]])
-    assert_type(temperatures.mean(), AffineQuantity[NumpyValue])
+    assert_type(temperatures.mean(), AffineQuantity[np.float32])
     assert_type(temperatures.mean(out=temperatures), AffineQuantity[NDArray[np.float32]])
     assert_type(temperatures.std(out=out), Quantity[NDArray[np.float32]])
     assert_type(levels.reshape(-1), LogQuantity[NDArray[np.float32]])
     assert_type(levels.ravel(), LogQuantity[NDArray[np.float32]])
     assert_type(levels.copy(), LogQuantity[NDArray[np.float32]])
-    assert_type(levels.mean(), LogQuantity[NumpyValue])
+    assert_type(levels.mean(), LogQuantity[np.float32])
     assert_type(levels.mean(out=levels), LogQuantity[NDArray[np.float32]])
     assert_type(levels.std(), Quantity[np.float32])
     assert_type(Quantity(np.float32(2), si.m).reshape(()), Quantity[NumpyValue])
@@ -136,6 +137,11 @@ def check_statistical_boundaries(values: NDArray[np.complex128], counts: NDArray
     assert_type(q.std(mean=np.zeros(1)), Quantity[NumpyValue])
     assert_type(q.var(dtype=np.complex128), Quantity[NumpyValue])
     count = counts * si.m
+    assert_type(count.sum(), Quantity[np.intp])
+    assert_type(count.sum(axis=0), Quantity[NDArray[np.intp] | np.intp])
+    assert_type((np.uint16(1) * si.m).sum(), Quantity[np.uintp])
+    assert_type((np.int64(1) * si.m).sum(), Quantity[np.int64])
+    assert_type((np.uint64(1) * si.m).sum(), Quantity[np.uint64])
     assert_type(count.min(), Quantity[np.int16])
     assert_type(count.max(axis=0), Quantity[NDArray[np.int16] | np.int16])
     assert_type(count.var(), Quantity[np.float64])
@@ -144,3 +150,31 @@ def check_statistical_boundaries(values: NDArray[np.complex128], counts: NDArray
     assert_type(zero.flatten(), Quantity[NDArray[np.float32]])
     assert_type(zero.std(), Quantity[np.float32])
     assert_type(zero.min(), Quantity[np.float32])
+
+
+def check_point_readings(values: NDArray[np.float32], counts: NDArray[np.int16]) -> None:
+    readings = AffineQuantity(values, si.degC)
+    mask = (0 @ si.degC < readings) & (readings < 100 @ si.degC)
+    mask.all()
+    selected = readings[mask]
+    assert_type(selected, AffineQuantity[NDArray[np.float32]])
+    assert_type(next(iter(selected)), AffineQuantity[NDArray[np.float32] | np.float32])
+    assert_type(selected.mean().to(si.K), AffineQuantity[np.float32])
+    assert_type(selected.mean().to_quantity(si.K), Quantity[np.float32])
+    assert_type(selected.mean().value_in(si.K), np.float32)
+    assert_type(readings - readings.mean(), Quantity[NDArray[np.float32] | np.float32])
+    delta = Quantity(values, si.K)
+    assert_type(readings + delta, AffineQuantity[NDArray[np.float32] | np.float32])
+    assert_type(delta + readings, AffineQuantity[NDArray[np.float32] | np.float32])
+    reference = 0 @ si.degC
+    assert_type(reference.isclose(readings), NDArray[np.bool_] | np.bool_)
+    assert_type(
+        reference.isclose(reference, rel_tol=np.zeros_like(values)), NDArray[np.bool_] | np.bool_
+    )
+    assert_type(reference.isclose(reference, abs_tol=delta), NDArray[np.bool_] | np.bool_)
+    assert_type(readings.isclose(readings), NDArray[np.bool_] | np.bool_)
+    scalar = np.float32(1) @ si.K
+    assert_type(scalar < (Decimal(2) @ si.K), bool | NDArray[np.bool_] | np.bool_)
+    assert_type(AffineQuantity(counts, si.degC).mean(), AffineQuantity[np.float64])
+    assert_type(AffineQuantity(counts, si.degC).value_in(si.K), NumpyValue)
+    assert_type(readings.mean(dtype=np.float64), AffineQuantity[np.float64])

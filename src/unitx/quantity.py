@@ -42,7 +42,9 @@ from ._numerics.numpy_typing import (
     NumpyArray,
     NumpyDType,
     NumpyValue,
+    WritableArray,
     _Axis,
+    _HasTranspose,
     _Shape,
 )
 from ._numerics.scaling import scale_value
@@ -892,11 +894,11 @@ class Quantity(Generic[T]):
         return self._array_value().shape
 
     @property
-    def ndim(self) -> int:
+    def ndim(self: Quantity[Array]) -> int:
         return self._array_value().ndim
 
     @property
-    def size(self) -> int:
+    def size(self: Quantity[Array]) -> int:
         return self._array_value().size
 
     @property
@@ -904,8 +906,8 @@ class Quantity(Generic[T]):
         return self._array_value().dtype
 
     @property
-    def T[A: Array](self: Quantity[A]) -> Quantity[A]:
-        return Quantity(self._array_value().T, self.unit)
+    def T[R](self: _HasTranspose[R]) -> R:
+        return self.transpose()
 
     @property
     def real[A: Array](self: Quantity[HasReal[A]]) -> Quantity[A]:
@@ -921,7 +923,7 @@ class Quantity(Generic[T]):
         return Quantity(self._array_value()[key], self.unit)
 
     def __setitem__(
-        self: Quantity[Array], key: Any, value: Quantity[Magnitude] | Magnitude
+        self: Quantity[WritableArray], key: Any, value: Quantity[Magnitude] | Magnitude
     ) -> None:
         """Assign compatible values to an ndarray, keeping its unit and dtype.
 

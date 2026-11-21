@@ -1,5 +1,7 @@
 """Finite typed entry points share ordinary NumPy runtime semantics."""
 
+from decimal import Decimal
+from fractions import Fraction
 from typing import Any
 
 import pytest
@@ -58,3 +60,39 @@ def test_typed_numpy_calculus() -> None:
         unp.trapezoid(points)
     with pytest.raises(TypeError):
         unp.gradient(np.ones(3))
+
+
+def test_typed_numpy_scalar_templates() -> None:
+    q = Quantity(2, 'm')
+    points = AffineQuantity(20, 'degC')
+    levels = LogQuantity(3, 'dBm')
+    for template, function, dtype in (
+        (q, unp.zeros_like, int),
+        (points, unp.ones_like, np.float64),
+        (levels, unp.empty_like, np.dtype(np.float32)),
+    ):
+        result = function(template, dtype)
+        assert type(result) is type(template) and result.unit is template.unit
+        assert result.shape == () and result.dtype == np.dtype(dtype)
+    assert unp.zeros_like(q).dtype == np.zeros_like(2).dtype
+    filled = unp.full_like(q, Quantity(30, 'cm'), np.float32)
+    assert filled.dtype == np.dtype(np.float32) and filled.unit is q.unit
+    np.testing.assert_allclose(filled.value, 0.3)
+
+
+def test_typed_numpy_calculus_steps() -> None:
+    y = Quantity(np.array([1, 3, 5], dtype=np.float32), 'm')
+    times = AffineQuantity(np.array([3.0, 4.0, 5.0]), 's')
+    for step, dtype in (
+        (Decimal('0.5'), np.float32),
+        (Quantity(Fraction(1, 2), 's'), np.float32),
+        (np.float64(0.5), np.float64),
+    ):
+        area = unp.trapezoid(y, dx=step)
+        assert area.dtype == np.dtype(dtype) and area.value == 3
+    slope = unp.gradient(y, times, axis=(0,))
+    assert slope.unit == Unit('m/s') and slope.dtype == np.dtype(np.float32)
+    np.testing.assert_array_equal(slope.value, [2, 2, 2])
+    assert unp.gradient(y, axis=()) == ()
+    rows, cols = unp.gradient(Quantity(np.ones((2, 3), dtype=np.float32), 'm'), axis=(0, 1))
+    assert rows.dtype == cols.dtype == np.dtype(np.float32)

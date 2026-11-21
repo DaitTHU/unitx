@@ -17,7 +17,7 @@ from unitx.si import SI, si
 from unitx.unit import Unit
 
 FloatValue: TypeAlias = npt.NDArray[np.float64] | np.float64
-
+NumpyMask: TypeAlias = npt.NDArray[np.bool_] | np.bool_
 NumpyValue: TypeAlias = npt.NDArray[Any] | np.number[Any]
 
 
@@ -44,14 +44,20 @@ def contracts(a: npt.NDArray[np.float64], scalar: np.float64, plain: int = 1) ->
     assert_type(q + q, Quantity[FloatValue])
     assert_type(Quantity(1, 'm') + q, Quantity[FloatValue])
     assert_type(q**2, Quantity[FloatValue])
-    assert_type(q == q, Array)
-    assert_type(Quantity(1, 'm') == q, Array)
+    assert_type(q == q, NumpyMask)
+    assert_type(Quantity(1, 'm') == q, NumpyMask)
     assert_type(q[0], Quantity[FloatValue])
     assert_type(q.T, Quantity[npt.NDArray[np.float64]])
     assert_type(Quantity(scalar, unit).T, Quantity[np.float64])
     assert_type(q.flatten(), Quantity[npt.NDArray[np.float64]])
     assert_type(q.dtype, np.dtype[np.float64])
-    assert_type(q.isclose(q), Array)
+    assert_type(q.isclose(q), NumpyMask)
+    length = Quantity(1, 'm')
+    assert_type(length.isclose(q), NumpyMask)
+    mask = length.isclose(length, abs_tol=q)
+    assert_type(mask, NumpyMask)
+    mask.any()
+    assert_type(q[mask], Quantity[npt.NDArray[np.float64]])
     assert_type(Quantity(1, 'm') == Quantity(2, 'm'), bool)
     assert_type(Quantity(1, 'm').to('cm'), Quantity[int | float | Fraction])
 
@@ -62,10 +68,11 @@ def generic_contracts(q: Quantity[Magnitude], array_q: Quantity[Array]) -> None:
     assert_type(q * 2, Quantity[Magnitude])
     assert_type(q + 2, Quantity[Magnitude])
     assert_type(q**2, Quantity[Magnitude])
-    assert_type(q == 2, bool | Array)
+    assert_type(q == 2, bool | NumpyMask)
     assert_type(Unit('s') / array_q, Quantity[NumpyValue])
     assert_type(Quantity(2, 'm') ** np.array(2), Quantity[NumpyValue])
-    assert_type(Quantity(2, 'm').isclose(Quantity(2, 'm'), rel_tol=np.array([0.0])), Array)
+    assert_type(Quantity(2, 'm').isclose(Quantity(2, 'm'), rel_tol=np.array([0.0])), NumpyMask)
+    assert_type(Quantity(1, 'm').isclose(array_q), Array)
 
 
 def array_alias(q: Quantity[Array]) -> Quantity[Array]:
@@ -75,8 +82,7 @@ def array_alias(q: Quantity[Array]) -> Quantity[Array]:
 def mutation_contracts(a: npt.NDArray[np.float64], scalar: np.float64) -> None:
     q = Quantity(a, 'm')
     widened = array_alias(q)
-    # Element writes never replace the object or dtype held by either alias.
-    widened[0] = Quantity(100, 'cm')
+    # The ndarray receiver supports writes; the broader Array also includes scalars.
     q[:] = Quantity(a, 'cm')
     assert_type(q.value, npt.NDArray[np.float64])
     q += Quantity(1, 'm')

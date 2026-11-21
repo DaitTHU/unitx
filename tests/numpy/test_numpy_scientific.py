@@ -83,7 +83,7 @@ def test_numpy_complex_component_invalid_point(operation: Callable[..., Any], po
         operation(point)
 
 
-@pytest.mark.parametrize('dtype', [int, float, complex, np.float32])
+@pytest.mark.parametrize('dtype', [int, float, complex, np.float32, np.dtype(np.float32)])
 @pytest.mark.parametrize('value', [np.array([1, 2], dtype=np.int16), np.float32(2)])
 def test_quantity_astype_numpy(value: Any, dtype: Any) -> None:
     q = Quantity(value, Factor(2) * pi * Unit('cm'))

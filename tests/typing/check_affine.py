@@ -11,6 +11,8 @@ from unitx.si import si
 
 point = AffineQuantity(Decimal('20'), 'degC')
 assert_type(point, AffineQuantity[Decimal])
+assert_type(point.isclose(point), bool)
+assert_type(point.isclose(point, abs_tol=1 * si.K), bool)
 assert_type(point.unit, AffineUnit)
 assert_type(point.unit.delta_unit, Unit)
 assert_type(point.to('K'), AffineQuantity[Decimal])

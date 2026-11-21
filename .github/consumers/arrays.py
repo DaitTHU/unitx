@@ -587,15 +587,15 @@ def check_calculus_types(values: NDArray[np.float64]) -> None:
     signal = 2 * Quantity(values, si.A)
     assert_type(coordinate.to(si.ms), Quantity[NDArray[np.float64] | np.float64])
     assert_type(signal * coordinate, Quantity[NDArray[np.float64] | np.float64])
-    weights = cast(Quantity[Array], np.gradient(coordinate, axis=0))
+    weights = unp.gradient(coordinate, axis=0)
     weights[[0, -1]] /= 2
-    integral = cast(Quantity[Array], np.trapezoid(signal, coordinate))
+    integral = unp.trapezoid(signal, coordinate)
     assert np.sum(signal * weights).isclose(integral)
     points = AffineQuantity(values, si.degC)
     increments = cast(Quantity[Array], np.diff(points))
     assert increments.unit == si.degC.delta_unit
     assert np.diff(points, n=0) is points
-    rate = cast(Quantity[Array], np.gradient(points, coordinate, axis=0))
+    rate = unp.gradient(points, coordinate, axis=0)
     np.testing.assert_allclose(rate.value, 1)
     levels = LogQuantity(values, si.dBm)
     differences = cast(Quantity[Array], np.diff(levels))
@@ -658,6 +658,11 @@ check_complex_field(np.linspace(-1, 1, 5))
 
 def check_shape_axes(values: NDArray[np.float64]) -> None:
     q = Quantity(values.reshape(2, 1, 4), si.m)
+    assert (q + q).shape == (2, 1, 4)
+    assert q.T.shape == (4, 1, 2)
+    counts = q.astype(int)
+    assert_type(counts, Quantity[NDArray[np.intp]])
+    assert counts.shape == q.shape and counts.dtype == np.dtype(int)
     permuted = q.transpose(2, 0, 1).squeeze(-1)
     assert_type(permuted, Quantity[NDArray[np.float64]])
     assert np.shares_memory(permuted.value, values)
@@ -667,6 +672,8 @@ def check_shape_axes(values: NDArray[np.float64]) -> None:
         AffineQuantity(values.reshape(2, 1, 4), si.degC),
         LogQuantity(values.reshape(2, 1, 4), si.dBm),
     ):
+        assert point.T.shape == (4, 1, 2)
+        assert np.shares_memory(point.T.value, values)
         transformed = point.transpose((2, 0, 1)).squeeze(axis=-1)
         assert type(transformed) is type(point) and transformed.unit is point.unit
         np.testing.assert_array_equal(transformed.value, values.reshape(2, 4).T)
@@ -689,6 +696,40 @@ def check_reduction_methods(values: NDArray[np.float64], target: NDArray[np.floa
 
 
 check_reduction_methods(np.array([1.0, 2.0, 3.0]), np.array(0.0))
+
+
+def check_filtered_readings(values: NDArray[np.float64]) -> None:
+    distances = values * si.m
+    mask = (50 * si.cm <= distances) & (distances < 3 * si.m)
+    assert mask.any() and not mask.all()
+    selected = distances[mask]
+    assert_type(selected, Quantity[NDArray[np.float64]])
+    total = selected.sum().to(si.cm)
+    assert_type(total, Quantity[np.float64])
+    assert total.value == 300
+    at_one_metre = (100 * si.cm).isclose(distances)
+    assert_type(at_one_metre, NDArray[np.bool_] | np.bool_)
+    assert distances[at_one_metre].sum().value == 1
+
+    temperatures = values @ si.degC
+    warm = temperatures[(temperatures > 0 @ si.degC) & (temperatures < 3 @ si.degC)]
+    assert_type(warm, AffineQuantity[NDArray[np.float64]])
+    kelvin = warm.mean().to(si.K)
+    assert_type(kelvin, AffineQuantity[np.float64])
+    np.testing.assert_allclose(kelvin.value, 274.65)
+    within_tolerance = (1 @ si.degC).isclose(2 @ si.degC, abs_tol=values * si.K)
+    assert_type(within_tolerance, NDArray[np.bool_] | np.bool_)
+    assert temperatures[within_tolerance].mean().value == 2
+
+    levels = values @ si.dBm
+    selected_levels = levels[(levels > 0 @ si.dBm) & (levels < 3 @ si.dBm)]
+    assert_type(selected_levels, LogQuantity[NDArray[np.float64]])
+    mean_level = selected_levels.mean().to(si.dBW)
+    assert_type(mean_level, LogQuantity[np.float64])
+    np.testing.assert_allclose(mean_level.value, -28.5)
+
+
+check_filtered_readings(np.arange(4.0))
 
 # Explicit typed entries retain units and concrete allocation/derivative arrays.
 

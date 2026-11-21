@@ -138,13 +138,17 @@ at runtime; they are annotations, not runtime type validators. Private
 `_numerics` imports are implementation details; use this public entry or concrete
 `numpy.typing.NDArray` annotations in consumers. Array is an input capability protocol, not a guarantee
 of other backend support. Construction and unit-only operators preserve
-Quantity[T], as does `.T`. For a known NumPy floating or complex dtype S,
+`Quantity[T]`. Transpose retains the dtype and can change the shape.
+For a known NumPy floating or complex dtype S,
 linear conversion, `n`, unary signs, same-dtype array arithmetic, multiplication
 and division by Python real scalars, and real Python scalar powers retain
 `Quantity[NDArray[S] | S]`. Sum and mean retain this dtype when dtype/out are
 omitted. A complete `sum()` or `mean()` with `axis=None` and `keepdims=False`
 returns the corresponding NumPy scalar type. Its `n`, `value_in()` and `to()`
-also preserve that scalar type for known floating/complex dtypes.
+also preserve that scalar type for known floating/complex dtypes. With the
+default dtype, summing signed or unsigned integers up to 32 bits uses `intp`
+or `uintp`, respectively, and 64-bit integers retain their dtype.
+The default mean of integer measurements or point readings uses float64.
 Indexing and iteration retain known numeric dtypes, including integers.
 Shape/copy methods retain a known ndarray dtype without retaining its shape.
 Other numerical paths use `Quantity[NDArray[Any] | numpy.number[Any]]`, including
@@ -163,7 +167,10 @@ NumPy diff and gradient functions also return differences. Point sums remain
 undefined. `.dtype` exposes
 a NumPy dtype. Possible zero-dimensional-array to NumPy-scalar results remain
 in the result union.
-Boolean comparisons and isclose retain the NumPy-independent Array protocol.
+Array comparisons produce NumPy boolean masks. So does `.isclose()` when either
+operand or a tolerance has a concrete NumPy array or scalar type. These masks
+support `&`, `|`, `~`, `.any()`, `.all()` and direct indexing.
+An array annotation of unknown rank permits a NumPy boolean scalar result.
 
 ### Fewer conversions in scientific formulas
 
@@ -178,10 +185,13 @@ The result still includes the possible NumPy scalar because zero-dimensional
 array arithmetic can remove the array container.
 
 A slice, boolean index, ellipsis or new axis retains an ndarray result and its
-numeric dtype. This includes tuples whose first component is one of those
-indices, such as `q[:, 0, 0]` and `q[mask, 0]`. Other tuple patterns, integer
-indices and integer-array indices keep an array/scalar union. In particular,
-a zero-dimensional integer index can select a scalar; an empty tuple can too.
+numeric dtype. Inference recognizes these selectors at either end of a tuple
+and after a leading integer, as in `q[:, 0, 0]`, `q[0, mask]` and `q[0, :, 0]`.
+`q[0, ...]` on a vector returns a zero-dimensional ndarray.
+An all-integer tuple may select a scalar or a subarray depending on the input
+rank. An empty tuple or a zero-dimensional integer index can also select a scalar.
+Indexed assignment requires ndarray storage. NumPy scalar magnitudes support
+reading and reject indexed writes.
 These distinctions follow [NumPy indexing](https://numpy.org/doc/stable/user/basics.indexing.html).
 
 ```python
@@ -192,21 +202,25 @@ from unitx import Quantity
 from unitx.si import si
 
 
-def inspect_spectrum(values: NDArray[np.float64], mask: NDArray[np.bool_]) -> None:
+def inspect_spectrum(values: NDArray[np.float64]) -> None:
     spectrum = Quantity(values, si.J)
-    assert_type(spectrum[mask], Quantity[NDArray[np.float64]])
+    mask = (500 * si.mJ <= spectrum) & (spectrum < 2 * si.J)
+    selected = spectrum[mask]
+    assert_type(selected, Quantity[NDArray[np.float64]])
+    assert_type(selected.sum().to(si.mJ), Quantity[np.float64])
     assert_type(spectrum[:], Quantity[NDArray[np.float64]])
     assert_type(1j * spectrum, Quantity[NDArray[np.complex128] | np.complex128])
     assert_type(spectrum.sum(), Quantity[np.float64])
     assert_type(spectrum.sum().value_in(si.mJ), np.float64)
 ```
 
-When a numerical conversion is required, `q.astype(float)` and
-`q.astype(complex)` infer float64 and complex128 for NumPy magnitudes, retaining
-the ndarray or NumPy-scalar container. Explicit NumPy scalar dtype classes such
-as `np.float32` also retain the requested type. There is no need to convert
-again to repair their annotations. Built-in scalar `astype` keeps its existing
-Python return types.
+When a numerical conversion is required, `q.astype(int)`, `q.astype(float)`
+and `q.astype(complex)` infer NumPy's platform integer (`np.intp`), float64
+and complex128 respectively. An ndarray stays an ndarray and a NumPy scalar
+stays a scalar. Both `q.astype(np.float32)` and `q.astype(np.dtype(np.float32))`
+infer the requested dtype. String dtype codes retain the array or scalar
+container with a statically unknown dtype. On a Python scalar, `q.astype(int)` returns a
+`Quantity[int]`.
 
 Keep a model's promised array shape in its public fields and return types.
 An annotation such as `NDArray[np.float64]` does not prove a nonzero rank, so
@@ -351,10 +365,14 @@ The explicit entry supplies signatures that upstream NumPy functions cannot
 infer from arbitrary dispatch. Integration requires linear Quantity samples;
 gradient and allocation also accept affine/log points. Bare-only computations
 continue to use NumPy. Known same-dtype floating/complex integration retains its
-numeric domain and the possible scalar result. An explicit single gradient axis
-returns a Quantity wrapping an ndarray; an unknown number of axes can return a
-tuple. Like allocations return ndarrays even for NumPy scalar templates, retain
-the coordinate family and preserve known template dtypes unless overridden.
+numeric domain and the possible scalar result. A NumPy float64 spacing can
+promote float32 samples. Gradient accepts point readings as one-dimensional
+coordinates. With `axis=0` or `axis=(0,)` it returns one Quantity, with two or
+more selected axes it returns a tuple, and with `axis=()` it returns an empty
+tuple. An unknown number of axes keeps both possible result forms.
+Like allocations return ndarrays even for supported Python or NumPy scalar
+templates. They retain the coordinate family and infer a known template or
+explicit numeric dtype.
 They preserve the complete unit; `ones_like` is one stored reading, not a
 coherent dimensionless mathematical constant.
 
@@ -444,8 +462,10 @@ not establish that annotations were packaged correctly.
 
 ### Native array methods and metadata
 
-Quantity and point `dtype` and `shape` properties retain the magnitude's declared
-metadata types. `flatten`, `ravel` and `copy` retain a known NumPy dtype, including
+Quantity and point `shape` retain a declared ndarray shape. A NumPy scalar
+has shape `tuple[()]`, and a result that could be either an array of unknown
+rank or a scalar has shape `tuple[int, ...]`. The `dtype` property preserves
+the magnitude's dtype. `flatten`, `ravel` and `copy` retain a known NumPy dtype, including
 when the input magnitude is a NumPy scalar. These annotations do not change
 array storage or coerce magnitudes.
 

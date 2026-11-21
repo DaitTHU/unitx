@@ -30,11 +30,10 @@ from ._numerics.numpy_typing import (
     HasDType,
     HasImag,
     HasReal,
-    HasShape,
     NumpyArray,
     NumpyValue,
     WritableArray,
-    _ArrayLeadingIndex,
+    _ArrayResultIndex,
     _Axis,
     _Complex64,
     _Complex128,
@@ -43,16 +42,25 @@ from ._numerics.numpy_typing import (
     _Float32,
     _Float64,
     _FloatingScalar,
+    _HasTranspose,
     _InexactScalar,
     _IntegerScalar,
+    _Intp,
+    _MaskOperand,
     _NumpyArrayOf,
+    _NumpyDTypeOf,
+    _NumpyMask,
     _NumpyNumber,
     _NumpyScalar,
     _NumpyValueOf,
     _Shape,
-    _ShapeType,
+    _ShapeProperty,
+    _SumScalar,
+    _SumToIntp,
+    _SumToUintp,
     _TypedArray,
     _TypedScalar,
+    _Uintp,
 )
 from ._operands import _LinearUnitSource, _Point
 from .dimension import Dimension
@@ -72,6 +80,8 @@ _NegativeIntegerPower: TypeAlias = Literal[
 
 if TYPE_CHECKING:
     from ._coordinates.logarithms import LogKind
+    from .affinequantity import AffineQuantity
+    from .logquantity import LogQuantity
 
 def _is_quantity(value: object) -> TypeGuard[Quantity[Magnitude]]: ...
 def _is_nonfinite_real(value: object) -> bool: ...
@@ -278,6 +288,17 @@ class Quantity(Generic[T]):
     def compact(self: Quantity[Scalar]) -> Quantity[Scalar]: ...
     @overload
     def compact(self) -> Quantity[Magnitude]: ...
+    # Python types int as compatible with float and complex; NumPy casts them separately.
+    @overload
+    def astype(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[_TypedArray[_NumpyScalar]], dtype: type[int], /
+    ) -> Quantity[_NumpyArrayOf[_Intp]]: ...
+    @overload
+    def astype(  # pyright: ignore[reportOverlappingOverload]
+        self: Quantity[_TypedScalar[_NumpyScalar]], dtype: type[int], /
+    ) -> Quantity[_Intp]: ...
+    @overload
+    def astype(self: Quantity[Array], dtype: type[int], /) -> Quantity[_NumpyValueOf[_Intp]]: ...
     @overload
     def astype(  # pyright: ignore[reportOverlappingOverload]
         self: Quantity[_TypedArray[_NumpyScalar]], dtype: type[float], /
@@ -304,12 +325,22 @@ class Quantity(Generic[T]):
     ) -> Quantity[_NumpyValueOf[_Complex128]]: ...
     @overload
     def astype[S: _NumpyNumber](
-        self: Quantity[_TypedArray[_NumpyScalar]], dtype: type[S], /
+        self: Quantity[_TypedArray[_NumpyScalar]], dtype: type[S] | _NumpyDTypeOf[S], /
     ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
     def astype[S: _NumpyNumber](
-        self: Quantity[_TypedScalar[_NumpyScalar]], dtype: type[S], /
+        self: Quantity[_TypedScalar[_NumpyScalar]], dtype: type[S] | _NumpyDTypeOf[S], /
     ) -> Quantity[S]: ...
+    @overload
+    def astype[S: _NumpyNumber](
+        self: Quantity[Array], dtype: type[S] | _NumpyDTypeOf[S], /
+    ) -> Quantity[_NumpyValueOf[S]]: ...
+    @overload
+    def astype(self: Quantity[WritableArray], dtype: str, /) -> Quantity[NumpyArray]: ...
+    @overload
+    def astype(
+        self: Quantity[_TypedScalar[_NumpyScalar]], dtype: str, /
+    ) -> Quantity[_NumpyNumber]: ...
     @overload
     def astype(self: Quantity[Array], dtype: object, /) -> Quantity[NumpyValue]: ...
     @overload
@@ -336,70 +367,23 @@ class Quantity(Generic[T]):
         if isinstance(other, _Point): ...
 
     @overload
-    def __eq__(self: Quantity[Array], other: object, /) -> Array: ...
+    def __eq__(self: Quantity[Array], other: object, /) -> _NumpyMask: ...
     @overload
     def __eq__(  # pyright: ignore[reportOverlappingOverload]
         self, other: Quantity[Array] | Array, /
-    ) -> Array: ...
+    ) -> _NumpyMask: ...
     @overload
     def __eq__(self: Quantity[Scalar], other: object, /) -> bool: ...
     @overload
-    def __eq__(self, other: object, /) -> bool | Array: ...
-    @overload
-    def __ne__(self: Quantity[Array], other: object, /) -> Array: ...
-    @overload
-    def __ne__(  # pyright: ignore[reportOverlappingOverload]
-        self, other: Quantity[Array] | Array, /
-    ) -> Array: ...
-    @overload
-    def __ne__(self: Quantity[Scalar], other: object, /) -> bool: ...
-    @overload
-    def __ne__(self, other: object, /) -> bool | Array: ...
+    def __eq__(self, other: object, /) -> bool | _NumpyMask: ...
+    # All six comparisons have the same operand and mask types.
+    __ne__ = __lt__ = __le__ = __gt__ = __ge__ = __eq__
+
     def __hash__(self) -> int: ...
     def _compare(self, other: object, op: Callable[[Any, Any], bool]) -> bool:
 
         if isinstance(other, _Point): ...
 
-    @overload
-    def __lt__(self: Quantity[Array], other: object, /) -> Array: ...
-    @overload
-    def __lt__(  # pyright: ignore[reportOverlappingOverload]
-        self, other: Quantity[Array] | Array, /
-    ) -> Array: ...
-    @overload
-    def __lt__(self: Quantity[Scalar], other: object, /) -> bool: ...
-    @overload
-    def __lt__(self, other: object, /) -> bool | Array: ...
-    @overload
-    def __le__(self: Quantity[Array], other: object, /) -> Array: ...
-    @overload
-    def __le__(  # pyright: ignore[reportOverlappingOverload]
-        self, other: Quantity[Array] | Array, /
-    ) -> Array: ...
-    @overload
-    def __le__(self: Quantity[Scalar], other: object, /) -> bool: ...
-    @overload
-    def __le__(self, other: object, /) -> bool | Array: ...
-    @overload
-    def __gt__(self: Quantity[Array], other: object, /) -> Array: ...
-    @overload
-    def __gt__(  # pyright: ignore[reportOverlappingOverload]
-        self, other: Quantity[Array] | Array, /
-    ) -> Array: ...
-    @overload
-    def __gt__(self: Quantity[Scalar], other: object, /) -> bool: ...
-    @overload
-    def __gt__(self, other: object, /) -> bool | Array: ...
-    @overload
-    def __ge__(self: Quantity[Array], other: object, /) -> Array: ...
-    @overload
-    def __ge__(  # pyright: ignore[reportOverlappingOverload]
-        self, other: Quantity[Array] | Array, /
-    ) -> Array: ...
-    @overload
-    def __ge__(self: Quantity[Scalar], other: object, /) -> bool: ...
-    @overload
-    def __ge__(self, other: object, /) -> bool | Array: ...
     def _value_for_isclose(self) -> Fraction | float: ...
     @overload
     def isclose(
@@ -409,7 +393,34 @@ class Quantity(Generic[T]):
         *,
         rel_tol: object = 1e-9,
         abs_tol: object = 0,
-    ) -> Array: ...
+    ) -> _NumpyMask: ...
+    @overload
+    def isclose[Mask: Array](
+        self,
+        other: Quantity[_MaskOperand[Mask]] | _MaskOperand[Mask],
+        /,
+        *,
+        rel_tol: object = 1e-9,
+        abs_tol: object = 0,
+    ) -> Mask: ...
+    @overload
+    def isclose[Mask: Array](
+        self,
+        other: object,
+        /,
+        *,
+        rel_tol: _MaskOperand[Mask] | Quantity[_MaskOperand[Mask]],
+        abs_tol: object = 0,
+    ) -> Mask: ...
+    @overload
+    def isclose[Mask: Array](
+        self,
+        other: object,
+        /,
+        *,
+        rel_tol: object = 1e-9,
+        abs_tol: _MaskOperand[Mask] | Quantity[_MaskOperand[Mask]],
+    ) -> Mask: ...
     @overload
     def isclose(
         self,
@@ -474,6 +485,24 @@ class Quantity(Generic[T]):
 
         if isinstance(other, _Point): ...
 
+    @overload
+    def __add__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: AffineQuantity[_DTypeValue[_FloatingScalar]],
+        /,
+    ) -> AffineQuantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __add__(
+        self: Quantity[Array], other: AffineQuantity[Array], /
+    ) -> AffineQuantity[NumpyValue]: ...
+    @overload
+    def __add__(
+        self: Quantity[_DTypeValue[_FloatingScalar]],
+        other: LogQuantity[_DTypeValue[_FloatingScalar]],
+        /,
+    ) -> LogQuantity[_NumpyValueOf[_FloatingScalar]]: ...
+    @overload
+    def __add__(self: Quantity[Array], other: LogQuantity[Array], /) -> LogQuantity[NumpyValue]: ...
     @overload
     def __add__[P: _Point[Any]](self, other: _Point[P], /) -> P: ...
     @overload
@@ -1483,23 +1512,23 @@ class Quantity(Generic[T]):
         self, func: Any, types: tuple[type, ...], args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any: ...
     def _array_value(self) -> Any: ...
+    @_ShapeProperty
+    def shape(self) -> tuple[int, ...]: ...
     @property
-    def shape(self: Quantity[HasShape[_ShapeType]]) -> _ShapeType: ...
+    def ndim(self: Quantity[Array]) -> int: ...
     @property
-    def ndim(self) -> int: ...
-    @property
-    def size(self) -> int: ...
+    def size(self: Quantity[Array]) -> int: ...
     @property
     def dtype[D](self: Quantity[HasDType[D]]) -> D: ...
     @property
-    def T[A: Array](self: Quantity[A]) -> Quantity[A]: ...
+    def T[R](self: _HasTranspose[R]) -> R: ...
     @property
     def real[A: Array](self: Quantity[HasReal[A]]) -> Quantity[A]: ...
     @property
     def imag[A: Array](self: Quantity[HasImag[A]]) -> Quantity[A]: ...
     @overload
     def __getitem__[S: _NumpyNumber](
-        self: Quantity[_DTypeValue[S]], key: _ArrayLeadingIndex
+        self: Quantity[_DTypeValue[S]], key: _ArrayResultIndex
     ) -> Quantity[_NumpyArrayOf[S]]: ...
     @overload
     def __getitem__[S: _NumpyNumber](
@@ -1508,7 +1537,7 @@ class Quantity(Generic[T]):
     @overload
     def __getitem__(self: Quantity[Array], key: Any) -> Quantity[NumpyValue]: ...
     def __setitem__(
-        self: Quantity[Array], key: Any, value: Quantity[Magnitude] | Magnitude
+        self: Quantity[WritableArray], key: Any, value: Quantity[Magnitude] | Magnitude
     ) -> None: ...
     def __len__(self: Quantity[Array]) -> int: ...
     @overload
@@ -1525,6 +1554,10 @@ class Quantity(Generic[T]):
     def transpose[S: _NumpyNumber](
         self: Quantity[_TypedScalar[S]], axes: _Axis = None, /, *more_axes: SupportsIndex
     ) -> Quantity[S]: ...
+    @overload
+    def transpose[S: _NumpyNumber](
+        self: Quantity[_DTypeValue[S]], axes: _Axis = None, /, *more_axes: SupportsIndex
+    ) -> Quantity[_NumpyValueOf[S]]: ...
     @overload
     def transpose(
         self: Quantity[Array], axes: _Axis = None, /, *more_axes: SupportsIndex
@@ -1579,7 +1612,7 @@ class Quantity(Generic[T]):
     ) -> Quantity[NumpyArray]: ...
     @overload
     def sum(
-        self: Quantity[_DTypeValue[_InexactScalar]],
+        self: Quantity[_DTypeValue[_SumScalar]],
         axis: None = None,
         dtype: None = None,
         out: None = None,
@@ -1587,10 +1620,10 @@ class Quantity(Generic[T]):
         *,
         where: object = True,
         initial: object = 0,
-    ) -> Quantity[_InexactScalar]: ...
+    ) -> Quantity[_SumScalar]: ...
     @overload
     def sum(
-        self: Quantity[_DTypeValue[_InexactScalar]],
+        self: Quantity[_DTypeValue[_SumScalar]],
         axis: _Axis = None,
         dtype: None = None,
         out: None = None,
@@ -1598,7 +1631,73 @@ class Quantity(Generic[T]):
         *,
         where: object = True,
         initial: object = 0,
-    ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    ) -> Quantity[_NumpyValueOf[_SumScalar]]: ...
+    @overload
+    def sum(
+        self: Quantity[_DTypeValue[_SumToIntp]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[_Intp]: ...
+    @overload
+    def sum(
+        self: Quantity[_DTypeValue[_SumToIntp]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[_NumpyValueOf[_Intp]]: ...
+    @overload
+    def sum(
+        self: Quantity[_DTypeValue[_SumToUintp]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[_Uintp]: ...
+    @overload
+    def sum(
+        self: Quantity[_DTypeValue[_SumToUintp]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[_NumpyValueOf[_Uintp]]: ...
+    @overload
+    def sum[S: _NumpyNumber](
+        self: Quantity[Array],
+        axis: None = None,
+        *,
+        dtype: type[S] | _NumpyDTypeOf[S],
+        out: None = None,
+        keepdims: Literal[False] = False,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[S]: ...
+    @overload
+    def sum[S: _NumpyNumber](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        *,
+        dtype: type[S] | _NumpyDTypeOf[S],
+        out: None = None,
+        keepdims: bool = False,
+        where: object = True,
+        initial: object = 0,
+    ) -> Quantity[_NumpyValueOf[S]]: ...
     @overload
     def sum(
         self: Quantity[Array],
@@ -1652,6 +1751,46 @@ class Quantity(Generic[T]):
         *,
         where: object = True,
     ) -> Quantity[_NumpyValueOf[_InexactScalar]]: ...
+    @overload
+    def mean(
+        self: Quantity[_DTypeValue[_IntegerScalar]],
+        axis: None = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: Literal[False] = False,
+        *,
+        where: object = True,
+    ) -> Quantity[_Float64]: ...
+    @overload
+    def mean(
+        self: Quantity[_DTypeValue[_IntegerScalar]],
+        axis: _Axis = None,
+        dtype: None = None,
+        out: None = None,
+        keepdims: bool = False,
+        *,
+        where: object = True,
+    ) -> Quantity[_NumpyValueOf[_Float64]]: ...
+    @overload
+    def mean[S: _NumpyNumber](
+        self: Quantity[Array],
+        axis: None = None,
+        *,
+        dtype: type[S] | _NumpyDTypeOf[S],
+        out: None = None,
+        keepdims: Literal[False] = False,
+        where: object = True,
+    ) -> Quantity[S]: ...
+    @overload
+    def mean[S: _NumpyNumber](
+        self: Quantity[Array],
+        axis: _Axis = None,
+        *,
+        dtype: type[S] | _NumpyDTypeOf[S],
+        out: None = None,
+        keepdims: bool = False,
+        where: object = True,
+    ) -> Quantity[_NumpyValueOf[S]]: ...
     @overload
     def mean(
         self: Quantity[Array],
