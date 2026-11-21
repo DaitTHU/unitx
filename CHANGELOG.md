@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-11-21
+
+### Fixed
+
+- Preserve Python complex magnitudes in both `unit * value` and `value * unit`.
+- Compare scalar coordinate readings with an absolute difference tolerance
+  across reference origins, including Decimal and Fraction readings.
+- Correct NumPy typing for `astype(int)`, shape metadata, comparison masks,
+  point-array indexing and reductions. The six `unitx.numpy` entries now infer
+  more specific allocation, integration and gradient results.
+
 ## [0.19.0] - 2026-11-17
 
 ### Changed
