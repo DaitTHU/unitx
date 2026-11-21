@@ -51,7 +51,8 @@ with the reciprocal unit. Construction preserves the original magnitude and
 its type.
 
 Multiplication is symmetric: `unit * value` and `value * unit` both construct
-`Quantity` objects and preserve the magnitude's type. Dividing a unit by an
+`Quantity` objects and preserve the magnitude's type, including for Python
+complex values such as `si.V * (1 + 2j)`. Dividing a unit by an
 `int`, `Fraction`, or finite `Decimal` constructs a quantity with an exact
 `Fraction` reciprocal, so `degree / 60` loses no precision. Float divisors use
 native floating-point division without Factor's denominator limit. Python

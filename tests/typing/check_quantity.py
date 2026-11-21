@@ -52,6 +52,7 @@ def test_unit_numeric_construction() -> None:
     assert_type(Fraction(2) * unit, Quantity[Fraction])
     assert_type(Fraction(2) / unit, Quantity[Fraction])
     assert_type(2j * unit, Quantity[complex])
+    assert_type(unit * 2j, Quantity[complex])
     assert_type(2j / unit, Quantity[complex])
     assert_type(_Magnitude(2) * unit, Quantity[_Magnitude])
     assert_type(_Magnitude(2) / unit, Quantity[_Magnitude])

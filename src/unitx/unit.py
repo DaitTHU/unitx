@@ -56,7 +56,7 @@ class Unit(_Immutable):
     consistently with Monomial, Dimension, and Factor. Use Fraction for an
     exact rational such as one third.
 
-    Multiplying a Unit by an int, Fraction, Decimal, or float constructs a
+    Multiplying a Unit by an int, Fraction, Decimal, float, or complex constructs a
     Quantity, just as multiplying the magnitude by the Unit does. Construction
     preserves the magnitude and its type. Dividing a magnitude by a Unit also
     preserves it and uses the reciprocal unit. Dividing a Unit by an int,
@@ -344,7 +344,7 @@ class Unit(_Immutable):
     def __mul__[A: Array](self, other: A) -> Quantity[A]: ...
 
     @overload
-    def __mul__[T: Fractionable](self, other: T) -> Quantity[T]: ...
+    def __mul__[T: Fractionable | complex](self, other: T) -> Quantity[T]: ...
 
     @overload
     def __mul__(self, other: SymbolicConstant | Factor) -> Unit: ...
@@ -358,7 +358,7 @@ class Unit(_Immutable):
 
         if is_numpy_object(other):
             return Quantity(cast(Array, other), self)
-        if isinstance(other, Fractionable):
+        if isinstance(other, Fractionable | complex):
             return Quantity(other, self)
         if isinstance(other, SymbolicConstant | Factor):
             scale = other if isinstance(other, Factor) else Factor(other)

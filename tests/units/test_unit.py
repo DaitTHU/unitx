@@ -113,12 +113,15 @@ def test_unit_quantity_construction(
     with localcontext() as context:
         context.prec = 2
         product = value * unit
+        unit_first = unit * value
         quotient = value / unit
     assert isinstance(product, Quantity)
     assert isinstance(quotient, Quantity)
     assert product.value is value
+    assert unit_first.value is value
     assert quotient.value is value
     assert product.unit is unit
+    assert unit_first.unit is unit
     assert quotient.unit == reciprocal
 
 
@@ -548,13 +551,19 @@ def test_unit_invalid_syntax() -> None:
         Unit('m/')
 
 
-@pytest.mark.parametrize('value', [None, 2j, object()])
-def test_unit_invalid_operands(value: object) -> None:
-    unit = Unit('m')
+@pytest.mark.parametrize('unit', [Unit('m'), Factor(2) * Unit('m')])
+@pytest.mark.parametrize('value', [None, object()])
+def test_unit_invalid_operands(unit: Unit, value: object) -> None:
     with pytest.raises(TypeError, match='unsupported operand'):
         unit * value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
     with pytest.raises(TypeError, match='unsupported operand'):
         unit / value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
+
+
+@pytest.mark.parametrize('unit', [Unit('m'), Factor(2) * Unit('m')])
+def test_unit_invalid_complex_divisor(unit: Unit) -> None:
+    with pytest.raises(TypeError, match='unsupported operand'):
+        unit / 2j  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
 
 
 @pytest.mark.parametrize('unit', [Unit('m'), Unit('m', scale=Factor(2))])
@@ -797,15 +806,6 @@ def test_unit_scale_invalid_base(base: object) -> None:
 def test_unit_scale_invalid_scale(scale: object) -> None:
     with pytest.raises(TypeError, match='Unit scale must be Factor or SymbolicConstant'):
         Unit(Unit('m'), scale=scale)  # pyright: ignore[reportArgumentType]
-
-
-@pytest.mark.parametrize('value', [None, 2j, object()])
-def test_unit_scale_invalid_operands(value: object) -> None:
-    unit = Factor(2) * Unit('m')
-    with pytest.raises(TypeError, match='unsupported operand'):
-        unit * value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
-    with pytest.raises(TypeError, match='unsupported operand'):
-        unit / value  # pyright: ignore[reportUnusedExpression, reportOperatorIssue]
 
 
 @pytest.mark.parametrize('value', [None, '1/2'])
