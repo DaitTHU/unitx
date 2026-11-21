@@ -8,7 +8,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any
 
-from .._numerics import is_numpy_object
+from .._numerics import Fractionable, is_numpy_object
 from .._numerics.scaling import _finite
 from .._numerics.scaling import affine_value as _affine
 from .._operands import _Point
@@ -120,36 +120,41 @@ def _isclose(left: Any, right: Any, rel_tol: Any, abs_tol: Any, *, equal_nan: bo
         )
         raise ValueError(error_message)
     if isinstance(abs_tol, Quantity):
-        tolerance = convert(abs_tol.value, abs_tol.unit, unit.delta_unit)
+        if abs_tol.dimension != unit.delta_unit.dimension:
+            error_message = 'Absolute tolerance must match the dimension of the point difference.'
+            raise DimensionError(error_message)
+        tolerance = abs_tol.value
     elif is_numpy_object(abs_tol):
         from .._numerics.numpy import zero_tolerance
 
         zero_tolerance(abs_tol)
         tolerance = abs_tol
-    elif isinstance(abs_tol, (int, float, Fraction, Decimal)) and abs_tol == 0:
+    elif isinstance(abs_tol, Fractionable) and abs_tol == 0:
         tolerance = 0
     else:
         error_message = 'Absolute tolerance must be a Quantity difference or real zero.'
         raise TypeError(error_message)
-    if not is_numpy_object(tolerance) and not isinstance(
-        tolerance, (int, float, Fraction, Decimal)
-    ):
+    if not is_numpy_object(tolerance) and not isinstance(tolerance, Fractionable):
         error_message = 'Absolute tolerance must be real.'
         raise TypeError(error_message)
-    if not is_numpy_object(tolerance) and tolerance == 0:
-        if not any(is_numpy_object(x) for x in (left.value, right.value, rel_tol)):
-            return _compare(left, right, operator.eq)
-    a = convert(left.value, left.unit, unit)
-    b = convert(right.value, right.unit, unit)
+    a, b = left.value, right.value
     if any(is_numpy_object(x) for x in (a, b, tolerance, rel_tol)):
         from .._numerics.numpy import affine_close_magnitude
 
-        return affine_close_magnitude(a, b, tolerance, rel_tol, equal_nan=equal_nan)
+        if isinstance(abs_tol, Quantity):
+            tolerance = convert(tolerance, abs_tol.unit, unit.delta_unit)
+        return affine_close_magnitude(
+            a, convert(b, right.unit, unit), tolerance, rel_tol, equal_nan=equal_nan
+        )
     if not _finite(tolerance) or tolerance < 0:
         error_message = 'Absolute tolerance must be finite and nonnegative.'
         raise ValueError(error_message)
-    if a == b:
-        return True
+    if tolerance == 0:
+        return _compare(left, right, operator.eq)
     if not _finite(a) or not _finite(b):
-        return equal_nan and math.isnan(a) and math.isnan(b)
-    return abs(a - b) <= tolerance
+        return a == b or (equal_nan and math.isnan(a) and math.isnan(b))
+    # Express both readings as differences from the right-hand coordinate origin.
+    origin = convert(0, right.unit, unit)
+    left_delta = Quantity(Fraction(a) - Fraction(origin), unit.delta_unit)
+    right_delta = Quantity(b, right.unit.delta_unit)
+    return left_delta.isclose(right_delta, rel_tol=0, abs_tol=abs_tol)

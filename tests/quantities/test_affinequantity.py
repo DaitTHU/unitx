@@ -6,7 +6,7 @@ import copy
 import operator
 import pickle
 from collections.abc import Callable
-from decimal import Decimal, localcontext
+from decimal import Decimal, Inexact, localcontext
 from fractions import Fraction
 
 import pytest
@@ -45,6 +45,34 @@ def test_affine_quantity_zero_origin() -> None:
     approximate = AffineQuantity(-273.15, 'degC')
     assert celsius != approximate
     assert celsius.isclose(approximate, abs_tol=Quantity(1e-12, 'K'))
+
+
+@pytest.mark.parametrize('cold', [20 @ si.degC, Fraction(68) @ imperial.degF])
+def test_affine_quantity_isclose_decimal_offset(cold: AffineQuantity) -> None:
+    warm = Decimal('293.16') @ si.K
+    at_boundary = Decimal('0.018') * imperial.degF
+    just_below = Decimal('0.0179999') * imperial.degF
+    with localcontext() as context:
+        context.prec = 2
+        context.traps[Inexact] = True
+        for a, b in ((warm, cold), (cold, warm)):
+            assert a.isclose(b, abs_tol=at_boundary)
+            assert not a.isclose(b, abs_tol=just_below)
+
+
+def test_log_quantity_isclose_decimal_offset() -> None:
+    high, low = Decimal('10.01') @ si.dBW, 40 @ si.dBm
+    tolerance = Fraction(1, 100) * si.dB
+    assert high.isclose(low, abs_tol=tolerance)
+    assert low.isclose(high, abs_tol=tolerance)
+
+
+def test_affine_quantity_isclose_large_decimal() -> None:
+    magnitude = Decimal('1e1000')
+    radians, degrees = magnitude @ si.rad, magnitude @ si.deg
+    for a, b in ((radians, degrees), (degrees, radians)):
+        assert not a.isclose(b, abs_tol=1 * si.rad)
+        assert a.isclose(b, abs_tol=magnitude * si.rad)
 
 
 def test_affine_quantity_point_delta() -> None:

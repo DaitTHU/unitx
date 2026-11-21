@@ -142,7 +142,9 @@ Decimal/Fraction definitions or a difference tolerance where appropriate.
 
 `point.isclose(other, rel_tol=0, abs_tol=difference)` uses coordinate differences;
 relative tolerance must be zero. The absolute tolerance is a compatible Quantity
-or real zero. NaNs compare unequal; unsupported exact symbolic sums require an
+or real zero. Scalar Decimal and Fraction readings can be checked against a
+tolerance in another difference unit, including across coordinate origins.
+NaNs compare unequal; unsupported exact symbolic sums require an
 explicit numerical conversion before comparison.
 
 Numeric NumPy arrays/scalars are supported. Comparisons produce masks;
